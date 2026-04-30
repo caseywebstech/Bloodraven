@@ -5425,6 +5425,151 @@ case 'lyric': {
     }
     break;
 }
+case 'play': {
+    try {
+        await socket.sendMessage(sender, { react: { text: '🎶', key: msg.key } });
+
+        const yts = require('yt-search');
+
+        const q = msg.message?.conversation || 
+                  msg.message?.extendedTextMessage?.text || 
+                  msg.message?.imageMessage?.caption || 
+                  msg.message?.videoMessage?.caption || '';
+        
+        const args = q.split(' ').slice(1);
+        const query = args.join(' ').trim();
+
+        if (!query) {
+            return await socket.sendMessage(sender, {
+                text: `🎵 *ᴀᴜᴅɪᴏ ᴘʟᴀʏᴇʀ*\n\nᴘʟᴇᴀsᴇ ᴘʀᴏᴠɪᴅᴇ ᴀ sᴏɴɢ ɴᴀᴍᴇ.\n\n*ᴜsᴀɢᴇ:* \`${prefix}play <song name>\`\n\n*ᴇxᴀᴍᴘʟᴇ:*\n\`${prefix}play Faded\`\n\`${prefix}play Shape of You\`\n\n> ${config.BOT_FOOTER}`,
+                quoted: msg
+            });
+        }
+
+        console.log('[PLAY] Searching YT for:', query);
+        const search = await yts(query);
+        const video = search.videos[0];
+
+        if (!video) {
+            return await socket.sendMessage(sender, {
+                text: `❌ *ɴᴏ ʀᴇsᴜʟᴛs*\n\nɴᴏ sᴏɴɢs ғᴏᴜɴᴅ. ᴛʀʏ ᴅɪғғᴇʀᴇɴᴛ ᴋᴇʏᴡᴏʀᴅs.\n\n> ${config.BOT_FOOTER}`,
+                quoted: msg
+            });
+        }
+
+        // Use Hector's API
+        const apiURL = `https://yt-dl.officialhectormanuel.workers.dev/?url=${encodeURIComponent(video.url)}`;
+        console.log('[PLAY] API URL:', apiURL);
+        
+        const response = await axios.get(apiURL, { timeout: 30000 });
+
+        if (!response.data || !response.data.status || !response.data.audio) {
+            return await socket.sendMessage(sender, {
+                text: `❌ *ᴅᴏᴡɴʟᴏᴀᴅ ғᴀɪʟᴇᴅ*\n\nᴄᴏᴜʟᴅ ɴᴏᴛ ʀᴇᴛʀɪᴇᴠᴇ ᴀᴜᴅɪᴏ. ᴛʀʏ ᴀɢᴀɪɴ ʟᴀᴛᴇʀ.\n\n> ${config.BOT_FOOTER}`,
+                quoted: msg
+            });
+        }
+
+        const audioUrl = response.data.audio;
+        const sessionId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+        // Send selection buttons FIRST before sending audio
+        const caption = `🎧 *${response.data.title || video.title}*\n\n` +
+                       `⏱️ *ᴅᴜʀᴀᴛɪᴏɴ:* ${video.timestamp}\n` +
+                       `👤 *ᴀʀᴛɪsᴛ:* ${video.author?.name || 'Unknown'}\n` +
+                       `👀 *ᴠɪᴇᴡs:* ${video.views.toLocaleString()}\n\n` +
+                       `🔗 *ʏᴏᴜᴛᴜʙᴇ:* ${video.url}\n\n` +
+                       `sᴇʟᴇᴄᴛ ᴅᴏᴡɴʟᴏᴀᴅ ғᴏʀᴍᴀᴛ:\n\n` +
+                       `> ${config.BOT_FOOTER}`;
+
+        const sentMsg = await socket.sendMessage(sender, {
+            image: { url: response.data.thumbnail || video.thumbnail },
+            caption: caption,
+            footer: 'ᴄʜᴏᴏsᴇ ғᴏʀᴍᴀᴛ ʙᴇʟᴏᴡ:',
+            buttons: [
+                {
+                    buttonId: `play-audio-${sessionId}`,
+                    buttonText: { displayText: '🎵 ᴀᴜᴅɪᴏ (ᴘʟᴀʏ)' },
+                    type: 1
+                },
+                {
+                    buttonId: `play-document-${sessionId}`,
+                    buttonText: { displayText: '📁 ᴅᴏᴄᴜᴍᴇɴᴛ (sᴀᴠᴇ)' },
+                    type: 1
+                }
+            ],
+            headerType: 1
+        }, { quoted: msg });
+
+        // Button handler for format selection
+        const buttonHandler = async (messageUpdate) => {
+            try {
+                const messageData = messageUpdate?.messages?.[0];
+                if (!messageData?.message?.buttonsResponseMessage) return;
+
+                const buttonId = messageData.message.buttonsResponseMessage.selectedButtonId;
+                const isReplyToBot = messageData.message.buttonsResponseMessage?.contextInfo?.stanzaId === sentMsg.key.id;
+
+                if (isReplyToBot && buttonId.includes(sessionId)) {
+                    socket.ev.off('messages.upsert', buttonHandler);
+                    await socket.sendMessage(sender, { react: { text: '⏳', key: messageData.key } });
+
+                    try {
+                        const type = buttonId.startsWith(`play-audio-${sessionId}`) ? 'audio' : 'document';
+                        
+                        // Download audio
+                        const audioResponse = await axios.get(audioUrl, {
+                            responseType: 'arraybuffer',
+                            timeout: 30000
+                        });
+                        const audioBuffer = Buffer.from(audioResponse.data);
+                        const fileName = `${(response.data.title || video.title || 'audio').replace(/[<>:"\/\\|?*]+/g, '')}.mp3`;
+
+                        if (type === 'audio') {
+                            await socket.sendMessage(sender, {
+                                audio: audioBuffer,
+                                mimetype: 'audio/mpeg',
+                                fileName: fileName,
+                                ptt: false
+                            }, { quoted: messageData });
+                        } else {
+                            await socket.sendMessage(sender, {
+                                document: audioBuffer,
+                                mimetype: 'audio/mpeg',
+                                fileName: fileName
+                            }, { quoted: messageData });
+                        }
+
+                        await socket.sendMessage(sender, { react: { text: '✅', key: messageData.key } });
+                    } catch (error) {
+                        console.error('[PLAY] Download Error:', error);
+                        await socket.sendMessage(sender, { react: { text: '❌', key: messageData.key } });
+                        await socket.sendMessage(sender, {
+                            text: `❌ Error: ${error.message || 'Download failed'}`
+                        }, { quoted: messageData });
+                    }
+                }
+            } catch (error) {
+                console.error('[PLAY] Button handler error:', error);
+            }
+        };
+
+        socket.ev.on('messages.upsert', buttonHandler);
+
+        setTimeout(() => {
+            socket.ev.off('messages.upsert', buttonHandler);
+        }, 120000);
+
+    } catch (err) {
+        console.error('[PLAY] Error:', err.message);
+        await socket.sendMessage(sender, {
+            text: `❌ *ᴇʀʀᴏʀ*\n\nᴜɴᴀʙʟᴇ ᴛᴏ ᴘʀᴏᴄᴇss ʏᴏᴜʀ ʀᴇǫᴜᴇsᴛ.\n\n> ${config.BOT_FOOTER}`,
+            quoted: msg
+        });
+        await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
+    }
+    break;
+}
   //=====[Song COMMAND]================//
 //=====[Song COMMAND]================//
 
