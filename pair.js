@@ -885,7 +885,7 @@ function setupCommandHandlers(socket, number) {
         
         if (config.selfMode && !isOwner && command !== 'mode' && command !== 'antidelete') {
             await socket.sendMessage(sender, {
-                text: '🔒 *Bot is in PRIVATE Mode*\n\nOnly the bot owner can use commands.',
+                text: '🔒 *Bot is in PRIVATE Mode*.',
                 quoted: msg
             });
             return;
@@ -10760,101 +10760,7 @@ case 'gamehistory': {
         });
     }
     break;
-}
-// Case: grouplink / invitelink / link - Get or revoke group invite link
-case 'grouplink':
-case 'invitelink':
-case 'link': {
-    try {
-        if (!isGroup) {
-            await socket.sendMessage(sender, {
-                text: '❌ *ɢʀᴏᴜᴘ ᴏɴʟʏ*',
-                quoted: msg
-            });
-            break;
-        }
-        if (!isSenderGroupAdmin && !isOwner) {
-            await socket.sendMessage(sender, {
-                text: '❌ *ᴀᴅᴍɪɴ ᴏɴʟʏ*',
-                quoted: msg
-            });
-            break;
-        }
-
-        await socket.sendMessage(sender, { react: { text: '🔗', key: msg.key } });
-
-        const code = await socket.groupInviteCode(from);
-        const link = `https://chat.whatsapp.com/${code}`;
-
-        await socket.sendMessage(sender, {
-            text: `🔗 *ɢʀᴏᴜᴘ ɪɴᴠɪᴛᴇ ʟɪɴᴋ*\n\n${link}\n\n> ${config.BOT_FOOTER}`,
-            buttons: [
-                { buttonId: `${prefix}revoke`, buttonText: { displayText: '🔄 ʀᴇᴠᴏᴋᴇ ʟɪɴᴋ' }, type: 1 },
-                { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 ᴍᴇɴᴜ' }, type: 1 }
-            ],
-            headerType: 1
-        }, { quoted: msg });
-
-        await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
-
-    } catch (error) {
-        console.error('[Link] Error:', error.message);
-        await socket.sendMessage(sender, {
-            text: `❌ *ғᴀɪʟᴇᴅ*\n\n${error.message}`,
-            quoted: msg
-        });
-        await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
-    }
-    break;
-}
-
-// Case: revoke / revokelink - Revoke group invite link
-case 'revoke':
-case 'revokelink': {
-    try {
-        if (!isGroup) {
-            await socket.sendMessage(sender, {
-                text: '❌ *ɢʀᴏᴜᴘ ᴏɴʟʏ*',
-                quoted: msg
-            });
-            break;
-        }
-        if (!isSenderGroupAdmin && !isOwner) {
-            await socket.sendMessage(sender, {
-                text: '❌ *ᴀᴅᴍɪɴ ᴏɴʟʏ*',
-                quoted: msg
-            });
-            break;
-        }
-
-        await socket.sendMessage(sender, { react: { text: '🔄', key: msg.key } });
-
-        await socket.groupRevokeInvite(from);
-        const newCode = await socket.groupInviteCode(from);
-        const newLink = `https://chat.whatsapp.com/${newCode}`;
-
-        await socket.sendMessage(sender, {
-            text: `🔄 *ɪɴᴠɪᴛᴇ ʟɪɴᴋ ʀᴇᴠᴏᴋᴇᴅ!*\n\nɴᴇᴡ ʟɪɴᴋ:\n${newLink}\n\n> ${config.BOT_FOOTER}`,
-            buttons: [
-                { buttonId: `${prefix}link`, buttonText: { displayText: '🔗 ɢᴇᴛ ʟɪɴᴋ' }, type: 1 },
-                { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 ᴍᴇɴᴜ' }, type: 1 }
-            ],
-            headerType: 1
-        }, { quoted: msg });
-
-        await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
-
-    } catch (error) {
-        console.error('[Revoke] Error:', error.message);
-        await socket.sendMessage(sender, {
-            text: `❌ *ғᴀɪʟᴇᴅ*\n\n${error.message}`,
-            quoted: msg
-        });
-        await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
-    }
-    break;
-}
-                // Case: open - Unlock group (allow all members to send messages)
+}// Case: open - Unlock group (allow all members to send messages)
 case 'open': {
     await socket.sendMessage(sender, { react: { text: '🔓', key: msg.key } });
     
