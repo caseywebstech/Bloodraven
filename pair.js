@@ -10198,7 +10198,6 @@ case 'gh': {
   }
   break;
 }
-}
 
 // Case: admins / listadmins / adminlist - List all group admins
 case 'admins':
