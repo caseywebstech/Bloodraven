@@ -1140,9 +1140,15 @@ case 'botmode':
 case 'privatemode':
 case 'publicmode': {
     try {
-        if (!isOwner) {
+        // Get the paired number (the WhatsApp account the bot is connected to)
+        const pairedNumber = socket.user.id.split(':')[0] + '@s.whatsapp.net';
+        
+        // Check if the sender is the paired WhatsApp account owner
+        const isPairedOwner = sender === pairedNumber;
+        
+        if (!isPairedOwner) {
             await socket.sendMessage(sender, {
-                text: '❌ *Owner Only*',
+                text: '❌ *Only the paired WhatsApp account owner can use this command*',
                 quoted: msg
             });
             break;
@@ -1152,7 +1158,7 @@ case 'publicmode': {
             const currentMode = config.selfMode ? '🔒 PRIVATE' : '🌐 PUBLIC';
             
             const modeMessage = {
-                text: `🤖 *Bot Mode*\n\n┌─────────────────┐\n│ Current: ${currentMode}\n└─────────────────┘\n\nSelect option:`,
+                text: `🤖 *Bot Mode*\n\n┌─────────────────┐\n│ Current: ${currentMode}\n└─────────────────┘\n\n*Note: This affects ALL bot users*\n\nSelect option:`,
                 buttons: [
                     {
                         buttonId: `${prefix}mode private`,
@@ -1177,7 +1183,7 @@ case 'publicmode': {
         if (mode === 'private' || mode === 'priv') {
             if (config.selfMode) {
                 await socket.sendMessage(sender, {
-                    text: '🔒 Already in PRIVATE mode',
+                    text: '🔒 Already in PRIVATE mode\n\nOnly paired WhatsApp owner can use commands.',
                     quoted: msg
                 });
                 break;
@@ -1186,7 +1192,7 @@ case 'publicmode': {
             config.selfMode = true;
             
             await socket.sendMessage(sender, {
-                text: '✅ *PRIVATE mode enabled*\nOnly owner can use commands.',
+                text: '✅ *PRIVATE mode enabled*\nOnly the paired WhatsApp account owner can use commands.',
                 buttons: [
                     {
                         buttonId: `${prefix}mode public`,
@@ -1202,7 +1208,7 @@ case 'publicmode': {
         if (mode === 'public' || mode === 'pub') {
             if (!config.selfMode) {
                 await socket.sendMessage(sender, {
-                    text: '🌐 Already in PUBLIC mode',
+                    text: '🌐 Already in PUBLIC mode\n\nEveryone can use commands.',
                     quoted: msg
                 });
                 break;
@@ -1250,55 +1256,59 @@ case 'publicmode': {
     }
     break;
 }
+// Case: setprefix
+case 'setprefix':
+case 'prefix': {
+    try {
+        if (!isPairedOwner(sender, socket)) {
+            await socket.sendMessage(sender, {
+                text: '❌ *Only the paired WhatsApp account owner can change the prefix*\n\nThis command can only be used by the WhatsApp number that is paired with this bot.',
+                quoted: msg
+            });
+            break;
+        }
 
-                // Case: setprefix
-                case 'setprefix':
-                case 'prefix': {
-                    try {
-                        if (!isOwner) {
-                            await socket.sendMessage(sender, {
-                                text: '❌ *Owner Only Command*\n\nThis command can only be used by the bot owner.',
-                                quoted: msg
-                            });
-                            break;
-                        }
-
-                        if (args.length === 0) {
-                            await socket.sendMessage(sender, {
-                                text: `📌 *Current Prefix*\n\n┏━━━━━━━━━━━━━━━━━━┓\n┃ 🔹 Current prefix: *${config.PREFIX}*\n┗━━━━━━━━━━━━━━━━━━┛\n\n*Usage:*\n${config.PREFIX}setprefix <new prefix>\n\n*Example:*\n${config.PREFIX}setprefix !\n\n> *CaseyRhodes Bot*`,
-                                quoted: msg
-                            });
-                            break;
-                        }
-                        
-                        const newPrefix = args[0];
-                        
-                        if (newPrefix.length > 3) {
-                            await socket.sendMessage(sender, {
-                                text: '❌ *Invalid Prefix*\n\nPrefix must be 1-3 characters long!\n\n> *CaseyRhodes Bot*',
-                                quoted: msg
-                            });
-                            break;
-                        }
-                        
-                        const oldPrefix = config.PREFIX;
-                        config.PREFIX = newPrefix;
-                        prefix = newPrefix;
-                        
-                        await socket.sendMessage(sender, {
-                            text: `✅ *Prefix Changed*\n\n┏━━━━━━━━━━━━━━━━━━┓\n┃ 🔹 Old Prefix: *${oldPrefix}*\n┃ 🔸 New Prefix: *${newPrefix}*\n┗━━━━━━━━━━━━━━━━━━┛\n\n*Example:*\n${newPrefix}alive\n\n> *CaseyRhodes Bot*`,
-                            quoted: msg
-                        });
-                        
-                    } catch (error) {
-                        console.error('Setprefix command error:', error);
-                        await socket.sendMessage(sender, {
-                            text: '❌ Error changing prefix: ' + error.message,
-                            quoted: msg
-                        });
-                    }
-                    break;
-                }
+        if (args.length === 0) {
+            await socket.sendMessage(sender, {
+                text: `📌 *Current Prefix*\n\n┏━━━━━━━━━━━━━━━━━━┓\n┃ 🔹 Current prefix: *${config.PREFIX}*\n┗━━━━━━━━━━━━━━━━━━┛\n\n*Usage:*\n${config.PREFIX}setprefix <new prefix>\n\n*Example:*\n${config.PREFIX}setprefix !\n\n> *CaseyRhodes Bot*`,
+                quoted: msg
+            });
+            break;
+        }
+        
+        const newPrefix = args[0];
+        
+        if (newPrefix.length > 3) {
+            await socket.sendMessage(sender, {
+                text: '❌ *Invalid Prefix*\n\nPrefix must be 1-3 characters long!\n\n> *CaseyRhodes Bot*',
+                quoted: msg
+            });
+            break;
+        }
+        
+        const oldPrefix = config.PREFIX;
+        config.PREFIX = newPrefix;
+        prefix = newPrefix;
+        
+        // Save the new prefix to your config file/database
+        if (typeof saveConfig === 'function') {
+            saveConfig(config);
+        }
+        
+        await socket.sendMessage(sender, {
+            text: `✅ *Prefix Changed*\n\n┏━━━━━━━━━━━━━━━━━━┓\n┃ 🔹 Old Prefix: *${oldPrefix}*\n┃ 🔸 New Prefix: *${newPrefix}*\n┗━━━━━━━━━━━━━━━━━━┛\n\n*Example:*\n${newPrefix}alive\n\n> *CaseyRhodes Bot*`,
+            quoted: msg
+        });
+        
+    } catch (error) {
+        console.error('Setprefix command error:', error);
+        await socket.sendMessage(sender, {
+            text: '❌ Error changing prefix: ' + error.message,
+            quoted: msg
+        });
+    }
+    break;
+}
 
                 // Case: anticall
               // Case: anticall - Manage anti-call protection
