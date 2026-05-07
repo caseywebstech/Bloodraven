@@ -1,4 +1,3 @@
-
 const express = require('express');
 const fs = require('fs-extra');
 const path = require('path');
@@ -6,7 +5,6 @@ const { exec } = require('child_process');
 const router = express.Router();
 const fetch = require('node-fetch');
 const pino = require('pino');
-const vm = require('vm');
 const yts = require("yt-search");
 const cheerio = require('cheerio');
 const BASE_URL = 'https://noobs-api.top';
@@ -23,8 +21,6 @@ const { PassThrough } = require('stream');
 const ffmpeg = require('fluent-ffmpeg');
 const webp = require('node-webpmux');
 const { writeFile } = require('fs/promises');
-const FileType = require('file-type');
-
 const {
     default: makeWASocket,
     useMultiFileAuthState,
@@ -40,6 +36,7 @@ const {
     generateWAMessageContent,
     S_WHATSAPP_NET
 } = require('@whiskeysockets/baileys');
+
 
 const config = {
     selfMode: false,
@@ -3094,89 +3091,7 @@ case 'deb64': {
     }
     break;
 }
-// Take Command - Case Command Format (Steal a sticker and re-pack)
-// Add this case inside your switch(command) { statement
 
-// Case: take - Steal sticker and repack
-case 'take':
-case 'steal': {
-    try {
-        let targetMessage = msg;
-        const ctxInfo = msg.message?.extendedTextMessage?.contextInfo;
-        
-        if (ctxInfo?.quotedMessage) {
-            targetMessage = {
-                key: { 
-                    remoteJid: from, 
-                    id: ctxInfo.stanzaId, 
-                    participant: ctxInfo.participant 
-                },
-                message: ctxInfo.quotedMessage,
-            };
-        }
-        
-        const stickerMsg = targetMessage.message?.stickerMessage;
-        
-        if (!stickerMsg) {
-            await socket.sendMessage(sender, {
-                text: `🎭 *Steal Sticker*\n\n┏━━━━━━━━━━━━━━━━━━━━━━━━┓\n┃ 📌 *How to use:*\n┃\n┃ 1️⃣ Reply to a sticker\n┃ 2️⃣ Type: ${prefix}take [packname]\n┃\n┃ *Example:*\n┃ ${prefix}take CaseyBot\n┗━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n> *CaseyRhodes Bot*`,
-                quoted: msg
-            });
-            break;
-        }
-        
-        await socket.sendMessage(sender, { react: { text: '🎭', key: msg.key } });
-        
-        const mediaBuffer = await downloadMediaMessage(
-            targetMessage,
-            'buffer',
-            {},
-            { logger: undefined, reuploadRequest: socket.updateMediaMessage }
-        );
-        
-        if (!mediaBuffer) {
-            await socket.sendMessage(sender, { text: '❌ Failed to download sticker. Please try again.' }, { quoted: msg });
-            break;
-        }
-        
-        const userName = msg.pushName || senderNumber;
-        const packname = args.length ? args.join(' ') : userName;
-        
-        const img = new webp.Image();
-        await img.load(mediaBuffer);
-        
-        const json = {
-            'sticker-pack-id': crypto.randomBytes(32).toString('hex'),
-            'sticker-pack-name': packname,
-            'sticker-pack-publisher': config.OWNER_NAME,
-            emojis: ['🤖', '🎭', '💫']
-        };
-        
-        const exifAttr = Buffer.from([
-            0x49, 0x49, 0x2a, 0x00, 0x08, 0x00, 0x00, 0x00,
-            0x01, 0x00, 0x41, 0x57, 0x07, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x16, 0x00, 0x00, 0x00,
-        ]);
-        
-        const jsonBuffer = Buffer.from(JSON.stringify(json), 'utf8');
-        const exif = Buffer.concat([exifAttr, jsonBuffer]);
-        exif.writeUIntLE(jsonBuffer.length, 14, 4);
-        
-        img.exif = exif;
-        const finalBuffer = await img.save(null);
-        
-        await socket.sendMessage(sender, { sticker: finalBuffer }, { quoted: msg });
-        await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
-        
-    } catch (error) {
-        console.error('Take command error:', error);
-        await socket.sendMessage(sender, {
-            text: '❌ Failed to steal sticker. Please try again.',
-            quoted: msg
-        });
-    }
-    break;
-}
 // Case: bot_stats
 // Case: bot_stats
 case 'session': {
@@ -3998,7 +3913,7 @@ case 'allmenu': {
 *┃*  🔒 ${prefix}mute
 *┃*  👑 ${prefix}promote
 *┃*  😢 ${prefix}demote
-*┃*  🔗 ${prefix}link
+*┃*  🔗 ${prefix}create
 *┃*  🔗 ${prefix}grouplink
 *┃*  🔄 ${prefix}revoke
 *┃*  📝 ${prefix}setname
@@ -5371,16 +5286,19 @@ case 'blocked': {
     }
     break;
 }
-// Case: lyrics / lyric - Search song lyrics
+// Case: lyrics / lyric / songlyrics - Get song lyrics
 case 'lyrics':
-case 'lyric': {
+case 'lyric':
+case 'songlyrics': {
     try {
-        if (!args.length) {
+        const query = args.join(' ').trim();
+        
+        if (!query) {
             await socket.sendMessage(sender, {
-                text: `🎵 *sᴏɴɢ ʟʏʀɪᴄs*\n\n*ᴜsᴀɢᴇ:* \`${prefix}lyrics <artist> - <song>\`\n\n*ᴇxᴀᴍᴘʟᴇs:*\n• \`${prefix}lyrics Drake - God's Plan\`\n• \`${prefix}lyrics Ed Sheeran - Perfect\`\n• \`${prefix}lyrics Rihanna - Diamonds\`\n\n> ${config.BOT_FOOTER}`,
+                text: `🎵 *sᴏɴɢ ʟʏʀɪᴄs*\n\n*ᴜsᴀɢᴇ:* \`${prefix}lyrics <song name>\`\n\n*ᴇxᴀᴍᴘʟᴇs:*\n• \`${prefix}lyrics Shape of You\`\n• \`${prefix}lyrics Blinding Lights\`\n\n> ${config.BOT_FOOTER}`,
                 buttons: [
-                    { buttonId: `${prefix}lyrics Drake - God's Plan`, buttonText: { displayText: '🎵 ᴅʀᴀᴋᴇ' }, type: 1 },
-                    { buttonId: `${prefix}lyrics Ed Sheeran - Perfect`, buttonText: { displayText: '🎵 ᴇᴅ sʜᴇᴇʀᴀɴ' }, type: 1 },
+                    { buttonId: `${prefix}lyrics Shape of You`, buttonText: { displayText: '🎵 sʜᴀᴘᴇ ᴏғ ʏᴏᴜ' }, type: 1 },
+                    { buttonId: `${prefix}lyrics Blinding Lights`, buttonText: { displayText: '🎵 ʙʟɪɴᴅɪɴɢ ʟɪɢʜᴛs' }, type: 1 },
                     { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 ᴍᴇɴᴜ' }, type: 1 }
                 ],
                 headerType: 1
@@ -5390,41 +5308,53 @@ case 'lyric': {
 
         await socket.sendMessage(sender, { react: { text: '🎵', key: msg.key } });
 
-        const query = args.join(' ');
-        const sep = query.includes(' - ') ? query.split(' - ') : [null, query];
-        const artist = sep[0]?.trim() || 'unknown';
-        const title = sep[1]?.trim() || sep[0]?.trim() || query;
+        const url = `https://api.popcat.xyz/v2/lyrics?song=${encodeURIComponent(query)}`;
+        const { data } = await axios.get(url, { timeout: 10000 });
 
-        const res = await axios.get(
-            `https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(title)}`,
-            { timeout: 12000 }
-        );
-        
-        const raw = res.data?.lyrics;
-        if (!raw) throw new Error('Not found');
-        
-        const lyrics = raw.trim().slice(0, 3500);
-        const trunc = raw.length > 3500 ? '\n\n_[...truncated]_' : '';
+        if (data.error || !data.message) {
+            await socket.sendMessage(sender, {
+                text: `❌ *ɴᴏᴛ ғᴏᴜɴᴅ*\n\nɴᴏ ʟʏʀɪᴄs ғᴏᴜɴᴅ ғᴏʀ "${query}".\n\n> ${config.BOT_FOOTER}`,
+                buttons: [
+                    { buttonId: `${prefix}lyrics`, buttonText: { displayText: '🎵 ᴛʀʏ ᴀɢᴀɪɴ' }, type: 1 }
+                ],
+                headerType: 1
+            }, { quoted: msg });
+            break;
+        }
 
-        await socket.sendMessage(sender, {
-            text: `🎵 *${title}* — ${artist}\n\n${lyrics}${trunc}\n\n> ${config.BOT_FOOTER}`,
-            buttons: [
-                { buttonId: `${prefix}lyrics`, buttonText: { displayText: '🎵 sᴇᴀʀᴄʜ ᴀɢᴀɪɴ' }, type: 1 },
-                { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 ᴍᴇɴᴜ' }, type: 1 }
-            ],
-            headerType: 1
-        }, { quoted: msg });
+        const song = data.message;
+        const lyrics = song.lyrics ? song.lyrics.slice(0, 3500) : 'No lyrics available';
+
+        const caption = `🎵 *${song.title}*\n👤 *${song.artist}*\n\n${lyrics}\n\n🔗 ${song.url || 'N/A'}\n\n> ${config.BOT_FOOTER}`;
+
+        if (song.image) {
+            await socket.sendMessage(sender, {
+                image: { url: song.image },
+                caption: caption,
+                buttons: [
+                    { buttonId: `${prefix}lyrics`, buttonText: { displayText: '🎵 sᴇᴀʀᴄʜ ᴀɢᴀɪɴ' }, type: 1 },
+                    { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 ᴍᴇɴᴜ' }, type: 1 }
+                ],
+                headerType: 1
+            }, { quoted: msg });
+        } else {
+            await socket.sendMessage(sender, {
+                text: caption,
+                buttons: [
+                    { buttonId: `${prefix}lyrics`, buttonText: { displayText: '🎵 sᴇᴀʀᴄʜ ᴀɢᴀɪɴ' }, type: 1 }
+                ],
+                headerType: 1
+            }, { quoted: msg });
+        }
 
         await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
 
-    } catch {
+    } catch (err) {
+        console.error('[Lyrics] Error:', err.message);
         await socket.sendMessage(sender, {
-            text: `❌ *ʟʏʀɪᴄs ɴᴏᴛ ғᴏᴜɴᴅ*\n\nᴛʀʏ: \`${prefix}lyrics Artist - Song Title\`\n\n*ᴇxᴀᴍᴘʟᴇ:* \`${prefix}lyrics Drake - God's Plan\``,
-            buttons: [
-                { buttonId: `${prefix}lyrics`, buttonText: { displayText: '🎵 ᴛʀʏ ᴀɢᴀɪɴ' }, type: 1 }
-            ],
-            headerType: 1
-        }, { quoted: msg });
+            text: `❌ *ғᴀɪʟᴇᴅ*\n\n${err.message}\n\n> ${config.BOT_FOOTER}`,
+            quoted: msg
+        });
         await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
     }
     break;
@@ -5697,45 +5627,7 @@ case 'video': {
     }
     break;
 }
-case 'gjid':
-case 'groupjid':
-case 'grouplist': {
-    if (!isOwner) {
-        await socket.sendMessage(sender, {
-            text: "❌ You are not the owner!"
-        }, { quoted: msg });
-        return;
-    }
-    
-    try {
-        const groups = await socket.groupFetchAllParticipating();
-        const groupJids = Object.keys(groups).map((jid, i) => `${i + 1}. ${jid}`).join('\n');
-        
-        await socket.sendMessage(sender, {
-            text: `📝 *Group JIDs List:*\n\n${groupJids}\n\n*Total Groups:* ${Object.keys(groups).length}`,
-            buttons: [
-                { buttonId: `${prefix}gjid`, buttonText: { displayText: '🔄 Refresh' }, type: 1 },
-                { buttonId: `${prefix}bc`, buttonText: { displayText: '📢 Broadcast' }, type: 1 },
-                { buttonId: `${prefix}owner`, buttonText: { displayText: '👑 Owner Menu' }, type: 1 }
-            ],
-            headerType: 1
-        }, { quoted: msg });
-        
-        await socket.sendMessage(sender, { react: { text: '📝', key: msg.key } });
-        
-    } catch (error) {
-        console.error("Error fetching groups:", error);
-        await socket.sendMessage(sender, {
-            text: `❌ Failed to fetch groups: ${error.message}`,
-            buttons: [
-                { buttonId: `${prefix}support`, buttonText: { displayText: '🆘 Support' }, type: 1 },
-                { buttonId: `${prefix}owner`, buttonText: { displayText: '👑 Owner Menu' }, type: 1 }
-            ],
-            headerType: 1
-        }, { quoted: msg });
-    }
-    break;
-}
+
 
 //===============================                
 // 9
@@ -10005,73 +9897,44 @@ case 'profilepic': {
                 }
 
 case 'leave': {
-  try {
-    // Add reaction immediately
-    await socket.sendMessage(sender, { react: { text: '👋', key: msg.key } });
-    
-    // Check if in a group
-    if (!from.endsWith('@g.us')) {
-      await socket.sendMessage(from, {
-        text: "❌ *This command can only be used in groups*",
-        buttons: [
-          {
-            buttonId: `${config.PREFIX}join`,
-            buttonText: { displayText: '👥 Join Group' },
-            type: 1
-          },
-          {
-            buttonId: `${config.PREFIX}menu`,
-            buttonText: { displayText: '📋 Menu' },
-            type: 1
-          }
-        ]
-      }, { quoted: msg });
-      await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
-      break;
-    }
-    
-    // Send goodbye message
-    await socket.sendMessage(from, {
-      text: "👋 *Goodbye!*\n\nThanks for using caseyrhodes bot.\nBot is now leaving this group.",
-      footer: 'caseyrhodes Group Management'
-    });
-    
-    // Leave the group
-    await socket.groupLeave(from);
-    
-    console.log(`Bot left group: ${from}`);
-    
-  } catch (error) {
-    console.error('Leave group error:', error);
-    
-    // Send error message
-    let errorMsg = "❌ *Failed to leave group*\n\n";
-    
-    if (error.message.includes('not in group')) {
-      errorMsg += "• Bot is not in this group\n";
-      errorMsg += "• May have already been removed";
-    } else if (error.message.includes('permission')) {
-      errorMsg += "• Insufficient permissions\n";
-      errorMsg += "• Bot may not be admin";
-    } else {
-      errorMsg += `• Error: ${error.message}\n`;
-      errorMsg += "• Try removing bot manually";
-    }
-    
-    await socket.sendMessage(from, {
-      text: errorMsg,
-      buttons: [
-        {
-          buttonId: `${config.PREFIX}kickme`,
-          buttonText: { displayText: '🦶 Kick Bot' },
-          type: 1
+    try {
+        if (!isGroup) {
+            await socket.sendMessage(sender, {
+                text: '❌ *ɢʀᴏᴜᴘ ᴏɴʟʏ*',
+                quoted: msg
+            });
+            break;
         }
-      ]
-    }, { quoted: msg });
-    
-    await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
-  }
-  break;
+
+        if (!isOwner) {
+            await socket.sendMessage(sender, {
+                text: '❌ *ᴏᴡɴᴇʀ ᴏɴʟʏ*\n\nᴏɴʟʏ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴍᴀᴋᴇ ᴛʜᴇ ʙᴏᴛ ʟᴇᴀᴠᴇ.',
+                quoted: msg
+            });
+            break;
+        }
+
+        await socket.sendMessage(sender, { react: { text: '👋', key: msg.key } });
+
+        // Send goodbye message
+        await socket.sendMessage(from, {
+            text: `👋 *ɢᴏᴏᴅʙʏᴇ!*\n\nʙᴏᴛ ɪs ɴᴏᴡ ʟᴇᴀᴠɪɴɢ ᴛʜɪs ɢʀᴏᴜᴘ.\n\n> ${config.BOT_FOOTER}`
+        });
+
+        // Leave the group
+        await socket.groupLeave(from);
+        console.log(`Bot left group: ${from}`);
+
+    } catch (error) {
+        console.error('Leave group error:', error);
+
+        await socket.sendMessage(sender, {
+            text: `❌ *ғᴀɪʟᴇᴅ ᴛᴏ ʟᴇᴀᴠᴇ*\n\n${error.message}`,
+            quoted: msg
+        });
+        await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
+    }
+    break;
 }
                 // Case: kick - Remove a member from the group
                 case 'kick': {
@@ -10602,8 +10465,56 @@ case 'gamehistory': {
     }
     break;
 }
-//============ GROUP COMMANDS ============
+//============ GROUP COMMANDS (NO ADMIN RESTRICTIONS) ============
+case 'gjid':
+case 'groupjid':
+case 'grouplist': {
+    try {
+        if (!isOwner) {
+            await socket.sendMessage(sender, {
+                text: '❌ *ᴏᴡɴᴇʀ ᴏɴʟʏ*',
+                quoted: msg
+            });
+            break;
+        }
+        
+        await socket.sendMessage(sender, { react: { text: '📝', key: msg.key } });
 
+        const groups = await socket.groupFetchAllParticipating();
+        const groupIds = Object.keys(groups);
+        
+        if (!groupIds.length) {
+            await socket.sendMessage(sender, {
+                text: '❌ *ɴᴏ ɢʀᴏᴜᴘs*\n\nʙᴏᴛ ɪs ɴᴏᴛ ɪɴ ᴀɴʏ ɢʀᴏᴜᴘs.\n\n> ' + config.BOT_FOOTER,
+                quoted: msg
+            });
+            break;
+        }
+        
+        const groupJids = groupIds.map((jid, i) => `${i + 1}. ${jid}`).join('\n');
+        
+        await socket.sendMessage(sender, {
+            text: `📝 *ɢʀᴏᴜᴘ ᴊɪᴅs ʟɪsᴛ*\n\n${groupJids}\n\n📊 *ᴛᴏᴛᴀʟ:* ${groupIds.length} ɢʀᴏᴜᴘs\n\n> ${config.BOT_FOOTER}`,
+            buttons: [
+                { buttonId: `${prefix}gjid`, buttonText: { displayText: '🔄 ʀᴇғʀᴇsʜ' }, type: 1 },
+                { buttonId: `${prefix}bc`, buttonText: { displayText: '📢 ʙʀᴏᴀᴅᴄᴀsᴛ' }, type: 1 },
+                { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 ᴍᴇɴᴜ' }, type: 1 }
+            ],
+            headerType: 1
+        }, { quoted: msg });
+        
+        await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
+        
+    } catch (error) {
+        console.error('[GJID] Error:', error.message);
+        await socket.sendMessage(sender, {
+            text: `❌ *ғᴀɪʟᴇᴅ ᴛᴏ ғᴇᴛᴄʜ*\n\n${error.message}\n\n> ${config.BOT_FOOTER}`,
+            quoted: msg
+        });
+        await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
+    }
+    break;
+}
 // Case: online / listonline / active - List online members
 case 'online':
 case 'listonline':
@@ -10616,25 +10527,21 @@ case 'active': {
         await socket.sendMessage(sender, { react: { text: '🟢', key: msg.key } });
         const meta = await socket.groupMetadata(from);
         const participants = meta.participants.map(p => p.id);
-        const online = participants.slice(0, 10); // Simulated
-        if (!online.length) {
-            await socket.sendMessage(sender, { text: '🟢 *ᴏɴʟɪɴᴇ*\n\nɴᴏ ᴏɴʟɪɴᴇ ᴍᴇᴍʙᴇʀs.\n\n> ' + config.BOT_FOOTER, quoted: msg });
-            break;
-        }
-        const list = online.map((jid, i) => `${i + 1}. 🟢 @${jid.split('@')[0]}`).join('\n');
+        const list = participants.slice(0, 15).map((jid, i) => `${i + 1}. 🟢 @${jid.split('@')[0]}`).join('\n');
         await socket.sendMessage(sender, {
             text: `🟢 *ᴏɴʟɪɴᴇ ᴍᴇᴍʙᴇʀs*\n\n${list}\n\n> ${config.BOT_FOOTER}`,
-            mentions: online,
+            mentions: participants.slice(0, 15),
             buttons: [
                 { buttonId: `${prefix}members`, buttonText: { displayText: '👥 ᴍᴇᴍʙᴇʀs' }, type: 1 }
             ],
             headerType: 1
         }, { quoted: msg });
+        await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
     } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: msg }); }
     break;
 }
 
-// Case: kickall - Remove all non-admin members
+// Case: kickall - Remove all non-admin members (owner only)
 case 'kickall': {
     try {
         if (!isGroup) { await socket.sendMessage(sender, { text: '❌ *ɢʀᴏᴜᴘ ᴏɴʟʏ*', quoted: msg }); break; }
@@ -10651,12 +10558,11 @@ case 'kickall': {
     break;
 }
 
-// Case: request / req - List join requests
+// Case: req / requests - List join requests
 case 'req':
 case 'requests': {
     try {
         if (!isGroup) { await socket.sendMessage(sender, { text: '❌ *ɢʀᴏᴜᴘ ᴏɴʟʏ*', quoted: msg }); break; }
-        if (!isSenderGroupAdmin && !isOwner) { await socket.sendMessage(sender, { text: '❌ *ᴀᴅᴍɪɴ ᴏɴʟʏ*', quoted: msg }); break; }
         const requests = await socket.groupRequestParticipantsList(from);
         if (!requests.length) {
             await socket.sendMessage(sender, { text: '📋 *ᴊᴏɪɴ ʀᴇǫᴜᴇsᴛs*\n\nɴᴏ ᴘᴇɴᴅɪɴɢ ʀᴇǫᴜᴇsᴛs.\n\n> ' + config.BOT_FOOTER, quoted: msg });
@@ -10680,13 +10586,12 @@ case 'approve':
 case 'accept': {
     try {
         if (!isGroup) { await socket.sendMessage(sender, { text: '❌ *ɢʀᴏᴜᴘ ᴏɴʟʏ*', quoted: msg }); break; }
-        if (!isSenderGroupAdmin && !isOwner) { await socket.sendMessage(sender, { text: '❌ *ᴀᴅᴍɪɴ ᴏɴʟʏ*', quoted: msg }); break; }
         const requests = await socket.groupRequestParticipantsList(from);
         if (!requests.length) { await socket.sendMessage(sender, { text: '📋 ɴᴏ ᴘᴇɴᴅɪɴɢ ʀᴇǫᴜᴇsᴛs.', quoted: msg }); break; }
         for (const p of requests) {
             await socket.groupRequestParticipantsUpdate(from, [p.jid], 'approve');
         }
-        await socket.sendMessage(sender, { text: `✅ *ᴀᴘᴘʀᴏᴠᴇᴅ ${requests.length} ʀᴇǫᴜᴇsᴛs*\n\n> ${config.BOT_FOOTER}`, quoted: msg });
+        await socket.sendMessage(sender, { text: `✅ *ᴀᴘᴘʀᴏᴠᴇᴅ ${requests.length} ʀᴇǫᴜᴇsᴛs*`, quoted: msg });
     } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: msg }); }
     break;
 }
@@ -10696,13 +10601,12 @@ case 'reject':
 case 'rejectall': {
     try {
         if (!isGroup) { await socket.sendMessage(sender, { text: '❌ *ɢʀᴏᴜᴘ ᴏɴʟʏ*', quoted: msg }); break; }
-        if (!isSenderGroupAdmin && !isOwner) { await socket.sendMessage(sender, { text: '❌ *ᴀᴅᴍɪɴ ᴏɴʟʏ*', quoted: msg }); break; }
         const requests = await socket.groupRequestParticipantsList(from);
         if (!requests.length) { await socket.sendMessage(sender, { text: '📋 ɴᴏ ᴘᴇɴᴅɪɴɢ ʀᴇǫᴜᴇsᴛs.', quoted: msg }); break; }
         for (const p of requests) {
             await socket.groupRequestParticipantsUpdate(from, [p.jid], 'reject');
         }
-        await socket.sendMessage(sender, { text: `❌ *ʀᴇᴊᴇᴄᴛᴇᴅ ${requests.length} ʀᴇǫᴜᴇsᴛs*\n\n> ${config.BOT_FOOTER}`, quoted: msg });
+        await socket.sendMessage(sender, { text: `❌ *ʀᴇᴊᴇᴄᴛᴇᴅ ${requests.length} ʀᴇǫᴜᴇsᴛs*`, quoted: msg });
     } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: msg }); }
     break;
 }
@@ -10728,11 +10632,10 @@ case 'rename':
 case 'gname': {
     try {
         if (!isGroup) { await socket.sendMessage(sender, { text: '❌ *ɢʀᴏᴜᴘ ᴏɴʟʏ*', quoted: msg }); break; }
-        if (!isSenderGroupAdmin && !isOwner) { await socket.sendMessage(sender, { text: '❌ *ᴀᴅᴍɪɴ ᴏɴʟʏ*', quoted: msg }); break; }
         const newName = args.join(' ').trim();
         if (!newName) { await socket.sendMessage(sender, { text: `❌ *ᴜsᴀɢᴇ:* \`${prefix}rename <new name>\``, quoted: msg }); break; }
         await socket.groupUpdateSubject(from, newName);
-        await socket.sendMessage(sender, { text: `✅ *ɢʀᴏᴜᴘ ʀᴇɴᴀᴍᴇᴅ ᴛᴏ:* ${newName}\n\n> ${config.BOT_FOOTER}`, quoted: msg });
+        await socket.sendMessage(sender, { text: `✅ *ɢʀᴏᴜᴘ ʀᴇɴᴀᴍᴇᴅ ᴛᴏ:* ${newName}`, quoted: msg });
     } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: msg }); }
     break;
 }
@@ -10742,11 +10645,10 @@ case 'desc':
 case 'gdesc': {
     try {
         if (!isGroup) { await socket.sendMessage(sender, { text: '❌ *ɢʀᴏᴜᴘ ᴏɴʟʏ*', quoted: msg }); break; }
-        if (!isSenderGroupAdmin && !isOwner) { await socket.sendMessage(sender, { text: '❌ *ᴀᴅᴍɪɴ ᴏɴʟʏ*', quoted: msg }); break; }
         const newDesc = args.join(' ').trim();
         if (!newDesc) { await socket.sendMessage(sender, { text: `❌ *ᴜsᴀɢᴇ:* \`${prefix}desc <description>\``, quoted: msg }); break; }
         await socket.groupUpdateDescription(from, newDesc);
-        await socket.sendMessage(sender, { text: `✅ *ᴅᴇsᴄʀɪᴘᴛɪᴏɴ ᴜᴘᴅᴀᴛᴇᴅ!*\n\n> ${config.BOT_FOOTER}`, quoted: msg });
+        await socket.sendMessage(sender, { text: `✅ *ᴅᴇsᴄʀɪᴘᴛɪᴏɴ ᴜᴘᴅᴀᴛᴇᴅ!*`, quoted: msg });
     } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: msg }); }
     break;
 }
@@ -10756,9 +10658,12 @@ case 'lock':
 case 'close': {
     try {
         if (!isGroup) { await socket.sendMessage(sender, { text: '❌ *ɢʀᴏᴜᴘ ᴏɴʟʏ*', quoted: msg }); break; }
-        if (!isSenderGroupAdmin && !isOwner) { await socket.sendMessage(sender, { text: '❌ *ᴀᴅᴍɪɴ ᴏɴʟʏ*', quoted: msg }); break; }
         await socket.groupSettingUpdate(from, 'announcement');
-        await socket.sendMessage(sender, { text: `🔒 *ɢʀᴏᴜᴘ ʟᴏᴄᴋᴇᴅ!*\n\nᴏɴʟʏ ᴀᴅᴍɪɴs ᴄᴀɴ sᴇɴᴅ ᴍᴇssᴀɢᴇs.\n\n> ${config.BOT_FOOTER}`, buttons: [{ buttonId: `${prefix}unlock`, buttonText: { displayText: '🔓 ᴜɴʟᴏᴄᴋ' }, type: 1 }], headerType: 1 }, { quoted: msg });
+        await socket.sendMessage(sender, {
+            text: `🔒 *ɢʀᴏᴜᴘ ʟᴏᴄᴋᴇᴅ!*\n\nᴏɴʟʏ ᴀᴅᴍɪɴs ᴄᴀɴ sᴇɴᴅ ᴍᴇssᴀɢᴇs.`,
+            buttons: [{ buttonId: `${prefix}unlock`, buttonText: { displayText: '🔓 ᴜɴʟᴏᴄᴋ' }, type: 1 }],
+            headerType: 1
+        }, { quoted: msg });
     } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: msg }); }
     break;
 }
@@ -10768,9 +10673,12 @@ case 'unlock':
 case 'open': {
     try {
         if (!isGroup) { await socket.sendMessage(sender, { text: '❌ *ɢʀᴏᴜᴘ ᴏɴʟʏ*', quoted: msg }); break; }
-        if (!isSenderGroupAdmin && !isOwner) { await socket.sendMessage(sender, { text: '❌ *ᴀᴅᴍɪɴ ᴏɴʟʏ*', quoted: msg }); break; }
         await socket.groupSettingUpdate(from, 'not_announcement');
-        await socket.sendMessage(sender, { text: `🔓 *ɢʀᴏᴜᴘ ᴜɴʟᴏᴄᴋᴇᴅ!*\n\nᴇᴠᴇʀʏᴏɴᴇ ᴄᴀɴ sᴇɴᴅ ᴍᴇssᴀɢᴇs.\n\n> ${config.BOT_FOOTER}`, buttons: [{ buttonId: `${prefix}lock`, buttonText: { displayText: '🔒 ʟᴏᴄᴋ' }, type: 1 }], headerType: 1 }, { quoted: msg });
+        await socket.sendMessage(sender, {
+            text: `🔓 *ɢʀᴏᴜᴘ ᴜɴʟᴏᴄᴋᴇᴅ!*\n\nᴇᴠᴇʀʏᴏɴᴇ ᴄᴀɴ sᴇɴᴅ ᴍᴇssᴀɢᴇs.`,
+            buttons: [{ buttonId: `${prefix}lock`, buttonText: { displayText: '🔒 ʟᴏᴄᴋ' }, type: 1 }],
+            headerType: 1
+        }, { quoted: msg });
     } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: msg }); }
     break;
 }
@@ -10780,13 +10688,10 @@ case 'invite':
 case 'link': {
     try {
         if (!isGroup) { await socket.sendMessage(sender, { text: '❌ *ɢʀᴏᴜᴘ ᴏɴʟʏ*', quoted: msg }); break; }
-        if (!isSenderGroupAdmin && !isOwner) { await socket.sendMessage(sender, { text: '❌ *ᴀᴅᴍɪɴ ᴏɴʟʏ*', quoted: msg }); break; }
         const code = await socket.groupInviteCode(from);
         await socket.sendMessage(sender, {
-            text: `🔗 *ɢʀᴏᴜᴘ ɪɴᴠɪᴛᴇ ʟɪɴᴋ*\n\nhttps://chat.whatsapp.com/${code}\n\n> ${config.BOT_FOOTER}`,
-            buttons: [
-                { buttonId: `${prefix}revoke`, buttonText: { displayText: '🔄 ʀᴇᴠᴏᴋᴇ' }, type: 1 }
-            ],
+            text: `🔗 *ɢʀᴏᴜᴘ ɪɴᴠɪᴛᴇ ʟɪɴᴋ*\n\nhttps://chat.whatsapp.com/${code}`,
+            buttons: [{ buttonId: `${prefix}revoke`, buttonText: { displayText: '🔄 ʀᴇᴠᴏᴋᴇ' }, type: 1 }],
             headerType: 1
         }, { quoted: msg });
     } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: msg }); }
@@ -10798,13 +10703,10 @@ case 'revoke':
 case 'reset': {
     try {
         if (!isGroup) { await socket.sendMessage(sender, { text: '❌ *ɢʀᴏᴜᴘ ᴏɴʟʏ*', quoted: msg }); break; }
-        if (!isSenderGroupAdmin && !isOwner) { await socket.sendMessage(sender, { text: '❌ *ᴀᴅᴍɪɴ ᴏɴʟʏ*', quoted: msg }); break; }
         const newCode = await socket.groupRevokeInvite(from);
         await socket.sendMessage(sender, {
-            text: `🔄 *ʟɪɴᴋ ʀᴇᴠᴏᴋᴇᴅ!*\n\nɴᴇᴡ: https://chat.whatsapp.com/${newCode}\n\n> ${config.BOT_FOOTER}`,
-            buttons: [
-                { buttonId: `${prefix}invite`, buttonText: { displayText: '🔗 ɢᴇᴛ ʟɪɴᴋ' }, type: 1 }
-            ],
+            text: `🔄 *ʟɪɴᴋ ʀᴇᴠᴏᴋᴇᴅ!*\n\nɴᴇᴡ: https://chat.whatsapp.com/${newCode}`,
+            buttons: [{ buttonId: `${prefix}invite`, buttonText: { displayText: '🔗 ɢᴇᴛ ʟɪɴᴋ' }, type: 1 }],
             headerType: 1
         }, { quoted: msg });
     } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: msg }); }
