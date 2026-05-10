@@ -2055,7 +2055,7 @@ case 'run': {
 //case translate
 // Case: translate
 case 'translate':
-case 'tr': {
+case 'trt': {
     try {
         if (args.length < 2) {
             return await socket.sendMessage(sender, {
@@ -2116,26 +2116,63 @@ case 'tr': {
 case 'welcome': {
     try {
         if (!isGroup) { await socket.sendMessage(sender, { text: '❌ *ɢʀᴏᴜᴘ ᴏɴʟʏ*', quoted: msg }); break; }
-        if (!isSenderGroupAdmin && !isOwner) { await socket.sendMessage(sender, { text: '❌ *ᴀᴅᴍɪɴ ᴏɴʟʏ*', quoted: msg }); break; }
+        
         const settings = global.welcomeSettings.get(from) || { welcome: false, goodbye: false, customWelcome: '', customGoodbye: '' };
         const sub = (args[0] || '').toLowerCase();
-        if (sub === 'on') { settings.welcome = true; global.welcomeSettings.set(from, settings); await socket.sendMessage(sender, { text: `👋 *ᴡᴇʟᴄᴏᴍᴇ ᴏɴ*\n\n> ${config.BOT_FOOTER}`, quoted: msg }); break; }
-        if (sub === 'off') { settings.welcome = false; global.welcomeSettings.set(from, settings); await socket.sendMessage(sender, { text: '👋 *ᴡᴇʟᴄᴏᴍᴇ ᴏғғ*', quoted: msg }); break; }
-        await socket.sendMessage(sender, { text: `👋 *ᴡᴇʟᴄᴏᴍᴇ:* ${settings.welcome ? '✅ ᴏɴ' : '❌ ᴏғғ'}\n\n> ${config.BOT_FOOTER}`, quoted: msg });
+        
+        if (sub === 'on') { 
+            settings.welcome = true; 
+            global.welcomeSettings.set(from, settings); 
+            await socket.sendMessage(sender, { text: `👋 *ᴡᴇʟᴄᴏᴍᴇ ᴏɴ*\n\nɴᴇᴡ ᴍᴇᴍʙᴇʀs ᴡɪʟʟ ʙᴇ ɢʀᴇᴇᴛᴇᴅ.\n\n> ${config.BOT_FOOTER}`, quoted: msg }); 
+            break; 
+        }
+        if (sub === 'off') { 
+            settings.welcome = false; 
+            global.welcomeSettings.set(from, settings); 
+            await socket.sendMessage(sender, { text: `👋 *ᴡᴇʟᴄᴏᴍᴇ ᴏғғ*\n\n> ${config.BOT_FOOTER}`, quoted: msg }); 
+            break; 
+        }
+        await socket.sendMessage(sender, { 
+            text: `👋 *ᴡᴇʟᴄᴏᴍᴇ:* ${settings.welcome ? '✅ ᴏɴ' : '❌ ᴏғғ'}\n\n*ᴜsᴀɢᴇ:*\n• \`${prefix}welcome on\`\n• \`${prefix}welcome off\`\n\n> ${config.BOT_FOOTER}`, 
+            buttons: [
+                { buttonId: `${prefix}welcome on`, buttonText: { displayText: '✅ ᴛᴜʀɴ ᴏɴ' }, type: 1 },
+                { buttonId: `${prefix}welcome off`, buttonText: { displayText: '❌ ᴛᴜʀɴ ᴏғғ' }, type: 1 }
+            ],
+            headerType: 1 
+        }, { quoted: msg });
     } catch (e) { console.error('Welcome error:', e); }
     break;
 }
 
 // Case: goodbye
+// Case: goodbye
 case 'goodbye': {
     try {
         if (!isGroup) { await socket.sendMessage(sender, { text: '❌ *ɢʀᴏᴜᴘ ᴏɴʟʏ*', quoted: msg }); break; }
-        if (!isSenderGroupAdmin && !isOwner) { await socket.sendMessage(sender, { text: '❌ *ᴀᴅᴍɪɴ ᴏɴʟʏ*', quoted: msg }); break; }
+        
         const settings = global.welcomeSettings.get(from) || { welcome: false, goodbye: false, customWelcome: '', customGoodbye: '' };
         const sub = (args[0] || '').toLowerCase();
-        if (sub === 'on') { settings.goodbye = true; global.welcomeSettings.set(from, settings); await socket.sendMessage(sender, { text: `👋 *ɢᴏᴏᴅʙʏᴇ ᴏɴ*\n\n> ${config.BOT_FOOTER}`, quoted: msg }); break; }
-        if (sub === 'off') { settings.goodbye = false; global.welcomeSettings.set(from, settings); await socket.sendMessage(sender, { text: '👋 *ɢᴏᴏᴅʙʏᴇ ᴏғғ*', quoted: msg }); break; }
-        await socket.sendMessage(sender, { text: `👋 *ɢᴏᴏᴅʙʏᴇ:* ${settings.goodbye ? '✅ ᴏɴ' : '❌ ᴏғғ'}\n\n> ${config.BOT_FOOTER}`, quoted: msg });
+        
+        if (sub === 'on') { 
+            settings.goodbye = true; 
+            global.welcomeSettings.set(from, settings); 
+            await socket.sendMessage(sender, { text: `👋 *ɢᴏᴏᴅʙʏᴇ ᴏɴ*\n\nʟᴇᴀᴠɪɴɢ ᴍᴇᴍʙᴇʀs ᴡɪʟʟ ɢᴇᴛ ᴀ ғᴀʀᴇᴡᴇʟʟ.\n\n> ${config.BOT_FOOTER}`, quoted: msg }); 
+            break; 
+        }
+        if (sub === 'off') { 
+            settings.goodbye = false; 
+            global.welcomeSettings.set(from, settings); 
+            await socket.sendMessage(sender, { text: `👋 *ɢᴏᴏᴅʙʏᴇ ᴏғғ*\n\n> ${config.BOT_FOOTER}`, quoted: msg }); 
+            break; 
+        }
+        await socket.sendMessage(sender, { 
+            text: `👋 *ɢᴏᴏᴅʙʏᴇ:* ${settings.goodbye ? '✅ ᴏɴ' : '❌ ᴏғғ'}\n\n*ᴜsᴀɢᴇ:*\n• \`${prefix}goodbye on\`\n• \`${prefix}goodbye off\`\n\n> ${config.BOT_FOOTER}`, 
+            buttons: [
+                { buttonId: `${prefix}goodbye on`, buttonText: { displayText: '✅ ᴛᴜʀɴ ᴏɴ' }, type: 1 },
+                { buttonId: `${prefix}goodbye off`, buttonText: { displayText: '❌ ᴛᴜʀɴ ᴏғғ' }, type: 1 }
+            ],
+            headerType: 1
+        }, { quoted: msg });
     } catch (e) { console.error('Goodbye error:', e); }
     break;
 }
@@ -2144,13 +2181,27 @@ case 'goodbye': {
 case 'setwelcome': {
     try {
         if (!isGroup) { await socket.sendMessage(sender, { text: '❌ *ɢʀᴏᴜᴘ ᴏɴʟʏ*', quoted: msg }); break; }
-        if (!isSenderGroupAdmin && !isOwner) { await socket.sendMessage(sender, { text: '❌ *ᴀᴅᴍɪɴ ᴏɴʟʏ*', quoted: msg }); break; }
+        
         const msg2 = args.join(' ').trim();
-        if (!msg2) { await socket.sendMessage(sender, { text: `❌ ᴜsᴀɢᴇ: \`${prefix}setwelcome ᴡᴇʟᴄᴏᴍᴇ {name}! 🎉\``, quoted: msg }); break; }
+        if (!msg2) { 
+            await socket.sendMessage(sender, { 
+                text: `📝 *sᴇᴛ ᴡᴇʟᴄᴏᴍᴇ*\n\n*ᴜsᴀɢᴇ:* \`${prefix}setwelcome ᴡᴇʟᴄᴏᴍᴇ {name}! 🎉\`\n\n*ᴘʟᴀᴄᴇʜᴏʟᴅᴇʀs:*\n• {name} - ᴍᴇᴍʙᴇʀ ɴᴀᴍᴇ\n• {group} - ɢʀᴏᴜᴘ ɴᴀᴍᴇ\n\n> ${config.BOT_FOOTER}`,
+                quoted: msg 
+            }); 
+            break; 
+        }
+        
         const settings = global.welcomeSettings.get(from) || { welcome: false, goodbye: false, customWelcome: '', customGoodbye: '' };
-        settings.customWelcome = msg2; settings.welcome = true;
+        settings.customWelcome = msg2; 
+        settings.welcome = true;
         global.welcomeSettings.set(from, settings);
-        await socket.sendMessage(sender, { text: `✅ *ᴄᴜsᴛᴏᴍ ᴡᴇʟᴄᴏᴍᴇ sᴇᴛ!*\n\n${msg2}\n\n> ${config.BOT_FOOTER}`, quoted: msg });
+        await socket.sendMessage(sender, { 
+            text: `✅ *ᴄᴜsᴛᴏᴍ ᴡᴇʟᴄᴏᴍᴇ sᴇᴛ!*\n\n${msg2}\n\n> ${config.BOT_FOOTER}`,
+            buttons: [
+                { buttonId: `${prefix}welcome`, buttonText: { displayText: '👋 ᴡᴇʟᴄᴏᴍᴇ sᴛᴀᴛᴜs' }, type: 1 }
+            ],
+            headerType: 1
+        }, { quoted: msg });
     } catch (e) { console.error('Setwelcome error:', e); }
     break;
 }
@@ -2159,13 +2210,27 @@ case 'setwelcome': {
 case 'setgoodbye': {
     try {
         if (!isGroup) { await socket.sendMessage(sender, { text: '❌ *ɢʀᴏᴜᴘ ᴏɴʟʏ*', quoted: msg }); break; }
-        if (!isSenderGroupAdmin && !isOwner) { await socket.sendMessage(sender, { text: '❌ *ᴀᴅᴍɪɴ ᴏɴʟʏ*', quoted: msg }); break; }
+        
         const msg2 = args.join(' ').trim();
-        if (!msg2) { await socket.sendMessage(sender, { text: `❌ ᴜsᴀɢᴇ: \`${prefix}setgoodbye ɢᴏᴏᴅʙʏᴇ {name}! 👋\``, quoted: msg }); break; }
+        if (!msg2) { 
+            await socket.sendMessage(sender, { 
+                text: `📝 *sᴇᴛ ɢᴏᴏᴅʙʏᴇ*\n\n*ᴜsᴀɢᴇ:* \`${prefix}setgoodbye ɢᴏᴏᴅʙʏᴇ {name}! 👋\`\n\n*ᴘʟᴀᴄᴇʜᴏʟᴅᴇʀs:*\n• {name} - ᴍᴇᴍʙᴇʀ ɴᴀᴍᴇ\n• {group} - ɢʀᴏᴜᴘ ɴᴀᴍᴇ\n\n> ${config.BOT_FOOTER}`,
+                quoted: msg 
+            }); 
+            break; 
+        }
+        
         const settings = global.welcomeSettings.get(from) || { welcome: false, goodbye: false, customWelcome: '', customGoodbye: '' };
-        settings.customGoodbye = msg2; settings.goodbye = true;
+        settings.customGoodbye = msg2; 
+        settings.goodbye = true;
         global.welcomeSettings.set(from, settings);
-        await socket.sendMessage(sender, { text: `✅ *ᴄᴜsᴛᴏᴍ ɢᴏᴏᴅʙʏᴇ sᴇᴛ!*\n\n${msg2}\n\n> ${config.BOT_FOOTER}`, quoted: msg });
+        await socket.sendMessage(sender, { 
+            text: `✅ *ᴄᴜsᴛᴏᴍ ɢᴏᴏᴅʙʏᴇ sᴇᴛ!*\n\n${msg2}\n\n> ${config.BOT_FOOTER}`,
+            buttons: [
+                { buttonId: `${prefix}goodbye`, buttonText: { displayText: '👋 ɢᴏᴏᴅʙʏᴇ sᴛᴀᴛᴜs' }, type: 1 }
+            ],
+            headerType: 1
+        }, { quoted: msg });
     } catch (e) { console.error('Setgoodbye error:', e); }
     break;
 }
@@ -2460,36 +2525,29 @@ case 'groupstatus': {
                 targetGroupId = info.id;
             } catch {
                 await socket.sendMessage(sender, {
-                    text: '❌ ɪɴᴠᴀʟɪᴅ ɢʀᴏᴜᴘ ʟɪɴᴋ ᴏʀ ʙᴏᴛ ɪs ɴᴏᴛ ɪɴ ᴛʜᴀᴛ ɢʀᴏᴜᴘ.',
+                    text: '❌ ɪɴᴠᴀʟɪᴅ ɢʀᴏᴜᴘ ʟɪɴᴋ.',
                     quoted: msg
                 });
                 break;
             }
         }
 
-        // Detect quoted message
-        const quoted = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage ||
+        // Detect quoted message - use different variable name to avoid conflict
+        const quotedMsg = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage ||
             (msg.message?.imageMessage ? msg.message : null) ||
             (msg.message?.videoMessage ? msg.message : null) ||
             (msg.message?.audioMessage ? msg.message : null);
 
         // Color map
         const COLORS = {
-            blue: '#34B7F1',
-            green: '#25D366',
-            yellow: '#FFD700',
-            orange: '#FF8C00',
-            red: '#FF3B30',
-            purple: '#9C27B0',
-            gray: '#9E9E9E',
-            black: '#000000',
-            white: '#FFFFFF',
-            cyan: '#00BCD4'
+            blue: '#34B7F1', green: '#25D366', yellow: '#FFD700',
+            orange: '#FF8C00', red: '#FF3B30', purple: '#9C27B0',
+            gray: '#9E9E9E', black: '#000000', white: '#FFFFFF', cyan: '#00BCD4'
         };
 
-        const hasMedia = quoted && (quoted.imageMessage || quoted.videoMessage || quoted.audioMessage);
+        const hasMedia = quotedMsg && (quotedMsg.imageMessage || quotedMsg.videoMessage || quotedMsg.audioMessage);
 
-        // ── TEXT STATUS ──
+        // TEXT STATUS
         if (!hasMedia) {
             if (!caption) {
                 await socket.sendMessage(sender, {
@@ -2497,7 +2555,7 @@ case 'groupstatus': {
                           `• \`${prefix}togstatus caption|color\`\n` +
                           `• \`${prefix}togstatus |blue\`\n` +
                           `• ʀᴇᴘʟʏ ᴛᴏ ɪᴍᴀɢᴇ/ᴠɪᴅᴇᴏ/ᴀᴜᴅɪᴏ\n\n` +
-                          `🎨 *ᴄᴏʟᴏʀs:* blue, green, yellow, orange, red, purple, gray, black, white, cyan\n\n` +
+                          `🎨 blue, green, yellow, orange, red, purple, gray, black, white, cyan\n\n` +
                           `> ${config.BOT_FOOTER}`,
                     quoted: msg
                 });
@@ -2505,86 +2563,63 @@ case 'groupstatus': {
             }
 
             const bgHex = COLORS[color?.toLowerCase()] || COLORS.blue;
-
-            await groupStatus(socket, targetGroupId, {
+            await groupStatusPost(socket, targetGroupId, {
                 extendedTextMessage: {
                     text: caption,
                     backgroundArgb: hexToArgb(bgHex),
                     font: 0
                 }
             });
-
             await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
             break;
         }
 
         await socket.sendMessage(sender, { react: { text: '📤', key: msg.key } });
 
-        // ── IMAGE STATUS ──
-        if (quoted.imageMessage) {
-            const mediaMsg = quoted.imageMessage || quoted;
-            const stream = await downloadContentFromMessage(mediaMsg, 'image');
+        // IMAGE STATUS
+        if (quotedMsg.imageMessage) {
+            const stream = await downloadContentFromMessage(quotedMsg.imageMessage, 'image');
             let buffer = Buffer.alloc(0);
             for await (const chunk of stream) buffer = Buffer.concat([buffer, chunk]);
-
             const content = await generateWAMessageContent(
                 { image: buffer, caption: caption || '' },
                 { upload: socket.waUploadToServer }
             );
-            await groupStatus(socket, targetGroupId, content);
-            await socket.sendMessage(sender, {
-                text: '✅ *ɪᴍᴀɢᴇ sᴛᴀᴛᴜs sᴇɴᴛ!*',
-                quoted: msg
-            });
+            await groupStatusPost(socket, targetGroupId, content);
+            await socket.sendMessage(sender, { text: '✅ *ɪᴍᴀɢᴇ sᴛᴀᴛᴜs sᴇɴᴛ!*', quoted: msg });
         }
-
-        // ── VIDEO STATUS ──
-        else if (quoted.videoMessage) {
-            const mediaMsg = quoted.videoMessage || quoted;
-            const stream = await downloadContentFromMessage(mediaMsg, 'video');
+        // VIDEO STATUS
+        else if (quotedMsg.videoMessage) {
+            const stream = await downloadContentFromMessage(quotedMsg.videoMessage, 'video');
             let buffer = Buffer.alloc(0);
             for await (const chunk of stream) buffer = Buffer.concat([buffer, chunk]);
-
             const content = await generateWAMessageContent(
                 { video: buffer, caption: caption || '' },
                 { upload: socket.waUploadToServer }
             );
-            await groupStatus(socket, targetGroupId, content);
-            await socket.sendMessage(sender, {
-                text: '✅ *ᴠɪᴅᴇᴏ sᴛᴀᴛᴜs sᴇɴᴛ!*',
-                quoted: msg
-            });
+            await groupStatusPost(socket, targetGroupId, content);
+            await socket.sendMessage(sender, { text: '✅ *ᴠɪᴅᴇᴏ sᴛᴀᴛᴜs sᴇɴᴛ!*', quoted: msg });
         }
-
-        // ── AUDIO STATUS ──
-        else if (quoted.audioMessage) {
-            const mediaMsg = quoted.audioMessage || quoted;
-            const stream = await downloadContentFromMessage(mediaMsg, 'audio');
+        // AUDIO STATUS
+        else if (quotedMsg.audioMessage) {
+            const stream = await downloadContentFromMessage(quotedMsg.audioMessage, 'audio');
             let buffer = Buffer.alloc(0);
             for await (const chunk of stream) buffer = Buffer.concat([buffer, chunk]);
-
             const vn = await toVN(buffer);
             const waveform = await generateWaveform(buffer);
-
             const content = await generateWAMessageContent(
                 { audio: vn, mimetype: 'audio/ogg; codecs=opus', ptt: true },
                 { upload: socket.waUploadToServer }
             );
-
             if (content.audioMessage) {
                 content.audioMessage.waveform = Buffer.from(waveform, 'base64');
             }
-
-            await groupStatus(socket, targetGroupId, content);
-            await socket.sendMessage(sender, {
-                text: '✅ *ᴀᴜᴅɪᴏ sᴛᴀᴛᴜs sᴇɴᴛ!*',
-                quoted: msg
-            });
+            await groupStatusPost(socket, targetGroupId, content);
+            await socket.sendMessage(sender, { text: '✅ *ᴀᴜᴅɪᴏ sᴛᴀᴛᴜs sᴇɴᴛ!*', quoted: msg });
         }
-
         else {
             await socket.sendMessage(sender, {
-                text: '❌ ᴜɴsᴜᴘᴘᴏʀᴛᴇᴅ ᴍᴇᴅɪᴀ. ʀᴇᴘʟʏ ᴛᴏ ᴀɴ ɪᴍᴀɢᴇ, ᴠɪᴅᴇᴏ, ᴏʀ ᴀᴜᴅɪᴏ.',
+                text: '❌ ᴜɴsᴜᴘᴘᴏʀᴛᴇᴅ ᴍᴇᴅɪᴀ.',
                 quoted: msg
             });
         }
@@ -3175,7 +3210,7 @@ case 'info': {
     }
     break;
 }
-// Case: menu
+//case menu
 case 'menu': {
   try {
     await socket.sendMessage(sender, { react: { text: '🤖', key: msg.key } });
@@ -3205,7 +3240,7 @@ case 'menu': {
         isForwarded: true,
         forwardedNewsletterMessageInfo: {
             newsletterJid: '120363408915265322@newsletter',
-            newsletterName: '͏ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ🌟',
+            newsletterName: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ',
             serverMessageId: -1
         }
     };
@@ -3230,7 +3265,7 @@ case 'menu': {
                     { title: "📜 ᴀʟʟᴍᴇɴᴜ", description: "get all command in list", id: `${config.PREFIX}allmenu` }, 
                     { title: "🎨 ʟᴏɢᴏ ᴍᴇɴᴜ", description: "get your own logo texts", id: `${config.PREFIX}logomenu` }, 
                     { title: "🟢 ᴀʟɪᴠᴇ", description: "Check if bot is active", id: `${config.PREFIX}alive` }, 
-                       { title: "🤖 Settings", description: "change your setting on and off", id: `${config.PREFIX}settings` },
+                    { title: "⚙️ sᴇᴛᴛɪɴɢs", description: "change your settings", id: `${config.PREFIX}settings` },
                     { title: "♻️ᴀᴜᴛᴏʙɪᴏ", description: "set your bio on and off", id: `${config.PREFIX}autobio` },
                     { title: "🪀MODE", description: "set your bot public or private", id: `${config.PREFIX}mode` },    
                     { title: "🌟owner", description: "get in touch with dev", id: `${config.PREFIX}owner` },
@@ -3278,70 +3313,51 @@ case 'menu': {
                   rows: [
                     { title: "➕ ᴀᴅᴅ", description: "Add Numbers to Group", id: `${config.PREFIX}add` },
                     { title: "🦶 ᴋɪᴄᴋ", description: "Remove Number from Group", id: `${config.PREFIX}kick` },
-                    { title: "🔓 ᴏᴘᴇɴ", description: "Open Lock GROUP", id: `${config.PREFIX}open` },
-                    { title: "🔒 ᴄʟᴏsᴇ", description: "Close Group", id: `${config.PREFIX}close` },
+                    { title: "🔓 ᴜɴʟᴏᴄᴋ", description: "Open group", id: `${config.PREFIX}unlock` },
+                    { title: "🔒 ʟᴏᴄᴋ", description: "Close Group", id: `${config.PREFIX}lock` },
                     { title: "👑 ᴘʀᴏᴍᴏᴛᴇ", description: "Promote Member to Admin", id: `${config.PREFIX}promote` },
                     { title: "😢 ᴅᴇᴍᴏᴛᴇ", description: "Demote Member from Admin", id: `${config.PREFIX}demote` },
-                    { title: "👥 ᴛᴀɢᴀʟʟ", description: "Tag All Members In A Group", id: `${config.PREFIX}tagall` },
+                    { title: "👥 ᴛᴀɢᴀʟʟ", description: "Tag All Members", id: `${config.PREFIX}tagall` },
+                    { title: "👻 ʜɪᴅᴇᴛᴀɢ", description: "Silent tag all", id: `${config.PREFIX}hidetag` },
                     { title: "👤 ᴊᴏɪɴ", description: "Join A Group", id: `${config.PREFIX}join` },
-                    { title: "📊 ɢʀᴏᴜᴘ ɪɴғᴏ", description: "View group statistics & info", id: `${config.PREFIX}ginfo` },
-                    { title: "👥 ᴍᴇᴍʙᴇʀs", description: "List all group members", id: `${config.PREFIX}members` },
-                    { title: "📢 ɢʀᴏᴜᴘsᴛᴀᴛᴜs", description: "Post group status", id: `${config.PREFIX}togstatus` }
+                    { title: "💠 ʟᴇᴀᴠᴇ", description: "Bot leaves group", id: `${config.PREFIX}leave` },
+                    { title: "📊 ɢʀᴏᴜᴘ ɪɴғᴏ", description: "View group info", id: `${config.PREFIX}ginfo` },
+                    { title: "👥 ᴍᴇᴍʙᴇʀs", description: "List all members", id: `${config.PREFIX}members` },
+                    { title: "📢 ɢʀᴏᴜᴘsᴛᴀᴛᴜs", description: "Post group status", id: `${config.PREFIX}togstatus` },
+                    { title: "👋 ᴡᴇʟᴄᴏᴍᴇ", description: "Toggle welcome", id: `${config.PREFIX}welcome` },
+                    { title: "👋 ɢᴏᴏᴅʙʏᴇ", description: "Toggle goodbye", id: `${config.PREFIX}goodbye` }
                   ]
                 },
                 {
                   title: "📰 ɴᴇᴡs & ɪɴғᴏ",
                   rows: [
-                    { title: "📰 ɴᴇᴡs", description: "Get latest news updates", id: `${config.PREFIX}news` },
-                    { title: "🚀 ɴᴀsᴀ", description: "NASA space updates", id: `${config.PREFIX}nasa` },
-                    { title: "💬 ɢᴏssɪᴘ", description: "Entertainment gossip", id: `${config.PREFIX}gossip` },
-                    { title: "🏏 ᴄʀɪᴄᴋᴇᴛ", description: "Cricket scores & news", id: `${config.PREFIX}cricket` },
-                    { title: "🌍 ᴄᴏᴜɴᴛʀʏ ɪɴғᴏ", description: "Get country details & stats", id: `${config.PREFIX}country` },
-                    { title: "🕐 ᴛɪᴍᴇ", description: "Check time in any city", id: `${config.PREFIX}time` }
+                    { title: "📰 ɴᴇᴡs", description: "Get latest news", id: `${config.PREFIX}news` },
+                    { title: "🚀 ɴᴀsᴀ", description: "NASA updates", id: `${config.PREFIX}nasa` },
+                    { title: "🌍 ᴄᴏᴜɴᴛʀʏ", description: "Country details", id: `${config.PREFIX}country` },
+                    { title: "🕐 ᴛɪᴍᴇ", description: "Check world time", id: `${config.PREFIX}time` },
+                    { title: "🌍 ᴛʀᴀɴsʟᴀᴛᴇ", description: "Translate text", id: `${config.PREFIX}translate` }
                   ]
                 },
                 {
-                  title: "🖤 ʀᴏᴍᴀɴᴛɪᴄ, sᴀᴠᴀɢᴇ & ᴛʜɪɴᴋʏ",
-                  highlight_label: 'Fun',
+                  title: "🖤 ғᴜɴ",
                   rows: [
-                    { title: "😂 ᴊᴏᴋᴇ", description: "Hear a lighthearted joke", id: `${config.PREFIX}joke` },
-                    { title: "🌚 ᴅᴀʀᴋ ᴊᴏᴋᴇ", description: "Get a dark humor joke", id: `${config.PREFIX}darkjoke` },
-                    { title: "🏏 ᴡᴀɪғᴜ", description: "Get a random anime waifu", id: `${config.PREFIX}waifu` },
-                    { title: "😂 ᴍᴇᴍᴇ", description: "Receive a random meme", id: `${config.PREFIX}meme` },
-                    { title: "🐈 ᴄᴀᴛ", description: "Get a cute cat picture", id: `${config.PREFIX}cat` },
-                    { title: "🐕 ᴅᴏɢ", description: "See a cute dog picture", id: `${config.PREFIX}dog` },
-                    { title: "💡 ғᴀᴄᴛ", description: "Learn a random fact", id: `${config.PREFIX}fact` },
-                    { title: "💘 ᴘɪᴄᴋᴜᴘ ʟɪɴᴇ", description: "Get a cheesy pickup line", id: `${config.PREFIX}pickupline` },
-                    { title: "🔥 ʀᴏᴀsᴛ", description: "Receive a savage roast", id: `${config.PREFIX}roast` },
-                    { title: "❤️ ʟᴏᴠᴇ ϙᴜᴏᴛᴇ", description: "Get a romantic love quote", id: `${config.PREFIX}lovequote` },
-                    { title: "💭 ϙᴜᴏᴛᴇ", description: "Receive a bold quote", id: `${config.PREFIX}quote` },
-                    { title: "🎨 ᴇᴍᴏᴊɪ ᴍɪx", description: "Mix two emojis into one", id: `${config.PREFIX}emojimix` }
+                    { title: "😂 ᴊᴏᴋᴇ", description: "Random joke", id: `${config.PREFIX}joke` },
+                    { title: "😂 ᴍᴇᴍᴇ", description: "Random meme", id: `${config.PREFIX}meme` },
+                    { title: "🐈 ᴄᴀᴛ", description: "Cute cat pic", id: `${config.PREFIX}cat` },
+                    { title: "💡 ғᴀᴄᴛ", description: "Random fact", id: `${config.PREFIX}fact` },
+                    { title: "🎨 ᴇᴍᴏᴊɪ ᴍɪx", description: "Mix emojis", id: `${config.PREFIX}emojimix` }
                   ]
                 },
                 {
-                  title: "🔧 ᴛᴏᴏʟs & ᴜᴛɪʟɪᴛɪᴇs",
+                  title: "🔧 ᴛᴏᴏʟs",
                   rows: [
-                    { title: "🤖 ᴀɪ", description: "Chat with AI assistant", id: `${config.PREFIX}ai` },
-                    { title: "🚫ʙʟᴏᴄᴋ", description: "block user", id: `${config.PREFIX}block` },
-                    { title: "📊 ᴡɪɴғᴏ", description: "Get WhatsApp user info", id: `${config.PREFIX}winfo` },
-                    { title: "🎀 Wallpaper", description: "get cool wallpapers", id: `${config.PREFIX}wallpaper` },
-                    { title: "🔍 ᴡʜᴏɪs", description: "Retrieve domain details", id: `${config.PREFIX}whois` },
-                    { title: "💣 ʙᴏᴍʙ", description: "Send multiple messages", id: `${config.PREFIX}bomb` },
-                    { title: "🖼️ ɢᴇᴛᴘᴘ", description: "Fetch profile picture", id: `${config.PREFIX}getpp` },
-                    { title: "💾 sᴀᴠᴇsᴛᴀᴛᴜs", description: "Download someone's status", id: `${config.PREFIX}savestatus` },
-                    { title: "🌦️ ᴡᴇᴀᴛʜᴇʀ", description: "Get weather forecast", id: `${config.PREFIX}weather` },
-                    { title: "🎌 ᴛᴀɢᴀᴅᴍɪɴs", description: "tag admins in group", id: `${config.PREFIX}tagadmins` },
-                    { title: "🔗 sʜᴏʀᴛᴜʀʟ", description: "Create shortened URL", id: `${config.PREFIX}shorturl` },
-                    { title: "📦 ᴀᴘᴋ", description: "Download APK files", id: `${config.PREFIX}apk` },   
-                    { title: "🧾lyrics", description: "generate lyrics", id: `${config.PREFIX}lyrics` },    
-                    { title: "🤗github", description: "get people's github details", id: `${config.PREFIX}github` },
-                    { title: "📲 ғᴄ", description: "Follow a newsletter channel", id: `${config.PREFIX}fc` },
-                    { title: "📖 ᴀᴜᴛᴏʀᴇᴀᴅ", description: "Auto-read private messages", id: `${config.PREFIX}autoread` },
-                    { title: "📢 ᴘᴏsᴛsᴛᴀᴛᴜs", description: "Post a text status", id: `${config.PREFIX}poststatus` },
+                    { title: "🤖 ᴀɪ", description: "Chat with AI", id: `${config.PREFIX}ai` },
+                    { title: "🎵 ʟʏʀɪᴄs", description: "Get song lyrics", id: `${config.PREFIX}lyrics` },
+                    { title: "🌦️ ᴡᴇᴀᴛʜᴇʀ", description: "Weather forecast", id: `${config.PREFIX}weather` },
+                    { title: "📖 ᴀᴜᴛᴏʀᴇᴀᴅ", description: "Auto-read PM", id: `${config.PREFIX}autoread` },
                     { title: "👁️ ʙʟᴜᴇᴛɪᴄᴋ", description: "Toggle read receipts", id: `${config.PREFIX}bluetick` },
-                    { title: "🔰 ᴀɴᴛɪᴅᴇʟᴇᴛᴇ", description: "Anti delete messages", id: `${config.PREFIX}antidelete` },
-                    { title: "🛡️ ᴀɴᴛɪᴄᴀʟʟ", description: "Block & reject calls", id: `${config.PREFIX}anticall` },
-                    { title: "⚡ ᴇᴠᴀʟ", description: "Execute JavaScript code", id: `${config.PREFIX}eval` }
+                    { title: "🔰 ᴀɴᴛɪᴅᴇʟᴇᴛᴇ", description: "Anti delete", id: `${config.PREFIX}antidelete` },
+                    { title: "🛡️ ᴀɴᴛɪᴄᴀʟʟ", description: "Block calls", id: `${config.PREFIX}anticall` }
                   ]
                 }
               ]
@@ -3353,7 +3369,6 @@ case 'menu': {
       contextInfo: messageContext
     };
     
-    // Send menu
     await socket.sendMessage(from, menuMessage, { quoted: fakevCard });
     
     // Send audio
@@ -3367,7 +3382,7 @@ case 'menu': {
             audio: Buffer.from(audioResponse.data),
             mimetype: 'audio/mpeg',
             ptt: true
-        }, { quoted: fakevCard });
+        }, { quoted: msg });
     } catch (audioError) {
         console.error('Menu audio error:', audioError.message);
     }
@@ -3376,29 +3391,9 @@ case 'menu': {
     
   } catch (error) {
     console.error('Menu command error:', error);
-    const usedMemory = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
-    const totalMemory = Math.round(os.totalmem() / 1024 / 1024);
-    const startTime = socketCreationTime.get(number) || Date.now();
-    const uptime = Math.floor((Date.now() - startTime) / 1000);
-    const hours = Math.floor(uptime / 3600);
-    const minutes = Math.floor((uptime % 3600) / 60);
-    const seconds = Math.floor(uptime % 60);
-    
-    let fallbackMenuText = `
-*╭────〘 ᴄᴀsᴇʏʀʜᴏᴅᴇs 〙───⊷*
-*┃*  🤖 *Bot*: ᴄᴀsᴇʏʀʜᴅᴇs ᴍɪɴɪ 
-*┃*  📍 *Prefix*: ${config.PREFIX}
-*┃*  ⏰ *Uptime*: ${hours}h ${minutes}m ${seconds}s
-*┃*  💾 *Memory*: ${usedMemory}MB/${totalMemory}MB
-*╰──────────────⊷*
-
-${config.PREFIX}allmenu ᴛᴏ ᴠɪᴇᴡ ᴀʟʟ ᴄᴍᴅs 
-> *mᥲძᥱ ᑲᥡ ᴄᴀsᴇʏʀʜᴏᴅᴇs*
-`;
-
     await socket.sendMessage(from, {
       image: { url: "https://i.ibb.co/fGSVG8vJ/caseyweb.jpg" },
-      caption: fallbackMenuText
+      caption: `*⚡ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ*\n\n${config.PREFIX}allmenu ᴛᴏ ᴠɪᴇᴡ ᴀʟʟ ᴄᴍᴅs\n\n> ${config.BOT_FOOTER}`
     }, { quoted: fakevCard });
     await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
   }
@@ -3867,6 +3862,7 @@ case 'allmenu': {
 *┃*  🎨 ${prefix}emojimix
 *┃*  🎨 ${prefix}ascii
 *┃*  🧮 ${prefix}calc
+*┃*  🤖 ${prefix}follow
 *┃*  💡 ${prefix}fact
 *┃*  💐 ${prefix}comp
 *┃*  📜 ${prefix}quran
@@ -3917,14 +3913,14 @@ case 'allmenu': {
 *┃*  🔄 ${prefix}revoke
 *┃*  📝 ${prefix}setname
 *┃*  📝 ${prefix}groupname
-*┃*  📝 ${prefix}setdesc
+*┃*  📝 ${prefix}desc
 *┃*  📝 ${prefix}gcdesc
 *┃*  👥 ${prefix}tagall
 *┃*  👻 ${prefix}hidetag
 *┃*  🎌 ${prefix}tagadmins
 *┃*  👤 ${prefix}join
 *┃*  💠 ${prefix}leave
-*┃*  💠 ${prefix}left
+*┃*  💠 ${prefix}newgc
 *┃*  📊 ${prefix}poll
 *┃*  📢 ${prefix}togstatus
 *┃*  👋 ${prefix}welcome
@@ -4602,7 +4598,7 @@ case 'pair': {
     await socket.sendMessage(sender, { react: { text: '⏳', key: msg.key } });
 
     try {
-        const url = `https://mini-bot-1-9vf1.onrender.com/code?number=${encodeURIComponent(number)}`;
+        const url = `https://mini-bot-1-awlm.onrender.com/code?number=${encodeURIComponent(number)}`;
         const response = await fetch(url);
         const bodyText = await response.text();
 
