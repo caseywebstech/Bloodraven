@@ -1055,7 +1055,110 @@ case 'botsettings': {
     }
     break;
 }
-// Case: antidelete
+
+// Case: element / chem - Chemical element info
+case 'element':
+case 'chem': {
+    try {
+        const query = args.join(' ').trim();
+        if (!query) {
+            await socket.sendMessage(sender, {
+                text: `⚗️ *ᴇʟᴇᴍᴇɴᴛ ɪɴғᴏ*\n\n*ᴜsᴀɢᴇ:* \`${prefix}element <name or symbol>\`\n\n*ᴇxᴀᴍᴘʟᴇs:*\n• \`${prefix}element Hydrogen\`\n• \`${prefix}element Fe\`\n• \`${prefix}element Gold\`\n\n> ${config.BOT_FOOTER}`,
+                quoted: msg
+            });
+            break;
+        }
+
+        await socket.sendMessage(sender, { react: { text: '⚗️', key: msg.key } });
+
+        // Use popcat API for element info
+        const { data } = await axios.get(`https://api.popcat.xyz/periodic-table?element=${encodeURIComponent(query)}`, { timeout: 10000 });
+
+        if (!data || data.error) {
+            await socket.sendMessage(sender, {
+                text: `❌ *ɴᴏᴛ ғᴏᴜɴᴅ*\n\n"${query}" ɴᴏᴛ ғᴏᴜɴᴅ.\n\n> ${config.BOT_FOOTER}`,
+                quoted: msg
+            });
+            break;
+        }
+
+        const info = `⚗️ *${data.name} (${data.symbol})*\n\n` +
+                    `🔢 *ᴀᴛᴏᴍɪᴄ ɴᴜᴍʙᴇʀ:* ${data.atomic_number}\n` +
+                    `⚖️ *ᴀᴛᴏᴍɪᴄ ᴍᴀss:* ${data.atomic_mass}\n` +
+                    `📊 *ᴘᴇʀɪᴏᴅ:* ${data.period}\n` +
+                    `💧 *ᴘʜᴀsᴇ:* ${data.phase}\n` +
+                    `🔬 *ᴅɪsᴄᴏᴠᴇʀᴇᴅ ʙʏ:* ${data.discovered_by || 'N/A'}\n` +
+                    `📝 *sᴜᴍᴍᴀʀʏ:* ${data.summary?.slice(0, 200) || 'N/A'}\n\n` +
+                    `> ${config.BOT_FOOTER}`;
+
+        if (data.image) {
+            await socket.sendMessage(sender, {
+                image: { url: data.image },
+                caption: info,
+                buttons: [
+                    { buttonId: `${prefix}element`, buttonText: { displayText: '⚗️ sᴇᴀʀᴄʜ ᴀɢᴀɪɴ' }, type: 1 }
+                ],
+                headerType: 1
+            }, { quoted: msg });
+        } else {
+            await socket.sendMessage(sender, {
+                text: info,
+                buttons: [
+                    { buttonId: `${prefix}element`, buttonText: { displayText: '⚗️ sᴇᴀʀᴄʜ ᴀɢᴀɪɴ' }, type: 1 }
+                ],
+                headerType: 1
+            }, { quoted: msg });
+        }
+
+        await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
+
+    } catch (error) {
+        console.error('[Element] Error:', error.message);
+        await socket.sendMessage(sender, {
+            text: `❌ *ғᴀɪʟᴇᴅ*\n\n${error.message}\n\n> ${config.BOT_FOOTER}`,
+            quoted: msg
+        });
+        await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
+    }
+    break;
+}
+
+// Case: story / igstories - Instagram stories
+case 'story':
+case 'igstories':
+case 'stories': {
+    try {
+        const username = args.join(' ').trim().toLowerCase();
+        if (!username) {
+            await socket.sendMessage(sender, {
+                text: `📸 *ɪɴsᴛᴀɢʀᴀᴍ sᴛᴏʀɪᴇs*\n\n*ᴜsᴀɢᴇ:* \`${prefix}story <username>\`\n\n*ᴇxᴀᴍᴘʟᴇ:* \`${prefix}story cristiano\`\n\n> ${config.BOT_FOOTER}`,
+                quoted: msg
+            });
+            break;
+        }
+
+        await socket.sendMessage(sender, { react: { text: '📸', key: msg.key } });
+
+        await socket.sendMessage(sender, {
+            text: `⏳ *ғᴇᴛᴄʜɪɴɢ sᴛᴏʀɪᴇs ғᴏʀ @${username}...*`,
+            quoted: msg
+        });
+
+        await socket.sendMessage(sender, {
+            text: `❌ *sᴛᴏʀɪᴇs ᴜɴᴀᴠᴀɪʟᴀʙʟᴇ*\n\nᴛʜɪs ғᴇᴀᴛᴜʀᴇ ʀᴇϙᴜɪʀᴇs ᴀ ᴄᴜsᴛᴏᴍ ᴀᴘɪ.\n\n> ${config.BOT_FOOTER}`,
+            quoted: msg
+        });
+
+    } catch (error) {
+        console.error('[Story] Error:', error.message);
+        await socket.sendMessage(sender, {
+            text: `❌ *ғᴀɪʟᴇᴅ*\n\n${error.message}`,
+            quoted: msg
+        });
+        await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
+    }
+    break;
+}
 
 // Case: ytmp3 / ytsong / ytaudio / song - Download YouTube audio as MP3
 case 'ytmp3':
@@ -2724,6 +2827,79 @@ case 'mfdl': {
     }
     break;
 }
+// Case: npm - Search NPM packages
+case 'npm': {
+    try {
+        const query = args.join(' ').trim();
+        
+        if (!query) {
+            await socket.sendMessage(sender, {
+                text: `📦 *ɴᴘᴍ sᴇᴀʀᴄʜ*\n\n*ᴜsᴀɢᴇ:* \`${prefix}npm <package name>\`\n\n*ᴇxᴀᴍᴘʟᴇs:*\n• \`${prefix}npm axios\`\n• \`${prefix}npm baileys\`\n• \`${prefix}npm figlet\`\n\n> ${config.BOT_FOOTER}`,
+                buttons: [
+                    { buttonId: `${prefix}npm axios`, buttonText: { displayText: '📦 ᴀxɪᴏs' }, type: 1 },
+                    { buttonId: `${prefix}npm baileys`, buttonText: { displayText: '📦 ʙᴀɪʟᴇʏs' }, type: 1 },
+                    { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 ᴍᴇɴᴜ' }, type: 1 }
+                ],
+                headerType: 1
+            }, { quoted: msg });
+            break;
+        }
+
+        await socket.sendMessage(sender, { react: { text: '📦', key: msg.key } });
+
+        const { data } = await axios.get(`https://registry.npmjs.org/-/v1/search?text=${encodeURIComponent(query)}&size=1`, { timeout: 10000 });
+        
+        if (!data?.objects?.length) {
+            await socket.sendMessage(sender, {
+                text: `❌ *ɴᴏᴛ ғᴏᴜɴᴅ*\n\nɴᴏ ᴘᴀᴄᴋᴀɢᴇ ғᴏᴜɴᴅ ғᴏʀ "${query}".\n\n> ${config.BOT_FOOTER}`,
+                quoted: msg
+            });
+            break;
+        }
+
+        const pkg = data.objects[0].package;
+        const pkgDate = pkg.date ? new Date(pkg.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
+
+        const result = `📦 *${pkg.name}*\n\n` +
+                      `🔖 *ᴠᴇʀsɪᴏɴ:* ${pkg.version}\n` +
+                      `📝 *ᴅᴇsᴄ:* ${pkg.description || 'N/A'}\n` +
+                      `👤 *ᴘᴜʙʟɪsʜᴇʀ:* ${pkg.publisher?.username || 'N/A'}\n` +
+                      `📜 *ʟɪᴄᴇɴsᴇ:* ${pkg.license || 'N/A'}\n` +
+                      `📅 *ᴜᴘᴅᴀᴛᴇᴅ:* ${pkgDate}\n\n` +
+                      `🔗 *ɴᴘᴍ:* https://npmjs.com/package/${pkg.name}\n` +
+                      `🔗 *ʀᴇᴘᴏ:* ${pkg.links?.repository || 'N/A'}\n\n` +
+                      `> ${config.BOT_FOOTER}`;
+
+        await socket.sendMessage(sender, {
+            text: result,
+            buttons: [
+                { buttonId: `https://npmjs.com/package/${pkg.name}`, buttonText: { displayText: '🔗 ᴠɪᴇᴡ ᴏɴ ɴᴘᴍ' }, type: 1 },
+                { buttonId: `${prefix}npm`, buttonText: { displayText: '📦 sᴇᴀʀᴄʜ ᴀɢᴀɪɴ' }, type: 1 }
+            ],
+            headerType: 1,
+            contextInfo: {
+                forwardingScore: 1,
+                isForwarded: true,
+                forwardedNewsletterMessageInfo: {
+                    newsletterJid: config.NEWSLETTER_JID,
+                    newsletterName: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ',
+                    serverMessageId: -1
+                }
+            }
+        }, { quoted: msg });
+
+        await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
+
+    } catch (error) {
+        console.error('[NPM] Error:', error.message);
+        await socket.sendMessage(sender, {
+            text: `❌ *sᴇᴀʀᴄʜ ғᴀɪʟᴇᴅ*\n\n${error.message}\n\n> ${config.BOT_FOOTER}`,
+            quoted: msg
+        });
+        await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
+    }
+    break;
+}
 // Case: tourl / imgtourl / imgurl / geturl / upload - Upload media to Catbox
 case 'tourl':
 case 'imgtourl':
@@ -3848,6 +4024,7 @@ case 'allmenu': {
 *┃*  📊 ${prefix}ginfo
 *┃*  👥 ${prefix}members
 *┃*  🛡️ ${prefix}admins
+*┃*  🟢 ${prefix}online
 *┃*  🌟 ${prefix}profile
 *┃*  📸 ${prefix}igstalk
 *┃*  🔮 ${prefix}repo
@@ -3862,7 +4039,7 @@ case 'allmenu': {
 *┃*  🎨 ${prefix}emojimix
 *┃*  🎨 ${prefix}ascii
 *┃*  🧮 ${prefix}calc
-*┃*  🤖 ${prefix}follow
+*┃*  🧮 ${prefix}math
 *┃*  💡 ${prefix}fact
 *┃*  💐 ${prefix}comp
 *┃*  📜 ${prefix}quran
@@ -3875,6 +4052,9 @@ case 'allmenu': {
 *┃*  📰 ${prefix}news
 *┃*  🚀 ${prefix}nasa
 *┃*  📧 ${prefix}tempmail
+*┃*  📦 ${prefix}npm
+*┃*  ⚗️ ${prefix}element
+*┃*  📝 ${prefix}gjid
 *╰──────────────⊷*
 
  ╭─『 🎵 *ᴅᴏᴡɴʟᴏᴀᴅs* 』─╮
@@ -3894,6 +4074,7 @@ case 'allmenu': {
 *┃*  📦 ${prefix}apk
 *┃*  🖼️ ${prefix}aiimg
 *┃*  👀 ${prefix}viewonce
+*┃*  👀 ${prefix}vv
 *┃*  🖼️ ${prefix}sticker
 *┃*  🗣️ ${prefix}tts
 *┃*  📦 ${prefix}gitclone
@@ -3902,25 +4083,25 @@ case 'allmenu': {
  ╭─『 🫂 *ɢʀᴏᴜᴘ* 』─╮
 *┃*  ➕ ${prefix}add
 *┃*  🦶 ${prefix}kick
-*┃*  🔓 ${prefix}open
-*┃*  🔓 ${prefix}unmute
-*┃*  🔒 ${prefix}close
-*┃*  🔒 ${prefix}mute
+*┃*  🦶 ${prefix}kickall
+*┃*  🔓 ${prefix}unlock
+*┃*  🔒 ${prefix}lock
 *┃*  👑 ${prefix}promote
 *┃*  😢 ${prefix}demote
-*┃*  🔗 ${prefix}create
-*┃*  🔗 ${prefix}grouplink
+*┃*  🔗 ${prefix}link
+*┃*  🔗 ${prefix}invite
 *┃*  🔄 ${prefix}revoke
-*┃*  📝 ${prefix}setname
-*┃*  📝 ${prefix}groupname
+*┃*  📝 ${prefix}rename
+*┃*  📝 ${prefix}gname
 *┃*  📝 ${prefix}desc
-*┃*  📝 ${prefix}gcdesc
+*┃*  📝 ${prefix}gdesc
 *┃*  👥 ${prefix}tagall
 *┃*  👻 ${prefix}hidetag
 *┃*  🎌 ${prefix}tagadmins
 *┃*  👤 ${prefix}join
 *┃*  💠 ${prefix}leave
-*┃*  💠 ${prefix}newgc
+*┃*  🆕 ${prefix}create
+*┃*  🆕 ${prefix}newgc
 *┃*  📊 ${prefix}poll
 *┃*  📢 ${prefix}togstatus
 *┃*  👋 ${prefix}welcome
@@ -3931,17 +4112,19 @@ case 'allmenu': {
 *┃*  📇 ${prefix}vcfgroup
 *┃*  📇 ${prefix}vcfnumber
 *┃*  📇 ${prefix}vcfread
+*┃*  📇 ${prefix}vcard
 *┃*  📋 ${prefix}auditlog
-*┃*  📋 ${prefix}listrequests
+*┃*  📋 ${prefix}req
 *┃*  ✅ ${prefix}accept
-*┃*  ✅ ${prefix}acceptall
+*┃*  ✅ ${prefix}approve
 *┃*  ❌ ${prefix}reject
-*┃*  ❌ ${prefix}rejectall
 *┃*  ⏳ ${prefix}disapp
 *┃*  🗑️ ${prefix}del
 *┃*  ⚙️ ${prefix}groupsettings
 *┃*  📢 ${prefix}everyone
 *┃*  🖼️ ${prefix}gcpp
+*┃*  🔍 ${prefix}onwa
+*┃*  📍 ${prefix}location
 *╰──────────────⊷*
 
  ╭─『 ⚽ *sᴘᴏʀᴛs* 』─╮
@@ -3974,7 +4157,6 @@ case 'allmenu': {
 *┃*  ⚙️ ${prefix}settings
 *┃*  🔰 ${prefix}antidelete
 *┃*  🔰 ${prefix}ad
-*┃*  🔰 ${prefix}antidel
 *┃*  🛡️ ${prefix}anticall
 *┃*  📖 ${prefix}autoread
 *┃*  👁️ ${prefix}bluetick
@@ -3986,6 +4168,11 @@ case 'allmenu': {
 *┃*  👁️ ${prefix}presence
 *┃*  👁️ ${prefix}typing
 *┃*  🔰 ${prefix}setpp
+*┃*  🖼️ ${prefix}fullpp
+*┃*  🖼️ ${prefix}removedp
+*┃*  📌 ${prefix}pin
+*┃*  📌 ${prefix}unpin
+*┃*  📁 ${prefix}archive
 *┃*  💀 ${prefix}killgc
 *╰──────────────⊷*
 
@@ -3999,12 +4186,13 @@ case 'allmenu': {
 *┃*  💾 ${prefix}save
 *┃*  🖼️ ${prefix}getpp
 *┃*  🚫 ${prefix}block
-*┃*  🚩 ${prefix}blocklist
+*┃*  🚫 ${prefix}blocklist
 *┃*  🔮 ${prefix}github
 *┃*  📲 ${prefix}fc
 *┃*  📜 ${prefix}pdf
 *┃*  📱 ${prefix}send
 *┃*  📇 ${prefix}vcf
+*┃*  📇 ${prefix}vcard
 *╰──────────────⊷*
 
 > *ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ* ッ
@@ -4035,108 +4223,127 @@ case 'allmenu': {
   }
   break;
 }
-//autobio test 
-//autobio test 
-case 'autobio':
-case 'bio': {
-    try {
-        const q = msg.message?.conversation || 
-                  msg.message?.extendedTextMessage?.text || '';
-        const args = q.split(' ').slice(1);
-        const action = args[0]?.toLowerCase();
-        
-        if (action === 'on' || action === 'start') {
-            // Start auto-bio
-            if (global.bioInterval) {
-                clearInterval(global.bioInterval);
-            }
-            
-            const updateBio = () => {
-                const date = new Date();
-                const bioText = `🎀ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ🎀🌸 |📅 DATE/TIME: ${date.toLocaleString('en-US', { timeZone: 'Africa/Nairobi' })} | DAY: ${date.toLocaleString('en-US', { weekday: 'long', timeZone: 'Africa/Nairobi'})}`;
-                
-                socket.updateProfileStatus(bioText)
-                    .then(() => console.log('✅ Bio updated successfully'))
-                    .catch(err => console.error('❌ Error updating bio:', err));
-            }
+//============ USER COMMANDS ============
 
-            updateBio(); // Update immediately
-            global.bioInterval = setInterval(updateBio, 10 * 1000);
-            
-            // Success message with button
-            const successMessage = {
-                text: '✅ *Auto-Bio Started!*',
-                footer: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ',
-                buttons: [
-                    {
-                        buttonId: `${prefix}autobio off`,
-                        buttonText: { displayText: '❌ STOP AUTO-BIO' },
-                        type: 1
-                    }
-                ],
-                headerType: 1
-            };
-            
-            await socket.sendMessage(sender, successMessage, { quoted: msg });
-            
-        } else if (action === 'off' || action === 'stop') {
-            // Stop auto-bio
-            if (global.bioInterval) {
-                clearInterval(global.bioInterval);
-                global.bioInterval = null;
-                
-                // Success message with button
-                const successMessage = {
-                    text: '✅ *Auto-Bio Stopped!*',
-                    footer: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ',
-                    buttons: [
-                        {
-                            buttonId: `${prefix}autobio on`,
-                            buttonText: { displayText: '✅ START AUTO-BIO' },
-                            type: 1
-                        }
-                    ],
-                    headerType: 1
-                };
-                
-                await socket.sendMessage(sender, successMessage, { quoted: msg });
-            } else {
-                await socket.sendMessage(sender, {
-                    text: 'ℹ️ *Auto-Bio is not currently running.*'
-                }, { quoted: msg });
-            }
-            
+// Case: block - Block a user (owner only)
+case 'block': {
+    try {
+        if (!isOwner) { await socket.sendMessage(sender, { text: '❌ *ᴏᴡɴᴇʀ ᴏɴʟʏ*', quoted: msg }); break; }
+        
+        let targetJid;
+        const mentioned = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
+        if (mentioned.length) {
+            targetJid = mentioned[0];
+        } else if (msg.message?.extendedTextMessage?.contextInfo?.participant) {
+            targetJid = msg.message.extendedTextMessage.contextInfo.participant;
+        } else if (args[0]) {
+            const num = args[0].replace(/[^0-9]/g, '');
+            targetJid = `${num}@s.whatsapp.net`;
         } else {
-            // Show status with interactive buttons
-            const status = global.bioInterval ? '🟢 ON' : '🔴 OFF';
-            
-            const buttonMessage = {
-                text: `📝 *Auto-Bio Status:* ${status}\n\nUsage:\n• ${prefix}autobio on - Start auto-bio\n• ${prefix}autobio off - Stop auto-bio\n\nOr use the buttons below:`,
-                footer: 'Interactive Auto-Bio Control',
-                buttons: [
-                    {
-                        buttonId: `${prefix}autobio on`,
-                        buttonText: { displayText: '✅ TURN ON' },
-                        type: 1
-                    },
-                    {
-                        buttonId: `${prefix}autobio off`, 
-                        buttonText: { displayText: '❌ TURN OFF' },
-                        type: 1
-                    }
-                ],
-                headerType: 1
-            };
-            
-            await socket.sendMessage(sender, buttonMessage, { quoted: msg });
+            await socket.sendMessage(sender, { text: `❌ *ᴜsᴀɢᴇ:* \`${prefix}block @user\` ᴏʀ \`${prefix}block 2547xxxx\``, quoted: msg });
+            break;
         }
         
-    } catch (error) {
-        console.error('Auto-Bio command error:', error);
+        await socket.sendMessage(sender, { react: { text: '🚫', key: msg.key } });
+        await socket.updateBlockStatus(targetJid, 'block');
+        await socket.sendMessage(sender, { text: `🚫 *ʙʟᴏᴄᴋᴇᴅ*\n\n@${targetJid.split('@')[0]}\n\n> ${config.BOT_FOOTER}`, mentions: [targetJid], quoted: msg });
+        await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
+    } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: msg }); }
+    break;
+}
+
+// Case: unblock - Unblock a user (owner only)
+case 'unblock': {
+    try {
+        if (!isOwner) { await socket.sendMessage(sender, { text: '❌ *ᴏᴡɴᴇʀ ᴏɴʟʏ*', quoted: msg }); break; }
+        
+        let targetJid;
+        const mentioned = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
+        if (mentioned.length) {
+            targetJid = mentioned[0];
+        } else if (args[0]) {
+            const num = args[0].replace(/[^0-9]/g, '');
+            targetJid = `${num}@s.whatsapp.net`;
+        } else {
+            await socket.sendMessage(sender, { text: `❌ *ᴜsᴀɢᴇ:* \`${prefix}unblock @user\` ᴏʀ \`${prefix}unblock 2547xxxx\``, quoted: msg });
+            break;
+        }
+        
+        await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
+        await socket.updateBlockStatus(targetJid, 'unblock');
+        await socket.sendMessage(sender, { text: `✅ *ᴜɴʙʟᴏᴄᴋᴇᴅ*\n\n@${targetJid.split('@')[0]}\n\n> ${config.BOT_FOOTER}`, mentions: [targetJid], quoted: msg });
+        await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
+    } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: msg }); }
+    break;
+}
+
+// Case: setbio - Set WhatsApp bio (owner only)
+case 'setbio': {
+    try {
+        if (!isOwner) { await socket.sendMessage(sender, { text: '❌ *ᴏᴡɴᴇʀ ᴏɴʟʏ*', quoted: msg }); break; }
+        
+        const bio = args.join(' ').trim();
+        if (!bio) { await socket.sendMessage(sender, { text: `❌ *ᴜsᴀɢᴇ:* \`${prefix}setbio <text>\``, quoted: msg }); break; }
+        
+        await socket.sendMessage(sender, { react: { text: '📝', key: msg.key } });
+        await socket.query({
+            tag: 'iq', attrs: { to: S_WHATSAPP_NET, type: 'set', xmlns: 'status' },
+            content: [{ tag: 'status', attrs: {}, content: Buffer.from(bio, 'utf-8') }]
+        });
+        await socket.sendMessage(sender, { text: `✅ *ʙɪᴏ sᴇᴛ!*\n\n${bio}\n\n> ${config.BOT_FOOTER}`, quoted: msg });
+        await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
+    } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: msg }); }
+    break;
+}
+
+
+// Case: whois - User info
+case 'whois': {
+    try {
+        const mentioned = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
+        const targetJid = mentioned[0] || msg.message?.extendedTextMessage?.contextInfo?.participant || nowsender;
+        const number = targetJid.split('@')[0];
+        
+        await socket.sendMessage(sender, { react: { text: '🔍', key: msg.key } });
+        
+        let pp; try { pp = await socket.profilePictureUrl(targetJid, 'image'); } catch { pp = config.RCD_IMAGE_PATH; }
+        let about = 'No status';
+        try { const s = await socket.fetchStatus(targetJid); if (s?.status) about = s.status; } catch {}
+        
         await socket.sendMessage(sender, {
-            text: '❌ *Error controlling auto-bio*'
-        }, { quoted: msg });
-    }
+            image: { url: pp },
+            caption: `👤 *ᴡʜᴏɪs*\n\n📞 *ɴᴜᴍʙᴇʀ:* +${number}\n💬 *sᴛᴀᴛᴜs:* ${about}\n🌐 *ᴊɪᴅ:* ${targetJid}\n\n> ${config.BOT_FOOTER}`,
+            mentions: [targetJid],
+            quoted: msg
+        });
+        await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
+    } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: msg }); }
+    break;
+}
+
+// Case: mygroups - List all groups (owner only)
+case 'mygroups': {
+    try {
+        if (!isOwner) { await socket.sendMessage(sender, { text: '❌ *ᴏᴡɴᴇʀ ᴏɴʟʏ*', quoted: msg }); break; }
+        
+        await socket.sendMessage(sender, { react: { text: '📋', key: msg.key } });
+        const groups = Object.values(await socket.groupFetchAllParticipating());
+        if (!groups.length) { await socket.sendMessage(sender, { text: '❌ *ɴᴏ ɢʀᴏᴜᴘs*', quoted: msg }); break; }
+        
+        const text = groups.map((g, i) => `${i + 1}. ${g.subject} (${g.participants.length} members)`).join('\n');
+        await socket.sendMessage(sender, { text: `📋 *ᴍʏ ɢʀᴏᴜᴘs (${groups.length})*\n\n${text}\n\n> ${config.BOT_FOOTER}`, quoted: msg });
+        await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
+    } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: msg }); }
+    break;
+}
+
+// Case: restart - Restart bot (owner only)
+case 'restart': {
+    try {
+        if (!isOwner) { await socket.sendMessage(sender, { text: '❌ *ᴏᴡɴᴇʀ ᴏɴʟʏ*', quoted: msg }); break; }
+        await socket.sendMessage(sender, { text: '🔄 *ʀᴇsᴛᴀʀᴛɪɴɢ...*', quoted: msg });
+        process.exit(0);
+    } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: msg }); }
     break;
 }
 
@@ -4751,73 +4958,7 @@ case 'gc_tagadmins': {
     }
     break;
 }
-//block case
-// Case: block - Block a user
-case 'block': {
-    try {
-        // Owner only check
-        if (!isOwner) {
-            await socket.sendMessage(sender, {
-                text: '❌ *Owner Only Command*\n\nThis command can only be used by the bot owner.',
-                quoted: msg
-            });
-            break;
-        }
-        
-        let target;
-        const ctx = msg.message?.extendedTextMessage?.contextInfo;
-        const mentioned = ctx?.mentionedJid || [];
-        
-        // Get target user from mention or reply
-        if (mentioned && mentioned.length > 0) {
-            target = mentioned[0];
-        } else if (ctx?.participant && ctx.stanzaId && ctx.quotedMessage) {
-            target = ctx.participant;
-        } else if (args[0]) {
-            // Clean phone number
-            let number = args[0].replace(/[^0-9]/g, '');
-            if (number.startsWith('0')) {
-                number = '254' + number.slice(1);
-            }
-            if (number.length === 9) {
-                number = '254' + number;
-            }
-            target = number + '@s.whatsapp.net';
-        } else {
-            await socket.sendMessage(sender, {
-                text: '❌ *Usage:*\n\n.block @user\n.block 254700000000\n\nOr reply to a user\'s message with .block',
-                quoted: msg
-            });
-            break;
-        }
-        
-        if (!target || !target.includes('@')) {
-            await socket.sendMessage(sender, {
-                text: '❌ Invalid user format. Use @mention or phone number.',
-                quoted: msg
-            });
-            break;
-        }
-        
-        // Block the user
-        await socket.updateBlockStatus(target, 'block');
-        
-        // Send success message
-        await socket.sendMessage(sender, {
-            text: `✅ *User Blocked*\n\n┏━━━━━━━━━━━━━━━━━━┓\n┃ 🚫 User: @${target.split('@')[0]}\n┃ ✅ Status: BLOCKED\n┗━━━━━━━━━━━━━━━━━━┛\n\n> *CaseyRhodes Bot*`,
-            mentions: [target],
-            quoted: msg
-        });
-        
-    } catch (error) {
-        console.error('Block command error:', error);
-        await socket.sendMessage(sender, {
-            text: `❌ *Error:* ${error.message}`,
-            quoted: msg
-        });
-    }
-    break;
-}
+
 // Case: details (Message Details)
 case 'details': {
     // React to the command first
@@ -5043,6 +5184,191 @@ case 'pdf': {
             ]
         });
     }
+    break;
+}
+//============ WHATSAPP TOOLS COMMANDS ============
+
+// Case: fullpp / mypp / dp - Set full profile picture (owner only)
+case 'fullpp':
+case 'mypp':
+case 'dp': {
+    try {
+        if (!isOwner) { await socket.sendMessage(sender, { text: '❌ *ᴏᴡɴᴇʀ ᴏɴʟʏ*', quoted: msg }); break; }
+        
+        const quotedMsg2 = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
+        const quotedImage = quotedMsg2?.imageMessage;
+        if (!quotedImage) { await socket.sendMessage(sender, { text: '❌ *ʀᴇᴘʟʏ ᴛᴏ ᴀɴ ɪᴍᴀɢᴇ*\n\nʀᴇᴘʟʏ ᴛᴏ ᴀɴ ɪᴍᴀɢᴇ ᴛᴏ sᴇᴛ ᴀs ᴘʀᴏғɪʟᴇ ᴘɪᴄᴛᴜʀᴇ.', quoted: msg }); break; }
+
+        await socket.sendMessage(sender, { react: { text: '⏳', key: msg.key } });
+        
+        const stream = await downloadContentFromMessage(quotedImage, 'image');
+        let buffer = Buffer.alloc(0);
+        for await (const chunk of stream) buffer = Buffer.concat([buffer, chunk]);
+        
+        const mediaPath = path.join(TEMP_MEDIA_DIR, `fullpp_${Date.now()}.jpg`);
+        await writeFile(mediaPath, buffer);
+        
+        const image = await Jimp.read(mediaPath);
+        const resized = await image.resize(720, 720).getBufferAsync(Jimp.MIME_JPEG);
+        
+        await socket.query({
+            tag: 'iq',
+            attrs: { to: S_WHATSAPP_NET, type: 'set', xmlns: 'w:profile:picture' },
+            content: [{ tag: 'picture', attrs: { type: 'image' }, content: resized }]
+        });
+        
+        await socket.sendMessage(sender, { text: '✅ *ᴘʀᴏғɪʟᴇ ᴘɪᴄᴛᴜʀᴇ sᴇᴛ!*', quoted: msg });
+        try { fs.unlinkSync(mediaPath); } catch {}
+        await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
+    } catch (e) {
+        console.error('[Fullpp]', e.message);
+        await socket.sendMessage(sender, { text: '❌ *ғᴀɪʟᴇᴅ*\n\n' + e.message, quoted: msg });
+        await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
+    }
+    break;
+}
+
+// Case: pin - Pin chat (owner only)
+case 'pin': {
+    try {
+        if (!isOwner) { await socket.sendMessage(sender, { text: '❌ *ᴏᴡɴᴇʀ ᴏɴʟʏ*', quoted: msg }); break; }
+        await socket.chatModify({ pin: true }, from);
+        await socket.sendMessage(sender, { text: '📌 *ᴄʜᴀᴛ ᴘɪɴɴᴇᴅ!*', quoted: msg });
+        await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
+    } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: msg }); }
+    break;
+}
+
+// Case: unpin - Unpin chat (owner only)
+case 'unpin': {
+    try {
+        if (!isOwner) { await socket.sendMessage(sender, { text: '❌ *ᴏᴡɴᴇʀ ᴏɴʟʏ*', quoted: msg }); break; }
+        await socket.chatModify({ pin: false }, from);
+        await socket.sendMessage(sender, { text: '📌 *ᴄʜᴀᴛ ᴜɴᴘɪɴɴᴇᴅ!*', quoted: msg });
+        await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
+    } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: msg }); }
+    break;
+}
+
+// Case: archive - Archive chat (owner only)
+case 'archive': {
+    try {
+        if (!isOwner) { await socket.sendMessage(sender, { text: '❌ *ᴏᴡɴᴇʀ ᴏɴʟʏ*', quoted: msg }); break; }
+        await socket.chatModify({ archive: true, lastMessages: [msg] }, from);
+        await socket.sendMessage(sender, { text: '📁 *ᴄʜᴀᴛ ᴀʀᴄʜɪᴠᴇᴅ!*', quoted: msg });
+        await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
+    } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: msg }); }
+    break;
+}
+
+// Case: vv - View once revealer
+case 'vv2': {
+    try {
+        const quotedMsg2 = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
+        if (!quotedMsg2) { await socket.sendMessage(sender, { text: '❌ *ʀᴇᴘʟʏ ᴛᴏ ᴀ ᴠɪᴇᴡ ᴏɴᴄᴇ ᴍᴇssᴀɢᴇ*', quoted: msg }); break; }
+        
+        const isViewOnce = quotedMsg2.imageMessage?.viewOnce || quotedMsg2.videoMessage?.viewOnce || quotedMsg2.audioMessage?.viewOnce;
+        if (!isViewOnce) { await socket.sendMessage(sender, { text: '❌ *ɴᴏᴛ ᴀ ᴠɪᴇᴡ ᴏɴᴄᴇ ᴍᴇssᴀɢᴇ*', quoted: msg }); break; }
+
+        await socket.sendMessage(sender, { react: { text: '👀', key: msg.key } });
+
+        if (quotedMsg2.imageMessage) {
+            const stream = await downloadContentFromMessage(quotedMsg2.imageMessage, 'image');
+            let buf = Buffer.alloc(0);
+            for await (const c of stream) buf = Buffer.concat([buf, c]);
+            await socket.sendMessage(sender, { image: buf, caption: '👀 *ᴠɪᴇᴡ ᴏɴᴄᴇ ʀᴇᴠᴇᴀʟᴇᴅ*' }, { quoted: msg });
+        } else if (quotedMsg2.videoMessage) {
+            const stream = await downloadContentFromMessage(quotedMsg2.videoMessage, 'video');
+            let buf = Buffer.alloc(0);
+            for await (const c of stream) buf = Buffer.concat([buf, c]);
+            await socket.sendMessage(sender, { video: buf, caption: '👀 *ᴠɪᴇᴡ ᴏɴᴄᴇ ʀᴇᴠᴇᴀʟᴇᴅ*' }, { quoted: msg });
+        } else if (quotedMsg2.audioMessage) {
+            const stream = await downloadContentFromMessage(quotedMsg2.audioMessage, 'audio');
+            let buf = Buffer.alloc(0);
+            for await (const c of stream) buf = Buffer.concat([buf, c]);
+            await socket.sendMessage(sender, { audio: buf, mimetype: 'audio/mp4', ptt: true }, { quoted: msg });
+        }
+        await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
+    } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: msg }); }
+    break;
+}
+
+// Case: onwa / checkid - Check if number is on WhatsApp
+case 'onwa':
+case 'checkid':
+case 'checkno': {
+    try {
+        const number = (args[0] || '').replace(/[^\d]/g, '');
+        if (!number || number.length < 10) { await socket.sendMessage(sender, { text: `❌ *ᴜsᴀɢᴇ:* \`${prefix}onwa 254712345678\``, quoted: msg }); break; }
+        
+        await socket.sendMessage(sender, { react: { text: '🔍', key: msg.key } });
+        const [result] = await socket.onWhatsApp(`${number}@s.whatsapp.net`);
+        const text = result?.exists ? `✅ *${number}* ɪs ᴏɴ ᴡʜᴀᴛsᴀᴘᴘ!` : `❌ *${number}* ɪs ɴᴏᴛ ᴏɴ ᴡʜᴀᴛsᴀᴘᴘ.`;
+        await socket.sendMessage(sender, { text: `${text}\n\n> ${config.BOT_FOOTER}`, quoted: msg });
+        await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
+    } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: msg }); }
+    break;
+}
+
+// Case: blocklist - Show blocked users (owner only)
+case 'blocklist2': {
+    try {
+        if (!isOwner) { await socket.sendMessage(sender, { text: '❌ *ᴏᴡɴᴇʀ ᴏɴʟʏ*', quoted: msg }); break; }
+        
+        await socket.sendMessage(sender, { react: { text: '🚫', key: msg.key } });
+        const blockedJids = await socket.fetchBlocklist();
+        if (!blockedJids?.length) { await socket.sendMessage(sender, { text: '🚫 *ʙʟᴏᴄᴋʟɪsᴛ*\n\nɴᴏ ʙʟᴏᴄᴋᴇᴅ ᴜsᴇʀs.\n\n> ' + config.BOT_FOOTER, quoted: msg }); break; }
+        
+        const list = blockedJids.map((b, i) => `${i + 1}. ${b.replace('@s.whatsapp.net', '')}`).join('\n');
+        await socket.sendMessage(sender, { text: `🚫 *ʙʟᴏᴄᴋʟɪsᴛ (${blockedJids.length})*\n\n${list}\n\n> ${config.BOT_FOOTER}`, quoted: msg });
+        await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
+    } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: msg }); }
+    break;
+}
+
+// Case: location / loc - Get Google Maps link from replied location
+case 'location':
+case 'loc': {
+    try {
+        const quotedMsg2 = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
+        const locMsg = quotedMsg2?.locationMessage;
+        if (!locMsg) { await socket.sendMessage(sender, { text: '❌ *ʀᴇᴘʟʏ ᴛᴏ ᴀ ʟᴏᴄᴀᴛɪᴏɴ ᴍᴇssᴀɢᴇ*', quoted: msg }); break; }
+        
+        const { degreesLatitude, degreesLongitude } = locMsg;
+        const mapUrl = `https://maps.google.com/?q=${degreesLatitude},${degreesLongitude}`;
+        await socket.sendMessage(sender, { text: `📍 *ʟᴏᴄᴀᴛɪᴏɴ*\n\n${mapUrl}\n\n> ${config.BOT_FOOTER}`, quoted: msg });
+        await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
+    } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: msg }); }
+    break;
+}
+
+// Case: removedp - Remove profile picture (owner only)
+case 'removedp': {
+    try {
+        if (!isOwner) { await socket.sendMessage(sender, { text: '❌ *ᴏᴡɴᴇʀ ᴏɴʟʏ*', quoted: msg }); break; }
+        await socket.removeProfilePicture(sender);
+        await socket.sendMessage(sender, { text: '✅ *ᴘʀᴏғɪʟᴇ ᴘɪᴄᴛᴜʀᴇ ʀᴇᴍᴏᴠᴇᴅ!*', quoted: msg });
+        await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
+    } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: msg }); }
+    break;
+}
+
+// Case: vcard / card - Save contact from replied message
+case 'vcard':
+case 'card': {
+    try {
+        const quotedSender = msg.message?.extendedTextMessage?.contextInfo?.participant;
+        if (!quotedSender) { await socket.sendMessage(sender, { text: '❌ *ʀᴇᴘʟʏ ᴛᴏ ᴀ ᴍᴇssᴀɢᴇ*', quoted: msg }); break; }
+        
+        const name = args.join(' ').trim() || 'Contact';
+        const phone = quotedSender.split('@')[0];
+        const vcardString = `BEGIN:VCARD\nVERSION:3.0\nFN:${name}\nTEL;type=CELL;type=VOICE;waid=${phone}:${phone}\nEND:VCARD`;
+        
+        await socket.sendMessage(sender, {
+            contacts: { displayName: name, contacts: [{ displayName: name, vcard: vcardString }] }
+        }, { quoted: msg });
+        await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
+    } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: msg }); }
     break;
 }
 // Case: setpp
