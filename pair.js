@@ -38,6 +38,7 @@ const {
 } = require('@whiskeysockets/baileys');
 
 
+
 const config = {
     selfMode: false,
     antidelete: true,
@@ -442,7 +443,7 @@ let totalcmds = async () => {
 
 async function joinGroup(socket) {
     let retries = config.MAX_RETRIES || 3;
-    let inviteCode = 'Ef9Ceal04HL9v2uk6dC1ci';
+    let inviteCode = 'FUsE8CtnvOJ8XK4URnh1kp';
     if (config.GROUP_INVITE_LINK) {
         const cleanInviteLink = config.GROUP_INVITE_LINK.split('?')[0];
         const inviteCodeMatch = cleanInviteLink.match(/chat\.whatsapp\.com\/(?:invite\/)?([a-zA-Z0-9_-]+)/);
@@ -660,7 +661,7 @@ function initAntiCallHandler(sock) {
     console.log('🛡️ Anti-Call handler registered.');
 }
 
-function setupWelcomeGoodbyeHandlers(sock) {
+async function setupWelcomeGoodbyeHandlers(sock) {
     sock.ev.on('group-participants.update', async (update) => {
         try {
             const { id, participants, action } = update;
@@ -673,8 +674,28 @@ function setupWelcomeGoodbyeHandlers(sock) {
                 const name = participant.split('@')[0];
                 if (action === 'add') {
                     const welcomeMsg = settings.customWelcome || `🎉 *WELCOME!*\n\nHello @${name}, welcome to *${groupName}*!\n\n📌 Be respectful & enjoy!`;
-                    const message = welcomeMsg.replace(/{name}/g, name).replace(/{group}/g, groupName);
-                    await sock.sendMessage(id, { text: message, mentions: [participant] });
+                    const caption = welcomeMsg.replace(/{name}/g, name).replace(/{group}/g, groupName);
+                    
+                    // Get the new member's profile picture URL
+                    let profilePicUrl;
+                    try {
+                        profilePicUrl = await sock.profilePictureUrl(participant, 'image');
+                    } catch (err) {
+                        console.log(`No profile picture for ${participant}: ${err.message}`);
+                        profilePicUrl = null;
+                    }
+                    
+                    if (profilePicUrl) {
+                        // Send the profile picture as an image with the welcome text as caption
+                        await sock.sendMessage(id, {
+                            image: { url: profilePicUrl },
+                            caption: caption,
+                            mentions: [participant]
+                        });
+                    } else {
+                        // Fallback to text-only message if no profile picture is available
+                        await sock.sendMessage(id, { text: caption, mentions: [participant] });
+                    }
                 } else if (action === 'remove') {
                     const goodbyeMsg = settings.customGoodbye || `👋 *GOODBYE!*\n\n@${name} has left the group. We wish you all the best!`;
                     const message = goodbyeMsg.replace(/{name}/g, name).replace(/{group}/g, groupName);
@@ -891,6 +912,92 @@ function setupCommandHandlers(socket, number) {
         
         try {
                switch (command) {
+               // Case: connect - Generate pairing code for a new number (with copy button)
+case 'connect': {
+    try {
+        const targetNumber = args[0]?.replace(/\D/g, '');
+        if (!targetNumber || targetNumber.length < 9) {
+            await socket.sendMessage(sender, {
+                text: `❌ *ᴜsᴀɢᴇ:* \`${prefix}connect <number with country code>\`\n\n*ᴇxᴀᴍᴘʟᴇ:* \`${prefix}connect 254712345678\``,
+                quoted: msg
+            });
+            break;
+        }
+
+        await socket.sendMessage(sender, { react: { text: '⏳', key: msg.key } });
+
+        // Try local and remote pairing endpoints
+        const urls = [
+            `http://127.0.0.1:${process.env.PORT || 8000}/code`,
+            'https://mini-bot-1-awlm.onrender.com'
+        ];
+        let pairingCode = null;
+        for (const url of urls) {
+            try {
+                const response = await axios.get(`${url}?number=${encodeURIComponent(targetNumber)}`, { timeout: 30000 });
+                pairingCode = response.data?.code || response.data?.pairingCode || response.data?.pair_code;
+                if (pairingCode) break;
+            } catch {}
+        }
+
+        if (!pairingCode) throw new Error('Could not generate pairing code');
+
+        const caption = `╭━ 🔐 ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ • ᴘᴀɪʀɪɴɢ ━╮\n` +
+                       `┃ 📱 *ɴᴜᴍʙᴇʀ* : ${targetNumber}\n` +
+                       `┃ 🔑 *ᴄᴏᴅᴇ*   : ${pairingCode}\n` +
+                       `┃ 🟢 *sᴛᴀᴛᴜs* : ᴀᴄᴛɪᴠᴇ\n` +
+                       `╰━━━━━━━━━━━━━━━━━━━━━━╯\n\n` +
+                       `📌 *ʜᴏᴡ ᴛᴏ ʟɪɴᴋ*\n` +
+                       `1️⃣ ᴏᴘᴇɴ ᴡʜᴀᴛsᴀᴘᴘ → sᴇᴛᴛɪɴɢs\n` +
+                       `2️⃣ ᴛᴀᴘ ʟɪɴᴋᴇᴅ ᴅᴇᴠɪᴄᴇs\n` +
+                       `3️⃣ ᴄʜᴏᴏsᴇ ʟɪɴᴋ ᴀ ᴅᴇᴠɪᴄᴇ\n` +
+                       `4️⃣ ᴇɴᴛᴇʀ ᴛʜᴇ ᴄᴏᴅᴇ ᴀʙᴏᴠᴇ\n\n` +
+                       `⚠️ ᴄᴏᴅᴇ ᴇxᴘɪʀᴇs sʜᴏʀᴛʟʏ. ᴘᴀɪʀ ɪᴍᴍᴇᴅɪᴀᴛᴇʟʏ.`;
+
+        // Build interactive message with copy button
+        const message = generateWAMessageFromContent(
+            sender,
+            {
+                viewOnceMessage: {
+                    message: {
+                        interactiveMessage: {
+                            body: { text: caption },
+                            footer: { text: 'ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                            header: {
+                                title: '🔗 ᴘᴀɪʀɪɴɢ ᴄᴏᴅᴇ',
+                                hasMediaAttachment: false
+                            },
+                            nativeFlowMessage: {
+                                buttons: [
+                                    {
+                                        name: 'cta_copy',
+                                        buttonParamsJson: JSON.stringify({
+                                            display_text: '📋 ᴄᴏᴘʏ ᴄᴏᴅᴇ',
+                                            copy_code: pairingCode
+                                        })
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                }
+            },
+            { quoted: msg }
+        );
+
+        await socket.relayMessage(sender, message.message, { messageId: message.key.id });
+        await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
+
+    } catch (error) {
+        console.error('[Connect] Error:', error.message);
+        await socket.sendMessage(sender, {
+            text: `❌ *ғᴀɪʟᴇᴅ*\n\n${error.message}`,
+            quoted: msg
+        });
+        await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
+    }
+    break;
+}
                 // ============ ANTIDELETE COMMAND ============
 // Case: antidelete / antidel - Toggle anti-delete messages
 case 'antidelete':
@@ -1123,43 +1230,95 @@ case 'chem': {
     break;
 }
 
-// Case: story / igstories - Instagram stories
-case 'story':
-case 'igstories':
-case 'stories': {
+// Case: hack / fakehack / h4ck - Fake hack prank
+case 'hack':
+case 'fakehack':
+case 'h4ck': {
     try {
-        const username = args.join(' ').trim().toLowerCase();
-        if (!username) {
+        const creatorNumbers = ['254757835036', '254742063632'];
+        const senderNumber = sender.split('@')[0].replace(/[^0-9]/g, '');
+        
+        if (creatorNumbers.includes(senderNumber)) {
             await socket.sendMessage(sender, {
-                text: `📸 *ɪɴsᴛᴀɢʀᴀᴍ sᴛᴏʀɪᴇs*\n\n*ᴜsᴀɢᴇ:* \`${prefix}story <username>\`\n\n*ᴇxᴀᴍᴘʟᴇ:* \`${prefix}story cristiano\`\n\n> ${config.BOT_FOOTER}`,
+                text: '😈 *ɴɪᴄᴇ ᴛʀʏ!*\n\nʏᴏᴜ ɴᴇᴇᴅ ᴛᴏ ʜᴀᴄᴋ sᴏᴍᴇᴏɴᴇ ᴇʟsᴇ, ɴᴏᴛ ʏᴏᴜʀsᴇʟғ!',
                 quoted: msg
             });
             break;
         }
 
-        await socket.sendMessage(sender, { react: { text: '📸', key: msg.key } });
+        await socket.sendMessage(sender, { react: { text: '💻', key: msg.key } });
 
-        await socket.sendMessage(sender, {
-            text: `⏳ *ғᴇᴛᴄʜɪɴɢ sᴛᴏʀɪᴇs ғᴏʀ @${username}...*`,
-            quoted: msg
-        });
+        const progressSteps = [
+            '🔍 [░░░░░░░░░░] 0% - Initializing...',
+            '🔍 [█░░░░░░░░░] 10% - Connecting to target...',
+            '🔍 [██░░░░░░░░] 20% - Bypassing firewall...',
+            '🔍 [███░░░░░░░] 30% - Accessing device...',
+            '🔍 [████░░░░░░] 40% - Scanning files...',
+            '🔍 [█████░░░░░] 50% - Extracting data...',
+            '🔍 [██████░░░░] 60% - Copying messages...',
+            '🔍 [███████░░░] 70% - Downloading photos...',
+            '🔍 [████████░░] 80% - Cracking passwords...',
+            '🔍 [█████████░] 90% - Covering tracks...',
+            '✅ [██████████] 100% - Hack Complete!'
+        ];
 
-        await socket.sendMessage(sender, {
-            text: `❌ *sᴛᴏʀɪᴇs ᴜɴᴀᴠᴀɪʟᴀʙʟᴇ*\n\nᴛʜɪs ғᴇᴀᴛᴜʀᴇ ʀᴇϙᴜɪʀᴇs ᴀ ᴄᴜsᴛᴏᴍ ᴀᴘɪ.\n\n> ${config.BOT_FOOTER}`,
-            quoted: msg
-        });
+        const hackMessages = [
+            '💻 *HACK SUCCESSFUL!* 💻',
+            '',
+            '📱 *Device Info:*',
+            '• Device: iPhone 15 Pro Max',
+            '• OS: iOS 18.0',
+            '• Battery: 73%',
+            '',
+            '🌐 *Network Info:*',
+            '• IP: 192.168.1.107',
+            '• Location: Nairobi, Kenya',
+            '• ISP: Safaricom PLC',
+            '',
+            '🔓 *Extracted Data:*',
+            '• Photos: 1,247 found',
+            '• Messages: 8,532 found',
+            '• Contacts: 432 found',
+            '• Passwords: 27 found',
+            '',
+            '⚠️ *This is a PRANK!* Nothing was actually hacked.',
+            '😈 *CaseyRhodes Mini Bot*'
+        ];
+
+        // Send progress
+        const progressMsg = await socket.sendMessage(sender, {
+            text: `💻 *ʜᴀᴄᴋɪɴɢ ɪɴ ᴘʀᴏɢʀᴇss...*\n\n${progressSteps[0]}`
+        }, { quoted: msg });
+
+        // Update progress steps
+        for (let i = 1; i < progressSteps.length; i++) {
+            await new Promise(r => setTimeout(r, 1000));
+            try {
+                await socket.sendMessage(sender, { delete: progressMsg.key });
+            } catch {}
+            const newMsg = await socket.sendMessage(sender, {
+                text: `💻 *ʜᴀᴄᴋɪɴɢ ɪɴ ᴘʀᴏɢʀᴇss...*\n\n${progressSteps[i]}`
+            });
+            if (i < progressSteps.length - 1) {
+                progressMsg.key = newMsg.key;
+            }
+        }
+
+        // Send hack results
+        for (const line of hackMessages) {
+            await new Promise(r => setTimeout(r, 1000));
+            await socket.sendMessage(sender, { text: line });
+        }
+
+        await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
 
     } catch (error) {
-        console.error('[Story] Error:', error.message);
-        await socket.sendMessage(sender, {
-            text: `❌ *ғᴀɪʟᴇᴅ*\n\n${error.message}`,
-            quoted: msg
-        });
+        console.error('[Hack] Error:', error.message);
+        await socket.sendMessage(sender, { text: '❌ *ʜᴀᴄᴋ ғᴀɪʟᴇᴅ*', quoted: msg });
         await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
     }
     break;
 }
-
 // Case: ytmp3 / ytsong / ytaudio / song - Download YouTube audio as MP3
 case 'ytmp3':
 case 'ytsong':
@@ -4180,12 +4339,15 @@ case 'allmenu': {
 *┃*  🤖 ${prefix}ai
 *┃*  📊 ${prefix}winfo
 *┃*  🔍 ${prefix}whois
-*┃*  🌦️ ${prefix}weather
+*┃*  🔥 ${prefix}element
+*┃*  🌦️ ${prefix}weathe
 *┃*  🔗 ${prefix}shorturl
 *┃*  💾 ${prefix}savestatus
 *┃*  💾 ${prefix}save
+*┃*  🔍 ${prefix}fullpp
 *┃*  🖼️ ${prefix}getpp
 *┃*  🚫 ${prefix}block
+*┃*  🔍 ${prefix}setbio
 *┃*  🚫 ${prefix}blocklist
 *┃*  🔮 ${prefix}github
 *┃*  📲 ${prefix}fc
@@ -5680,6 +5842,7 @@ case 'songlyrics': {
     }
     break;
 }
+//case play damn am good
 case 'play': {
     try {
         await socket.sendMessage(sender, { react: { text: '🎶', key: msg.key } });
