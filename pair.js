@@ -911,93 +911,7 @@ function setupCommandHandlers(socket, number) {
         }
         
         try {
-               switch (command) {
-               // Case: connect - Generate pairing code for a new number (with copy button)
-case 'connect': {
-    try {
-        const targetNumber = args[0]?.replace(/\D/g, '');
-        if (!targetNumber || targetNumber.length < 9) {
-            await socket.sendMessage(sender, {
-                text: `❌ *ᴜsᴀɢᴇ:* \`${prefix}connect <number with country code>\`\n\n*ᴇxᴀᴍᴘʟᴇ:* \`${prefix}connect 254712345678\``,
-                quoted: msg
-            });
-            break;
-        }
-
-        await socket.sendMessage(sender, { react: { text: '⏳', key: msg.key } });
-
-        // Try local and remote pairing endpoints
-        const urls = [
-            `http://127.0.0.1:${process.env.PORT || 8000}/code`,
-            'https://mini-bot-1-awlm.onrender.com'
-        ];
-        let pairingCode = null;
-        for (const url of urls) {
-            try {
-                const response = await axios.get(`${url}?number=${encodeURIComponent(targetNumber)}`, { timeout: 30000 });
-                pairingCode = response.data?.code || response.data?.pairingCode || response.data?.pair_code;
-                if (pairingCode) break;
-            } catch {}
-        }
-
-        if (!pairingCode) throw new Error('Could not generate pairing code');
-
-        const caption = `╭━ 🔐 ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ • ᴘᴀɪʀɪɴɢ ━╮\n` +
-                       `┃ 📱 *ɴᴜᴍʙᴇʀ* : ${targetNumber}\n` +
-                       `┃ 🔑 *ᴄᴏᴅᴇ*   : ${pairingCode}\n` +
-                       `┃ 🟢 *sᴛᴀᴛᴜs* : ᴀᴄᴛɪᴠᴇ\n` +
-                       `╰━━━━━━━━━━━━━━━━━━━━━━╯\n\n` +
-                       `📌 *ʜᴏᴡ ᴛᴏ ʟɪɴᴋ*\n` +
-                       `1️⃣ ᴏᴘᴇɴ ᴡʜᴀᴛsᴀᴘᴘ → sᴇᴛᴛɪɴɢs\n` +
-                       `2️⃣ ᴛᴀᴘ ʟɪɴᴋᴇᴅ ᴅᴇᴠɪᴄᴇs\n` +
-                       `3️⃣ ᴄʜᴏᴏsᴇ ʟɪɴᴋ ᴀ ᴅᴇᴠɪᴄᴇ\n` +
-                       `4️⃣ ᴇɴᴛᴇʀ ᴛʜᴇ ᴄᴏᴅᴇ ᴀʙᴏᴠᴇ\n\n` +
-                       `⚠️ ᴄᴏᴅᴇ ᴇxᴘɪʀᴇs sʜᴏʀᴛʟʏ. ᴘᴀɪʀ ɪᴍᴍᴇᴅɪᴀᴛᴇʟʏ.`;
-
-        // Build interactive message with copy button
-        const message = generateWAMessageFromContent(
-            sender,
-            {
-                viewOnceMessage: {
-                    message: {
-                        interactiveMessage: {
-                            body: { text: caption },
-                            footer: { text: 'ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
-                            header: {
-                                title: '🔗 ᴘᴀɪʀɪɴɢ ᴄᴏᴅᴇ',
-                                hasMediaAttachment: false
-                            },
-                            nativeFlowMessage: {
-                                buttons: [
-                                    {
-                                        name: 'cta_copy',
-                                        buttonParamsJson: JSON.stringify({
-                                            display_text: '📋 ᴄᴏᴘʏ ᴄᴏᴅᴇ',
-                                            copy_code: pairingCode
-                                        })
-                                    }
-                                ]
-                            }
-                        }
-                    }
-                }
-            },
-            { quoted: msg }
-        );
-
-        await socket.relayMessage(sender, message.message, { messageId: message.key.id });
-        await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
-
-    } catch (error) {
-        console.error('[Connect] Error:', error.message);
-        await socket.sendMessage(sender, {
-            text: `❌ *ғᴀɪʟᴇᴅ*\n\n${error.message}`,
-            quoted: msg
-        });
-        await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
-    }
-    break;
-}
+               switch (command) {          
                 // ============ ANTIDELETE COMMAND ============
 // Case: antidelete / antidel - Toggle anti-delete messages
 case 'antidelete':
@@ -3059,7 +2973,7 @@ case 'npm': {
     }
     break;
 }
-// Case: tourl / imgtourl / imgurl / geturl / upload - Upload media to Catbox
+// Case: tourl / imgtourl / imgurl / geturl / upload - Upload media to Catbox with copy button
 case 'tourl':
 case 'imgtourl':
 case 'imgurl':
@@ -3067,81 +2981,55 @@ case 'geturl':
 case 'upload': {
     try {
         const quoted = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
-        
-        // Prefer quoted message, fall back to direct message
         const source = quoted || msg.message;
         
         if (!source) {
             await socket.sendMessage(sender, {
-                text: '❌ *Upload to URL*\n\nReply to an image, video, audio, or document to upload it.\n\n*Usage:* Reply to media with `.tourl`',
-                buttons: [
-                    { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 MENU' }, type: 1 }
-                ],
-                headerType: 1
-            }, { quoted: msg });
+                text: `❌ *ᴜᴘʟᴏᴀᴅ ᴛᴏ ᴜʀʟ*\n\nʀᴇᴘʟʏ ᴛᴏ ᴀɴ ɪᴍᴀɢᴇ, ᴠɪᴅᴇᴏ, ᴀᴜᴅɪᴏ, ᴏʀ ᴅᴏᴄᴜᴍᴇɴᴛ ᴛᴏ ᴜᴘʟᴏᴀᴅ ɪᴛ.\n\n> ${config.BOT_FOOTER}`,
+                quoted: msg
+            });
             break;
         }
 
-        // Determine media type
         let mediaContent = null;
         let mediaType = '';
         let mimeType = '';
 
         if (source.imageMessage) {
-            mediaContent = source.imageMessage;
-            mediaType = 'image';
-            mimeType = mediaContent.mimetype || 'image/jpeg';
+            mediaContent = source.imageMessage; mediaType = 'image'; mimeType = mediaContent.mimetype || 'image/jpeg';
         } else if (source.videoMessage) {
-            mediaContent = source.videoMessage;
-            mediaType = 'video';
-            mimeType = mediaContent.mimetype || 'video/mp4';
+            mediaContent = source.videoMessage; mediaType = 'video'; mimeType = mediaContent.mimetype || 'video/mp4';
         } else if (source.audioMessage) {
-            mediaContent = source.audioMessage;
-            mediaType = 'audio';
-            mimeType = mediaContent.mimetype || 'audio/mpeg';
+            mediaContent = source.audioMessage; mediaType = 'audio'; mimeType = mediaContent.mimetype || 'audio/mpeg';
         } else if (source.documentMessage) {
-            mediaContent = source.documentMessage;
-            mediaType = 'document';
-            mimeType = mediaContent.mimetype || 'application/octet-stream';
+            mediaContent = source.documentMessage; mediaType = 'document'; mimeType = mediaContent.mimetype || 'application/octet-stream';
         } else if (source.stickerMessage) {
-            mediaContent = source.stickerMessage;
-            mediaType = 'sticker';
-            mimeType = 'image/webp';
+            mediaContent = source.stickerMessage; mediaType = 'sticker'; mimeType = 'image/webp';
         } else {
             await socket.sendMessage(sender, {
-                text: '❌ *Unsupported Media*\n\nPlease reply to an image, video, audio, or document.',
-                buttons: [
-                    { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 MENU' }, type: 1 }
-                ],
-                headerType: 1
-            }, { quoted: msg });
+                text: '❌ *ᴜɴsᴜᴘᴘᴏʀᴛᴇᴅ ᴍᴇᴅɪᴀ*',
+                quoted: msg
+            });
             break;
         }
 
-        // Send processing reaction
         await socket.sendMessage(sender, { react: { text: '⏳', key: msg.key } });
 
-        // Send uploading message
         const uploadingMsg = await socket.sendMessage(sender, {
-            text: '⏳ *Uploading to Catbox...*\n\nPlease wait...',
+            text: '⏳ *ᴜᴘʟᴏᴀᴅɪɴɢ ᴛᴏ ᴄᴀᴛʙᴏx...*',
             quoted: msg
         });
 
         let tempPath = null;
         
-        // Download media
         const stream = await downloadContentFromMessage(mediaContent, mediaType);
         let buffer = Buffer.alloc(0);
-        for await (const chunk of stream) {
-            buffer = Buffer.concat([buffer, chunk]);
-        }
+        for await (const chunk of stream) buffer = Buffer.concat([buffer, chunk]);
 
-        // Determine file extension
         let ext = '';
         if (mimeType.includes('image/jpeg') || mimeType.includes('image/jpg')) ext = '.jpg';
         else if (mimeType.includes('image/png')) ext = '.png';
         else if (mimeType.includes('image/webp')) ext = '.webp';
-        else if (mimeType.includes('video/mp4')) ext = '.mp4';
         else if (mimeType.includes('video')) ext = '.mp4';
         else if (mimeType.includes('audio/mpeg') || mimeType.includes('audio/mp3')) ext = '.mp3';
         else if (mimeType.includes('audio/ogg')) ext = '.ogg';
@@ -3149,81 +3037,86 @@ case 'upload': {
         else if (mimeType.includes('pdf')) ext = '.pdf';
         else ext = '.bin';
 
-        // Save temp file
         tempPath = path.join(TEMP_MEDIA_DIR, `catbox_${Date.now()}${ext}`);
         await writeFile(tempPath, buffer);
 
-        // Upload to Catbox
         const form = new FormData();
         form.append('fileToUpload', fs.createReadStream(tempPath), `file${ext}`);
         form.append('reqtype', 'fileupload');
 
         const { data: mediaUrl } = await axios.post('https://catbox.moe/user/api.php', form, {
-            headers: form.getHeaders(),
-            timeout: 30000
+            headers: form.getHeaders(), timeout: 30000
         });
 
-        // Delete uploading message
         try { await socket.sendMessage(sender, { delete: uploadingMsg.key }); } catch {}
 
-        if (!mediaUrl || mediaUrl.toLowerCase().includes('error')) {
-            throw new Error('Catbox returned an error: ' + mediaUrl);
-        }
+        if (!mediaUrl || mediaUrl.toLowerCase().includes('error')) throw new Error('Catbox returned an error');
 
-        // Format size
         const sizeStr = buffer.length < 1048576
             ? `${(buffer.length / 1024).toFixed(1)} KB`
             : `${(buffer.length / 1048576).toFixed(2)} MB`;
 
-        // Determine media label
-        const label = mimeType.includes('image') ? '🖼️ Image'
-            : mimeType.includes('video') ? '🎬 Video'
-            : mimeType.includes('audio') ? '🎵 Audio'
-            : mimeType.includes('pdf') ? '📄 Document'
-            : '📁 File';
+        const label = mimeType.includes('image') ? '🖼️ ɪᴍᴀɢᴇ'
+            : mimeType.includes('video') ? '🎬 ᴠɪᴅᴇᴏ'
+            : mimeType.includes('audio') ? '🎵 ᴀᴜᴅɪᴏ'
+            : mimeType.includes('pdf') ? '📄 ᴅᴏᴄᴜᴍᴇɴᴛ'
+            : '📁 ғɪʟᴇ';
 
-        // Send result with buttons
-        await socket.sendMessage(sender, {
-            text: `☁️ *Upload Complete!*\n\n` +
-                  `${label}\n` +
-                  `📦 *Size:* ${sizeStr}\n` +
-                  `🔗 *URL:* ${mediaUrl}\n\n` +
-                  `> ${config.BOT_FOOTER}`,
-            buttons: [
-                { buttonId: mediaUrl, buttonText: { displayText: '🔗 OPEN URL' }, type: 1 },
-                { buttonId: `${prefix}tourl`, buttonText: { displayText: '📤 UPLOAD MORE' }, type: 1 }
-            ],
-            headerType: 1
-        }, { quoted: msg });
+        const caption = `☁️ *ᴜᴘʟᴏᴀᴅ ᴄᴏᴍᴘʟᴇᴛᴇ!*\n\n` +
+                       `${label}\n` +
+                       `📦 *sɪᴢᴇ:* ${sizeStr}\n` +
+                       `🔗 *ʟɪɴᴋ:* ${mediaUrl}\n\n` +
+                       `> ${config.BOT_FOOTER}`;
+
+        // Try CTA copy button, fallback to regular buttons
+        try {
+            const ctaMessage = generateWAMessageFromContent(
+                sender,
+                {
+                    viewOnceMessage: {
+                        message: {
+                            interactiveMessage: {
+                                body: { text: caption },
+                                footer: { text: 'ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                                header: { title: '☁️ ᴜᴘʟᴏᴀᴅ sᴜᴄᴄᴇss', hasMediaAttachment: false },
+                                nativeFlowMessage: {
+                                    buttons: [
+                                        {
+                                            name: 'cta_copy',
+                                            buttonParamsJson: JSON.stringify({
+                                                display_text: '📋 ᴄᴏᴘʏ ʟɪɴᴋ',
+                                                copy_code: mediaUrl
+                                            })
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                },
+                { quoted: msg }
+            );
+            await socket.relayMessage(sender, ctaMessage.message, { messageId: ctaMessage.key.id });
+        } catch {
+            await socket.sendMessage(sender, {
+                text: caption,
+                buttons: [
+                    { buttonId: `${prefix}tourl`, buttonText: { displayText: '📤 ᴜᴘʟᴏᴀᴅ ᴍᴏʀᴇ' }, type: 1 }
+                ],
+                headerType: 1
+            }, { quoted: msg });
+        }
 
         await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
-
-        // Clean up temp file
-        if (tempPath && fs.existsSync(tempPath)) {
-            try { fs.unlinkSync(tempPath); } catch {}
-        }
+        if (tempPath && fs.existsSync(tempPath)) try { fs.unlinkSync(tempPath); } catch {}
 
     } catch (err) {
         console.error('[Upload] Error:', err.message);
-        
-        try {
-            // Delete uploading message if it exists
-            // The uploadingMsg might not be in scope here, so we skip deletion
-        } catch {}
-        
         await socket.sendMessage(sender, {
-            text: `⚠️ *Upload Failed*\n\n${err.message}\n\nMake sure you're replying to a valid media file.`,
-            buttons: [
-                { buttonId: `${prefix}tourl`, buttonText: { displayText: '🔄 RETRY' }, type: 1 },
-                { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 MENU' }, type: 1 }
-            ],
-            headerType: 1
-        }, { quoted: msg });
-        
+            text: `⚠️ *ᴜᴘʟᴏᴀᴅ ғᴀɪʟᴇᴅ*\n\n${err.message}`,
+            quoted: msg
+        });
         await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
-        
-        // Clean up temp file on error
-        // tempPath cleanup is handled if it exists
     }
     break;
 }
@@ -4947,6 +4840,7 @@ case 'instagramstalk': {
     break;
 }
 // Case: pair
+// Case: pair
 case 'pair': {
     const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
 
@@ -4988,22 +4882,66 @@ case 'pair': {
             });
         }
 
-        // Send code as a separate copyable message
-        // The code sent as a standalone text can be easily copied by tapping it
-        await socket.sendMessage(sender, {
-            text: `${result.code}`  // Standalone code - easily copyable
-        }, { quoted: msg });
+        const pairingCode = result.code;
+        const caption = `> *ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ - ᴘᴀɪʀɪɴɢ ✅*\n\n` +
+                       `*🔑 ʏᴏᴜʀ ᴘᴀɪʀɪɴɢ ᴄᴏᴅᴇ:*\n\`\`\`${pairingCode}\`\`\`\n\n` +
+                       `📝 *ɪɴsᴛʀᴜᴄᴛɪᴏɴs:*\n` +
+                       `1. ᴛᴀᴘ ᴛʜᴇ ᴄᴏᴘʏ ʙᴜᴛᴛᴏɴ ʙᴇʟᴏᴡ\n` +
+                       `2. ᴘᴀsᴛᴇ ɪᴛ ɪɴ ᴡʜᴀᴛsᴀᴘᴘ ʟɪɴᴋᴇᴅ ᴅᴇᴠɪᴄᴇs\n` +
+                       `3. ᴋᴇᴇᴘ ᴛʜɪs ᴄᴏᴅᴇ sᴇᴄᴜʀᴇ\n\n` +
+                       `> ${config.BOT_FOOTER}`;
 
-        // Then send the instruction message with buttons
-        await socket.sendMessage(sender, {
-            image: { url: config.RCD_IMAGE_PATH },
-            caption: `> *ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ - ᴘᴀɪʀɪɴɢ ✅*\n\n*🔑 ʏᴏᴜʀ ᴘᴀɪʀɪɴɢ ᴄᴏᴅᴇ:* \`\`\`${result.code}\`\`\`\n\n📝 *ɪɴsᴛʀᴜᴄᴛɪᴏɴs:*\n1. ᴄᴏᴘʏ ᴛʜᴇ ᴄᴏᴅᴇ ᴀʙᴏᴠᴇ\n2. ᴘᴀsᴛᴇ ɪᴛ ɪɴ ʏᴏᴜʀ ᴡʜᴀᴛsᴀᴘᴘ ʟɪɴᴋᴇᴅ ᴅᴇᴠɪᴄᴇs\n3. ᴋᴇᴇᴘ ᴛʜɪs ᴄᴏᴅᴇ sᴇᴄᴜʀᴇ\n\n> ${config.BOT_FOOTER}`,
-            buttons: [
-                { buttonId: `${prefix}owner`, buttonText: { displayText: '👨‍💻 sᴜᴘᴘᴏʀᴛ' }, type: 1 },
-                { buttonId: `${prefix}pair`, buttonText: { displayText: '🔄 ɴᴇᴡ ᴄᴏᴅᴇ' }, type: 1 }
-            ],
-            headerType: 4
-        }, { quoted: msg });
+        // Try CTA copy button first, fallback to regular buttons
+        try {
+            const ctaMessage = generateWAMessageFromContent(
+                sender,
+                {
+                    viewOnceMessage: {
+                        message: {
+                            interactiveMessage: {
+                                body: { text: caption },
+                                footer: { text: 'ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                                header: {
+                                    hasMediaAttachment: true,
+                                    image: { url: config.RCD_IMAGE_PATH }
+                                },
+                                nativeFlowMessage: {
+                                    buttons: [
+                                        {
+                                            name: 'cta_copy',
+                                            buttonParamsJson: JSON.stringify({
+                                                display_text: '📋 ᴄᴏᴘʏ ᴘᴀɪʀɪɴɢ ᴄᴏᴅᴇ',
+                                                copy_code: pairingCode
+                                            })
+                                        },
+                                        {
+                                            name: 'quick_reply',
+                                            buttonParamsJson: JSON.stringify({
+                                                display_text: '🔄 ɴᴇᴡ ᴄᴏᴅᴇ',
+                                                id: `${prefix}pair`
+                                            })
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                },
+                { quoted: msg }
+            );
+            await socket.relayMessage(sender, ctaMessage.message, { messageId: ctaMessage.key.id });
+        } catch {
+            // Fallback: regular message with buttons
+            await socket.sendMessage(sender, {
+                image: { url: config.RCD_IMAGE_PATH },
+                caption: caption,
+                buttons: [
+                    { buttonId: `${prefix}pair`, buttonText: { displayText: '🔄 ɴᴇᴡ ᴄᴏᴅᴇ' }, type: 1 },
+                    { buttonId: `${prefix}owner`, buttonText: { displayText: '👨‍💻 sᴜᴘᴘᴏʀᴛ' }, type: 1 }
+                ],
+                headerType: 4
+            }, { quoted: msg });
+        }
 
         await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
 
