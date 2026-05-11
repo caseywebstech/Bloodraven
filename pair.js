@@ -38,7 +38,6 @@ const {
 } = require('@whiskeysockets/baileys');
 
 
-
 const config = {
     selfMode: false,
     antidelete: true,
@@ -4233,12 +4232,13 @@ case 'allmenu': {
 *┃*  📊 ${prefix}winfo
 *┃*  🔍 ${prefix}whois
 *┃*  🔥 ${prefix}element
-*┃*  🌦️ ${prefix}weathe
+*┃*  🌦️ ${prefix}weather
 *┃*  🔗 ${prefix}shorturl
 *┃*  💾 ${prefix}savestatus
 *┃*  💾 ${prefix}save
 *┃*  🔍 ${prefix}fullpp
 *┃*  🖼️ ${prefix}getpp
+*┃*  🖼️ ${prefix}setbio
 *┃*  🚫 ${prefix}block
 *┃*  🔍 ${prefix}setbio
 *┃*  🚫 ${prefix}blocklist
@@ -4253,21 +4253,42 @@ case 'allmenu': {
 > *ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ* ッ
 `;
 
-    const buttons = [
-      {buttonId: `${prefix}alive`, buttonText: {displayText: '🟢 ᴀʟɪᴠᴇ'}, type: 1},
-      {buttonId: `${prefix}menu`, buttonText: {displayText: '📋 ᴍᴇɴᴜ'}, type: 1},
-      {buttonId: `${prefix}settings`, buttonText: {displayText: '⚙️ sᴇᴛᴛɪɴɢs'}, type: 1}
-    ];
+    // ONE message with image + CTA Join Channel button only
+    await socket.sendMessage(from, {
+        image: { url: "https://i.ibb.co/fGSVG8vJ/caseyweb.jpg" },
+        caption: allMenuText,
+        footer: "Click button below to join our channel"
+    }, { quoted: fakevCard });
 
-    const buttonMessage = {
-      image: { url: "https://i.ibb.co/fGSVG8vJ/caseyweb.jpg" },
-      caption: allMenuText,
-      footer: "Click buttons for quick actions",
-      buttons: buttons,
-      headerType: 4
-    };
+    try {
+        const ctaMsg = generateWAMessageFromContent(
+            from,
+            {
+                viewOnceMessage: {
+                    message: {
+                        interactiveMessage: {
+                            body: { text: '📢 *ᴊᴏɪɴ ᴏᴜʀ ᴡʜᴀᴛsᴀᴘᴘ ᴄʜᴀɴɴᴇʟ*' },
+                            footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                            nativeFlowMessage: {
+                                buttons: [
+                                    {
+                                        name: 'cta_url',
+                                        buttonParamsJson: JSON.stringify({
+                                            display_text: 'Join Channel',
+                                            url: config.CHANNEL_LINK
+                                        })
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                }
+            },
+            { quoted: msg }
+        );
+        await socket.relayMessage(from, ctaMsg.message, { messageId: ctaMsg.key.id });
+    } catch {}
 
-    await socket.sendMessage(from, buttonMessage, { quoted: fakevCard });
     await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
   } catch (error) {
     console.error('Allmenu command error:', error);
@@ -4560,14 +4581,13 @@ case 'vote': {
     break;
 }
 // Case: ping
-// Case: ping - Check bot response time and uptime
+// Case: ping - Check bot response time and uptime with channel CTA
 case 'ping': {
     try {
         await socket.sendMessage(sender, { react: { text: '🏓', key: msg.key } });
 
         const start = performance.now();
         
-        // Send initial ping message
         const pingMsg = await socket.sendMessage(sender, {
             text: '🏓 *ᴘɪɴɢɪɴɢ...*',
             quoted: msg
@@ -4575,20 +4595,17 @@ case 'ping': {
         
         const responseTime = (performance.now() - start).toFixed(2);
 
-        // Calculate uptime
         const startTime = socketCreationTime.get(number) || Date.now();
         const uptime = Math.floor((Date.now() - startTime) / 1000);
         const hours = Math.floor(uptime / 3600);
         const minutes = Math.floor((uptime % 3600) / 60);
         const seconds = Math.floor(uptime % 60);
 
-        // System info
         const usedMemory = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
         const totalMemory = Math.round(os.totalmem() / 1024 / 1024);
         const platform = os.platform();
         const nodeVersion = process.version;
 
-        // Delete ping message
         try { await socket.sendMessage(sender, { delete: pingMsg.key }); } catch {}
 
         const pingText = 
@@ -4600,30 +4617,72 @@ case 'ping': {
             `📦 *ɴᴏᴅᴇ:* ${nodeVersion}\n\n` +
             `> ${config.BOT_FOOTER}`;
 
-        await socket.sendMessage(sender, {
-            text: pingText,
-            buttons: [
-                { buttonId: `${prefix}ping`, buttonText: { displayText: '🔄 ʀᴇғʀᴇsʜ' }, type: 1 },
-                { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 ᴍᴇɴᴜ' }, type: 1 }
-            ],
-            headerType: 1
-        }, { quoted: msg });
+        // Try CTA buttons
+        try {
+            const ctaMsg = generateWAMessageFromContent(
+                sender,
+                {
+                    viewOnceMessage: {
+                        message: {
+                            interactiveMessage: {
+                                body: { text: pingText },
+                                footer: { text: 'ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                                nativeFlowMessage: {
+                                    buttons: [
+                                        {
+                                            name: 'quick_reply',
+                                            buttonParamsJson: JSON.stringify({
+                                                display_text: 'Refresh',
+                                                id: `${prefix}ping`
+                                            })
+                                        },
+                                        {
+                                            name: 'quick_reply',
+                                            buttonParamsJson: JSON.stringify({
+                                                display_text: 'Menu',
+                                                id: `${prefix}menu`
+                                            })
+                                        },
+                                        {
+                                            name: 'cta_url',
+                                            buttonParamsJson: JSON.stringify({
+                                                display_text: 'Join Channel',
+                                                url: config.CHANNEL_LINK
+                                            })
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                },
+                { quoted: msg }
+            );
+            await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
+        } catch {
+            // Fallback
+            await socket.sendMessage(sender, {
+                text: pingText,
+                buttons: [
+                    { buttonId: `${prefix}ping`, buttonText: { displayText: 'Refresh' }, type: 1 },
+                    { buttonId: `${prefix}menu`, buttonText: { displayText: 'Menu' }, type: 1 }
+                ],
+                headerType: 1
+            }, { quoted: msg });
+        }
 
         await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
 
     } catch (error) {
         console.error('[Ping] Error:', error.message);
-        
-        // Fallback simple ping
         const start = performance.now();
         await socket.sendMessage(sender, {
             text: `🏓 *ᴘᴏɴɢ!*\n\n⏱ *ʀᴇsᴘᴏɴsᴇ:* ${(performance.now() - start).toFixed(2)} ᴍs\n\n> ${config.BOT_FOOTER}`,
             buttons: [
-                { buttonId: `${prefix}ping`, buttonText: { displayText: '🔄 ʀᴇᴛʀʏ' }, type: 1 }
+                { buttonId: `${prefix}ping`, buttonText: { displayText: 'Retry' }, type: 1 }
             ],
             headerType: 1
         }, { quoted: msg });
-        
         await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
     }
     break;
@@ -4892,7 +4951,7 @@ case 'pair': {
                     message: {
                         interactiveMessage: {
                             body: {
-                                text: `> *ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ - ᴘᴀɪʀɪɴɢ ✅*\n\n` +
+                                text: `*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ - ᴘᴀɪʀɪɴɢ ✅*\n\n` +
                                       `*🔑 ʏᴏᴜʀ ᴘᴀɪʀɪɴɢ ᴄᴏᴅᴇ:* \`\`\`${pairingCode}\`\`\`\n\n` +
                                       `📝 *ɪɴsᴛʀᴜᴄᴛɪᴏɴs:*\n` +
                                       `1. ᴛᴀᴘ ᴛʜᴇ ᴄᴏᴘʏ ʙᴜᴛᴛᴏɴ ʙᴇʟᴏᴡ\n` +
@@ -11564,73 +11623,113 @@ case 'climate': {
     }
       //case repository 
       //case repository 
-// Case: repo - Show repository information
-// Case: github - Show GitHub repository info
-// Case: repo / github / git / source / sc / script - Show repository info
+// Case: repo / github / git / source - Repository info with CTA buttons
 case 'repo':
 case 'github':
 case 'git':
-case 'source':
-case 'sc':
-case 'script': {
+case 'source': {
     try {
         await socket.sendMessage(sender, { react: { text: '📦', key: msg.key } });
-        
-        const repoUrl = 'https://github.com/mruniquehacker/KnightBot-Mini';
-        const apiUrl = 'https://api.github.com/repos/mruniquehacker/KnightBot-Mini';
-        
-        let message = '';
+
+        const repoUrl = 'https://github.com/caseyweb/CASEYRHODES-XMD';
+        const apiUrl = 'https://api.github.com/repos/caseyweb/CASEYRHODES-XMD';
+
+        let caption = '';
         
         try {
             const response = await axios.get(apiUrl, {
-                headers: { 'User-Agent': 'KnightBot-Mini' },
+                headers: { 'User-Agent': 'CASEYRHODES-XMD' },
                 timeout: 5000
             });
             
             const repo = response.data;
-            
-            message = `╭━━『 *📦 ɢɪᴛʜᴜʙ ʀᴇᴘᴏ* 』━━╮\n\n` +
+            caption = `*📦 ɢɪᴛʜᴜʙ ʀᴇᴘᴏsɪᴛᴏʀʏ*\n\n` +
                       `🤖 *ʙᴏᴛ:* ${config.OWNER_NAME}\n` +
                       `📁 *ʀᴇᴘᴏ:* ${repo.name}\n` +
                       `👤 *ᴏᴡɴᴇʀ:* ${repo.owner.login}\n` +
                       `⭐ *sᴛᴀʀs:* ${repo.stargazers_count.toLocaleString()}\n` +
                       `🍴 *ғᴏʀᴋs:* ${repo.forks_count.toLocaleString()}\n` +
-                      `📝 *ᴅᴇsᴄ:* ${repo.description || 'WhatsApp Bot'}\n\n` +
-                      `🔗 *ʟɪɴᴋ:* ${repo.html_url}\n\n` +
-                      `╰━━━━━━━━━━━━━━━╯\n\n` +
+                      `📝 *ᴅᴇsᴄ:* ${repo.description || 'WhatsApp Bot'}\n` +
+                      `💻 *ʟᴀɴɢᴜᴀɢᴇ:* ${repo.language || 'JavaScript'}\n\n` +
                       `> ${config.BOT_FOOTER}`;
-            
-        } catch (apiError) {
-            message = `╭━━『 *📦 ɢɪᴛʜᴜʙ ʀᴇᴘᴏ* 』━━╮\n\n` +
+        } catch {
+            caption = `*📦 ɢɪᴛʜᴜʙ ʀᴇᴘᴏsɪᴛᴏʀʏ*\n\n` +
                       `🤖 *ʙᴏᴛ:* ${config.OWNER_NAME}\n` +
-                      `📁 *ʀᴇᴘᴏ:* KnightBot-Mini\n` +
-                      `👤 *ᴏᴡɴᴇʀ:* mruniquehacker\n` +
-                      `🔗 *ᴜʀʟ:* ${repoUrl}\n\n` +
-                      `⚠️ *sᴛᴀᴛs ᴜɴᴀᴠᴀɪʟᴀʙʟᴇ*\n\n` +
-                      `╰━━━━━━━━━━━━━━━╯\n\n` +
+                      `📁 *ʀᴇᴘᴏ:* Mini-bot\n` +
+                      `👤 *ᴏᴡɴᴇʀ:* caseyweb\n` +
+                      `🔗 ${repoUrl}\n\n` +
                       `> ${config.BOT_FOOTER}`;
         }
-        
-        // CTA URL Button Format
-        await socket.sendMessage(sender, {
-            text: message,
-            footer: 'ᴄʟɪᴄᴋ ʙᴇʟᴏᴡ ᴛᴏ ᴠɪsɪᴛ',
-            templateButtons: [
-                { index: 1, urlButton: { displayText: '⭐ sᴛᴀʀ ʀᴇᴘᴏ', url: repoUrl } },
-                { index: 2, urlButton: { displayText: '🔗 ᴠɪᴇᴡ ʀᴇᴘᴏ', url: repoUrl } },
-                { index: 3, quickReplyButton: { displayText: '📋 ᴍᴇɴᴜ', id: `${prefix}menu` } }
-            ],
-            headerType: 1
-        }, { quoted: msg });
-        
+
+        // Send image with caption
+        const imgMsg = generateWAMessageFromContent(
+            sender,
+            {
+                imageMessage: {
+                    url: config.RCD_IMAGE_PATH,
+                    caption: caption,
+                    mimetype: 'image/jpeg'
+                }
+            },
+            {}
+        );
+        await socket.relayMessage(sender, imgMsg.message, { messageId: imgMsg.key.id });
+
+        // Send CTA buttons as reply to image
+        const btnMsg = generateWAMessageFromContent(
+            sender,
+            {
+                viewOnceMessage: {
+                    message: {
+                        interactiveMessage: {
+                            body: { text: '⭐ *sᴜᴘᴘᴏʀᴛ ᴛʜɪs ᴘʀᴏᴊᴇᴄᴛ*' },
+                            footer: { text: 'ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                            nativeFlowMessage: {
+                                buttons: [
+                                    {
+                                        name: 'cta_url',
+                                        buttonParamsJson: JSON.stringify({
+                                            display_text: '⭐ Star on GitHub',
+                                            url: repoUrl
+                                        })
+                                    },
+                                    {
+                                        name: 'cta_url',
+                                        buttonParamsJson: JSON.stringify({
+                                            display_text: '📢 Join Channel',
+                                            url: config.CHANNEL_LINK
+                                        })
+                                    },
+                                    {
+                                        name: 'quick_reply',
+                                        buttonParamsJson: JSON.stringify({
+                                            display_text: '📋 Menu',
+                                            id: `${prefix}menu`
+                                        })
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                }
+            },
+            { quoted: imgMsg }
+        );
+        await socket.relayMessage(sender, btnMsg.message, { messageId: btnMsg.key.id });
+
         await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
-        
+
     } catch (error) {
-        console.error('GitHub command error:', error);
+        console.error('[Repo] Error:', error.message);
+        // Fallback
         await socket.sendMessage(sender, {
-            text: '❌ ғᴀɪʟᴇᴅ ᴛᴏ ғᴇᴛᴄʜ ʀᴇᴘᴏ ɪɴғᴏ.',
-            quoted: msg
-        });
+            image: { url: config.RCD_IMAGE_PATH },
+            caption: `*📦 ɢɪᴛʜᴜʙ ʀᴇᴘᴏ*\n\n🤖 ${config.OWNER_NAME}\n🔗 https://github.com/caseyweb/Mini-bot\n\n> ${config.BOT_FOOTER}`,
+            buttons: [
+                { buttonId: `${prefix}menu`, buttonText: { displayText: 'Menu' }, type: 1 }
+            ],
+            headerType: 4
+        }, { quoted: msg });
         await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
     }
     break;
