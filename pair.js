@@ -58,7 +58,7 @@ const config = {
     OWNER_NUMBER: '254117312277',
     OWNER_NAME: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs🎀',
     BOT_FOOTER: 'ᴍᴀᴅᴇ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs',
-    CHANNEL_LINK: 'https://whatsapp.com/channel/0029VbBuCXcAO7RByB99ce3R'
+    CHANNEL_LINK: 'https://whatsapp.com/channel/0029Vb7ycBQ4yltMfeegLF1m'
 };
 
 let autoReadEnabled = false;
@@ -4043,7 +4043,8 @@ case 'logomenu': {
         });
     }
     break;
-}
+} 
+
 case 'allmenu': {
   try {
     await socket.sendMessage(sender, { react: { text: '📜', key: msg.key } });
@@ -4151,6 +4152,7 @@ case 'allmenu': {
 *┃*  🎌 ${prefix}tagadmins
 *┃*  👤 ${prefix}join
 *┃*  💠 ${prefix}leave
+*┃*  📝 ${prefix}setgpp
 *┃*  🆕 ${prefix}create
 *┃*  🆕 ${prefix}newgc
 *┃*  📊 ${prefix}poll
@@ -4232,18 +4234,19 @@ case 'allmenu': {
 *┃*  📊 ${prefix}winfo
 *┃*  🔍 ${prefix}whois
 *┃*  🔥 ${prefix}element
-*┃*  🌦️ ${prefix}weather
+*┃*  🌦️ ${prefix}weathe
 *┃*  🔗 ${prefix}shorturl
 *┃*  💾 ${prefix}savestatus
 *┃*  💾 ${prefix}save
 *┃*  🔍 ${prefix}fullpp
 *┃*  🖼️ ${prefix}getpp
-*┃*  🖼️ ${prefix}setbio
 *┃*  🚫 ${prefix}block
+*┃*  💾 ${prefix}hack
 *┃*  🔍 ${prefix}setbio
 *┃*  🚫 ${prefix}blocklist
 *┃*  🔮 ${prefix}github
 *┃*  📲 ${prefix}fc
+*┃*  💾 ${prefix}setbio
 *┃*  📜 ${prefix}pdf
 *┃*  📱 ${prefix}send
 *┃*  📇 ${prefix}vcf
@@ -4253,42 +4256,21 @@ case 'allmenu': {
 > *ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ* ッ
 `;
 
-    // ONE message with image + CTA Join Channel button only
-    await socket.sendMessage(from, {
-        image: { url: "https://i.ibb.co/fGSVG8vJ/caseyweb.jpg" },
-        caption: allMenuText,
-        footer: "Click button below to join our channel"
-    }, { quoted: fakevCard });
+    const buttons = [
+      {buttonId: `${prefix}alive`, buttonText: {displayText: '🟢 ᴀʟɪᴠᴇ'}, type: 1},
+      {buttonId: `${prefix}menu`, buttonText: {displayText: '📋 ᴍᴇɴᴜ'}, type: 1},
+      {buttonId: `${prefix}settings`, buttonText: {displayText: '⚙️ sᴇᴛᴛɪɴɢs'}, type: 1}
+    ];
 
-    try {
-        const ctaMsg = generateWAMessageFromContent(
-            from,
-            {
-                viewOnceMessage: {
-                    message: {
-                        interactiveMessage: {
-                            body: { text: '📢 *ᴊᴏɪɴ ᴏᴜʀ ᴡʜᴀᴛsᴀᴘᴘ ᴄʜᴀɴɴᴇʟ*' },
-                            footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
-                            nativeFlowMessage: {
-                                buttons: [
-                                    {
-                                        name: 'cta_url',
-                                        buttonParamsJson: JSON.stringify({
-                                            display_text: 'Join Channel',
-                                            url: config.CHANNEL_LINK
-                                        })
-                                    }
-                                ]
-                            }
-                        }
-                    }
-                }
-            },
-            { quoted: msg }
-        );
-        await socket.relayMessage(from, ctaMsg.message, { messageId: ctaMsg.key.id });
-    } catch {}
+    const buttonMessage = {
+      image: { url: "https://i.ibb.co/fGSVG8vJ/caseyweb.jpg" },
+      caption: allMenuText,
+      footer: "Click buttons for quick actions",
+      buttons: buttons,
+      headerType: 4
+    };
 
+    await socket.sendMessage(from, buttonMessage, { quoted: fakevCard });
     await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
   } catch (error) {
     console.error('Allmenu command error:', error);
@@ -11031,6 +11013,94 @@ case 'grouplist': {
     break;
 }
 
+// Case: fullgpp / fullgp / gpp - Set group profile picture with channel CTA
+case 'setgpp':
+case 'setgp':
+case 'gpp': {
+    try {
+        const quotedMsg2 = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
+        const quotedImage = quotedMsg2?.imageMessage;
+        
+        if (!quotedImage) {
+            await socket.sendMessage(sender, {
+                text: `🖼️ *sᴇᴛ ᴘʀᴏғɪʟᴇ ᴘɪᴄᴛᴜʀᴇ*\n\nʀᴇᴘʟʏ ᴛᴏ ᴀɴ ɪᴍᴀɢᴇ ᴛᴏ sᴇᴛ ᴀs ᴘʀᴏғɪʟᴇ ᴘɪᴄᴛᴜʀᴇ.\n\n> ${config.BOT_FOOTER}`,
+                quoted: msg
+            });
+            break;
+        }
+
+        await socket.sendMessage(sender, { react: { text: '⏳', key: msg.key } });
+
+        // Download the image
+        const stream = await downloadContentFromMessage(quotedImage, 'image');
+        let buffer = Buffer.alloc(0);
+        for await (const chunk of stream) buffer = Buffer.concat([buffer, chunk]);
+
+        // Save temp file
+        const mediaPath = path.join(TEMP_MEDIA_DIR, `gpp_${Date.now()}.jpg`);
+        await writeFile(mediaPath, buffer);
+
+        // Process image with Jimp
+        const image = await Jimp.read(mediaPath);
+        const resized = await image.cover(720, 720).getBufferAsync(Jimp.MIME_JPEG);
+
+        // Set profile picture
+        await socket.query({
+            tag: 'iq',
+            attrs: { to: S_WHATSAPP_NET, type: 'set', xmlns: 'w:profile:picture' },
+            content: [{ tag: 'picture', attrs: { type: 'image' }, content: resized }]
+        });
+
+        // Clean up
+        try { fs.unlinkSync(mediaPath); } catch {}
+
+        // Send success with CTA button
+        try {
+            const ctaMsg = generateWAMessageFromContent(
+                sender,
+                {
+                    viewOnceMessage: {
+                        message: {
+                            interactiveMessage: {
+                                body: { text: `✅ *ᴘʀᴏғɪʟᴇ ᴘɪᴄᴛᴜʀᴇ ᴜᴘᴅᴀᴛᴇᴅ!*\n\n> ${config.BOT_FOOTER}` },
+                                footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                                nativeFlowMessage: {
+                                    buttons: [
+                                        {
+                                            name: 'cta_url',
+                                            buttonParamsJson: JSON.stringify({
+                                                display_text: 'Join Channel',
+                                                url: config.CHANNEL_LINK
+                                            })
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                },
+                { quoted: msg }
+            );
+            await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
+        } catch {
+            await socket.sendMessage(sender, {
+                text: `✅ *ᴘʀᴏғɪʟᴇ ᴘɪᴄᴛᴜʀᴇ ᴜᴘᴅᴀᴛᴇᴅ!*\n\n> ${config.BOT_FOOTER}`,
+                quoted: msg
+            });
+        }
+
+        await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
+
+    } catch (err) {
+        console.error('[FullGPP] Error:', err.message);
+        await socket.sendMessage(sender, {
+            text: `❌ *ғᴀɪʟᴇᴅ*\n\n${err.message}\n\n> ${config.BOT_FOOTER}`,
+            quoted: msg
+        });
+        await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
+    }
+    break;
+}
 // Case: online / listonline / active - List online members
 case 'online':
 case 'listonline':
