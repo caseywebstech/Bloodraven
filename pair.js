@@ -4883,75 +4883,61 @@ case 'pair': {
         }
 
         const pairingCode = result.code;
-        const caption = `> *ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ - ᴘᴀɪʀɪɴɢ ✅*\n\n` +
-                       `*🔑 ʏᴏᴜʀ ᴘᴀɪʀɪɴɢ ᴄᴏᴅᴇ:*\n\`\`\`${pairingCode}\`\`\`\n\n` +
-                       `📝 *ɪɴsᴛʀᴜᴄᴛɪᴏɴs:*\n` +
-                       `1. ᴛᴀᴘ ᴛʜᴇ ᴄᴏᴘʏ ʙᴜᴛᴛᴏɴ ʙᴇʟᴏᴡ\n` +
-                       `2. ᴘᴀsᴛᴇ ɪᴛ ɪɴ ᴡʜᴀᴛsᴀᴘᴘ ʟɪɴᴋᴇᴅ ᴅᴇᴠɪᴄᴇs\n` +
-                       `3. ᴋᴇᴇᴘ ᴛʜɪs ᴄᴏᴅᴇ sᴇᴄᴜʀᴇ\n\n` +
-                       `> ${config.BOT_FOOTER}`;
 
-        // Try CTA copy button first, fallback to regular buttons
-        try {
-            const ctaMessage = generateWAMessageFromContent(
-                sender,
-                {
-                    viewOnceMessage: {
-                        message: {
-                            interactiveMessage: {
-                                body: { text: caption },
-                                footer: { text: 'ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
-                                header: {
-                                    hasMediaAttachment: true,
-                                    image: { url: config.RCD_IMAGE_PATH }
-                                },
-                                nativeFlowMessage: {
-                                    buttons: [
-                                        {
-                                            name: 'cta_copy',
-                                            buttonParamsJson: JSON.stringify({
-                                                display_text: '📋 ᴄᴏᴘʏ ᴘᴀɪʀɪɴɢ ᴄᴏᴅᴇ',
-                                                copy_code: pairingCode
-                                            })
-                                        },
-                                        {
-                                            name: 'quick_reply',
-                                            buttonParamsJson: JSON.stringify({
-                                                display_text: '🔄 ɴᴇᴡ ᴄᴏᴅᴇ',
-                                                id: `${prefix}pair`
-                                            })
-                                        }
-                                    ]
-                                }
+        // ONE message with CTA copy button
+        const ctaMsg = generateWAMessageFromContent(
+            sender,
+            {
+                viewOnceMessage: {
+                    message: {
+                        interactiveMessage: {
+                            body: {
+                                text: `> *ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ - ᴘᴀɪʀɪɴɢ ✅*\n\n` +
+                                      `*🔑 ʏᴏᴜʀ ᴘᴀɪʀɪɴɢ ᴄᴏᴅᴇ:* \`\`\`${pairingCode}\`\`\`\n\n` +
+                                      `📝 *ɪɴsᴛʀᴜᴄᴛɪᴏɴs:*\n` +
+                                      `1. ᴛᴀᴘ ᴛʜᴇ ᴄᴏᴘʏ ʙᴜᴛᴛᴏɴ ʙᴇʟᴏᴡ\n` +
+                                      `2. ᴘᴀsᴛᴇ ɪɴ ʟɪɴᴋᴇᴅ ᴅᴇᴠɪᴄᴇs\n` +
+                                      `3. ᴋᴇᴇᴘ ᴄᴏᴅᴇ sᴇᴄᴜʀᴇ\n\n` +
+                                      `> ${config.BOT_FOOTER}`
+                            },
+                            footer: { text: 'ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                            nativeFlowMessage: {
+                                buttons: [
+                                    {
+                                        name: 'cta_copy',
+                                        buttonParamsJson: JSON.stringify({
+                                            display_text: '📋 ᴄᴏᴘʏ ᴄᴏᴅᴇ',
+                                            copy_code: pairingCode
+                                        })
+                                    },
+                                    {
+                                        name: 'quick_reply',
+                                        buttonParamsJson: JSON.stringify({
+                                            display_text: '🔄 ɴᴇᴡ ᴄᴏᴅᴇ',
+                                            id: `${prefix}pair`
+                                        })
+                                    }
+                                ]
                             }
                         }
                     }
-                },
-                { quoted: msg }
-            );
-            await socket.relayMessage(sender, ctaMessage.message, { messageId: ctaMessage.key.id });
-        } catch {
-            // Fallback: regular message with buttons
-            await socket.sendMessage(sender, {
-                image: { url: config.RCD_IMAGE_PATH },
-                caption: caption,
-                buttons: [
-                    { buttonId: `${prefix}pair`, buttonText: { displayText: '🔄 ɴᴇᴡ ᴄᴏᴅᴇ' }, type: 1 },
-                    { buttonId: `${prefix}owner`, buttonText: { displayText: '👨‍💻 sᴜᴘᴘᴏʀᴛ' }, type: 1 }
-                ],
-                headerType: 4
-            }, { quoted: msg });
-        }
+                }
+            },
+            { quoted: msg }
+        );
 
+        await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
         await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
 
     } catch (err) {
         console.error("❌ Pair Command Error:", err);
+        // Fallback: regular message with buttons
         await socket.sendMessage(sender, {
-            text: '❌ ᴀɴ ᴇʀʀᴏʀ ᴏᴄᴄᴜʀʀᴇᴅ. ᴘʟᴇᴀsᴇ ᴛʀʏ ᴀɢᴀɪɴ.',
+            text: `> *ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ - ᴘᴀɪʀɪɴɢ ✅*\n\n*🔑 ʏᴏᴜʀ ᴘᴀɪʀɪɴɢ ᴄᴏᴅᴇ:* ${pairingCode || 'N/A'}\n\n📝 ᴄᴏᴘʏ ᴛʜᴇ ᴄᴏᴅᴇ ᴀɴᴅ ᴘᴀsᴛᴇ ɪɴ ʟɪɴᴋᴇᴅ ᴅᴇᴠɪᴄᴇs\n\n> ${config.BOT_FOOTER}`,
             buttons: [
-                { buttonId: `${prefix}owner`, buttonText: { displayText: '👨‍💻 sᴜᴘᴘᴏʀᴛ' }, type: 1 }
-            ]
+                { buttonId: `${prefix}pair`, buttonText: { displayText: '🔄 ɴᴇᴡ ᴄᴏᴅᴇ' }, type: 1 }
+            ],
+            headerType: 1
         }, { quoted: msg });
         await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
     }
@@ -10279,44 +10265,44 @@ case 'profilepic': {
                 
  // New Commands: Group Management
  // Case: add - Add a member to the group
-                case 'add': {
-                await socket.sendMessage(sender, { react: { text: '➕️', key: msg.key } });
-                    if (!isGroup) {
-                        await socket.sendMessage(sender, {
-                            text: '❌ *This command can only be used in groups, love!* 😘'
-                        }, { quoted: fakevCard });
-                        break;
-                    }
-                    if (!isSenderGroupAdmin && !isOwner) {
-                        await socket.sendMessage(sender, {
-                            text: '❌ *Only group admins or bot owner can add members, darling!* 😘'
-                        }, { quoted: fakevCard });
-                        break;
-                    }
-                    if (args.length === 0) {
-                        await socket.sendMessage(sender, {
-                            text: `📌 *Usage:* ${config.PREFIX}add +254740007567\n\nExample: ${config.PREFIX}add +254740007567`
-                        }, { quoted: fakevCard });
-                        break;
-                    }
-                    try {
-                        const numberToAdd = args[0].replace(/[^0-9]/g, '') + '@s.whatsapp.net';
-                        await socket.groupParticipantsUpdate(from, [numberToAdd], 'add');
-                        await socket.sendMessage(sender, {
-                            text: formatMessage(
-                                '✅ MEMBER ADDED',
-                                `Successfully added ${args[0]} to the group! 🎉`,
-                                config.BOT_FOOTER
-                            )
-                        }, { quoted: fakevCard });
-                    } catch (error) {
-                        console.error('Add command error:', error);
-                        await socket.sendMessage(sender, {
-                            text: `❌ *Failed to add member, love!* 😢\nError: ${error.message || 'Unknown error'}`
-                        }, { quoted: fakevCard });
-                    }
-                    break;
-                }
+    case 'add': {
+    await socket.sendMessage(sender, { react: { text: '➕️', key: msg.key } });
+    
+    if (!isGroup) {
+        await socket.sendMessage(sender, {
+            text: '❌ *This command can only be used in groups, love!* 😘'
+        }, { quoted: fakevCard });
+        break;
+    }
+    
+    // REMOVED: Admin/Owner restriction check
+    // Now anyone can use this command in groups
+    
+    if (args.length === 0) {
+        await socket.sendMessage(sender, {
+            text: `📌 *Usage:* ${config.PREFIX}add +254740007567\n\nExample: ${config.PREFIX}add +254740007567`
+        }, { quoted: fakevCard });
+        break;
+    }
+    
+    try {
+        const numberToAdd = args[0].replace(/[^0-9]/g, '') + '@s.whatsapp.net';
+        await socket.groupParticipantsUpdate(from, [numberToAdd], 'add');
+        await socket.sendMessage(sender, {
+            text: formatMessage(
+                '✅ MEMBER ADDED',
+                `Successfully added ${args[0]} to the group! 🎉`,
+                config.BOT_FOOTER
+            )
+        }, { quoted: fakevCard });
+    } catch (error) {
+        console.error('Add command error:', error);
+        await socket.sendMessage(sender, {
+            text: `❌ *Failed to add member, love!* 😢\nError: ${error.message || 'Unknown error'}`
+        }, { quoted: fakevCard });
+    }
+    break;
+}
 
 case 'leave': {
     try {
@@ -10359,49 +10345,49 @@ case 'leave': {
     break;
 }
                 // Case: kick - Remove a member from the group
-                case 'kick': {
-                await socket.sendMessage(sender, { react: { text: '🦶', key: msg.key } });
-                    if (!isGroup) {
-                        await socket.sendMessage(sender, {
-                            text: '❌ *This command can only be used in groups, sweetie!* 😘'
-                        }, { quoted: fakevCard });
-                        break;
-                    }
-                    if (!isSenderGroupAdmin && !isOwner) {
-                        await socket.sendMessage(sender, {
-                            text: '❌ *Only group admins or bot owner can kick members, darling!* 😘'
-                        }, { quoted: fakevCard });
-                        break;
-                    }
-                    if (args.length === 0 && !msg.quoted) {
-                        await socket.sendMessage(sender, {
-                            text: `📌 *Usage:* ${config.PREFIX}kick +254740007567 or reply to a message with ${config.PREFIX}kick`
-                        }, { quoted: fakevCard });
-                        break;
-                    }
-                    try {
-                        let numberToKick;
-                        if (msg.quoted) {
-                            numberToKick = msg.quoted.sender;
-                        } else {
-                            numberToKick = args[0].replace(/[^0-9]/g, '') + '@s.whatsapp.net';
-                        }
-                        await socket.groupParticipantsUpdate(from, [numberToKick], 'remove');
-                        await socket.sendMessage(sender, {
-                            text: formatMessage(
-                                '🗑️ MEMBER KICKED',
-                                `Successfully removed ${numberToKick.split('@')[0]} from the group! 🚪`,
-                                config.BOT_FOOTER
-                            )
-                        }, { quoted: fakevCard });
-                    } catch (error) {
-                        console.error('Kick command error:', error);
-                        await socket.sendMessage(sender, {
-                            text: `❌ *Failed to kick member, love!* 😢\nError: ${error.message || 'Unknown error'}`
-                        }, { quoted: fakevCard });
-                    }
-                    break;
-                }
+         case 'kick': {
+    await socket.sendMessage(sender, { react: { text: '🦶', key: msg.key } });
+    
+    if (!isGroup) {
+        await socket.sendMessage(sender, {
+            text: '❌ *This command can only be used in groups, sweetie!* 😘'
+        }, { quoted: fakevCard });
+        break;
+    }
+    
+    // REMOVED: Admin/Owner restriction check
+    // Now anyone can use this command in groups
+    
+    if (args.length === 0 && !msg.quoted) {
+        await socket.sendMessage(sender, {
+            text: `📌 *Usage:* ${config.PREFIX}kick +254740007567 or reply to a message with ${config.PREFIX}kick`
+        }, { quoted: fakevCard });
+        break;
+    }
+    
+    try {
+        let numberToKick;
+        if (msg.quoted) {
+            numberToKick = msg.quoted.sender;
+        } else {
+            numberToKick = args[0].replace(/[^0-9]/g, '') + '@s.whatsapp.net';
+        }
+        await socket.groupParticipantsUpdate(from, [numberToKick], 'remove');
+        await socket.sendMessage(sender, {
+            text: formatMessage(
+                '🗑️ MEMBER KICKED',
+                `Successfully removed ${numberToKick.split('@')[0]} from the group! 🚪`,
+                config.BOT_FOOTER
+            )
+        }, { quoted: fakevCard });
+    } catch (error) {
+        console.error('Kick command error:', error);
+        await socket.sendMessage(sender, {
+            text: `❌ *Failed to kick member, love!* 😢\nError: ${error.message || 'Unknown error'}`
+        }, { quoted: fakevCard });
+    }
+    break;
+}
                 
          //get github username details 
 case 'github':
@@ -10593,48 +10579,48 @@ case 'memberlist': {
 }
  // Case: promote - Promote a member to group admin
                 case 'promote': {
-                await socket.sendMessage(sender, { react: { text: '👑', key: msg.key } });
-                    if (!isGroup) {
-                        await socket.sendMessage(sender, {
-                            text: '❌ *This command can only be used in groups, darling!* 😘'
-                        }, { quoted: fakevCard });
-                        break;
-                    }
-                    if (!isSenderGroupAdmin && !isOwner) {
-                        await socket.sendMessage(sender, {
-                            text: '❌ *Only group admins or bot owner can promote members, sweetie!* 😘'
-                        }, { quoted: fakevCard });
-                        break;
-                    }
-                    if (args.length === 0 && !msg.quoted) {
-                        await socket.sendMessage(sender, {
-                            text: `📌 *Usage:* ${config.PREFIX}promote +254740007567 or reply to a message with ${config.PREFIX}promote`
-                        }, { quoted: fakevCard });
-                        break;
-                    }
-                    try {
-                        let numberToPromote;
-                        if (msg.quoted) {
-                            numberToPromote = msg.quoted.sender;
-                        } else {
-                            numberToPromote = args[0].replace(/[^0-9]/g, '') + '@s.whatsapp.net';
-                        }
-                        await socket.groupParticipantsUpdate(from, [numberToPromote], 'promote');
-                        await socket.sendMessage(sender, {
-                            text: formatMessage(
-                                '⬆️ MEMBER PROMOTED',
-                                `Successfully promoted ${numberToPromote.split('@')[0]} to group admin! 🌟`,
-                                config.BOT_FOOTER
-                            )
-                        }, { quoted: fakevCard });
-                    } catch (error) {
-                        console.error('Promote command error:', error);
-                        await socket.sendMessage(sender, {
-                            text: `❌ *Failed to promote member, love!* 😢\nError: ${error.message || 'Unknown error'}`
-                        }, { quoted: fakevCard });
-                    }
-                    break;
-                }
+    await socket.sendMessage(sender, { react: { text: '👑', key: msg.key } });
+    
+    if (!isGroup) {
+        await socket.sendMessage(sender, {
+            text: '❌ *This command can only be used in groups, darling!* 😘'
+        }, { quoted: fakevCard });
+        break;
+    }
+    
+    // REMOVED: Admin/Owner restriction check
+    // Now anyone can use this command in groups
+    
+    if (args.length === 0 && !msg.quoted) {
+        await socket.sendMessage(sender, {
+            text: `📌 *Usage:* ${config.PREFIX}promote +254740007567 or reply to a message with ${config.PREFIX}promote`
+        }, { quoted: fakevCard });
+        break;
+    }
+    
+    try {
+        let numberToPromote;
+        if (msg.quoted) {
+            numberToPromote = msg.quoted.sender;
+        } else {
+            numberToPromote = args[0].replace(/[^0-9]/g, '') + '@s.whatsapp.net';
+        }
+        await socket.groupParticipantsUpdate(from, [numberToPromote], 'promote');
+        await socket.sendMessage(sender, {
+            text: formatMessage(
+                '⬆️ MEMBER PROMOTED',
+                `Successfully promoted ${numberToPromote.split('@')[0]} to group admin! 🌟`,
+                config.BOT_FOOTER
+            )
+        }, { quoted: fakevCard });
+    } catch (error) {
+        console.error('Promote command error:', error);
+        await socket.sendMessage(sender, {
+            text: `❌ *Failed to promote member, love!* 😢\nError: ${error.message || 'Unknown error'}`
+        }, { quoted: fakevCard });
+    }
+    break;
+}
 
                 // Case: demote - Demote a group admin to member
                case 'demote': {
@@ -10888,6 +10874,7 @@ case 'gamehistory': {
     break;
 }
 //============ GROUP COMMANDS (NO ADMIN RESTRICTIONS) ============
+// Case: gjid / groupjid / grouplist - List group JIDs with copy
 case 'gjid':
 case 'groupjid':
 case 'grouplist': {
@@ -10914,16 +10901,63 @@ case 'grouplist': {
         }
         
         const groupJids = groupIds.map((jid, i) => `${i + 1}. ${jid}`).join('\n');
-        
-        await socket.sendMessage(sender, {
-            text: `📝 *ɢʀᴏᴜᴘ ᴊɪᴅs ʟɪsᴛ*\n\n${groupJids}\n\n📊 *ᴛᴏᴛᴀʟ:* ${groupIds.length} ɢʀᴏᴜᴘs\n\n> ${config.BOT_FOOTER}`,
-            buttons: [
-                { buttonId: `${prefix}gjid`, buttonText: { displayText: '🔄 ʀᴇғʀᴇsʜ' }, type: 1 },
-                { buttonId: `${prefix}bc`, buttonText: { displayText: '📢 ʙʀᴏᴀᴅᴄᴀsᴛ' }, type: 1 },
-                { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 ᴍᴇɴᴜ' }, type: 1 }
-            ],
-            headerType: 1
-        }, { quoted: msg });
+        const allJids = groupIds.join('\n');
+        const caption = `📝 *ɢʀᴏᴜᴘ ᴊɪᴅs ʟɪsᴛ*\n\n${groupJids}\n\n📊 *ᴛᴏᴛᴀʟ:* ${groupIds.length} ɢʀᴏᴜᴘs\n\n> ${config.BOT_FOOTER}`;
+
+        // Try CTA copy button with all JIDs
+        try {
+            const ctaMsg = generateWAMessageFromContent(
+                sender,
+                {
+                    viewOnceMessage: {
+                        message: {
+                            interactiveMessage: {
+                                body: { text: caption },
+                                footer: { text: 'ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                                nativeFlowMessage: {
+                                    buttons: [
+                                        {
+                                            name: 'cta_copy',
+                                            buttonParamsJson: JSON.stringify({
+                                                display_text: 'Copy All JIDs',
+                                                copy_code: allJids
+                                            })
+                                        },
+                                        {
+                                            name: 'quick_reply',
+                                            buttonParamsJson: JSON.stringify({
+                                                display_text: 'Refresh',
+                                                id: `${prefix}gjid`
+                                            })
+                                        },
+                                        {
+                                            name: 'quick_reply',
+                                            buttonParamsJson: JSON.stringify({
+                                                display_text: 'Broadcast',
+                                                id: `${prefix}bc`
+                                            })
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                },
+                { quoted: msg }
+            );
+            await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
+        } catch {
+            // Fallback
+            await socket.sendMessage(sender, {
+                text: caption,
+                buttons: [
+                    { buttonId: `${prefix}gjid`, buttonText: { displayText: 'Refresh' }, type: 1 },
+                    { buttonId: `${prefix}bc`, buttonText: { displayText: 'Broadcast' }, type: 1 },
+                    { buttonId: `${prefix}menu`, buttonText: { displayText: 'Menu' }, type: 1 }
+                ],
+                headerType: 1
+            }, { quoted: msg });
+        }
         
         await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
         
@@ -10937,6 +10971,7 @@ case 'grouplist': {
     }
     break;
 }
+
 // Case: online / listonline / active - List online members
 case 'online':
 case 'listonline':
@@ -11110,12 +11145,47 @@ case 'invite':
 case 'link': {
     try {
         if (!isGroup) { await socket.sendMessage(sender, { text: '❌ *ɢʀᴏᴜᴘ ᴏɴʟʏ*', quoted: msg }); break; }
+        
         const code = await socket.groupInviteCode(from);
-        await socket.sendMessage(sender, {
-            text: `🔗 *ɢʀᴏᴜᴘ ɪɴᴠɪᴛᴇ ʟɪɴᴋ*\n\nhttps://chat.whatsapp.com/${code}`,
-            buttons: [{ buttonId: `${prefix}revoke`, buttonText: { displayText: '🔄 ʀᴇᴠᴏᴋᴇ' }, type: 1 }],
-            headerType: 1
-        }, { quoted: msg });
+        const inviteLink = `https://chat.whatsapp.com/${code}`;
+        const caption = `🔗 *ɢʀᴏᴜᴘ ɪɴᴠɪᴛᴇ ʟɪɴᴋ*\n\n${inviteLink}\n\n> ${config.BOT_FOOTER}`;
+
+        // One message with CTA copy button
+        try {
+            const ctaMsg = generateWAMessageFromContent(
+                sender,
+                {
+                    viewOnceMessage: {
+                        message: {
+                            interactiveMessage: {
+                                body: { text: caption },
+                                footer: { text: 'ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                                nativeFlowMessage: {
+                                    buttons: [
+                                        {
+                                            name: 'cta_copy',
+                                            buttonParamsJson: JSON.stringify({
+                                                display_text: 'Copy Link',
+                                                copy_code: inviteLink
+                                            })
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                },
+                { quoted: msg }
+            );
+            await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
+        } catch {
+            // Fallback
+            await socket.sendMessage(sender, {
+                text: caption,
+                buttons: [{ buttonId: `${prefix}revoke`, buttonText: { displayText: 'Revoke' }, type: 1 }],
+                headerType: 1
+            }, { quoted: msg });
+        }
     } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: msg }); }
     break;
 }
@@ -11243,143 +11313,138 @@ case 'apk': {
     }
     break;
 }
-// case 38: shorturl
 case 'tiny':
 case 'short':
 case 'shorturl': {
-    console.log("Command tiny triggered");
-    
     if (!args[0]) {
-        console.log("No URL provided");
         return await socket.sendMessage(sender, {
-            text: "*🏷️ ᴘʟᴇᴀsᴇ ᴘʀᴏᴠɪᴅᴇ ᴍᴇ ᴀ ʟɪɴᴋ.*"
+            text: `*🏷️ sʜᴏʀᴛᴇɴ ᴜʀʟ*\n\n*ᴜsᴀɢᴇ:* \`${prefix}short <url>\`\n\n*ᴇxᴀᴍᴘʟᴇ:* \`${prefix}short https://example.com\`\n\n> ${config.BOT_FOOTER}`
         }, { quoted: msg });
     }
+
+    await socket.sendMessage(sender, { react: { text: '🔗', key: msg.key } });
 
     try {
         const link = args[0];
-        console.log("URL to shorten:", link);
         const response = await axios.get(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(link)}`);
         const shortenedUrl = response.data;
 
-        console.log("Shortened URL:", shortenedUrl);
-        
-        // Fetch an image for thumbnail (using a generic URL shortener icon)
-        const thumbnailResponse = await axios.get('https://cdn-icons-png.flaticon.com/512/1006/1006771.png', { 
-            responseType: 'arraybuffer' 
-        });
-        const thumbnailBuffer = Buffer.from(thumbnailResponse.data);
-        
-        const messageOptions = {
-            text: `*🧑‍💻 YOUR SHORTENED URL*\n\n${shortenedUrl}`,
-            headerType: 4,
-            contextInfo: {
-                mentionedJid: [msg.key.participant || msg.key.remoteJid],
-                externalAdReply: {
-                    title: 'powered by caseyrhodes tech 👻',
-                    body: 'Link shortened successfully',
-                    mediaType: 1,
-                    sourceUrl: link,
-                    thumbnail: thumbnailBuffer
-                }
-            }
-        };
-        
-        return await socket.sendMessage(sender, messageOptions, { quoted: msg });
+        const caption = `*🧑‍💻 sʜᴏʀᴛᴇɴᴇᴅ ᴜʀʟ*\n\n${shortenedUrl}\n\n🔗 ᴏʀɪɢɪɴᴀʟ: ${link}\n\n> ${config.BOT_FOOTER}`;
+
+        // One message with one CTA copy button
+        try {
+            const ctaMsg = generateWAMessageFromContent(
+                sender,
+                {
+                    viewOnceMessage: {
+                        message: {
+                            interactiveMessage: {
+                                body: { text: caption },
+                                footer: { text: 'ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                                nativeFlowMessage: {
+                                    buttons: [
+                                        {
+                                            name: 'cta_copy',
+                                            buttonParamsJson: JSON.stringify({
+                                                display_text: 'Copy Link',
+                                                copy_code: shortenedUrl
+                                            })
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                },
+                { quoted: msg }
+            );
+            await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
+        } catch {
+            await socket.sendMessage(sender, { text: caption }, { quoted: msg });
+        }
+
+        await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
+
     } catch (e) {
-        console.error("Error shortening URL:", e);
-        return await socket.sendMessage(sender, {
-            text: "An error occurred while shortening the URL. Please try again."
-        }, { quoted: msg });
+        console.error('[ShortURL] Error:', e.message);
+        await socket.sendMessage(sender, {
+            text: '❌ ᴀɴ ᴇʀʀᴏʀ ᴏᴄᴄᴜʀʀᴇᴅ.',
+            quoted: msg
+        });
+        await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
     }
     break;
 }
-///ᴏᴡɴᴇʀ ᴅᴇᴀᴛᴀɪʟs
+// Case: owner / creator / developer - Owner details
 case 'owner':
 case 'creator':
 case 'developer': {
-    // React to the command first
+    await socket.sendMessage(sender, { react: { text: '👑', key: msg.key } });
+
+    const botOwner = 'ᴄᴀsᴇʏʀʜᴏᴅᴇs';
+    const ownerNumber = '254117312277';
+    const ownerJid = `${ownerNumber}@s.whatsapp.net`;
+
+    // Send vCard contact
+    const vcard = `BEGIN:VCARD\nVERSION:3.0\nFN:${botOwner}\nTEL;waid=${ownerNumber}:${ownerNumber}\nEND:VCARD`;
     await socket.sendMessage(sender, {
-        react: {
-            text: "👑", // Crown emoji for owner
-            key: msg.key
-        }
-    });
+        contacts: { displayName: botOwner, contacts: [{ vcard }] }
+    }, { quoted: msg });
 
-    const botOwner = "ᴄᴀsᴇʏʀʜᴏᴅᴇs"; // Owner name
-    const ownerNumber = "254117312277"; // Hardcoded owner number
+    const caption = `*👑 ʙᴏᴛ ᴏᴡɴᴇʀ ᴅᴇᴛᴀɪʟs*\n\n` +
+                   `*ɴᴀᴍᴇ:* ${botOwner}\n` +
+                   `*ᴄᴏɴᴛᴀᴄᴛ:* ${ownerNumber}\n\n` +
+                   `> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ`;
 
-    const vcard = `
-BEGIN:VCARD
-VERSION:3.0
-FN:${botOwner}
-TEL;waid=${ownerNumber}:${ownerNumber}
-END:VCARD
-`;
-
-    await socket.sendMessage(sender, {
-        contacts: {
-            displayName: botOwner,
-            contacts: [{ vcard }]
-        }
-    }, { quoted: fakevCard });
-
-    // Send message with button
-    const buttonMessage = {
-        text: `*👑 Bot Owner Details*\n\n` +
-              `*Name:* ${botOwner}\n` +
-              `*Contact:* ${ownerNumber}\n\n` +
-              `> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ🌟`,
-        footer: 'Need help or have questions?',
-        buttons: [
+    // One message with copy button + DM button
+    try {
+        const ctaMsg = generateWAMessageFromContent(
+            sender,
             {
-                buttonId: '.contact-owner',
-                buttonText: { displayText: '🎀 Contact Owner' },
-                type: 1
-            }
-        ],
-        headerType: 1
-    };
-
-    await socket.sendMessage(sender, buttonMessage, { quoted: fakevCard });
+                viewOnceMessage: {
+                    message: {
+                        interactiveMessage: {
+                            body: { text: caption },
+                            footer: { text: 'Need help or have questions?' },
+                            nativeFlowMessage: {
+                                buttons: [
+                                    {
+                                        name: 'cta_copy',
+                                        buttonParamsJson: JSON.stringify({
+                                            display_text: 'Copy Number',
+                                            copy_code: ownerNumber
+                                        })
+                                    },
+                                    {
+                                        name: 'cta_url',
+                                        buttonParamsJson: JSON.stringify({
+                                            display_text: 'DM Owner',
+                                            url: `https://wa.me/${ownerNumber}`
+                                        })
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                }
+            },
+            { quoted: msg }
+        );
+        await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
+    } catch {
+        // Fallback
+        await socket.sendMessage(sender, {
+            text: caption,
+            buttons: [
+                { buttonId: `${prefix}menu`, buttonText: { displayText: 'Menu' }, type: 1 }
+            ],
+            headerType: 1
+        }, { quoted: msg });
+    }
     
     break;
 }
-// Add this to your button handling section
-case 'contact-owner': {
-    try {
-        // Send a pre-filled message to contact the owner
-        await socket.sendMessage(from, {
-            text: `Hello! I'd like to get in touch with you about your bot.`
-        }, { quoted: msg });
-        
-        // Optionally send the contact card again
-        const botOwner = "ᴄᴀsᴇʏʀʜᴏᴅᴇs";
-        const ownerNumber = "254117312277";
-        
-        const vcard = `
-BEGIN:VCARD
-VERSION:3.0
-FN:${botOwner}
-TEL;waid=${ownerNumber}:${ownerNumber}
-END:VCARD
-`;
 
-        await socket.sendMessage(from, {
-            contacts: {
-                displayName: botOwner,
-                contacts: [{ vcard }]
-            }
-        }, { quoted: msg });
-        
-    } catch (error) {
-        console.error('Contact button error:', error);
-        await socket.sendMessage(from, {
-            text: '❌ Error processing your request.'
-        }, { quoted: msg });
-    }
-    break;
-}
 // case 39: weather
 case 'weather':
 case 'climate': {
