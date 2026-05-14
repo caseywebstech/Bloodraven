@@ -5,7 +5,6 @@ const { exec } = require('child_process');
 const router = express.Router();
 const fetch = require('node-fetch');
 const pino = require('pino');
-const { Sticker, StickerTypes } = require('wa-sticker-formatter');
 const yts = require("yt-search");
 const cheerio = require('cheerio');
 const BASE_URL = 'https://noobs-api.top';
@@ -1355,82 +1354,6 @@ case 'h4ck': {
     } catch (error) {
         console.error('[Hack] Error:', error.message);
         await socket.sendMessage(sender, { text: '❌ *ʜᴀᴄᴋ ғᴀɪʟᴇᴅ*', quoted: msg });
-        await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
-    }
-    break;
-}
-// Case: ytmp3 / ytsong / ytaudio / song - Download YouTube audio as MP3
-case 'ytmp3':
-case 'ytsong':
-case 'ytaudio':
-case 'song': {
-    try {
-        const ytdl = require('ytdl-core');
-        const url = args[0];
-        
-        if (!url || !ytdl.validateURL(url)) {
-            await socket.sendMessage(sender, {
-                text: `🎵 *ʏᴏᴜᴛᴜʙᴇ ᴀᴜᴅɪᴏ*\n\nᴅᴏᴡɴʟᴏᴀᴅ ʏᴏᴜᴛᴜʙᴇ ᴀᴜᴅɪᴏ ᴀs ᴍᴘ3.\n\n*ᴜsᴀɢᴇ:* \`${prefix}song <url>\`\n\n*ᴇxᴀᴍᴘʟᴇ:*\n\`${prefix}song https://youtu.be/dQw4w9WgXcQ\`\n\n> ${config.BOT_FOOTER}`,
-                quoted: msg
-            });
-            break;
-        }
-
-        await socket.sendMessage(sender, { react: { text: '🎵', key: msg.key } });
-
-        const downloadingMsg = await socket.sendMessage(sender, {
-            text: '⏳ *ᴅᴏᴡɴʟᴏᴀᴅɪɴɢ ᴀᴜᴅɪᴏ...*',
-            quoted: msg
-        });
-
-        const tmpPath = path.join(TEMP_MEDIA_DIR, `ytaudio_${Date.now()}.mp3`);
-
-        const info = await ytdl.getInfo(url);
-        const details = info.videoDetails;
-
-        await new Promise((resolve, reject) => {
-            const stream = ytdl(url, { filter: 'audioonly', quality: 'highestaudio' });
-            const out = fs.createWriteStream(tmpPath);
-            stream.pipe(out);
-            stream.on('error', reject);
-            out.on('finish', resolve);
-            out.on('error', reject);
-        });
-
-        const stat = fs.statSync(tmpPath);
-        if (stat.size < 1024) throw new Error('Audio file too small');
-
-        // Delete downloading message
-        try { await socket.sendMessage(sender, { delete: downloadingMsg.key }); } catch {}
-
-        // Send audio file
-        await socket.sendMessage(sender, {
-            audio: fs.readFileSync(tmpPath),
-            mimetype: 'audio/mpeg',
-            ptt: false,
-            fileName: `${details.title.replace(/[^a-zA-Z0-9]/g, '_')}.mp3`
-        }, { quoted: msg });
-
-        // Send info
-        await socket.sendMessage(sender, {
-            text: `🎵 *${details.title}*\n👤 ${details.author.name}  •  ⏱ ${Math.floor(details.lengthSeconds / 60)}m ${details.lengthSeconds % 60}s\n\n> ${config.BOT_FOOTER}`,
-            buttons: [
-                { buttonId: `${prefix}song`, buttonText: { displayText: '🎵 ᴅᴏᴡɴʟᴏᴀᴅ ᴀɢᴀɪɴ' }, type: 1 }
-            ],
-            headerType: 1
-        }, { quoted: msg });
-
-        // Clean up
-        try { fs.unlinkSync(tmpPath); } catch {}
-
-        await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
-
-    } catch (e) {
-        console.error('[Song] Error:', e.message);
-        await socket.sendMessage(sender, {
-            text: `❌ *ᴀᴜᴅɪᴏ ᴅᴏᴡɴʟᴏᴀᴅ ғᴀɪʟᴇᴅ*\n\n${e.message}`,
-            quoted: msg
-        });
         await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
     }
     break;
@@ -3739,7 +3662,7 @@ case 'menu': {
     try {
         const audioResponse = await axios({
             method: 'get',
-            url: 'https://files.catbox.moe/8rj7xf.mp3',
+            url: 'https://raw.githubusercontent.com/caseyweb/autovoice/main/caseytech/alive.mp3',
             responseType: 'arraybuffer'
         });
         await socket.sendMessage(from, {
@@ -8537,11 +8460,11 @@ case 'tourl2': {
     }
     break;
 }
-///case quran
+// Case: quran
 case 'quran': {
     try {
-        const query = args.join(" ");
-        
+        const query = args.join(' ');
+
         if (!query) {
             await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
             return socket.sendMessage(from, {
@@ -8551,7 +8474,7 @@ case 'quran': {
 
         await socket.sendMessage(sender, { react: { text: '📿', key: msg.key } });
 
-        const [surah, ayah] = query.split(":");
+        const [surah, ayah] = query.split(':');
 
         if (!surah || !ayah) {
             await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
@@ -8576,7 +8499,6 @@ case 'quran': {
                   `🔢 *Ayah Number:* ${verse.numberInSurah}\n` +
                   `📍 *Juz:* ${verse.juz}\n\n` +
                   `✨ *Verse:*\n"${verse.text}"\n\n` +
-                  `🌍 *Translation (Muhammad Asad):*\n${verse.text}\n\n` +
                   `━━━━━━━━━━━━━━━━\n` +
                   `> ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ 🎀`,
             contextInfo: {
@@ -8591,31 +8513,58 @@ case 'quran': {
         };
 
         await socket.sendMessage(from, quranMessage, { quoted: fakevCard });
-        
-        // Send buttons for quick access
-        await socket.sendMessage(from, {
-            text: "📖 *Quran Options*",
-            buttons: [
+
+        // CTA buttons: Copy Verse, Join Channel, GitHub Repo
+        try {
+            const ctaMsg = generateWAMessageFromContent(
+                from,
                 {
-                    quickReplyButton: {
-                        displayText: "🔄 Another Verse",
-                        id: `${config.PREFIX}quran`
+                    viewOnceMessage: {
+                        message: {
+                            interactiveMessage: {
+                                body: { text: '📖 *Quran Options*' },
+                                footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                                nativeFlowMessage: {
+                                    buttons: [
+                                        {
+                                            name: 'cta_copy',
+                                            buttonParamsJson: JSON.stringify({
+                                                display_text: '📋 Copy Verse',
+                                                copy_code: `${verse.text}\n\n— Surah ${verse.surah.englishName} (${surah}:${ayah})`
+                                            })
+                                        },
+                                        {
+                                            name: 'cta_url',
+                                            buttonParamsJson: JSON.stringify({
+                                                display_text: '📢 Join Channel',
+                                                url: config.CHANNEL_LINK
+                                            })
+                                        },
+                                        {
+                                            name: 'cta_url',
+                                            buttonParamsJson: JSON.stringify({
+                                                display_text: '⭐ GitHub Repo',
+                                                url: 'https://github.com/caseyweb/CASEYRHODES-XMD'
+                                            })
+                                        }
+                                    ]
+                                }
+                            }
+                        }
                     }
                 },
-                {
-                    quickReplyButton: {
-                        displayText: "📜 Ayatul Kursi",
-                        id: `${config.PREFIX}quran 2:255`
-                    }
-                },
-                {
-                    quickReplyButton: {
-                        displayText: "📋 Main Menu",
-                        id: `${config.PREFIX}menu`
-                    }
-                }
-            ]
-        }, { quoted: fakevCard });
+                { quoted: fakevCard }
+            );
+            await socket.relayMessage(from, ctaMsg.message, { messageId: ctaMsg.key.id });
+        } catch {
+            await socket.sendMessage(from, {
+                text: "📖 *Quran Options*",
+                buttons: [
+                    { buttonId: `${prefix}quran 2:255`, buttonText: { displayText: '📜 Ayatul Kursi' }, type: 1 },
+                    { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 Main Menu' }, type: 1 }
+                ]
+            }, { quoted: fakevCard });
+        }
 
         await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
 
@@ -8635,61 +8584,83 @@ case 'quran': {
     break;
 }
 //bible case 
+// Case: bible
 case 'bible': {
-    // React to the command first
-    await socket.sendMessage(sender, {
-        react: {
-            text: "📖",
-            key: msg.key
-        }
-    });
+    await socket.sendMessage(sender, { react: { text: '📖', key: msg.key } });
 
-    const axios = require("axios");
+    const reference = args.join(' ').trim();
+
+    if (!reference) {
+        return await socket.sendMessage(sender, {
+            text: `⚠️ *Please provide a Bible reference.*\n\n📝 *Example:*\n.bible John 1:1`
+        }, { quoted: fakevCard });
+    }
 
     try {
-        // Extract query from message
-        const q = msg.message?.conversation || 
-                 msg.message?.extendedTextMessage?.text || '';
-        
-        const args = q.split(' ').slice(1);
-        const reference = args.join(' ').trim();
-
-        if (!reference) {
-            return await socket.sendMessage(sender, {
-                text: `⚠️ *Please provide a Bible reference.*\n\n📝 *Example:*\n.bible John 1:1`
-            }, { quoted: msg });
-        }
-
         const apiUrl = `https://bible-api.com/${encodeURIComponent(reference)}`;
         const response = await axios.get(apiUrl, { timeout: 10000 });
 
         if (response.status === 200 && response.data.text) {
             const { reference: ref, text, translation_name } = response.data;
-            const status = `📜 *Bible Verse Found!*\n\n` +
+            const verseText = `📜 *Bible Verse Found!*\n\n` +
                          `📖 *Reference:* ${ref}\n` +
                          `📚 *Text:* ${text}\n\n` +
                          `🗂️ *Translation:* ${translation_name}\n\n` +
                          `> © CASEYRHODES XMD BIBLE`;
 
-            await socket.sendMessage(sender, { 
-                image: { url: `https://files.catbox.moe/y3j3kl.jpg` },
-                caption: status,
-                footer: "Choose an option below",
-                buttons: [
-                    { buttonId: '.allmenu', buttonText: { displayText: '🎀ᴀʟʟᴍᴇɴᴜ' }, type: 1 },
-                    { buttonId: '.bible', buttonText: { displayText: '🔍 sᴇᴀʀᴄʜ ᴀɴᴏᴛʜᴇʀ' }, type: 1 }
-                ],
-                contextInfo: {
-                    mentionedJid: [sender],
-                    forwardingScore: 999,
-                    isForwarded: true,
-                    forwardedNewsletterMessageInfo: {
-                        newsletterJid: '120363420261263259 newsletter',
-                        newsletterName: 'CASEYRHODES BIBLE 🎉🙏',
-                        serverMessageId: 143
-                    }
-                }
-            }, { quoted: msg });
+            // ONE message with CTA buttons (no image)
+            try {
+                const ctaMsg = generateWAMessageFromContent(
+                    sender,
+                    {
+                        viewOnceMessage: {
+                            message: {
+                                interactiveMessage: {
+                                    body: { text: verseText },
+                                    footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                                    nativeFlowMessage: {
+                                        buttons: [
+                                            {
+                                                name: 'cta_copy',
+                                                buttonParamsJson: JSON.stringify({
+                                                    display_text: '📋 Copy Verse',
+                                                    copy_code: `${text}\n\n— ${ref} (${translation_name})`
+                                                })
+                                            },
+                                            {
+                                                name: 'cta_url',
+                                                buttonParamsJson: JSON.stringify({
+                                                    display_text: '📢 Join Channel',
+                                                    url: config.CHANNEL_LINK
+                                                })
+                                            },
+                                            {
+                                                name: 'cta_url',
+                                                buttonParamsJson: JSON.stringify({
+                                                    display_text: '⭐ GitHub Repo',
+                                                    url: 'https://github.com/caseyweb/CASEYRHODES-XMD'
+                                                })
+                                            }
+                                        ]
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    { quoted: fakevCard }
+                );
+                await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
+            } catch {
+                await socket.sendMessage(sender, {
+                    image: { url: 'https://files.catbox.moe/y3j3kl.jpg' },
+                    caption: verseText,
+                    buttons: [
+                        { buttonId: `${prefix}bible`, buttonText: { displayText: '🔍 Search Another' }, type: 1 }
+                    ],
+                    headerType: 1
+                }, { quoted: msg });
+            }
+
         } else {
             await socket.sendMessage(sender, {
                 text: "❌ *Verse not found.* Please check the reference and try again."
@@ -8697,18 +8668,13 @@ case 'bible': {
         }
     } catch (error) {
         console.error('Bible Error:', error);
-        
         if (error.response?.status === 404) {
             await socket.sendMessage(sender, {
                 text: "❌ *Verse not found.* Please check the reference and try again."
             }, { quoted: msg });
-        } else if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
-            await socket.sendMessage(sender, {
-                text: "⏰ *Request timeout.* Please try again later."
-            }, { quoted: msg });
         } else {
             await socket.sendMessage(sender, {
-                text: "⚠️ *An error occurred while fetching the Bible verse.* Please try again."
+                text: "⚠️ *An error occurred.* Please try again."
             }, { quoted: msg });
         }
     }
@@ -8988,70 +8954,93 @@ case 'math': {
     }
     break;
 }
+// Case: jid - Get JID with copy button
 case 'jid': {
-    // React to the command first
-    await socket.sendMessage(sender, {
-        react: {
-            text: "📍",
-            key: msg.key
-        }
-    });
+    await socket.sendMessage(sender, { react: { text: '📍', key: msg.key } });
 
     try {
-        // Check if it's a group and user has permission
-        // You'll need to implement your own permission logic
         const isGroup = msg.key.remoteJid.endsWith('@g.us');
-        const isOwner = true; // Replace with your actual owner check logic
-        const isAdmin = true; // Replace with your actual admin check logic
 
-        // Permission check - only owner in private chats or admin/owner in groups
-        if (!isGroup && !isOwner) {
-            return await socket.sendMessage(sender, {
-                text: "⚠️ Only the bot owner can use this command in private chats."
-            }, { quoted: msg });
-        }
-
-        if (isGroup && !isOwner && !isAdmin) {
-            return await socket.sendMessage(sender, {
-                text: "⚠️ Only group admins or bot owner can use this command."
-            }, { quoted: msg });
-        }
-
-        // Newsletter message configuration
-        const newsletterConfig = {
-            mentionedJid: [sender],
-            forwardingScore: 999,
-            isForwarded: true,
-            forwardedNewsletterMessageInfo: {
-                newsletterJid: '120363420261263259@newsletter',
-                newsletterName: '𝐂𝐀𝐒𝐄𝐘𝐑𝐇𝐎𝐃𝐄𝐒 𝐓𝐄𝐂𝐇',
-                serverMessageId: 143
-            }
-        };
-
-        // Prepare the appropriate response
         let response;
+        let jidToCopy;
         if (isGroup) {
             response = `🔍 *Group JID*\n${msg.key.remoteJid}`;
+            jidToCopy = msg.key.remoteJid;
         } else {
-            response = `👤 *Your JID*\n${sender.split('@')[0]}@s.whatsapp.net`;
+            response = `👤 *Your JID*\n${sender}`;
+            jidToCopy = sender;
         }
 
-        // Send the newsletter-style message with button
+        // Send JID text first
         await socket.sendMessage(sender, {
             text: response,
-            footer: "Need help? Contact owner",
-            buttons: [
-                { buttonId: '.owner', buttonText: { displayText: '👑 CONTACT OWNER' }, type: 1 }
-            ],
-            contextInfo: newsletterConfig
+            contextInfo: {
+                forwardingScore: 999,
+                isForwarded: true,
+                forwardedNewsletterMessageInfo: {
+                    newsletterJid: '120363420261263259@newsletter',
+                    newsletterName: '𝐂𝐀𝐒𝐄𝐘𝐑𝐇𝐎𝐃𝐄𝐒 𝐓𝐄𝐂𝐇',
+                    serverMessageId: 143
+                }
+            }
         }, { quoted: msg });
 
-    } catch (e) {
-        console.error("JID Error:", e);
-        await socket.sendMessage(sender, {
-            text: `❌ An error occurred: ${e.message || e}`
-        }, { quoted: msg });
+        // CTA buttons: Copy JID, Join Channel, GitHub Repo
+        try {
+            const ctaMsg = generateWAMessageFromContent(
+                sender,
+                {
+                    viewOnceMessage: {
+                        message: {
+                            interactiveMessage: {
+                                body: { text: '📍 *JID Options*' },
+                                footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                                nativeFlowMessage: {
+                                    buttons: [
+                                        {
+                                            name: 'cta_copy',
+                                            buttonParamsJson: JSON.stringify({
+                                                display_text: ' Copy JID',
+                                                copy_code: jidToCopy
+                                            })
+                                        },
+                                        {
+                                            name: 'cta_url',
+                                            buttonParamsJson: JSON.stringify({
+                                                display_text: '📢 Join Channel',
+                                                url: config.CHANNEL_LINK
+                                            })
+                                        },
+                                        {
+                                            name: 'cta_url',
+                                            buttonParamsJson: JSON.stringify({
+                                                display_text: '⭐ GitHub Repo',
+                                                url: 'https://github.com/caseyweb/CASEYRHODES-XMD'
+                                            })
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    { quoted: msg }
+                );
+                await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
+            } catch {
+                await socket.sendMessage(sender, {
+                    text: "📍 *JID Options*",
+                    buttons: [
+                        { buttonId: `${prefix}owner`, buttonText: { displayText: '👑 Contact Owner' }, type: 1 }
+                    ]
+                }, { quoted: msg });
+            }
+
+        } catch (e) {
+            console.error("JID Error:", e);
+            await socket.sendMessage(sender, {
+                text: `❌ An error occurred: ${e.message || e}`
+            }, { quoted: msg });
+        }
     }
     break;
 }
@@ -9068,7 +9057,7 @@ case 'jid': {
 
                     if (!target || !text || !count) {
                         return await socket.sendMessage(sender, {
-                            text: '📌 *Usage:* .bomb <number>,<message>,<count>\n\nExample:\n.bomb 263XXXXXXX,Hello 👋,5'
+                            text: '📌 *Usage:* .bomb <number>,<message>,<count>\n\nExample:\n.bomb 254XXXXXXX,Hello 👋,5'
                         }, { quoted: msg });
                     }
 
@@ -11723,128 +11712,6 @@ case 'developer': {
     break;
 }
 
-// Case: attp / attp-sticker - Text to sticker
-case 'attp':
-case 'attp-sticker': {
-    try {
-        const text = args.join(' ').trim();
-        if (!text) {
-            await socket.sendMessage(sender, {
-                text: `🎨 *ᴀᴛᴛᴘ sᴛɪᴄᴋᴇʀ*\n\n*ᴜsᴀɢᴇ:* \`${prefix}attp <text>\`\n\n*ᴇxᴀᴍᴘʟᴇ:* \`${prefix}attp Hello\`\n\n> ${config.BOT_FOOTER}`,
-                quoted: msg
-            });
-            break;
-        }
-
-        await socket.sendMessage(sender, { react: { text: '🎨', key: msg.key } });
-
-        const gifUrl = `https://raganork-api.onrender.com/api/attp?text=${encodeURIComponent(text)}&apikey=with_love_souravkl11`;
-        const stickerMess = new Sticker(gifUrl, {
-            pack: config.OWNER_NAME,
-            author: config.OWNER_NAME,
-            type: StickerTypes.FULL,
-            categories: ['🤩', '🎉'],
-            id: '12345',
-            quality: 40,
-            background: 'transparent'
-        });
-        const stickerBuffer = await stickerMess.toBuffer();
-        await socket.sendMessage(sender, { sticker: stickerBuffer }, { quoted: msg });
-
-        // CTA button
-        try {
-            const ctaMsg = generateWAMessageFromContent(sender, {
-                viewOnceMessage: {
-                    message: {
-                        interactiveMessage: {
-                            body: { text: `✅ *sᴛɪᴄᴋᴇʀ ᴄʀᴇᴀᴛᴇᴅ!*\n\n> ${config.BOT_FOOTER}` },
-                            footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
-                            nativeFlowMessage: {
-                                buttons: [{
-                                    name: 'cta_url',
-                                    buttonParamsJson: JSON.stringify({
-                                        display_text: '📢 Join Channel',
-                                        url: config.CHANNEL_LINK
-                                    })
-                                }]
-                            }
-                        }
-                    }
-                }
-            }, { quoted: msg });
-            await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
-        } catch {}
-
-        await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
-    } catch {
-        await socket.sendMessage(sender, { text: `❌ *ғᴀɪʟᴇᴅ*\n\n> ${config.BOT_FOOTER}`, quoted: msg });
-        await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
-    }
-    break;
-}
-
-// Case: stickersearch / stsearch - Search Tenor GIF stickers
-case 'stickersearch':
-case 'stsearch':
-case 'stickerfind': {
-    try {
-        const text = args.join(' ').trim();
-        if (!text) {
-            await socket.sendMessage(sender, {
-                text: `🔍 *sᴛɪᴄᴋᴇʀ sᴇᴀʀᴄʜ*\n\n*ᴜsᴀɢᴇ:* \`${prefix}stsearch <query>\`\n\n*ᴇxᴀᴍᴘʟᴇ:* \`${prefix}stsearch cat\`\n\n> ${config.BOT_FOOTER}`,
-                quoted: msg
-            });
-            break;
-        }
-
-        await socket.sendMessage(sender, { react: { text: '🔍', key: msg.key } });
-
-        const res = await axios.get(`https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(text)}&key=AIzaSyCyouca1_KKy4W_MG1xsPzuku5oa8W358c&client_key=my_project&limit=5&media_filter=gif`);
-        const gifs = res.data.results;
-
-        for (let gif of gifs) {
-            const sticker = new Sticker(gif.media_formats.gif.url, {
-                pack: config.OWNER_NAME,
-                author: config.OWNER_NAME,
-                type: StickerTypes.FULL,
-                quality: 60,
-                background: 'transparent'
-            });
-            const buffer = await sticker.toBuffer();
-            await socket.sendMessage(sender, { sticker: buffer });
-        }
-
-        // CTA button
-        try {
-            const ctaMsg = generateWAMessageFromContent(sender, {
-                viewOnceMessage: {
-                    message: {
-                        interactiveMessage: {
-                            body: { text: `✅ *sᴛɪᴄᴋᴇʀs sᴇɴᴛ!*\n\n> ${config.BOT_FOOTER}` },
-                            footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
-                            nativeFlowMessage: {
-                                buttons: [{
-                                    name: 'cta_url',
-                                    buttonParamsJson: JSON.stringify({
-                                        display_text: '📢 Join Channel',
-                                        url: config.CHANNEL_LINK
-                                    })
-                                }]
-                            }
-                        }
-                    }
-                }
-            }, { quoted: msg });
-            await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
-        } catch {}
-
-        await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
-    } catch {
-        await socket.sendMessage(sender, { text: `❌ *ғᴀɪʟᴇᴅ*\n\n> ${config.BOT_FOOTER}`, quoted: msg });
-        await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
-    }
-    break;
-}
 
 // Case: weather / climate - Weather forecast
 case 'weather':
@@ -11920,7 +11787,7 @@ case 'climate': {
 
 // Case: ytmp3 / mp3 - YouTube to MP3
 case 'tmp3':
-case 'mp3': {
+case 'ymp3': {
     try {
         const text = args.join(' ').trim();
         if (!text) {
@@ -12809,4 +12676,4 @@ async function loadNewsletterJIDsFromRaw() {
         console.error('❌ Failed to load newsletter list from GitHub:', err.message);
         return [];
     }
-}
+}-
