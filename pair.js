@@ -8583,7 +8583,6 @@ case 'quran': {
     }
     break;
 }
-//bible case 
 // Case: bible
 case 'bible': {
     await socket.sendMessage(sender, { react: { text: '📖', key: msg.key } });
@@ -8601,7 +8600,9 @@ case 'bible': {
         const response = await axios.get(apiUrl, { timeout: 10000 });
 
         if (response.status === 200 && response.data.text) {
-            const { reference: ref, text, translation_name } = response.data;
+            const ref = response.data.reference;
+            const text = response.data.text;
+            const translation_name = response.data.translation_name;
             const verseText = `📜 *Bible Verse Found!*\n\n` +
                          `📖 *Reference:* ${ref}\n` +
                          `📚 *Text:* ${text}\n\n` +
@@ -8658,24 +8659,24 @@ case 'bible': {
                         { buttonId: `${prefix}bible`, buttonText: { displayText: '🔍 Search Another' }, type: 1 }
                     ],
                     headerType: 1
-                }, { quoted: msg });
+                }, { quoted: fakevCard });
             }
 
         } else {
             await socket.sendMessage(sender, {
                 text: "❌ *Verse not found.* Please check the reference and try again."
-            }, { quoted: msg });
+            }, { quoted: fakevCard });
         }
     } catch (error) {
         console.error('Bible Error:', error);
-        if (error.response?.status === 404) {
+        if (error.response && error.response.status === 404) {
             await socket.sendMessage(sender, {
                 text: "❌ *Verse not found.* Please check the reference and try again."
-            }, { quoted: msg });
+            }, { quoted: fakevCard });
         } else {
             await socket.sendMessage(sender, {
                 text: "⚠️ *An error occurred.* Please try again."
-            }, { quoted: msg });
+            }, { quoted: fakevCard });
         }
     }
     break;
