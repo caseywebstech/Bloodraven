@@ -8956,6 +8956,7 @@ case 'math': {
     break;
 }
 // Case: jid - Get JID with copy button
+// Case: jid - Get JID with copy button
 case 'jid': {
     await socket.sendMessage(sender, { react: { text: '📍', key: msg.key } });
 
@@ -9001,7 +9002,7 @@ case 'jid': {
                                         {
                                             name: 'cta_copy',
                                             buttonParamsJson: JSON.stringify({
-                                                display_text: ' Copy JID',
+                                                display_text: '📋 Copy JID',
                                                 copy_code: jidToCopy
                                             })
                                         },
@@ -9023,25 +9024,25 @@ case 'jid': {
                                 }
                             }
                         }
-                    },
-                    { quoted: msg }
-                );
-                await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
-            } catch {
-                await socket.sendMessage(sender, {
-                    text: "📍 *JID Options*",
-                    buttons: [
-                        { buttonId: `${prefix}owner`, buttonText: { displayText: '👑 Contact Owner' }, type: 1 }
-                    ]
-                }, { quoted: msg });
-            }
-
-        } catch (e) {
-            console.error("JID Error:", e);
+                    }
+                },
+                { quoted: msg }
+            );
+            await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
+        } catch {
             await socket.sendMessage(sender, {
-                text: `❌ An error occurred: ${e.message || e}`
+                text: "📍 *JID Options*",
+                buttons: [
+                    { buttonId: `${prefix}owner`, buttonText: { displayText: '👑 Contact Owner' }, type: 1 }
+                ]
             }, { quoted: msg });
         }
+
+    } catch (e) {
+        console.error("JID Error:", e);
+        await socket.sendMessage(sender, {
+            text: `❌ An error occurred: ${e.message || e}`
+        }, { quoted: msg });
     }
     break;
 }
