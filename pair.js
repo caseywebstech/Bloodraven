@@ -1674,7 +1674,7 @@ case 'countryinfo': {
                     { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 MENU' }, type: 1 }
                 ],
                 headerType: 1
-            }, { quoted: msg });
+            }, { quoted: fakevCard });
             break;
         }
 
@@ -1685,7 +1685,7 @@ case 'countryinfo': {
         // Send searching message
         const searchMsg = await socket.sendMessage(sender, {
             text: `🔍 *Searching for "${countryName}"...*`,
-            quoted: msg
+            quoted: fakevCard
         });
 
         const res = await axios.get(
@@ -1747,53 +1747,56 @@ case 'countryinfo': {
             `🗾 *Borders:* ${borders}\n\n` +
             `> ${config.BOT_FOOTER}`;
 
-        // Build buttons
-        const buttons = [];
+        // Build CTA buttons
+        const ctaButtons = [];
         
         // Google Maps link
         if (c.latlng && c.latlng.length === 2) {
             const mapsUrl = `https://www.google.com/maps/place/${c.latlng[0]},${c.latlng[1]}`;
-            buttons.push({
-                buttonId: mapsUrl,
-                buttonText: { displayText: '🗺️ GOOGLE MAPS' },
-                type: 1
+            ctaButtons.push({
+                name: 'cta_url',
+                buttonParamsJson: JSON.stringify({
+                    display_text: '🗺️ GOOGLE MAPS',
+                    url: mapsUrl
+                })
             });
         }
         
         // Wikipedia link
-        buttons.push({
-            buttonId: `https://en.wikipedia.org/wiki/${encodeURIComponent(c.name.common)}`,
-            buttonText: { displayText: '📚 WIKIPEDIA' },
-            type: 1
+        ctaButtons.push({
+            name: 'cta_url',
+            buttonParamsJson: JSON.stringify({
+                display_text: '📚 WIKIPEDIA',
+                url: `https://en.wikipedia.org/wiki/${encodeURIComponent(c.name.common)}`
+            })
         });
         
-        buttons.push({
-            buttonId: `${prefix}country`,
-            buttonText: { displayText: '🔍 SEARCH ANOTHER' },
-            type: 1
+        // Follow Channel button
+        ctaButtons.push({
+            name: 'cta_url',
+            buttonParamsJson: JSON.stringify({
+                display_text: '📢 JOIN CHANNEL',
+                url: config.CHANNEL_LINK
+            })
         });
 
-        // Try to send with country flag image
-        try {
-            const flagUrl = c.flags?.png || c.flags?.svg;
-            if (flagUrl) {
-                await socket.sendMessage(sender, {
-                    image: { url: flagUrl },
-                    caption: countryText,
-                    buttons: buttons,
-                    headerType: 1
-                }, { quoted: msg });
-            } else {
-                throw new Error('No flag URL');
-            }
-        } catch {
-            // Send without image
-            await socket.sendMessage(sender, {
-                text: countryText,
-                buttons: buttons,
-                headerType: 1
-            }, { quoted: msg });
-        }
+        // Send ONE message with text and CTA buttons (no image)
+        const ctaMsg = generateWAMessageFromContent(
+            sender,
+            {
+                viewOnceMessage: {
+                    message: {
+                        interactiveMessage: {
+                            body: { text: countryText },
+                            footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                            nativeFlowMessage: { buttons: ctaButtons }
+                        }
+                    }
+                }
+            },
+            { quoted: fakevCard }
+        );
+        await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
 
         await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
 
@@ -1810,7 +1813,7 @@ case 'countryinfo': {
                     { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 MENU' }, type: 1 }
                 ],
                 headerType: 1
-            }, { quoted: msg });
+            }, { quoted: fakevCard });
         } else {
             await socket.sendMessage(sender, {
                 text: `❌ *Error fetching country info*\n\nSomething went wrong. Please try again later.`,
@@ -1819,7 +1822,7 @@ case 'countryinfo': {
                     { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 MENU' }, type: 1 }
                 ],
                 headerType: 1
-            }, { quoted: msg });
+            }, { quoted: fakevCard });
         }
         
         await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
@@ -1842,7 +1845,7 @@ case 'song': {
                     { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 Menu' }, type: 1 }
                 ],
                 headerType: 1
-            }, { quoted: msg });
+            }, { quoted: fakevCard });
             break;
         }
 
@@ -1855,7 +1858,7 @@ case 'song': {
                     { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 Menu' }, type: 1 }
                 ],
                 headerType: 1
-            }, { quoted: msg });
+            }, { quoted: fakevCard });
             break;
         }
 
@@ -1863,7 +1866,7 @@ case 'song': {
 
         const processingMsg = await socket.sendMessage(sender, {
             text: '🎧 *ɪᴅᴇɴᴛɪғʏɪɴɢ sᴏɴɢ...*\n\nᴘʟᴇᴀsᴇ ᴡᴀɪᴛ ᴀ ᴍᴏᴍᴇɴᴛ...',
-            quoted: msg
+            quoted: fakevCard
         });
 
         let tempFile = null;
@@ -1898,7 +1901,7 @@ case 'song': {
                     { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 Menu' }, type: 1 }
                 ],
                 headerType: 1
-            }, { quoted: msg });
+            }, { quoted: fakevCard });
             await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
             break;
         }
@@ -1936,7 +1939,7 @@ case 'song': {
         
         // Always add channel button
         ctaButtons.push({
-            name: 'cta_url',
+            name: 'cta_crl',
             buttonParamsJson: JSON.stringify({
                 display_text: '📢 Join Channel',
                 url: config.CHANNEL_LINK
@@ -1958,7 +1961,7 @@ case 'song': {
                         }
                     }
                 },
-                { quoted: msg }
+                { quoted: fakevCard }
             );
             await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
         } catch {
@@ -1972,7 +1975,7 @@ case 'song': {
                 text: songText,
                 buttons: fbButtons,
                 headerType: 1
-            }, { quoted: msg });
+            }, { quoted: fakevCard });
         }
 
         await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
@@ -1988,7 +1991,7 @@ case 'song': {
                 { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 Menu' }, type: 1 }
             ],
             headerType: 1
-        }, { quoted: msg });
+        }, { quoted: fakevCard });
         await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
     }
     break;
@@ -2196,7 +2199,7 @@ case 'emojiblend': {
     }
     break;
 }
-// Case: eval / exec / run - Execute JavaScript code (owner only)
+// Case: eval / exec / run - Execute JavaScript code 
 case 'eval':
 case 'exec':
 case 'run': {
@@ -2204,7 +2207,7 @@ case 'run': {
         if (!isOwner) {
             await socket.sendMessage(sender, {
                 text: '❌ *ᴏᴡɴᴇʀ ᴏɴʟʏ*\n\nᴏɴʟʏ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴇxᴇᴄᴜᴛᴇ ᴄᴏᴅᴇ.',
-                quoted: msg
+                quoted: fakevCard
             });
             break;
         }
@@ -2214,7 +2217,7 @@ case 'run': {
         if (!code) {
             await socket.sendMessage(sender, {
                 text: `⚠️ *ᴇᴠᴀʟ*\n\nᴘʀᴏᴠɪᴅᴇ ᴄᴏᴅᴇ ᴛᴏ ᴇxᴇᴄᴜᴛᴇ.\n\n*ᴇxᴀᴍᴘʟᴇ:*\n\`${prefix}eval 2 + 2\`\n\`${prefix}eval socket.user.id\`\n\`${prefix}eval Object.keys(msg.message)\``,
-                quoted: msg
+                quoted: fakevCard
             });
             break;
         }
@@ -2265,15 +2268,36 @@ case 'run': {
         const label = isError ? '❌ ᴇʀʀᴏʀ' : '✅ ʀᴇsᴜʟᴛ';
         const output = typeof result === 'object' ? JSON.stringify(result, null, 2) : String(result);
         const trimmed = output.length > 3000 ? output.slice(0, 3000) + '\n...[truncated]' : output;
+        
+        const resultText = `*${label}* (${elapsed}ms)\n\`\`\`\n${trimmed}\n\`\`\`\n\n> ${config.BOT_FOOTER}`;
 
-        await socket.sendMessage(sender, {
-            text: `*${label}* (${elapsed}ms)\n\`\`\`\n${trimmed}\n\`\`\`\n\n> ${config.BOT_FOOTER}`,
-            buttons: [
-                { buttonId: `${prefix}eval`, buttonText: { displayText: '⚡ ʀᴜɴ ᴀɢᴀɪɴ' }, type: 1 },
-                { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 ᴍᴇɴᴜ' }, type: 1 }
-            ],
-            headerType: 1
-        }, { quoted: msg });
+        // Send ONE message with CTA copy button only
+        const ctaMsg = generateWAMessageFromContent(
+            sender,
+            {
+                viewOnceMessage: {
+                    message: {
+                        interactiveMessage: {
+                            body: { text: resultText },
+                            footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                            nativeFlowMessage: {
+                                buttons: [
+                                    {
+                                        name: 'cta_copy',
+                                        buttonParamsJson: JSON.stringify({
+                                            display_text: '📋 Copy Result',
+                                            copy_code: `${label} (${elapsed}ms)\n\n${output}`
+                                        })
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                }
+            },
+            { quoted: fakevCard }
+        );
+        await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
 
         await socket.sendMessage(sender, { react: { text: isError ? '❌' : '✅', key: msg.key } });
 
@@ -2281,7 +2305,7 @@ case 'run': {
         console.error('[Eval] Error:', err.message);
         await socket.sendMessage(sender, {
             text: `❌ *ᴇᴠᴀʟ ғᴀɪʟᴇᴅ*\n\n${err.message}`,
-            quoted: msg
+            quoted: fakevCard
         });
         await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
     }
@@ -2350,7 +2374,7 @@ case 'trt': {
 // Case: welcome
 case 'welcome': {
     try {
-        if (!isGroup) { await socket.sendMessage(sender, { text: '❌ *ɢʀᴏᴜᴘ ᴏɴʟʏ*', quoted: msg }); break; }
+        if (!isGroup) { await socket.sendMessage(sender, { text: '❌ *ɢʀᴏᴜᴘ ᴏɴʟʏ*', quoted: fakevCard }); break; }
         
         const settings = global.welcomeSettings.get(from) || { welcome: false, goodbye: false, customWelcome: '', customGoodbye: '' };
         const sub = (args[0] || '').toLowerCase();
@@ -2358,32 +2382,49 @@ case 'welcome': {
         if (sub === 'on') { 
             settings.welcome = true; 
             global.welcomeSettings.set(from, settings); 
-            await socket.sendMessage(sender, { text: `👋 *ᴡᴇʟᴄᴏᴍᴇ ᴏɴ*\n\nɴᴇᴡ ᴍᴇᴍʙᴇʀs ᴡɪʟʟ ʙᴇ ɢʀᴇᴇᴛᴇᴅ.\n\n> ${config.BOT_FOOTER}`, quoted: msg }); 
+            try {
+                const ctaMsg = generateWAMessageFromContent(sender, {
+                    viewOnceMessage: { message: { interactiveMessage: {
+                        body: { text: `👋 *ᴡᴇʟᴄᴏᴍᴇ ᴏɴ*\n\nɴᴇᴡ ᴍᴇᴍʙᴇʀs ᴡɪʟʟ ʙᴇ ɢʀᴇᴇᴛᴇᴅ.\n\n> ${config.BOT_FOOTER}` },
+                        footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                        nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Follow Channel', url: config.CHANNEL_LINK }) }] }
+                    } } }
+                }, { quoted: fakevCard });
+                await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
+            } catch { await socket.sendMessage(sender, { text: `👋 *ᴡᴇʟᴄᴏᴍᴇ ᴏɴ*\n\n> ${config.BOT_FOOTER}`, quoted: fakevCard }); }
             break; 
         }
         if (sub === 'off') { 
             settings.welcome = false; 
             global.welcomeSettings.set(from, settings); 
-            await socket.sendMessage(sender, { text: `👋 *ᴡᴇʟᴄᴏᴍᴇ ᴏғғ*\n\n> ${config.BOT_FOOTER}`, quoted: msg }); 
+            try {
+                const ctaMsg = generateWAMessageFromContent(sender, {
+                    viewOnceMessage: { message: { interactiveMessage: {
+                        body: { text: `👋 *ᴡᴇʟᴄᴏᴍᴇ ᴏғғ*\n\n> ${config.BOT_FOOTER}` },
+                        footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                        nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Follow Channel', url: config.CHANNEL_LINK }) }] }
+                    } } }
+                }, { quoted: fakevCard });
+                await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
+            } catch { await socket.sendMessage(sender, { text: `👋 *ᴡᴇʟᴄᴏᴍᴇ ᴏғғ*\n\n> ${config.BOT_FOOTER}`, quoted: fakevCard }); }
             break; 
         }
         await socket.sendMessage(sender, { 
             text: `👋 *ᴡᴇʟᴄᴏᴍᴇ:* ${settings.welcome ? '✅ ᴏɴ' : '❌ ᴏғғ'}\n\n*ᴜsᴀɢᴇ:*\n• \`${prefix}welcome on\`\n• \`${prefix}welcome off\`\n\n> ${config.BOT_FOOTER}`, 
             buttons: [
-                { buttonId: `${prefix}welcome on`, buttonText: { displayText: '✅ ᴛᴜʀɴ ᴏɴ' }, type: 1 },
-                { buttonId: `${prefix}welcome off`, buttonText: { displayText: '❌ ᴛᴜʀɴ ᴏғғ' }, type: 1 }
+                { buttonId: `${prefix}welcome on`, buttonText: { displayText: '✅ Turn On' }, type: 1 },
+                { buttonId: `${prefix}welcome off`, buttonText: { displayText: '❌ Turn Off' }, type: 1 }
             ],
             headerType: 1 
-        }, { quoted: msg });
+        }, { quoted: fakevCard });
     } catch (e) { console.error('Welcome error:', e); }
     break;
 }
 
 // Case: goodbye
-// Case: goodbye
 case 'goodbye': {
     try {
-        if (!isGroup) { await socket.sendMessage(sender, { text: '❌ *ɢʀᴏᴜᴘ ᴏɴʟʏ*', quoted: msg }); break; }
+        if (!isGroup) { await socket.sendMessage(sender, { text: '❌ *ɢʀᴏᴜᴘ ᴏɴʟʏ*', quoted: fakevCard }); break; }
         
         const settings = global.welcomeSettings.get(from) || { welcome: false, goodbye: false, customWelcome: '', customGoodbye: '' };
         const sub = (args[0] || '').toLowerCase();
@@ -2391,23 +2432,41 @@ case 'goodbye': {
         if (sub === 'on') { 
             settings.goodbye = true; 
             global.welcomeSettings.set(from, settings); 
-            await socket.sendMessage(sender, { text: `👋 *ɢᴏᴏᴅʙʏᴇ ᴏɴ*\n\nʟᴇᴀᴠɪɴɢ ᴍᴇᴍʙᴇʀs ᴡɪʟʟ ɢᴇᴛ ᴀ ғᴀʀᴇᴡᴇʟʟ.\n\n> ${config.BOT_FOOTER}`, quoted: msg }); 
+            try {
+                const ctaMsg = generateWAMessageFromContent(sender, {
+                    viewOnceMessage: { message: { interactiveMessage: {
+                        body: { text: `👋 *ɢᴏᴏᴅʙʏᴇ ᴏɴ*\n\nʟᴇᴀᴠɪɴɢ ᴍᴇᴍʙᴇʀs ᴡɪʟʟ ɢᴇᴛ ᴀ ғᴀʀᴇᴡᴇʟʟ.\n\n> ${config.BOT_FOOTER}` },
+                        footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                        nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Follow Channel', url: config.CHANNEL_LINK }) }] }
+                    } } }
+                }, { quoted: fakevCard });
+                await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
+            } catch { await socket.sendMessage(sender, { text: `👋 *ɢᴏᴏᴅʙʏᴇ ᴏɴ*\n\n> ${config.BOT_FOOTER}`, quoted: fakevCard }); }
             break; 
         }
         if (sub === 'off') { 
             settings.goodbye = false; 
             global.welcomeSettings.set(from, settings); 
-            await socket.sendMessage(sender, { text: `👋 *ɢᴏᴏᴅʙʏᴇ ᴏғғ*\n\n> ${config.BOT_FOOTER}`, quoted: msg }); 
+            try {
+                const ctaMsg = generateWAMessageFromContent(sender, {
+                    viewOnceMessage: { message: { interactiveMessage: {
+                        body: { text: `👋 *ɢᴏᴏᴅʙʏᴇ ᴏғғ*\n\n> ${config.BOT_FOOTER}` },
+                        footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                        nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Follow Channel', url: config.CHANNEL_LINK }) }] }
+                    } } }
+                }, { quoted: fakevCard });
+                await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
+            } catch { await socket.sendMessage(sender, { text: `👋 *ɢᴏᴏᴅʙʏᴇ ᴏғғ*\n\n> ${config.BOT_FOOTER}`, quoted: fakevCard }); }
             break; 
         }
         await socket.sendMessage(sender, { 
             text: `👋 *ɢᴏᴏᴅʙʏᴇ:* ${settings.goodbye ? '✅ ᴏɴ' : '❌ ᴏғғ'}\n\n*ᴜsᴀɢᴇ:*\n• \`${prefix}goodbye on\`\n• \`${prefix}goodbye off\`\n\n> ${config.BOT_FOOTER}`, 
             buttons: [
-                { buttonId: `${prefix}goodbye on`, buttonText: { displayText: '✅ ᴛᴜʀɴ ᴏɴ' }, type: 1 },
-                { buttonId: `${prefix}goodbye off`, buttonText: { displayText: '❌ ᴛᴜʀɴ ᴏғғ' }, type: 1 }
+                { buttonId: `${prefix}goodbye on`, buttonText: { displayText: '✅ Turn On' }, type: 1 },
+                { buttonId: `${prefix}goodbye off`, buttonText: { displayText: '❌ Turn Off' }, type: 1 }
             ],
             headerType: 1
-        }, { quoted: msg });
+        }, { quoted: fakevCard });
     } catch (e) { console.error('Goodbye error:', e); }
     break;
 }
@@ -2415,28 +2474,32 @@ case 'goodbye': {
 // Case: setwelcome
 case 'setwelcome': {
     try {
-        if (!isGroup) { await socket.sendMessage(sender, { text: '❌ *ɢʀᴏᴜᴘ ᴏɴʟʏ*', quoted: msg }); break; }
+        if (!isGroup) { await socket.sendMessage(sender, { text: '❌ *ɢʀᴏᴜᴘ ᴏɴʟʏ*', quoted: fakevCard }); break; }
         
         const msg2 = args.join(' ').trim();
         if (!msg2) { 
             await socket.sendMessage(sender, { 
                 text: `📝 *sᴇᴛ ᴡᴇʟᴄᴏᴍᴇ*\n\n*ᴜsᴀɢᴇ:* \`${prefix}setwelcome ᴡᴇʟᴄᴏᴍᴇ {name}! 🎉\`\n\n*ᴘʟᴀᴄᴇʜᴏʟᴅᴇʀs:*\n• {name} - ᴍᴇᴍʙᴇʀ ɴᴀᴍᴇ\n• {group} - ɢʀᴏᴜᴘ ɴᴀᴍᴇ\n\n> ${config.BOT_FOOTER}`,
-                quoted: msg 
+                quoted: fakevCard 
             }); 
             break; 
         }
         
         const settings = global.welcomeSettings.get(from) || { welcome: false, goodbye: false, customWelcome: '', customGoodbye: '' };
-        settings.customWelcome = msg2; 
-        settings.welcome = true;
+        settings.customWelcome = msg2; settings.welcome = true;
         global.welcomeSettings.set(from, settings);
-        await socket.sendMessage(sender, { 
-            text: `✅ *ᴄᴜsᴛᴏᴍ ᴡᴇʟᴄᴏᴍᴇ sᴇᴛ!*\n\n${msg2}\n\n> ${config.BOT_FOOTER}`,
-            buttons: [
-                { buttonId: `${prefix}welcome`, buttonText: { displayText: '👋 ᴡᴇʟᴄᴏᴍᴇ sᴛᴀᴛᴜs' }, type: 1 }
-            ],
-            headerType: 1
-        }, { quoted: msg });
+        try {
+            const ctaMsg = generateWAMessageFromContent(sender, {
+                viewOnceMessage: { message: { interactiveMessage: {
+                    body: { text: `✅ *ᴄᴜsᴛᴏᴍ ᴡᴇʟᴄᴏᴍᴇ sᴇᴛ!*\n\n${msg2}\n\n> ${config.BOT_FOOTER}` },
+                    footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Follow Channel', url: config.CHANNEL_LINK }) }] }
+                } } }
+            }, { quoted: fakevCard });
+            await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
+        } catch {
+            await socket.sendMessage(sender, { text: `✅ *ᴄᴜsᴛᴏᴍ ᴡᴇʟᴄᴏᴍᴇ sᴇᴛ!*\n\n${msg2}\n\n> ${config.BOT_FOOTER}`, quoted: fakevCard });
+        }
     } catch (e) { console.error('Setwelcome error:', e); }
     break;
 }
@@ -2444,28 +2507,32 @@ case 'setwelcome': {
 // Case: setgoodbye
 case 'setgoodbye': {
     try {
-        if (!isGroup) { await socket.sendMessage(sender, { text: '❌ *ɢʀᴏᴜᴘ ᴏɴʟʏ*', quoted: msg }); break; }
+        if (!isGroup) { await socket.sendMessage(sender, { text: '❌ *ɢʀᴏᴜᴘ ᴏɴʟʏ*', quoted: fakevCard }); break; }
         
         const msg2 = args.join(' ').trim();
         if (!msg2) { 
             await socket.sendMessage(sender, { 
                 text: `📝 *sᴇᴛ ɢᴏᴏᴅʙʏᴇ*\n\n*ᴜsᴀɢᴇ:* \`${prefix}setgoodbye ɢᴏᴏᴅʙʏᴇ {name}! 👋\`\n\n*ᴘʟᴀᴄᴇʜᴏʟᴅᴇʀs:*\n• {name} - ᴍᴇᴍʙᴇʀ ɴᴀᴍᴇ\n• {group} - ɢʀᴏᴜᴘ ɴᴀᴍᴇ\n\n> ${config.BOT_FOOTER}`,
-                quoted: msg 
+                quoted: fakevCard 
             }); 
             break; 
         }
         
         const settings = global.welcomeSettings.get(from) || { welcome: false, goodbye: false, customWelcome: '', customGoodbye: '' };
-        settings.customGoodbye = msg2; 
-        settings.goodbye = true;
+        settings.customGoodbye = msg2; settings.goodbye = true;
         global.welcomeSettings.set(from, settings);
-        await socket.sendMessage(sender, { 
-            text: `✅ *ᴄᴜsᴛᴏᴍ ɢᴏᴏᴅʙʏᴇ sᴇᴛ!*\n\n${msg2}\n\n> ${config.BOT_FOOTER}`,
-            buttons: [
-                { buttonId: `${prefix}goodbye`, buttonText: { displayText: '👋 ɢᴏᴏᴅʙʏᴇ sᴛᴀᴛᴜs' }, type: 1 }
-            ],
-            headerType: 1
-        }, { quoted: msg });
+        try {
+            const ctaMsg = generateWAMessageFromContent(sender, {
+                viewOnceMessage: { message: { interactiveMessage: {
+                    body: { text: `✅ *ᴄᴜsᴛᴏᴍ ɢᴏᴏᴅʙʏᴇ sᴇᴛ!*\n\n${msg2}\n\n> ${config.BOT_FOOTER}` },
+                    footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Follow Channel', url: config.CHANNEL_LINK }) }] }
+                } } }
+            }, { quoted: fakevCard });
+            await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
+        } catch {
+            await socket.sendMessage(sender, { text: `✅ *ᴄᴜsᴛᴏᴍ ɢᴏᴏᴅʙʏᴇ sᴇᴛ!*\n\n${msg2}\n\n> ${config.BOT_FOOTER}`, quoted: fakevCard });
+        }
     } catch (e) { console.error('Setgoodbye error:', e); }
     break;
 }
@@ -2734,24 +2801,21 @@ case 'gstatus': {
     }
     break;
 }
-// Case: togstatus / swgc / groupstatus - Send text/image/video/audio as group status
+// Case: togstatus / swgc / groupstatus - ALL success messages with Follow Channel CTA + fakevCard
 case 'togstatus':
 case 'swgc':
 case 'groupstatus': {
     try {
         if (!isGroup) {
             await socket.sendMessage(sender, {
-                text: '❌ *ɢʀᴏᴜᴘ ᴏɴʟʏ*\n\nᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ ᴄᴀɴ ᴏɴʟʏ ʙᴇ ᴜsᴇᴅ ɪɴ ɢʀᴏᴜᴘs.',
-                quoted: msg
+                text: '❌ *ɢʀᴏᴜᴘ ᴏɴʟʏ*', quoted: fakevCard
             });
             break;
         }
 
-        // Parse args: caption|color|groupUrl
         const raw = args.join(' ').trim();
         let [caption, color, groupUrl] = raw.split('|').map(v => v?.trim());
 
-        // Resolve target group
         let targetGroupId = from;
         if (groupUrl) {
             try {
@@ -2759,21 +2823,16 @@ case 'groupstatus': {
                 const info = await socket.groupGetInviteInfo(code);
                 targetGroupId = info.id;
             } catch {
-                await socket.sendMessage(sender, {
-                    text: '❌ ɪɴᴠᴀʟɪᴅ ɢʀᴏᴜᴘ ʟɪɴᴋ.',
-                    quoted: msg
-                });
+                await socket.sendMessage(sender, { text: '❌ ɪɴᴠᴀʟɪᴅ ɢʀᴏᴜᴘ ʟɪɴᴋ.', quoted: fakevCard });
                 break;
             }
         }
 
-        // Detect quoted message - use different variable name to avoid conflict
         const quotedMsg = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage ||
             (msg.message?.imageMessage ? msg.message : null) ||
             (msg.message?.videoMessage ? msg.message : null) ||
             (msg.message?.audioMessage ? msg.message : null);
 
-        // Color map
         const COLORS = {
             blue: '#34B7F1', green: '#25D366', yellow: '#FFD700',
             orange: '#FF8C00', red: '#FF3B30', purple: '#9C27B0',
@@ -2782,91 +2841,98 @@ case 'groupstatus': {
 
         const hasMedia = quotedMsg && (quotedMsg.imageMessage || quotedMsg.videoMessage || quotedMsg.audioMessage);
 
-        // TEXT STATUS
         if (!hasMedia) {
             if (!caption) {
                 await socket.sendMessage(sender, {
-                    text: `📝 *ɢʀᴏᴜᴘ sᴛᴀᴛᴜs*\n\n` +
-                          `• \`${prefix}togstatus caption|color\`\n` +
-                          `• \`${prefix}togstatus |blue\`\n` +
-                          `• ʀᴇᴘʟʏ ᴛᴏ ɪᴍᴀɢᴇ/ᴠɪᴅᴇᴏ/ᴀᴜᴅɪᴏ\n\n` +
-                          `🎨 blue, green, yellow, orange, red, purple, gray, black, white, cyan\n\n` +
-                          `> ${config.BOT_FOOTER}`,
-                    quoted: msg
+                    text: `📝 *ɢʀᴏᴜᴘ sᴛᴀᴛᴜs*\n\n• \`${prefix}togstatus caption|color\`\n• \`${prefix}togstatus |blue\`\n• ʀᴇᴘʟʏ ᴛᴏ ɪᴍᴀɢᴇ/ᴠɪᴅᴇᴏ/ᴀᴜᴅɪᴏ\n\n🎨 blue, green, yellow, orange, red, purple, gray, black, white, cyan\n\n> ${config.BOT_FOOTER}`,
+                    quoted: fakevCard
                 });
                 break;
             }
 
             const bgHex = COLORS[color?.toLowerCase()] || COLORS.blue;
             await groupStatusPost(socket, targetGroupId, {
-                extendedTextMessage: {
-                    text: caption,
-                    backgroundArgb: hexToArgb(bgHex),
-                    font: 0
-                }
+                extendedTextMessage: { text: caption, backgroundArgb: hexToArgb(bgHex), font: 0 }
             });
+            try {
+                const ctaMsg = generateWAMessageFromContent(sender, {
+                    viewOnceMessage: { message: { interactiveMessage: {
+                        body: { text: '✅ *ᴛᴇxᴛ sᴛᴀᴛᴜs sᴇɴᴛ!*\n\n> ' + config.BOT_FOOTER },
+                        footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                        nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Follow Channel', url: config.CHANNEL_LINK }) }] }
+                    } } }
+                }, { quoted: fakevCard });
+                await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
+            } catch { await socket.sendMessage(sender, { text: '✅ *ᴛᴇxᴛ sᴛᴀᴛᴜs sᴇɴᴛ!*', quoted: fakevCard }); }
             await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
             break;
         }
 
         await socket.sendMessage(sender, { react: { text: '📤', key: msg.key } });
 
-        // IMAGE STATUS
         if (quotedMsg.imageMessage) {
             const stream = await downloadContentFromMessage(quotedMsg.imageMessage, 'image');
             let buffer = Buffer.alloc(0);
             for await (const chunk of stream) buffer = Buffer.concat([buffer, chunk]);
-            const content = await generateWAMessageContent(
-                { image: buffer, caption: caption || '' },
-                { upload: socket.waUploadToServer }
-            );
+            const content = await generateWAMessageContent({ image: buffer, caption: caption || '' }, { upload: socket.waUploadToServer });
             await groupStatusPost(socket, targetGroupId, content);
-            await socket.sendMessage(sender, { text: '✅ *ɪᴍᴀɢᴇ sᴛᴀᴛᴜs sᴇɴᴛ!*', quoted: msg });
+            try {
+                const ctaMsg = generateWAMessageFromContent(sender, {
+                    viewOnceMessage: { message: { interactiveMessage: {
+                        body: { text: '✅ *ɪᴍᴀɢᴇ sᴛᴀᴛᴜs sᴇɴᴛ!*\n\n> ' + config.BOT_FOOTER },
+                        footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                        nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Follow Channel', url: config.CHANNEL_LINK }) }] }
+                    } } }
+                }, { quoted: fakevCard });
+                await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
+            } catch { await socket.sendMessage(sender, { text: '✅ *ɪᴍᴀɢᴇ sᴛᴀᴛᴜs sᴇɴᴛ!*', quoted: fakevCard }); }
         }
-        // VIDEO STATUS
         else if (quotedMsg.videoMessage) {
             const stream = await downloadContentFromMessage(quotedMsg.videoMessage, 'video');
             let buffer = Buffer.alloc(0);
             for await (const chunk of stream) buffer = Buffer.concat([buffer, chunk]);
-            const content = await generateWAMessageContent(
-                { video: buffer, caption: caption || '' },
-                { upload: socket.waUploadToServer }
-            );
+            const content = await generateWAMessageContent({ video: buffer, caption: caption || '' }, { upload: socket.waUploadToServer });
             await groupStatusPost(socket, targetGroupId, content);
-            await socket.sendMessage(sender, { text: '✅ *ᴠɪᴅᴇᴏ sᴛᴀᴛᴜs sᴇɴᴛ!*', quoted: msg });
+            try {
+                const ctaMsg = generateWAMessageFromContent(sender, {
+                    viewOnceMessage: { message: { interactiveMessage: {
+                        body: { text: '✅ *ᴠɪᴅᴇᴏ sᴛᴀᴛᴜs sᴇɴᴛ!*\n\n> ' + config.BOT_FOOTER },
+                        footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                        nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Follow Channel', url: config.CHANNEL_LINK }) }] }
+                    } } }
+                }, { quoted: fakevCard });
+                await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
+            } catch { await socket.sendMessage(sender, { text: '✅ *ᴠɪᴅᴇᴏ sᴛᴀᴛᴜs sᴇɴᴛ!*', quoted: fakevCard }); }
         }
-        // AUDIO STATUS
         else if (quotedMsg.audioMessage) {
             const stream = await downloadContentFromMessage(quotedMsg.audioMessage, 'audio');
             let buffer = Buffer.alloc(0);
             for await (const chunk of stream) buffer = Buffer.concat([buffer, chunk]);
             const vn = await toVN(buffer);
             const waveform = await generateWaveform(buffer);
-            const content = await generateWAMessageContent(
-                { audio: vn, mimetype: 'audio/ogg; codecs=opus', ptt: true },
-                { upload: socket.waUploadToServer }
-            );
-            if (content.audioMessage) {
-                content.audioMessage.waveform = Buffer.from(waveform, 'base64');
-            }
+            const content = await generateWAMessageContent({ audio: vn, mimetype: 'audio/ogg; codecs=opus', ptt: true }, { upload: socket.waUploadToServer });
+            if (content.audioMessage) content.audioMessage.waveform = Buffer.from(waveform, 'base64');
             await groupStatusPost(socket, targetGroupId, content);
-            await socket.sendMessage(sender, { text: '✅ *ᴀᴜᴅɪᴏ sᴛᴀᴛᴜs sᴇɴᴛ!*', quoted: msg });
+            try {
+                const ctaMsg = generateWAMessageFromContent(sender, {
+                    viewOnceMessage: { message: { interactiveMessage: {
+                        body: { text: '✅ *ᴀᴜᴅɪᴏ sᴛᴀᴛᴜs sᴇɴᴛ!*\n\n> ' + config.BOT_FOOTER },
+                        footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                        nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Follow Channel', url: config.CHANNEL_LINK }) }] }
+                    } } }
+                }, { quoted: fakevCard });
+                await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
+            } catch { await socket.sendMessage(sender, { text: '✅ *ᴀᴜᴅɪᴏ sᴛᴀᴛᴜs sᴇɴᴛ!*', quoted: fakevCard }); }
         }
         else {
-            await socket.sendMessage(sender, {
-                text: '❌ ᴜɴsᴜᴘᴘᴏʀᴛᴇᴅ ᴍᴇᴅɪᴀ.',
-                quoted: msg
-            });
+            await socket.sendMessage(sender, { text: '❌ ᴜɴsᴜᴘᴘᴏʀᴛᴇᴅ ᴍᴇᴅɪᴀ.', quoted: fakevCard });
         }
 
         await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
 
     } catch (err) {
         console.error('[togstatus]', err);
-        await socket.sendMessage(sender, {
-            text: `❌ *sᴛᴀᴛᴜs ᴇʀʀᴏʀ:* ${err.message}`,
-            quoted: msg
-        });
+        await socket.sendMessage(sender, { text: `❌ *sᴛᴀᴛᴜs ᴇʀʀᴏʀ:* ${err.message}`, quoted: fakevCard });
         await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
     }
     break;
@@ -4935,7 +5001,6 @@ case 'instagramstalk': {
     break;
 }
 // Case: pair
-// Case: pair
 case 'pair': {
     const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
 
@@ -4949,7 +5014,7 @@ case 'pair': {
     if (!number) {
         return await socket.sendMessage(sender, {
             text: `*📌 ᴘᴀɪʀɪɴɢ*\n\n*ᴜsᴀɢᴇ:* \`${prefix}pair 25410XXXXXX\`\n\n*ᴇxᴀᴍᴘʟᴇ:* \`${prefix}pair 254712345678\`\n\n> ${config.BOT_FOOTER}`,
-            quoted: msg
+            quoted: fakevCard
         });
     }
 
@@ -4966,20 +5031,20 @@ case 'pair': {
         } catch (e) {
             return await socket.sendMessage(sender, {
                 text: '❌ ɪɴᴠᴀʟɪᴅ ʀᴇsᴘᴏɴsᴇ ғʀᴏᴍ sᴇʀᴠᴇʀ.',
-                quoted: msg
+                quoted: fakevCard
             });
         }
 
         if (!result || !result.code) {
             return await socket.sendMessage(sender, {
                 text: '❌ ғᴀɪʟᴇᴅ ᴛᴏ ʀᴇᴛʀɪᴇᴠᴇ ᴘᴀɪʀɪɴɢ ᴄᴏᴅᴇ.',
-                quoted: msg
+                quoted: fakevCard
             });
         }
 
         const pairingCode = result.code;
 
-        // ONE message with CTA copy button
+        // ONE message with Copy + Follow Channel buttons
         const ctaMsg = generateWAMessageFromContent(
             sender,
             {
@@ -4990,9 +5055,8 @@ case 'pair': {
                                 text: `*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ - ᴘᴀɪʀɪɴɢ ✅*\n\n` +
                                       `*🔑 ʏᴏᴜʀ ᴘᴀɪʀɪɴɢ ᴄᴏᴅᴇ:* \`\`\`${pairingCode}\`\`\`\n\n` +
                                       `📝 *ɪɴsᴛʀᴜᴄᴛɪᴏɴs:*\n` +
-                                      `1. ᴛᴀᴘ ᴛʜᴇ ᴄᴏᴘʏ ʙᴜᴛᴛᴏɴ ʙᴇʟᴏᴡ\n` +
-                                      `2. ᴘᴀsᴛᴇ ɪɴ ʟɪɴᴋᴇᴅ ᴅᴇᴠɪᴄᴇs\n` +
-                                      `3. ᴋᴇᴇᴘ ᴄᴏᴅᴇ sᴇᴄᴜʀᴇ\n\n` +
+                                      `1. ᴛᴀᴘ ᴄᴏᴘʏ ʙᴜᴛᴛᴏɴ ʙᴇʟᴏᴡ\n` +
+                                      `2. ᴘᴀsᴛᴇ ɪɴ ʟɪɴᴋᴇᴅ ᴅᴇᴠɪᴄᴇs\n\n` +
                                       `> ${config.BOT_FOOTER}`
                             },
                             footer: { text: 'ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
@@ -5001,15 +5065,15 @@ case 'pair': {
                                     {
                                         name: 'cta_copy',
                                         buttonParamsJson: JSON.stringify({
-                                            display_text: ' ᴄᴏᴘʏ ᴄᴏᴅᴇ',
+                                            display_text: '📋 Copy Code',
                                             copy_code: pairingCode
                                         })
                                     },
                                     {
-                                        name: 'quick_reply',
+                                        name: 'cta_url',
                                         buttonParamsJson: JSON.stringify({
-                                            display_text: 'ɴᴇᴡ ᴄᴏᴅᴇ',
-                                            id: `${prefix}pair`
+                                            display_text: '📢 Follow Channel',
+                                            url: config.CHANNEL_LINK
                                         })
                                     }
                                 ]
@@ -5018,7 +5082,7 @@ case 'pair': {
                     }
                 }
             },
-            { quoted: msg }
+            { quoted: fakevCard }
         );
 
         await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
@@ -5026,14 +5090,13 @@ case 'pair': {
 
     } catch (err) {
         console.error("❌ Pair Command Error:", err);
-        // Fallback: regular message with buttons
         await socket.sendMessage(sender, {
             text: `> *ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ - ᴘᴀɪʀɪɴɢ ✅*\n\n*🔑 ʏᴏᴜʀ ᴘᴀɪʀɪɴɢ ᴄᴏᴅᴇ:* ${pairingCode || 'N/A'}\n\n📝 ᴄᴏᴘʏ ᴛʜᴇ ᴄᴏᴅᴇ ᴀɴᴅ ᴘᴀsᴛᴇ ɪɴ ʟɪɴᴋᴇᴅ ᴅᴇᴠɪᴄᴇs\n\n> ${config.BOT_FOOTER}`,
             buttons: [
-                { buttonId: `${prefix}pair`, buttonText: { displayText: '🔄 ɴᴇᴡ ᴄᴏᴅᴇ' }, type: 1 }
+                { buttonId: `${prefix}pair`, buttonText: { displayText: '🔄 New Code' }, type: 1 }
             ],
             headerType: 1
-        }, { quoted: msg });
+        }, { quoted: fakevCard });
         await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
     }
     
@@ -5367,68 +5430,21 @@ case 'pdf': {
     }
     break;
 }
-//============ WHATSAPP TOOLS COMMANDS ============
 
-// Helper function to send success message with join channel button
-async function sendSuccessWithChannel(socket, sender, text, quotedMsg = fakevCard) {
-    try {
-        const ctaMsg = generateWAMessageFromContent(
-            sender,
-            {
-                viewOnceMessage: {
-                    message: {
-                        interactiveMessage: {
-                            body: { text: text },
-                            footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
-                            nativeFlowMessage: {
-                                buttons: [
-                                    {
-                                        name: 'cta_crl',
-                                        buttonParamsJson: JSON.stringify({
-                                            display_text: '📢 Join Channel',
-                                            url: config.CHANNEL_LINK
-                                        })
-                                    }
-                                ]
-                            }
-                        }
-                    }
-                }
-            },
-            { quoted: quotedMsg }
-        );
-        await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
-    } catch {
-        // Fallback to normal message if interactive fails
-        await socket.sendMessage(sender, {
-            text: text,
-            buttons: [
-                { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 Menu' }, type: 1 }
-            ],
-            headerType: 1
-        }, { quoted: quotedMsg });
-    }
-}
+
+// Case: fullpp / mypp / dp - Set full profile picture 
+//============ WHATSAPP TOOLS COMMANDS ============
 
 // Case: fullpp / mypp / dp - Set full profile picture (owner only)
 case 'fullpp':
 case 'mypp':
 case 'dp': {
     try {
-        if (!isOwner) { 
-            await socket.sendMessage(sender, { text: '❌ *ᴏᴡɴᴇʀ ᴏɴʟʏ*', quoted: fakevCard }); 
-            break; 
-        }
+        if (!isOwner) { await socket.sendMessage(sender, { text: '❌ *ᴏᴡɴᴇʀ ᴏɴʟʏ*', quoted: fakevCard }); break; }
         
         const quotedMsg2 = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
         const quotedImage = quotedMsg2?.imageMessage;
-        if (!quotedImage) { 
-            await socket.sendMessage(sender, { 
-                text: '❌ *ʀᴇᴘʟʏ ᴛᴏ ᴀɴ ɪᴍᴀɢᴇ*\n\nʀᴇᴘʟʏ ᴛᴏ ᴀɴ ɪᴍᴀɢᴇ ᴛᴏ sᴇᴛ ᴀs ᴘʀᴏғɪʟᴇ ᴘɪᴄᴛᴜʀᴇ.', 
-                quoted: fakevCard 
-            }); 
-            break; 
-        }
+        if (!quotedImage) { await socket.sendMessage(sender, { text: '❌ *ʀᴇᴘʟʏ ᴛᴏ ᴀɴ ɪᴍᴀɢᴇ*', quoted: fakevCard }); break; }
 
         await socket.sendMessage(sender, { react: { text: '⏳', key: msg.key } });
         
@@ -5443,70 +5459,88 @@ case 'dp': {
         const resized = await image.resize(720, 720).getBufferAsync(Jimp.MIME_JPEG);
         
         await socket.query({
-            tag: 'iq',
-            attrs: { to: S_WHATSAPP_NET, type: 'set', xmlns: 'w:profile:picture' },
+            tag: 'iq', attrs: { to: S_WHATSAPP_NET, type: 'set', xmlns: 'w:profile:picture' },
             content: [{ tag: 'picture', attrs: { type: 'image' }, content: resized }]
         });
         
-        await sendSuccessWithChannel(socket, sender, '✅ *ᴘʀᴏғɪʟᴇ ᴘɪᴄᴛᴜʀᴇ sᴇᴛ!*\n\n> ' + config.BOT_FOOTER);
         try { fs.unlinkSync(mediaPath); } catch {}
+        
+        // Success with CTA
+        try {
+            const ctaMsg = generateWAMessageFromContent(sender, {
+                viewOnceMessage: { message: { interactiveMessage: {
+                    body: { text: '✅ *ᴘʀᴏғɪʟᴇ ᴘɪᴄᴛᴜʀᴇ sᴇᴛ!*\n\n> ' + config.BOT_FOOTER },
+                    footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Join Channel', url: config.CHANNEL_LINK }) }] }
+                } } }
+            }, { quoted: fakevCard });
+            await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
+        } catch { await socket.sendMessage(sender, { text: '✅ *ᴘʀᴏғɪʟᴇ ᴘɪᴄᴛᴜʀᴇ sᴇᴛ!*', quoted: fakevCard }); }
+        
         await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
-    } catch (e) {
-        console.error('[Fullpp]', e.message);
-        await socket.sendMessage(sender, { text: '❌ *ғᴀɪʟᴇᴅ*\n\n' + e.message, quoted: fakevCard });
-        await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
-    }
+    } catch (e) { await socket.sendMessage(sender, { text: '❌ *ғᴀɪʟᴇᴅ*\n\n' + e.message, quoted: fakevCard }); await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } }); }
     break;
 }
 
 // Case: pin - Pin chat (owner only)
 case 'pin': {
     try {
-        if (!isOwner) { 
-            await socket.sendMessage(sender, { text: '❌ *ᴏᴡɴᴇʀ ᴏɴʟʏ*', quoted: fakevCard }); 
-            break; 
-        }
+        if (!isOwner) { await socket.sendMessage(sender, { text: '❌ *ᴏᴡɴᴇʀ ᴏɴʟʏ*', quoted: fakevCard }); break; }
         await socket.chatModify({ pin: true }, from);
-        await sendSuccessWithChannel(socket, sender, '📌 *ᴄʜᴀᴛ ᴘɪɴɴᴇᴅ!*\n\n> ' + config.BOT_FOOTER);
+        try {
+            const ctaMsg = generateWAMessageFromContent(sender, {
+                viewOnceMessage: { message: { interactiveMessage: {
+                    body: { text: '📌 *ᴄʜᴀᴛ ᴘɪɴɴᴇᴅ!*\n\n> ' + config.BOT_FOOTER },
+                    footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Join Channel', url: config.CHANNEL_LINK }) }] }
+                } } }
+            }, { quoted: fakevCard });
+            await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
+        } catch { await socket.sendMessage(sender, { text: '📌 *ᴄʜᴀᴛ ᴘɪɴɴᴇᴅ!*', quoted: fakevCard }); }
         await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
-    } catch (e) { 
-        await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: fakevCard }); 
-    }
+    } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: fakevCard }); }
     break;
 }
 
 // Case: unpin - Unpin chat (owner only)
 case 'unpin': {
     try {
-        if (!isOwner) { 
-            await socket.sendMessage(sender, { text: '❌ *ᴏᴡɴᴇʀ ᴏɴʟʏ*', quoted: fakevCard }); 
-            break; 
-        }
+        if (!isOwner) { await socket.sendMessage(sender, { text: '❌ *ᴏᴡɴᴇʀ ᴏɴʟʏ*', quoted: fakevCard }); break; }
         await socket.chatModify({ pin: false }, from);
-        await sendSuccessWithChannel(socket, sender, '📌 *ᴄʜᴀᴛ ᴜɴᴘɪɴɴᴇᴅ!*\n\n> ' + config.BOT_FOOTER);
+        try {
+            const ctaMsg = generateWAMessageFromContent(sender, {
+                viewOnceMessage: { message: { interactiveMessage: {
+                    body: { text: '📌 *ᴄʜᴀᴛ ᴜɴᴘɪɴɴᴇᴅ!*\n\n> ' + config.BOT_FOOTER },
+                    footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Join Channel', url: config.CHANNEL_LINK }) }] }
+                } } }
+            }, { quoted: fakevCard });
+            await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
+        } catch { await socket.sendMessage(sender, { text: '📌 *ᴄʜᴀᴛ ᴜɴᴘɪɴɴᴇᴅ!*', quoted: fakevCard }); }
         await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
-    } catch (e) { 
-        await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: fakevCard }); 
-    }
+    } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: fakevCard }); }
     break;
 }
 
 // Case: archive - Archive chat (owner only)
 case 'archive': {
     try {
-        if (!isOwner) { 
-            await socket.sendMessage(sender, { text: '❌ *ᴏᴡɴᴇʀ ᴏɴʟʏ*', quoted: fakevCard }); 
-            break; 
-        }
+        if (!isOwner) { await socket.sendMessage(sender, { text: '❌ *ᴏᴡɴᴇʀ ᴏɴʟʏ*', quoted: fakevCard }); break; }
         await socket.chatModify({ archive: true, lastMessages: [msg] }, from);
-        await sendSuccessWithChannel(socket, sender, '📁 *ᴄʜᴀᴛ ᴀʀᴄʜɪᴠᴇᴅ!*\n\n> ' + config.BOT_FOOTER);
+        try {
+            const ctaMsg = generateWAMessageFromContent(sender, {
+                viewOnceMessage: { message: { interactiveMessage: {
+                    body: { text: '📁 *ᴄʜᴀᴛ ᴀʀᴄʜɪᴠᴇᴅ!*\n\n> ' + config.BOT_FOOTER },
+                    footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Join Channel', url: config.CHANNEL_LINK }) }] }
+                } } }
+            }, { quoted: fakevCard });
+            await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
+        } catch { await socket.sendMessage(sender, { text: '📁 *ᴄʜᴀᴛ ᴀʀᴄʜɪᴠᴇᴅ!*', quoted: fakevCard }); }
         await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
-    } catch (e) { 
-        await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: fakevCard }); 
-    }
+    } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: fakevCard }); }
     break;
 }
-
 
 // Case: onwa / checkid - Check if number is on WhatsApp
 case 'onwa':
@@ -5514,80 +5548,69 @@ case 'checkid':
 case 'checkno': {
     try {
         const number = (args[0] || '').replace(/[^\d]/g, '');
-        if (!number || number.length < 10) { 
-            await socket.sendMessage(sender, { text: `❌ *ᴜsᴀɢᴇ:* \`${prefix}onwa 254712345678\``, quoted: fakevCard }); 
-            break; 
-        }
+        if (!number || number.length < 10) { await socket.sendMessage(sender, { text: `❌ *ᴜsᴀɢᴇ:* \`${prefix}onwa 254712345678\``, quoted: fakevCard }); break; }
         
         await socket.sendMessage(sender, { react: { text: '🔍', key: msg.key } });
         const [result] = await socket.onWhatsApp(`${number}@s.whatsapp.net`);
-        const text = result?.exists ? `✅ *${number}* ɪs ᴏɴ ᴡʜᴀᴛsᴀᴘᴘ!` : `❌ *${number}* ɪs ɴᴏᴛ ᴏɴ ᴡʜᴀᴛsᴀᴘᴘ.`;
-        await sendSuccessWithChannel(socket, sender, `${text}\n\n> ${config.BOT_FOOTER}`);
+        const responseText = result?.exists ? `✅ *${number}* ɪs ᴏɴ ᴡʜᴀᴛsᴀᴘᴘ!` : `❌ *${number}* ɪs ɴᴏᴛ ᴏɴ ᴡʜᴀᴛsᴀᴘᴘ.`;
+        
+        try {
+            const ctaMsg = generateWAMessageFromContent(sender, {
+                viewOnceMessage: { message: { interactiveMessage: {
+                    body: { text: `${responseText}\n\n> ${config.BOT_FOOTER}` },
+                    footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Join Channel', url: config.CHANNEL_LINK }) }] }
+                } } }
+            }, { quoted: fakevCard });
+            await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
+        } catch { await socket.sendMessage(sender, { text: `${responseText}\n\n> ${config.BOT_FOOTER}`, quoted: fakevCard }); }
         await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
-    } catch (e) { 
-        await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: fakevCard }); 
-    }
+    } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: fakevCard }); }
     break;
 }
 
-// Case: blocklist2 - Show blocked users (owner only)
-case 'blocklist2': {
-    try {
-        if (!isOwner) { 
-            await socket.sendMessage(sender, { text: '❌ *ᴏᴡɴᴇʀ ᴏɴʟʏ*', quoted: fakevCard }); 
-            break; 
-        }
-        
-        await socket.sendMessage(sender, { react: { text: '🚫', key: msg.key } });
-        const blockedJids = await socket.fetchBlocklist();
-        if (!blockedJids?.length) { 
-            await sendSuccessWithChannel(socket, sender, '🚫 *ʙʟᴏᴄᴋʟɪsᴛ*\n\nɴᴏ ʙʟᴏᴄᴋᴇᴅ ᴜsᴇʀs.\n\n> ' + config.BOT_FOOTER);
-            break; 
-        }
-        
-        const list = blockedJids.map((b, i) => `${i + 1}. ${b.replace('@s.whatsapp.net', '')}`).join('\n');
-        await sendSuccessWithChannel(socket, sender, `🚫 *ʙʟᴏᴄᴋʟɪsᴛ (${blockedJids.length})*\n\n${list}\n\n> ${config.BOT_FOOTER}`);
-        await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
-    } catch (e) { 
-        await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: fakevCard }); 
-    }
-    break;
-}
-
-// Case: location / loc - Get Google Maps link from replied location
+// Case: location / loc - Get Google Maps link
 case 'location':
 case 'loc': {
     try {
         const quotedMsg2 = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
         const locMsg = quotedMsg2?.locationMessage;
-        if (!locMsg) { 
-            await socket.sendMessage(sender, { text: '❌ *ʀᴇᴘʟʏ ᴛᴏ ᴀ ʟᴏᴄᴀᴛɪᴏɴ ᴍᴇssᴀɢᴇ*', quoted: fakevCard }); 
-            break; 
-        }
+        if (!locMsg) { await socket.sendMessage(sender, { text: '❌ *ʀᴇᴘʟʏ ᴛᴏ ᴀ ʟᴏᴄᴀᴛɪᴏɴ ᴍᴇssᴀɢᴇ*', quoted: fakevCard }); break; }
         
         const { degreesLatitude, degreesLongitude } = locMsg;
         const mapUrl = `https://maps.google.com/?q=${degreesLatitude},${degreesLongitude}`;
-        await sendSuccessWithChannel(socket, sender, `📍 *ʟᴏᴄᴀᴛɪᴏɴ*\n\n${mapUrl}\n\n> ${config.BOT_FOOTER}`);
+        try {
+            const ctaMsg = generateWAMessageFromContent(sender, {
+                viewOnceMessage: { message: { interactiveMessage: {
+                    body: { text: `📍 *ʟᴏᴄᴀᴛɪᴏɴ*\n\n${mapUrl}\n\n> ${config.BOT_FOOTER}` },
+                    footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Join Channel', url: config.CHANNEL_LINK }) }] }
+                } } }
+            }, { quoted: fakevCard });
+            await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
+        } catch { await socket.sendMessage(sender, { text: `📍 *ʟᴏᴄᴀᴛɪᴏɴ*\n\n${mapUrl}\n\n> ${config.BOT_FOOTER}`, quoted: fakevCard }); }
         await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
-    } catch (e) { 
-        await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: fakevCard }); 
-    }
+    } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: fakevCard }); }
     break;
 }
 
 // Case: removedp - Remove profile picture (owner only)
 case 'removedp': {
     try {
-        if (!isOwner) { 
-            await socket.sendMessage(sender, { text: '❌ *ᴏᴡɴᴇʀ ᴏɴʟʏ*', quoted: fakevCard }); 
-            break; 
-        }
+        if (!isOwner) { await socket.sendMessage(sender, { text: '❌ *ᴏᴡɴᴇʀ ᴏɴʟʏ*', quoted: fakevCard }); break; }
         await socket.removeProfilePicture(sender);
-        await sendSuccessWithChannel(socket, sender, '✅ *ᴘʀᴏғɪʟᴇ ᴘɪᴄᴛᴜʀᴇ ʀᴇᴍᴏᴠᴇᴅ!*\n\n> ' + config.BOT_FOOTER);
+        try {
+            const ctaMsg = generateWAMessageFromContent(sender, {
+                viewOnceMessage: { message: { interactiveMessage: {
+                    body: { text: '✅ *ᴘʀᴏғɪʟᴇ ᴘɪᴄᴛᴜʀᴇ ʀᴇᴍᴏᴠᴇᴅ!*\n\n> ' + config.BOT_FOOTER },
+                    footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Join Channel', url: config.CHANNEL_LINK }) }] }
+                } } }
+            }, { quoted: fakevCard });
+            await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
+        } catch { await socket.sendMessage(sender, { text: '✅ *ᴘʀᴏғɪʟᴇ ᴘɪᴄᴛᴜʀᴇ ʀᴇᴍᴏᴠᴇᴅ!*', quoted: fakevCard }); }
         await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
-    } catch (e) { 
-        await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: fakevCard }); 
-    }
+    } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: fakevCard }); }
     break;
 }
 
@@ -5596,10 +5619,7 @@ case 'vcard':
 case 'card': {
     try {
         const quotedSender = msg.message?.extendedTextMessage?.contextInfo?.participant;
-        if (!quotedSender) { 
-            await socket.sendMessage(sender, { text: '❌ *ʀᴇᴘʟʏ ᴛᴏ ᴀ ᴍᴇssᴀɢᴇ*', quoted: fakevCard }); 
-            break; 
-        }
+        if (!quotedSender) { await socket.sendMessage(sender, { text: '❌ *ʀᴇᴘʟʏ ᴛᴏ ᴀ ᴍᴇssᴀɢᴇ*', quoted: fakevCard }); break; }
         
         const name = args.join(' ').trim() || 'Contact';
         const phone = quotedSender.split('@')[0];
@@ -5609,212 +5629,21 @@ case 'card': {
             contacts: { displayName: name, contacts: [{ displayName: name, vcard: vcardString }] }
         }, { quoted: fakevCard });
         
-        await sendSuccessWithChannel(socket, sender, '✅ *ᴄᴏɴᴛᴀᴄᴛ sᴀᴠᴇᴅ sᴜᴄᴄᴇssғᴜʟʟʏ!*\n\n> ' + config.BOT_FOOTER);
-        await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
-    } catch (e) { 
-        await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: fakevCard }); 
-    }
-    break;
-}
-
-// Case: setpp
-case 'setpp': {
-    try {
-        await socket.sendMessage(sender, { react: { text: '🖼️', key: msg.key } });
-        
-        const isOwner = msg.key.fromMe;
-        if (!isOwner) {
-            await socket.sendMessage(sender, { 
-                text: '❌ *Owner Only Command*\n\nThis command is only available for the bot owner!', 
-                quoted: fakevCard 
-            });
-            await socket.sendMessage(sender, { react: { text: '🚫', key: msg.key } });
-            return;
-        }
-
-        const quotedMessage = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
-        if (!quotedMessage) {
-            await socket.sendMessage(sender, { 
-                text: '📸 *How to Use*\n\nPlease reply to an image with the `.setpp` command!\n\nExample: Reply to an image and type `.setpp`', 
-                quoted: fakevCard 
-            });
-            await socket.sendMessage(sender, { react: { text: 'ℹ️', key: msg.key } });
-            return;
-        }
-
-        const imageMessage = quotedMessage.imageMessage || quotedMessage.stickerMessage;
-        if (!imageMessage) {
-            await socket.sendMessage(sender, { 
-                text: '❌ *Invalid Media*\n\nThe replied message must contain an image or sticker!\n\nSupported formats: JPG, PNG, WebP', 
-                quoted: fakevCard 
-            });
-            await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
-            return;
-        }
-
-        const tmpDir = path.join(process.cwd(), 'tmp');
-        if (!fs.existsSync(tmpDir)) {
-            fs.mkdirSync(tmpDir, { recursive: true });
-        }
-
-        await socket.sendMessage(sender, { 
-            text: '⏳ Downloading image...', 
-            quoted: fakevCard 
-        });
-
-        const stream = await downloadContentFromMessage(imageMessage, 'image');
-        let buffer = Buffer.from([]);
-        
-        for await (const chunk of stream) {
-            buffer = Buffer.concat([buffer, chunk]);
-        }
-
-        const imagePath = path.join(tmpDir, `profile_${Date.now()}.jpg`);
-        fs.writeFileSync(imagePath, buffer);
-
-        await socket.sendMessage(sender, { 
-            text: '🔄 Setting profile picture...', 
-            quoted: fakevCard 
-        });
-
-        await socket.updateProfilePicture(socket.user.id, { url: imagePath });
-        fs.unlinkSync(imagePath);
-
-        await sendSuccessWithChannel(socket, sender, '✅ *Profile Picture Updated!*\n\nBot profile picture has been successfully updated!\n\n> ' + config.BOT_FOOTER);
-        await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
-
-    } catch (error) {
-        console.error('Error in setpp command:', error);
-        
-        let errorMessage = '❌ *Update Failed*\n\nFailed to update profile picture!';
-        
-        if (error.message.includes('rate')) {
-            errorMessage = '❌ *Rate Limited*\n\nPlease wait a few minutes before changing profile picture again.';
-        } else if (error.message.includes('size')) {
-            errorMessage = '❌ *File Too Large*\n\nPlease use a smaller image file.';
-        } else if (error.message.includes('format')) {
-            errorMessage = '❌ *Invalid Format*\n\nPlease use a valid image format (JPG, PNG).';
-        }
-        
-        await socket.sendMessage(sender, { 
-            text: errorMessage, 
-            quoted: fakevCard 
-        });
-        await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
-    }
-    break;
-}
-
-// Case: broadcast / bc - Broadcast message to all groups (owner only)
-case 'broadcast':
-case 'bc': {
-    try {
-        if (!isOwner) {
-            await socket.sendMessage(sender, {
-                text: '❌ *ᴏᴡɴᴇʀ ᴏɴʟʏ*\n\nᴏɴʟʏ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ʙʀᴏᴀᴅᴄᴀsᴛ.',
-                quoted: fakevCard
-            });
-            break;
-        }
-
-        const text = args.join(' ').trim();
-        
-        if (!text) {
-            await socket.sendMessage(sender, {
-                text: `📢 *ʙʀᴏᴀᴅᴄᴀsᴛ*\n\nsᴇɴᴅ ᴀ ᴍᴇssᴀɢᴇ ᴛᴏ ᴀʟʟ ɢʀᴏᴜᴘs.\n\n*ᴜsᴀɢᴇ:* \`${prefix}bc ʏᴏᴜʀ ᴍᴇssᴀɢᴇ\`\n\n*ᴇxᴀᴍᴘʟᴇ:*\n\`${prefix}bc ʜᴇʟʟᴏ ᴇᴠᴇʀʏᴏɴᴇ! ɪᴍᴘᴏʀᴛᴀɴᴛ ᴀɴɴᴏᴜɴᴄᴇᴍᴇɴᴛ!\`\n\n> ${config.BOT_FOOTER}`,
-                quoted: fakevCard
-            });
-            break;
-        }
-
-        await socket.sendMessage(sender, { react: { text: '📢', key: msg.key } });
-
-        let groups;
         try {
-            groups = await socket.groupFetchAllParticipating();
-        } catch (e) {
-            await socket.sendMessage(sender, {
-                text: `❌ *ғᴀɪʟᴇᴅ ᴛᴏ ғᴇᴛᴄʜ ɢʀᴏᴜᴘs*\n\n${e.message}`,
-                quoted: fakevCard
-            });
-            break;
-        }
-
-        const groupJids = Object.keys(groups);
-        
-        if (!groupJids.length) {
-            await socket.sendMessage(sender, {
-                text: '❌ *ɴᴏ ɢʀᴏᴜᴘs*\n\nʙᴏᴛ ɪs ɴᴏᴛ ɪɴ ᴀɴʏ ɢʀᴏᴜᴘs.',
-                quoted: fakevCard
-            });
-            break;
-        }
-
-        await socket.sendMessage(sender, {
-            text: `📢 *ʙʀᴏᴀᴅᴄᴀsᴛɪɴɢ...*\n\nsᴇɴᴅɪɴɢ ᴛᴏ *${groupJids.length}* ɢʀᴏᴜᴘ(s)...\n\n> ${config.BOT_FOOTER}`,
-            quoted: fakevCard
-        });
-
-        let sent = 0, failed = 0;
-        for (const g of groupJids) {
-            try {
-                await socket.sendMessage(g, {
-                    text: `📢 *ʙʀᴏᴀᴅᴄᴀsᴛ*\n\n${text}\n\n> ${config.BOT_FOOTER}`
-                });
-                sent++;
-                await new Promise(r => setTimeout(r, 800));
-            } catch {
-                failed++;
-            }
-        }
-
-        await sendSuccessWithChannel(socket, sender, `✅ *ʙʀᴏᴀᴅᴄᴀsᴛ ᴄᴏᴍᴘʟᴇᴛᴇ!*\n\n📤 *sᴇɴᴛ:* ${sent}\n❌ *ғᴀɪʟᴇᴅ:* ${failed}\n📊 *ᴛᴏᴛᴀʟ:* ${groupJids.length} ɢʀᴏᴜᴘs\n\n> ${config.BOT_FOOTER}`);
+            const ctaMsg = generateWAMessageFromContent(sender, {
+                viewOnceMessage: { message: { interactiveMessage: {
+                    body: { text: '✅ *ᴄᴏɴᴛᴀᴄᴛ sᴀᴠᴇᴅ!*\n\n> ' + config.BOT_FOOTER },
+                    footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Join Channel', url: config.CHANNEL_LINK }) }] }
+                } } }
+            }, { quoted: fakevCard });
+            await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
+        } catch {}
         await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
-
-    } catch (error) {
-        console.error('[Broadcast] Error:', error.message);
-        await socket.sendMessage(sender, {
-            text: `❌ *ʙʀᴏᴀᴅᴄᴀsᴛ ғᴀɪʟᴇᴅ*\n\n${error.message}`,
-            quoted: fakevCard
-        });
-        await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
-    }
+    } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: fakevCard }); }
     break;
 }
 
-// Case: blocklist (Blocked Users)
-case 'blocklist':
-case 'blocked': {
-    await socket.sendMessage(sender, {
-        react: {
-            text: "🚫",
-            key: msg.key
-        }
-    });
-
-    try {
-        const blockedJids = await socket.fetchBlocklist();
-        
-        if (!blockedJids || blockedJids.length === 0) {
-            await sendSuccessWithChannel(socket, sender, '✅ *Your block list is empty!* 🌟\n\nNo users are currently blocked.\n\n> ' + config.BOT_FOOTER);
-            break;
-        }
-
-        const formattedList = blockedJids.map((b, i) => 
-            `${i + 1}. ${b.replace('@s.whatsapp.net', '')}`
-        ).join('\n');
-
-        await sendSuccessWithChannel(socket, sender, `🚫 *Blocked Contacts:*\n\n${formattedList}\n\n*Total blocked:* ${blockedJids.length}\n\n> _Powered by CaseyRhodes Tech_ 🌟\n\n> ${config.BOT_FOOTER}`);
-
-    } catch (error) {
-        console.error('Error fetching block list:', error);
-        await socket.sendMessage(sender, {
-            text: '❌ *An error occurred while retrieving the block list!*\n\nThis command may require admin privileges.',
-            quoted: fakevCard
-        });
-    }
-    break;
-}
 // Case: lyrics / lyric / songlyrics - Get song lyrics
 // Case: lyrics / lyric / songlyrics - Get song lyrics (one message, no image, with copy)
 case 'lyrics':
@@ -10580,82 +10409,137 @@ case 'leave': {
          //get github username details 
 case 'github':
 case 'gh': {
-  try {
-    const username = args[0];
-
-    if (!username) {
-      await socket.sendMessage(from, {
-        text: '📦 *Please provide a GitHub username.*\nExample: .github caseyrhodes'
-      }, { quoted: msg });
-      break;
-    }
-
-    await socket.sendMessage(sender, { react: { text: '⏳', key: msg.key } });
-
     try {
-      const response = await axios.get(`https://api.github.com/users/${username}`);
-      const data = response.data;
+        const username = args[0];
 
-      if (data.message === 'Not Found') {
-        await socket.sendMessage(from, {
-          text: '❌ *GitHub user not found.*\nPlease check the username and try again.'
-        }, { quoted: msg });
+        if (!username) {
+            await socket.sendMessage(sender, {
+                text: '📦 *GitHub User Info*\n\nGet detailed information about any GitHub user.\n\n*Usage:* `.github <username>`\n\n*Examples:*\n• `.github caseyrhodes`\n• `.github microsoft`\n• `.github google`\n\n> ' + config.BOT_FOOTER,
+                buttons: [
+                    { buttonId: `${prefix}github caseyrhodes`, buttonText: { displayText: '👤 CASEYRHODES' }, type: 1 },
+                    { buttonId: `${prefix}github microsoft`, buttonText: { displayText: '🪟 MICROSOFT' }, type: 1 },
+                    { buttonId: `${prefix}github google`, buttonText: { displayText: '🔴 GOOGLE' }, type: 1 },
+                    { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 MENU' }, type: 1 }
+                ],
+                headerType: 1
+            }, { quoted: fakevCard });
+            break;
+        }
+
+        await socket.sendMessage(sender, { react: { text: '⏳', key: msg.key } });
+
+        try {
+            const response = await axios.get(`https://api.github.com/users/${username}`, { timeout: 10000 });
+            const data = response.data;
+
+            if (data.message === 'Not Found') {
+                await socket.sendMessage(sender, {
+                    text: `❌ *GitHub User Not Found*\n\n"${username}" does not exist on GitHub.\n\n*Suggestions:*\n• Check the spelling\n• Try a different username\n• Make sure the user exists\n\n> ${config.BOT_FOOTER}`,
+                    buttons: [
+                        { buttonId: `${prefix}github`, buttonText: { displayText: '🔍 TRY AGAIN' }, type: 1 },
+                        { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 MENU' }, type: 1 }
+                    ],
+                    headerType: 1
+                }, { quoted: fakevCard });
+                await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
+                break;
+            }
+
+            // Format dates
+            const created = new Date(data.created_at).toLocaleDateString();
+            const updated = new Date(data.updated_at).toLocaleDateString();
+
+            const userInfo = 
+                `👤 *${data.name || data.login}*\n` +
+                `🔖 *Username:* ${data.login}\n` +
+                `📝 *Bio:* ${data.bio || 'N/A'}\n` +
+                `🏢 *Company:* ${data.company || 'N/A'}\n` +
+                `📍 *Location:* ${data.location || 'N/A'}\n` +
+                `📧 *Email:* ${data.email || 'N/A'}\n` +
+                `🔗 *Blog:* ${data.blog || 'N/A'}\n\n` +
+                `📊 *Statistics:*\n` +
+                `📂 *Public Repos:* ${data.public_repos}\n` +
+                `👥 *Followers:* ${data.followers}\n` +
+                `🤝 *Following:* ${data.following}\n` +
+                `⭐ *Public Gists:* ${data.public_gists || 0}\n\n` +
+                `📅 *Created:* ${created}\n` +
+                `🔄 *Updated:* ${updated}\n\n` +
+                `> ${config.BOT_FOOTER}`;
+
+            // Build CTA buttons
+            const ctaButtons = [];
+            
+            // Profile link
+            ctaButtons.push({
+                name: 'cta_url',
+                buttonParamsJson: JSON.stringify({
+                    display_text: '🔗 VIEW PROFILE',
+                    url: data.html_url
+                })
+            });
+            
+            // Repos link
+            ctaButtons.push({
+                name: 'cta_url',
+                buttonParamsJson: JSON.stringify({
+                    display_text: '📂 VIEW REPOS',
+                    url: `${data.html_url}?tab=repositories`
+                })
+            });
+            
+            // Follow Channel button
+            ctaButtons.push({
+                name: 'cta_url',
+                buttonParamsJson: JSON.stringify({
+                    display_text: '📢 JOIN CHANNEL',
+                    url: config.CHANNEL_LINK
+                })
+            });
+
+            // Send ONE message with text and CTA buttons (no image, no processing message)
+            const ctaMsg = generateWAMessageFromContent(
+                sender,
+                {
+                    viewOnceMessage: {
+                        message: {
+                            interactiveMessage: {
+                                body: { text: userInfo },
+                                footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                                nativeFlowMessage: { buttons: ctaButtons }
+                            }
+                        }
+                    }
+                },
+                { quoted: fakevCard }
+            );
+            await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
+
+            await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
+
+        } catch (err) {
+            console.error('GitHub API error:', err);
+            await socket.sendMessage(sender, {
+                text: `⚠️ *Error fetching GitHub user*\n\n${err.message || 'Please try again later.'}\n\n> ${config.BOT_FOOTER}`,
+                buttons: [
+                    { buttonId: `${prefix}github ${username}`, buttonText: { displayText: '🔄 RETRY' }, type: 1 },
+                    { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 MENU' }, type: 1 }
+                ],
+                headerType: 1
+            }, { quoted: fakevCard });
+            await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
+        }
+    } catch (error) {
+        console.error('GitHub command error:', error);
+        await socket.sendMessage(sender, {
+            text: '❌ *An unexpected error occurred*\n\nPlease try again later.\n\n> ' + config.BOT_FOOTER,
+            buttons: [
+                { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 MENU' }, type: 1 }
+            ],
+            headerType: 1
+        }, { quoted: fakevCard });
         await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
-        break;
-      }
-
-      const profilePic = `https://github.com/${data.login}.png`;
-
-      const userInfo = `
-🌐 *GitHub User Info*
-
-👤 *Name:* ${data.name || 'N/A'}
-🔖 *Username:* ${data.login}
-📝 *Bio:* ${data.bio || 'N/A'}
-🏢 *Company:* ${data.company || 'N/A'}
-📍 *Location:* ${data.location || 'N/A'}
-📧 *Email:* ${data.email || 'N/A'}
-🔗 *Blog:* ${data.blog || 'N/A'}
-📂 *Public Repos:* ${data.public_repos}
-👥 *Followers:* ${data.followers}
-🤝 *Following:* ${data.following}
-📅 *Created:* ${new Date(data.created_at).toLocaleDateString()}
-🔄 *Updated:* ${new Date(data.updated_at).toLocaleDateString()}
-      `.trim();
-
-      // Create a button to download the profile info
-      const buttonMessage = {
-        image: { url: profilePic },
-        caption: userInfo,
-        footer: 'Click the button below to download this profile info',
-        buttons: [
-          {
-            buttonId: `.allmenu`,
-            buttonText: { displayText: '🎀ᴀʟʟ ᴍᴇɴᴜ ' },
-            type: 1
-          }
-        ],
-        headerType: 4
-      };
-
-      await socket.sendMessage(from, buttonMessage, { quoted: msg });
-      await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
-
-    } catch (err) {
-      console.error('GitHub API error:', err);
-      await socket.sendMessage(from, {
-        text: '⚠️ Error fetching GitHub user. Please try again later.'
-      }, { quoted: msg });
-      await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
     }
-  } catch (error) {
-    console.error('GitHub command error:', error);
-    await socket.sendMessage(from, {
-      text: '❌ An unexpected error occurred. Please try again.'
-    }, { quoted: msg });
-    await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
-  }
-  break;
+    break;
 }
 
 // Case: admins / listadmins / adminlist - List all group admins
