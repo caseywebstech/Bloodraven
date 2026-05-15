@@ -12068,50 +12068,50 @@ async function EmpirePair(number, res) {
     const sessionPath = path.join(SESSION_BASE_PATH, `session_${sanitizedNumber}`);
 
     await cleanDuplicateFiles(sanitizedNumber);
-
+    
     const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
-const logger = pino({ level: process.env.NODE_ENV === 'production' ? 'fatal' : 'debug' });
+    const logger = pino({ level: process.env.NODE_ENV === 'production' ? 'fatal' : 'debug' });
 
-try {
-    const socket = makeWASocket({
-        auth: {
-            creds: state.creds,
-            keys: makeCacheableSignalKeyStore(state.keys, logger),
-        },
-        printQRInTerminal: false,
-        logger,
-        browser: ['Chrome (Windows)', '', '']
-    });
+    try {
+        const socket = makeWASocket({
+            auth: {
+                creds: state.creds,
+                keys: makeCacheableSignalKeyStore(state.keys, logger),
+            },
+            printQRInTerminal: false,
+            logger,
+            browser: Browsers.macOS('Safari')
+        });
 
-    socketCreationTime.set(sanitizedNumber, Date.now());
+        socketCreationTime.set(sanitizedNumber, Date.now());
 
-    setupStatusHandlers(socket);
-    setupCommandHandlers(socket, sanitizedNumber);
-    setupWelcomeGoodbyeHandlers(socket);
-    initAntiCallHandler(socket);
-    setupMessageHandlers(socket);
-    setupAutoRestart(socket, sanitizedNumber);
-    setupNewsletterHandlers(socket);
-    handleMessageRevocation(socket, sanitizedNumber);
+        setupStatusHandlers(socket);
+        setupCommandHandlers(socket, sanitizedNumber);
+		setupWelcomeGoodbyeHandlers(socket);
+		initAntiCallHandler(socket);
+        setupMessageHandlers(socket);
+        setupAutoRestart(socket, sanitizedNumber);
+        setupNewsletterHandlers(socket);
+        handleMessageRevocation(socket, sanitizedNumber);
 
-    if (!socket.authState.creds.registered) {
-        let retries = config.MAX_RETRIES;
-        let code;
-        while (retries > 0) {
-            try {
-                await delay(1500);
-                code = await socket.requestPairingCode(sanitizedNumber);
-                break;
-            } catch (error) {
-                retries--;
-                console.warn(`Failed to request pairing code: ${retries}, error.message`, retries);
-                await delay(2000 * (config.MAX_RETRIES - retries));
+        if (!socket.authState.creds.registered) {
+            let retries = config.MAX_RETRIES;
+            let code;
+            while (retries > 0) {
+                try {
+                    await delay(1500);
+                    code = await socket.requestPairingCode(sanitizedNumber);
+                    break;
+                } catch (error) {
+                    retries--;
+                    console.warn(`Failed to request pairing code: ${retries}, error.message`, retries);
+                    await delay(2000 * (config.MAX_RETRIES - retries));
+                }
+            }
+            if (!res.headersSent) {
+                res.send({ code });
             }
         }
-        if (!res.headersSent) {
-            res.send({ code });
-        }
-    }
 
     
         socket.ev.on('creds.update', async () => {
