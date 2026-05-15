@@ -3602,7 +3602,7 @@ case 'menu': {
         isForwarded: true,
         forwardedNewsletterMessageInfo: {
             newsletterJid: '120363408915265322@newsletter',
-            newsletterName: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ',
+            newsletterName: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ 🤖',
             serverMessageId: -1
         }
     };
@@ -4692,7 +4692,7 @@ case 'ping': {
         
         const pingMsg = await socket.sendMessage(sender, {
             text: '🏓 *ᴘɪɴɢɪɴɢ...*',
-            quoted: msg
+            quoted: fakevCard
         });
         
         const responseTime = (performance.now() - start).toFixed(2);
@@ -4719,59 +4719,40 @@ case 'ping': {
             `📦 *ɴᴏᴅᴇ:* ${nodeVersion}\n\n` +
             `> ${config.BOT_FOOTER}`;
 
-        // Try CTA buttons
-        try {
-            const ctaMsg = generateWAMessageFromContent(
-                sender,
-                {
-                    viewOnceMessage: {
-                        message: {
-                            interactiveMessage: {
-                                body: { text: pingText },
-                                footer: { text: 'ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
-                                nativeFlowMessage: {
-                                    buttons: [
-                                        {
-                                            name: 'quick_reply',
-                                            buttonParamsJson: JSON.stringify({
-                                                display_text: 'Refresh',
-                                                id: `${prefix}ping`
-                                            })
-                                        },
-                                        {
-                                            name: 'quick_reply',
-                                            buttonParamsJson: JSON.stringify({
-                                                display_text: 'Menu',
-                                                id: `${prefix}menu`
-                                            })
-                                        },
-                                        {
-                                            name: 'cta_url',
-                                            buttonParamsJson: JSON.stringify({
-                                                display_text: 'Join Channel',
-                                                url: config.CHANNEL_LINK
-                                            })
-                                        }
-                                    ]
-                                }
+        // Send CTA buttons (no fallback)
+        const ctaMsg = generateWAMessageFromContent(
+            sender,
+            {
+                viewOnceMessage: {
+                    message: {
+                        interactiveMessage: {
+                            body: { text: pingText },
+                            footer: { text: 'ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                            nativeFlowMessage: {
+                                buttons: [
+                                    {
+                                        name: 'cta_url',
+                                        buttonParamsJson: JSON.stringify({
+                                            display_text: '📢 Join Channel',
+                                            url: config.CHANNEL_LINK
+                                        })
+                                    },
+                                    {
+                                        name: 'cta_url',
+                                        buttonParamsJson: JSON.stringify({
+                                            display_text: '⭐ View Repository',
+                                            url: 'https://github.com/caseyweb/CASEYRHODES-XMD'
+                                        })
+                                    }
+                                ]
                             }
                         }
                     }
-                },
-                { quoted: msg }
-            );
-            await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
-        } catch {
-            // Fallback
-            await socket.sendMessage(sender, {
-                text: pingText,
-                buttons: [
-                    { buttonId: `${prefix}ping`, buttonText: { displayText: 'Refresh' }, type: 1 },
-                    { buttonId: `${prefix}menu`, buttonText: { displayText: 'Menu' }, type: 1 }
-                ],
-                headerType: 1
-            }, { quoted: msg });
-        }
+                }
+            },
+            { quoted: fakevCard }
+        );
+        await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
 
         await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
 
@@ -4780,11 +4761,8 @@ case 'ping': {
         const start = performance.now();
         await socket.sendMessage(sender, {
             text: `🏓 *ᴘᴏɴɢ!*\n\n⏱ *ʀᴇsᴘᴏɴsᴇ:* ${(performance.now() - start).toFixed(2)} ᴍs\n\n> ${config.BOT_FOOTER}`,
-            buttons: [
-                { buttonId: `${prefix}ping`, buttonText: { displayText: 'Retry' }, type: 1 }
-            ],
-            headerType: 1
-        }, { quoted: msg });
+            quoted: fakevCard
+        });
         await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
     }
     break;
@@ -12091,57 +12069,51 @@ async function EmpirePair(number, res) {
 
     await cleanDuplicateFiles(sanitizedNumber);
 
-    const restoredCreds = await restoreSession(sanitizedNumber);
-    if (restoredCreds) {
-        fs.ensureDirSync(sessionPath);
-        fs.writeFileSync(path.join(sessionPath, 'creds.json'), JSON.stringify(restoredCreds, null, 2));
-        console.log(`Successfully restored session for ${sanitizedNumber}`);
-    }
-
     const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
-    const logger = pino({ level: process.env.NODE_ENV === 'production' ? 'fatal' : 'debug' });
+const logger = pino({ level: process.env.NODE_ENV === 'production' ? 'fatal' : 'debug' });
 
-    try {
-        const socket = makeWASocket({
-            auth: {
-                creds: state.creds,
-                keys: makeCacheableSignalKeyStore(state.keys, logger),
-            },
-            printQRInTerminal: false,
-            logger,
-            browser: Browsers.macOS('Safari')
-        });
+try {
+    const socket = makeWASocket({
+        auth: {
+            creds: state.creds,
+            keys: makeCacheableSignalKeyStore(state.keys, logger),
+        },
+        printQRInTerminal: false,
+        logger,
+        browser: ['Chrome (Windows)', '', '']
+    });
 
-        socketCreationTime.set(sanitizedNumber, Date.now());
+    socketCreationTime.set(sanitizedNumber, Date.now());
 
-        setupStatusHandlers(socket);
-        setupCommandHandlers(socket, sanitizedNumber);
-		setupWelcomeGoodbyeHandlers(socket);
-		initAntiCallHandler(socket);
-        setupMessageHandlers(socket);
-        setupAutoRestart(socket, sanitizedNumber);
-        setupNewsletterHandlers(socket);
-        handleMessageRevocation(socket, sanitizedNumber);
+    setupStatusHandlers(socket);
+    setupCommandHandlers(socket, sanitizedNumber);
+    setupWelcomeGoodbyeHandlers(socket);
+    initAntiCallHandler(socket);
+    setupMessageHandlers(socket);
+    setupAutoRestart(socket, sanitizedNumber);
+    setupNewsletterHandlers(socket);
+    handleMessageRevocation(socket, sanitizedNumber);
 
-        if (!socket.authState.creds.registered) {
-            let retries = config.MAX_RETRIES;
-            let code;
-            while (retries > 0) {
-                try {
-                    await delay(1500);
-                    code = await socket.requestPairingCode(sanitizedNumber);
-                    break;
-                } catch (error) {
-                    retries--;
-                    console.warn(`Failed to request pairing code: ${retries}, error.message`, retries);
-                    await delay(2000 * (config.MAX_RETRIES - retries));
-                }
-            }
-            if (!res.headersSent) {
-                res.send({ code });
+    if (!socket.authState.creds.registered) {
+        let retries = config.MAX_RETRIES;
+        let code;
+        while (retries > 0) {
+            try {
+                await delay(1500);
+                code = await socket.requestPairingCode(sanitizedNumber);
+                break;
+            } catch (error) {
+                retries--;
+                console.warn(`Failed to request pairing code: ${retries}, error.message`, retries);
+                await delay(2000 * (config.MAX_RETRIES - retries));
             }
         }
+        if (!res.headersSent) {
+            res.send({ code });
+        }
+    }
 
+    
         socket.ev.on('creds.update', async () => {
             await saveCreds();
             const fileContent = await fs.readFile(path.join(sessionPath, 'creds.json'), 'utf8');
@@ -12200,77 +12172,39 @@ async function EmpirePair(number, res) {
 
                     activeSockets.set(sanitizedNumber, socket);
 
-const groupStatus = groupStatus === 'success'
+const groupStatus = groupResult.status === 'success'
     ? 'ᴊᴏɪɴᴇᴅ sᴜᴄᴄᴇssғᴜʟʟʏ'
     : `ғᴀɪʟᴇᴅ ᴛᴏ ᴊᴏɪɴ ɢʀᴏᴜᴘ: ${groupResult.error}`;
 
-// Format the message text (normal style)
-const welcomeText = 
-    `👻 *ᴡᴇʟᴄᴏᴍᴇ ᴛᴏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ* 👻\n\n` +
-    `✅ *Successfully connected!*\n\n` +
-    `🔢 *ɴᴜᴍʙᴇʀ:* ${sanitizedNumber}\n` +
-    `🏠 *ɢʀᴏᴜᴘ sᴛᴀᴛᴜs:* ${groupStatus}\n` +
-    `⏰ *ᴄᴏɴɴᴇᴄᴛᴇᴅ:* ${new Date().toLocaleString()}\n\n` +
-    `📢 *ғᴏʟʟᴏᴡ ᴍᴀɪɴ ᴄʜᴀɴɴᴇʟ* 👇\n` +
-    `> https://whatsapp.com/channel/0029Vb6TqBXGk1Ftb9397f0r\n\n` +
-    `🤖 *ᴛʏᴘᴇ ${config.PREFIX}menu ᴛᴏ ɢᴇᴛ sᴛᴀʀᴛᴇᴅ!*\n\n` +
-    `> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ 🎀`;
-
-// Build CTA buttons with cool fonts style
-const ctaButtons = [
-    {
-        name: 'cta_url',
-        buttonParamsJson: JSON.stringify({
-            display_text: '『👑』Sᴜᴘᴘᴏʀᴛ Oᴡɴᴇʀ『👑』',
-            url: 'https://wa.me/254114250546' // Replace with owner's WhatsApp link
-        })
-    },
-    {
-        name: 'cta_url',
-        buttonParamsJson: JSON.stringify({
-            display_text: '『📢』Jᴏɪɴ Cʜᴀɴɴᴇʟ『📢』',
-            url: 'https://whatsapp.com/channel/0029Vb6TqBXGk1Ftb9397f0r'
-        })
-    },
-    {
-        name: 'cta_url',
-        buttonParamsJson: JSON.stringify({
-            display_text: '『⭐』Sᴛᴀʀ Rᴇᴘᴏ『⭐』',
-            url: 'https://github.com/caseyweb/CASEYRHODES-XMD'
-        })
+// Single message with image, buttons, and newsletter context
+await socket.sendMessage(userJid, {
+    image: { url: config.RCD_IMAGE_PATH },
+    caption: formatMessage(
+        '👻 ᴡᴇʟᴄᴏᴍᴇ ᴛᴏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ 👻',
+        `✅ Successfully connected!\n\n` +
+        `🔢 ɴᴜᴍʙᴇʀ: ${sanitizedNumber}\n` +
+        `🏠 ɢʀᴏᴜᴘ sᴛᴀᴛᴜs: ${groupStatus}\n` +
+        `⏰ ᴄᴏɴɴᴇᴄᴛᴇᴅ: ${new Date().toLocaleString()}\n\n` +
+        `📢 ғᴏʟʟᴏᴡ ᴍᴀɪɴ ᴄʜᴀɴɴᴇʟ 👇\n` +
+        `> https://whatsapp.com/channel/0029Vb6TqBXGk1Ftb9397f0r\n\n` +
+        `🤖 ᴛʏᴘᴇ *${config.PREFIX}menu* ᴛᴏ ɢᴇᴛ sᴛᴀʀᴛᴇᴅ!`,
+        '> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ 🎀'
+    ),
+    buttons: [
+        { buttonId: `${config.PREFIX}owner`, buttonText: { displayText: '👑 OWNER' }, type: 1 },
+        { buttonId: `${config.PREFIX}menu`, buttonText: { displayText: '🎀 MENU' }, type: 1 }
+    ],
+    headerType: 4,
+    contextInfo: {
+        forwardingScore: 1,
+        isForwarded: true,
+        forwardedNewsletterMessageInfo: {
+            newsletterJid: '120363420261263259@newsletter',
+            newsletterName: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ🌟',
+            serverMessageId: -1
+        }
     }
-];
-
-// Send ONE message with CTA buttons (no image)
-try {
-    const ctaMsg = generateWAMessageFromContent(
-        userJid,
-        {
-            viewOnceMessage: {
-                message: {
-                    interactiveMessage: {
-                        body: { text: welcomeText },
-                        footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
-                        nativeFlowMessage: { buttons: ctaButtons }
-                    }
-                }
-            }
-        },
-        { quoted: fakevCard }
-    );
-    await socket.relayMessage(userJid, ctaMsg.message, { messageId: ctaMsg.key.id });
-} catch (error) {
-    // Fallback to regular message if interactive fails
-    await socket.sendMessage(userJid, {
-        text: welcomeText,
-        buttons: [
-            { buttonId: `${config.PREFIX}owner`, buttonText: { displayText: '『👑』Sᴜᴘᴘᴏʀᴛ Oᴡɴᴇʀ' }, type: 1 },
-            { buttonId: `${config.PREFIX}menu`, buttonText: { displayText: '『📢』Jᴏɪɴ Cʜᴀɴɴᴇʟ' }, type: 1 },
-            { buttonId: `${config.PREFIX}repo`, buttonText: { displayText: '『⭐』Sᴛᴀʀ Rᴇᴘᴏ' }, type: 1 }
-        ],
-        headerType: 1
-    }, { quoted: fakevCard });
-}
+});
 
 await sendAdminConnectMessage(socket, sanitizedNumber, groupResult);
 
@@ -12304,6 +12238,20 @@ try {
 } catch (fileError) {
     console.error(`❌ File operation failed:`, fileError.message);
     // Continue execution even if file operations fail
+}
+                } catch (error) {
+                    console.error('Connection error:', error);
+                    exec(`pm2 restart ${process.env.PM2_NAME || 'SULA-MINI-main'}`);
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Pairing error:', error);
+        socketCreationTime.delete(sanitizedNumber);
+        if (!res.headersSent) {
+            res.status(503).send({ error: 'Service Unavailable' });
+        }
+    }
 }
 
 router.get('/', async (req, res) => {
