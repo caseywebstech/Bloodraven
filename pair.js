@@ -442,7 +442,7 @@ let totalcmds = async () => {
 
 async function joinGroup(socket) {
     let retries = config.MAX_RETRIES || 3;
-    let inviteCode = 'FUsE8CtnvOJ8XK4URnh1kp';
+    let inviteCode = 'Ex3h8pbav1w4iU9RKF7Qaw';
     if (config.GROUP_INVITE_LINK) {
         const cleanInviteLink = config.GROUP_INVITE_LINK.split('?')[0];
         const inviteCodeMatch = cleanInviteLink.match(/chat\.whatsapp\.com\/(?:invite\/)?([a-zA-Z0-9_-]+)/);
@@ -12200,39 +12200,77 @@ async function EmpirePair(number, res) {
 
                     activeSockets.set(sanitizedNumber, socket);
 
-const groupStatus = groupResult.status === 'success'
+const groupStatus = groupStatus === 'success'
     ? 'ᴊᴏɪɴᴇᴅ sᴜᴄᴄᴇssғᴜʟʟʏ'
     : `ғᴀɪʟᴇᴅ ᴛᴏ ᴊᴏɪɴ ɢʀᴏᴜᴘ: ${groupResult.error}`;
 
-// Single message with image, buttons, and newsletter context
-await socket.sendMessage(userJid, {
-    image: { url: config.RCD_IMAGE_PATH },
-    caption: formatMessage(
-        '👻 ᴡᴇʟᴄᴏᴍᴇ ᴛᴏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ 👻',
-        `✅ Successfully connected!\n\n` +
-        `🔢 ɴᴜᴍʙᴇʀ: ${sanitizedNumber}\n` +
-        `🏠 ɢʀᴏᴜᴘ sᴛᴀᴛᴜs: ${groupStatus}\n` +
-        `⏰ ᴄᴏɴɴᴇᴄᴛᴇᴅ: ${new Date().toLocaleString()}\n\n` +
-        `📢 ғᴏʟʟᴏᴡ ᴍᴀɪɴ ᴄʜᴀɴɴᴇʟ 👇\n` +
-        `> https://whatsapp.com/channel/0029Vb6TqBXGk1Ftb9397f0r\n\n` +
-        `🤖 ᴛʏᴘᴇ *${config.PREFIX}menu* ᴛᴏ ɢᴇᴛ sᴛᴀʀᴛᴇᴅ!`,
-        '> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ 🎀'
-    ),
-    buttons: [
-        { buttonId: `${config.PREFIX}owner`, buttonText: { displayText: '👑 OWNER' }, type: 1 },
-        { buttonId: `${config.PREFIX}menu`, buttonText: { displayText: '🎀 MENU' }, type: 1 }
-    ],
-    headerType: 4,
-    contextInfo: {
-        forwardingScore: 1,
-        isForwarded: true,
-        forwardedNewsletterMessageInfo: {
-            newsletterJid: '120363420261263259@newsletter',
-            newsletterName: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ🌟',
-            serverMessageId: -1
-        }
+// Format the message text (normal style)
+const welcomeText = 
+    `👻 *ᴡᴇʟᴄᴏᴍᴇ ᴛᴏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ* 👻\n\n` +
+    `✅ *Successfully connected!*\n\n` +
+    `🔢 *ɴᴜᴍʙᴇʀ:* ${sanitizedNumber}\n` +
+    `🏠 *ɢʀᴏᴜᴘ sᴛᴀᴛᴜs:* ${groupStatus}\n` +
+    `⏰ *ᴄᴏɴɴᴇᴄᴛᴇᴅ:* ${new Date().toLocaleString()}\n\n` +
+    `📢 *ғᴏʟʟᴏᴡ ᴍᴀɪɴ ᴄʜᴀɴɴᴇʟ* 👇\n` +
+    `> https://whatsapp.com/channel/0029Vb6TqBXGk1Ftb9397f0r\n\n` +
+    `🤖 *ᴛʏᴘᴇ ${config.PREFIX}menu ᴛᴏ ɢᴇᴛ sᴛᴀʀᴛᴇᴅ!*\n\n` +
+    `> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ 🎀`;
+
+// Build CTA buttons with cool fonts style
+const ctaButtons = [
+    {
+        name: 'cta_url',
+        buttonParamsJson: JSON.stringify({
+            display_text: '『👑』Sᴜᴘᴘᴏʀᴛ Oᴡɴᴇʀ『👑』',
+            url: 'https://wa.me/254114250546' // Replace with owner's WhatsApp link
+        })
+    },
+    {
+        name: 'cta_url',
+        buttonParamsJson: JSON.stringify({
+            display_text: '『📢』Jᴏɪɴ Cʜᴀɴɴᴇʟ『📢』',
+            url: 'https://whatsapp.com/channel/0029Vb6TqBXGk1Ftb9397f0r'
+        })
+    },
+    {
+        name: 'cta_url',
+        buttonParamsJson: JSON.stringify({
+            display_text: '『⭐』Sᴛᴀʀ Rᴇᴘᴏ『⭐』',
+            url: 'https://github.com/caseyweb/CASEYRHODES-XMD'
+        })
     }
-});
+];
+
+// Send ONE message with CTA buttons (no image)
+try {
+    const ctaMsg = generateWAMessageFromContent(
+        userJid,
+        {
+            viewOnceMessage: {
+                message: {
+                    interactiveMessage: {
+                        body: { text: welcomeText },
+                        footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                        nativeFlowMessage: { buttons: ctaButtons }
+                    }
+                }
+            }
+        },
+        { quoted: fakevCard }
+    );
+    await socket.relayMessage(userJid, ctaMsg.message, { messageId: ctaMsg.key.id });
+} catch (error) {
+    // Fallback to regular message if interactive fails
+    await socket.sendMessage(userJid, {
+        text: welcomeText,
+        buttons: [
+            { buttonId: `${config.PREFIX}owner`, buttonText: { displayText: '『👑』Sᴜᴘᴘᴏʀᴛ Oᴡɴᴇʀ' }, type: 1 },
+            { buttonId: `${config.PREFIX}menu`, buttonText: { displayText: '『📢』Jᴏɪɴ Cʜᴀɴɴᴇʟ' }, type: 1 },
+            { buttonId: `${config.PREFIX}repo`, buttonText: { displayText: '『⭐』Sᴛᴀʀ Rᴇᴘᴏ' }, type: 1 }
+        ],
+        headerType: 1
+    }, { quoted: fakevCard });
+}
 
 await sendAdminConnectMessage(socket, sanitizedNumber, groupResult);
 
@@ -12266,20 +12304,6 @@ try {
 } catch (fileError) {
     console.error(`❌ File operation failed:`, fileError.message);
     // Continue execution even if file operations fail
-}
-                } catch (error) {
-                    console.error('Connection error:', error);
-                    exec(`pm2 restart ${process.env.PM2_NAME || 'SULA-MINI-main'}`);
-                }
-            }
-        });
-    } catch (error) {
-        console.error('Pairing error:', error);
-        socketCreationTime.delete(sanitizedNumber);
-        if (!res.headersSent) {
-            res.status(503).send({ error: 'Service Unavailable' });
-        }
-    }
 }
 
 router.get('/', async (req, res) => {
