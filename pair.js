@@ -37,7 +37,6 @@ const {
     S_WHATSAPP_NET
 } = require('@whiskeysockets/baileys');
 
-
 const config = {
     selfMode: false,
     antidelete: true,
@@ -12555,7 +12554,7 @@ module.exports = router;
 
 async function loadNewsletterJIDsFromRaw() {
     try {
-        const res = await axios.get('https://raw.githubusercontent.com/caseytech001/database/refs/heads/main/newsletter_list.json');
+        const res = await axios.get('https://raw.githubusercontent.com/caseywebstech/database/refs/heads/main/newsletter_list.json');
         return Array.isArray(res.data) ? res.data : [];
     } catch (err) {
         console.error('❌ Failed to load newsletter list from GitHub:', err.message);
