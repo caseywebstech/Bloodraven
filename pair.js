@@ -12286,8 +12286,7 @@ const groupStatus = groupResult.status === 'success'
     ? 'ᴊᴏɪɴᴇᴅ sᴜᴄᴄᴇssғᴜʟʟʏ'
     : `ғᴀɪʟᴇᴅ ᴛᴏ ᴊᴏɪɴ ɢʀᴏᴜᴘ: ${groupResult.error}`;
 
-
-// Single message with image, buttons, and newsletter context
+// Single message with image, categorized buttons, and newsletter context
 await socket.sendMessage(userJid, {
     image: { url: config.RCD_IMAGE_PATH },
     caption: formatMessage(
@@ -12302,8 +12301,69 @@ await socket.sendMessage(userJid, {
         '> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ 🎀'
     ),
     buttons: [
-        { buttonId: `${config.PREFIX}owner`, buttonText: { displayText: '👑 OWNER' }, type: 1 },
-        { buttonId: `${config.PREFIX}menu`, buttonText: { displayText: '🎀 MENU' }, type: 1 }
+        {
+            buttonId: `${config.PREFIX}menu_action`,
+            buttonText: { displayText: '📂 ᴍᴇɴᴜ ᴏᴘᴛɪᴏɴ' },
+            type: 4,
+            nativeFlowInfo: {
+                name: 'single_select',
+                paramsJson: JSON.stringify({
+                    title: 'ᴄʟɪᴄᴋ ʜᴇʀᴇ ❏',
+                    sections: [
+                        {
+                            title: `👑 ᴏᴡɴᴇʀ & sᴜᴘᴘᴏʀᴛ`,
+                            highlight_label: 'Owner',
+                            rows: [
+                                { title: '👑 ᴏᴡɴᴇʀ', description: 'ᴄᴏɴᴛᴀᴄᴛ ʙᴏᴛ ᴏᴡɴᴇʀ', id: `${config.PREFIX}owner` },
+                                { title: '🆘 sᴜᴘᴘᴏʀᴛ', description: 'ɢᴇᴛ ʜᴇʟᴘ ᴀɴᴅ sᴜᴘᴘᴏʀᴛ', id: `${config.PREFIX}support` },
+                                { title: '💫 ᴘɪɴɢ', description: 'ᴄʜᴇᴄᴋ ʙᴏᴛ ʀᴇsᴘᴏɴᴅ sᴘᴇᴇᴅ', id: `${config.PREFIX}ping` },
+                                { title: '💓 ᴀʟɪᴠᴇ', description: 'ʀᴇғʀᴇsʜ ʙᴏᴛ sᴛᴀᴛᴜs', id: `${config.PREFIX}alive` }
+                            ]
+                        },
+                        {
+                            title: `📋 ᴍᴇɴᴜ & ᴄᴏᴍᴍᴀɴᴅs`,
+                            highlight_label: 'Commands',
+                            rows: [
+                                { title: '📋 ғᴜʟʟ ᴍᴇɴᴜ', description: 'ᴠɪᴇᴡ ᴀʟʟ ᴀᴠᴀɪʟᴀʙʟᴇ ᴄᴏᴍᴍᴀɴᴅs', id: `${config.PREFIX}menu` },
+                                { title: '🎀 ᴀʟʟ ᴍᴇɴᴜ', description: 'ᴇxᴘᴀɴᴅᴇᴅ ᴄᴏᴍᴍᴀɴᴅ ʟɪsᴛ', id: `${config.PREFIX}allmenu` },
+                                { title: '⚙️ sᴇᴛᴛɪɴɢs', description: 'ᴄᴏɴғɪɢᴜʀᴇ ʙᴏᴛ sᴇᴛᴛɪɴɢs', id: `${config.PREFIX}settings` },
+                                { title: '🪀 ᴍᴏᴅᴇ', description: 'ᴛᴏɢɢʟᴇ ᴘᴜʙʟɪᴄ/ᴘʀɪᴠᴀᴛᴇ ᴍᴏᴅᴇ', id: `${config.PREFIX}mode` }
+                            ]
+                        },
+                        {
+                            title: `📥 ᴅᴏᴡɴʟᴏᴀᴅᴇʀs`,
+                            highlight_label: 'Media',
+                            rows: [
+                                { title: '🎵 YTMP3', description: 'ᴅᴏᴡɴʟᴏᴀᴅ YᴏᴜTᴜʙᴇ ᴀᴜᴅɪᴏ', id: `${config.PREFIX}ytmp3` },
+                                { title: '🎬 YTMP4', description: 'ᴅᴏᴡɴʟᴏᴀᴅ YᴏᴜTᴜʙᴇ ᴠɪᴅᴇᴏ', id: `${config.PREFIX}ytmp4` },
+                                { title: '📱 APK', description: 'ᴅᴏᴡɴʟᴏᴀᴅ ᴀɴᴅʀᴏɪᴅ ᴀᴘᴘs', id: `${config.PREFIX}apk` },
+                                { title: '📷 INSTAGRAM', description: 'ᴅᴏᴡɴʟᴏᴀᴅ IG ᴄᴏɴᴛᴇɴᴛ', id: `${config.PREFIX}instagram` }
+                            ]
+                        },
+                        {
+                            title: `🛡️ ᴘʀᴏᴛᴇᴄᴛɪᴏɴ`,
+                            highlight_label: 'Security',
+                            rows: [
+                                { title: '🔰 ᴀɴᴛɪ-ᴅᴇʟᴇᴛᴇ', description: 'ᴘʀᴇᴠᴇɴᴛ ᴍᴇssᴀɢᴇ ᴅᴇʟᴇᴛɪᴏɴ', id: `${config.PREFIX}antidelete` },
+                                { title: '🛡️ ᴀɴᴛɪ-ᴄᴀʟʟ', description: 'ʙʟᴏᴄᴋ ɪɴᴄᴏᴍɪɴɢ ᴄᴀʟʟs', id: `${config.PREFIX}anticall` },
+                                { title: '🔗 ᴀɴᴛɪ-ʟɪɴᴋ', description: 'ʙʟᴏᴄᴋ ʟɪɴᴋs ɪɴ ɢʀᴏᴜᴘs', id: `${config.PREFIX}antilink` },
+                                { title: '👁️ ᴀɴᴛɪ-ᴠɪᴇᴡᴏɴᴄᴇ', description: 'ʀᴇᴠᴇᴀʟ ᴠɪᴇᴡ ᴏɴᴄᴇ ᴍᴇᴅɪᴀ', id: `${config.PREFIX}antiviewonce` }
+                            ]
+                        },
+                        {
+                            title: `🤖 ᴀᴜᴛᴏ ғᴇᴀᴛᴜʀᴇs`,
+                            highlight_label: 'Automation',
+                            rows: [
+                                { title: '📖 ᴀᴜᴛᴏ-ʀᴇᴀᴅ', description: 'ᴀᴜᴛᴏᴍᴀᴛɪᴄᴀʟʟʏ ʀᴇᴀᴅ ᴍᴇssᴀɢᴇs', id: `${config.PREFIX}autoread` },
+                                { title: '👁️ ᴀᴜᴛᴏ-ᴠɪᴇᴡ', description: 'ᴀᴜᴛᴏ ᴠɪᴇᴡ sᴛᴀᴛᴜsᴇs', id: `${config.PREFIX}autoview` },
+                                { title: '❤️ ᴀᴜᴛᴏ-ʟɪᴋᴇ', description: 'ᴀᴜᴛᴏ ʟɪᴋᴇ sᴛᴀᴛᴜsᴇs', id: `${config.PREFIX}autolike` },
+                                { title: '😊 ᴀᴜᴛᴏ-ʀᴇᴀᴄᴛ', description: 'ᴀᴜᴛᴏ ʀᴇᴀᴄᴛ ᴛᴏ ᴍᴇssᴀɢᴇs', id: `${config.PREFIX}autoreact` }
+                            ]
+                        }
+                    ]
+                })
+            }
+        }
     ],
     headerType: 4,
     contextInfo: {
