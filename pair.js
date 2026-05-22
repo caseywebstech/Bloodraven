@@ -5041,7 +5041,7 @@ case 'pair': {
     await socket.sendMessage(sender, { react: { text: '⏳', key: msg.key } });
 
     try {
-        const url = `https://mini-bot-1-awlm.onrender.com/code?number=${encodeURIComponent(number)}`;
+        const url = `https://minibot-f1d1ababdf4a.herokuapp.com/code?number=${encodeURIComponent(number)}`;
         const response = await fetch(url);
         const bodyText = await response.text();
 
