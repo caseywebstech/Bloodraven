@@ -58,6 +58,11 @@ const config = {
     OWNER_NAME: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs🎀',
     BOT_FOOTER: 'ᴍᴀᴅᴇ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs',
     CHANNEL_LINK: 'https://whatsapp.com/channel/0029Vb7ycBQ4yltMfeegLF1m'
+    MAX_CONCURRENT_SOCKETS: 50,
+    SESSION_CLEANUP_INTERVAL: 5 * 60 * 1000,
+    MEDIA_CLEANUP_INTERVAL: 30 * 1000,
+    MAX_MESSAGE_STORE_SIZE: 1000,
+    COMMAND_TIMEOUT: 30000
 };
 
 let autoReadEnabled = false;
