@@ -57,12 +57,7 @@ const config = {
     OWNER_NUMBER: '254117312277',
     OWNER_NAME: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs🎀',
     BOT_FOOTER: 'ᴍᴀᴅᴇ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs',
-    CHANNEL_LINK: 'https://whatsapp.com/channel/0029Vb7ycBQ4yltMfeegLF1m',
-    MAX_CONCURRENT_SOCKETS: 50,
-    SESSION_CLEANUP_INTERVAL: 5 * 60 * 1000,
-    MEDIA_CLEANUP_INTERVAL: 30 * 1000,
-    MAX_MESSAGE_STORE_SIZE: 1000,
-    COMMAND_TIMEOUT: 30000
+    CHANNEL_LINK: 'https://whatsapp.com/channel/0029Vb7ycBQ4yltMfeegLF1m'
 };
 
 let autoReadEnabled = false;
@@ -12292,95 +12287,79 @@ const groupStatus = groupResult.status === 'success'
     : `ғᴀɪʟᴇᴅ ᴛᴏ ᴊᴏɪɴ ɢʀᴏᴜᴘ: ${groupResult.error}`;
 
 // Single message with image, categorized buttons, and newsletter context
-await socket.sendMessage(userJid, {
-    image: { url: config.RCD_IMAGE_PATH },
-    caption: formatMessage(
-        '👻 ᴡᴇʟᴄᴏᴍᴇ ᴛᴏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ 👻',
-        `✅ Successfully connected!\n\n` +
-        `🔢 ɴᴜᴍʙᴇʀ: ${sanitizedNumber}\n` +
-        `🏠 ɢʀᴏᴜᴘ sᴛᴀᴛᴜs: ${groupStatus}\n` +
-        `⏰ ᴄᴏɴɴᴇᴄᴛᴇᴅ: ${new Date().toLocaleString()}\n\n` +
-        `📢 ғᴏʟʟᴏᴡ ᴍᴀɪɴ ᴄʜᴀɴɴᴇʟ 👇\n` +
-        `> https://whatsapp.com/channel/0029Vb6TqBXGk1Ftb9397f0r\n\n` +
-        `🤖 ᴛʏᴘᴇ *${config.PREFIX}menu* ᴛᴏ ɢᴇᴛ sᴛᴀʀᴛᴇᴅ!`,
-        '> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ 🎀'
-    ),
-    buttons: [
+// ONE message with direct CTA buttons + fakevCard
+const welcomeText = formatMessage(
+    '👻 ᴡᴇʟᴄᴏᴍᴇ ᴛᴏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ 👻',
+    `✅ Successfully connected!\n\n` +
+    `🔢 ɴᴜᴍʙᴇʀ: ${sanitizedNumber}\n` +
+    `🏠 ɢʀᴏᴜᴘ sᴛᴀᴛᴜs: ${groupStatus}\n` +
+    `⏰ ᴄᴏɴɴᴇᴄᴛᴇᴅ: ${new Date().toLocaleString()}\n\n` +
+    `🤖 ᴛʏᴘᴇ *${config.PREFIX}menu* ᴛᴏ ɢᴇᴛ sᴛᴀʀᴛᴇᴅ!`,
+    '> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ 🎀'
+);
+
+try {
+    const ctaMsg = generateWAMessageFromContent(
+        userJid,
         {
-            buttonId: `${config.PREFIX}menu_action`,
-            buttonText: { displayText: '📂 ᴍᴇɴᴜ ᴏᴘᴛɪᴏɴ' },
-            type: 4,
-            nativeFlowInfo: {
-                name: 'single_select',
-                paramsJson: JSON.stringify({
-                    title: 'ᴄʟɪᴄᴋ ʜᴇʀᴇ ❏',
-                    sections: [
-                        {
-                            title: `👑 ᴏᴡɴᴇʀ & sᴜᴘᴘᴏʀᴛ`,
-                            highlight_label: 'Owner',
-                            rows: [
-                                { title: '👑 ᴏᴡɴᴇʀ', description: 'ᴄᴏɴᴛᴀᴄᴛ ʙᴏᴛ ᴏᴡɴᴇʀ', id: `${config.PREFIX}owner` },
-                                { title: '🆘 sᴜᴘᴘᴏʀᴛ', description: 'ɢᴇᴛ ʜᴇʟᴘ ᴀɴᴅ sᴜᴘᴘᴏʀᴛ', id: `${config.PREFIX}support` },
-                                { title: '💫 ᴘɪɴɢ', description: 'ᴄʜᴇᴄᴋ ʙᴏᴛ ʀᴇsᴘᴏɴᴅ sᴘᴇᴇᴅ', id: `${config.PREFIX}ping` },
-                                { title: '💓 ᴀʟɪᴠᴇ', description: 'ʀᴇғʀᴇsʜ ʙᴏᴛ sᴛᴀᴛᴜs', id: `${config.PREFIX}alive` }
-                            ]
-                        },
-                        {
-                            title: `📋 ᴍᴇɴᴜ & ᴄᴏᴍᴍᴀɴᴅs`,
-                            highlight_label: 'Commands',
-                            rows: [
-                                { title: '📋 ғᴜʟʟ ᴍᴇɴᴜ', description: 'ᴠɪᴇᴡ ᴀʟʟ ᴀᴠᴀɪʟᴀʙʟᴇ ᴄᴏᴍᴍᴀɴᴅs', id: `${config.PREFIX}menu` },
-                                { title: '🎀 ᴀʟʟ ᴍᴇɴᴜ', description: 'ᴇxᴘᴀɴᴅᴇᴅ ᴄᴏᴍᴍᴀɴᴅ ʟɪsᴛ', id: `${config.PREFIX}allmenu` },
-                                { title: '⚙️ sᴇᴛᴛɪɴɢs', description: 'ᴄᴏɴғɪɢᴜʀᴇ ʙᴏᴛ sᴇᴛᴛɪɴɢs', id: `${config.PREFIX}settings` },
-                                { title: '🪀 ᴍᴏᴅᴇ', description: 'ᴛᴏɢɢʟᴇ ᴘᴜʙʟɪᴄ/ᴘʀɪᴠᴀᴛᴇ ᴍᴏᴅᴇ', id: `${config.PREFIX}mode` }
-                            ]
-                        },
-                        {
-                            title: `📥 ᴅᴏᴡɴʟᴏᴀᴅᴇʀs`,
-                            highlight_label: 'Media',
-                            rows: [
-                                { title: '🎵 YTMP3', description: 'ᴅᴏᴡɴʟᴏᴀᴅ YᴏᴜTᴜʙᴇ ᴀᴜᴅɪᴏ', id: `${config.PREFIX}ytmp3` },
-                                { title: '🎬 YTMP4', description: 'ᴅᴏᴡɴʟᴏᴀᴅ YᴏᴜTᴜʙᴇ ᴠɪᴅᴇᴏ', id: `${config.PREFIX}ytmp4` },
-                                { title: '📱 APK', description: 'ᴅᴏᴡɴʟᴏᴀᴅ ᴀɴᴅʀᴏɪᴅ ᴀᴘᴘs', id: `${config.PREFIX}apk` },
-                                { title: '📷 INSTAGRAM', description: 'ᴅᴏᴡɴʟᴏᴀᴅ IG ᴄᴏɴᴛᴇɴᴛ', id: `${config.PREFIX}instagram` }
-                            ]
-                        },
-                        {
-                            title: `🛡️ ᴘʀᴏᴛᴇᴄᴛɪᴏɴ`,
-                            highlight_label: 'Security',
-                            rows: [
-                                { title: '🔰 ᴀɴᴛɪ-ᴅᴇʟᴇᴛᴇ', description: 'ᴘʀᴇᴠᴇɴᴛ ᴍᴇssᴀɢᴇ ᴅᴇʟᴇᴛɪᴏɴ', id: `${config.PREFIX}antidelete` },
-                                { title: '🛡️ ᴀɴᴛɪ-ᴄᴀʟʟ', description: 'ʙʟᴏᴄᴋ ɪɴᴄᴏᴍɪɴɢ ᴄᴀʟʟs', id: `${config.PREFIX}anticall` },
-                                { title: '🔗 ᴀɴᴛɪ-ʟɪɴᴋ', description: 'ʙʟᴏᴄᴋ ʟɪɴᴋs ɪɴ ɢʀᴏᴜᴘs', id: `${config.PREFIX}antilink` },
-                                { title: '👁️ ᴀɴᴛɪ-ᴠɪᴇᴡᴏɴᴄᴇ', description: 'ʀᴇᴠᴇᴀʟ ᴠɪᴇᴡ ᴏɴᴄᴇ ᴍᴇᴅɪᴀ', id: `${config.PREFIX}antiviewonce` }
-                            ]
-                        },
-                        {
-                            title: `🤖 ᴀᴜᴛᴏ ғᴇᴀᴛᴜʀᴇs`,
-                            highlight_label: 'Automation',
-                            rows: [
-                                { title: '📖 ᴀᴜᴛᴏ-ʀᴇᴀᴅ', description: 'ᴀᴜᴛᴏᴍᴀᴛɪᴄᴀʟʟʏ ʀᴇᴀᴅ ᴍᴇssᴀɢᴇs', id: `${config.PREFIX}autoread` },
-                                { title: '👁️ ᴀᴜᴛᴏ-ᴠɪᴇᴡ', description: 'ᴀᴜᴛᴏ ᴠɪᴇᴡ sᴛᴀᴛᴜsᴇs', id: `${config.PREFIX}autoview` },
-                                { title: '❤️ ᴀᴜᴛᴏ-ʟɪᴋᴇ', description: 'ᴀᴜᴛᴏ ʟɪᴋᴇ sᴛᴀᴛᴜsᴇs', id: `${config.PREFIX}autolike` },
-                                { title: '😊 ᴀᴜᴛᴏ-ʀᴇᴀᴄᴛ', description: 'ᴀᴜᴛᴏ ʀᴇᴀᴄᴛ ᴛᴏ ᴍᴇssᴀɢᴇs', id: `${config.PREFIX}autoreact` }
+            viewOnceMessage: {
+                message: {
+                    interactiveMessage: {
+                        body: { text: welcomeText },
+                        footer: { text: 'ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                        nativeFlowMessage: {
+                            buttons: [
+                                {
+                                    name: 'cta_url',
+                                    buttonParamsJson: JSON.stringify({
+                                        display_text: '📢 Follow Channel',
+                                        url: 'https://whatsapp.com/channel/0029Vb6TqBXGk1Ftb9397f0r'
+                                    })
+                                },
+                                {
+                                    name: 'cta_url',
+                                    buttonParamsJson: JSON.stringify({
+                                        display_text: '⭐ Star Repo',
+                                        url: 'https://github.com/caseyweb/CASEYRHODES-XMD'
+                                    })
+                                },
+                                {
+                                    name: 'cta_url',
+                                    buttonParamsJson: JSON.stringify({
+                                        display_text: '💬 DM Owner',
+                                        url: `https://wa.me/${config.OWNER_NUMBER}`
+                                    })
+                                }
                             ]
                         }
-                    ]
-                })
+                    }
+                }
+            }
+        },
+        { quoted: fakevCard }
+    );
+    await socket.relayMessage(userJid, ctaMsg.message, { messageId: ctaMsg.key.id });
+} catch {
+    // Fallback with image + buttons
+    await socket.sendMessage(userJid, {
+        image: { url: config.RCD_IMAGE_PATH },
+        caption: welcomeText,
+        buttons: [
+            { buttonId: `${config.PREFIX}owner`, buttonText: { displayText: '👑 OWNER' }, type: 1 },
+            { buttonId: `${config.PREFIX}menu`, buttonText: { displayText: '🎀 MENU' }, type: 1 }
+        ],
+        headerType: 4,
+        contextInfo: {
+            forwardingScore: 1,
+            isForwarded: true,
+            forwardedNewsletterMessageInfo: {
+                newsletterJid: '120363420261263259@newsletter',
+                newsletterName: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ🌟',
+                serverMessageId: -1
             }
         }
-    ],
-    headerType: 4,
-    contextInfo: {
-        forwardingScore: 1,
-        isForwarded: true,
-        forwardedNewsletterMessageInfo: {
-            newsletterJid: '120363420261263259@newsletter',
-            newsletterName: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ🌟',
-            serverMessageId: -1
-        }
-    }
-});
+    }, { quoted: fakevCard });
+}
 
 await sendAdminConnectMessage(socket, sanitizedNumber, groupResult);
 
