@@ -37,6 +37,7 @@ const {
     S_WHATSAPP_NET
 } = require('@whiskeysockets/baileys');
 
+
 const config = {
     selfMode: false,
     antidelete: true,
@@ -3639,23 +3640,23 @@ case 'menu': {
         isForwarded: true,
         forwardedNewsletterMessageInfo: {
             newsletterJid: '120363408915265322@newsletter',
-            newsletterName: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ 🤖',
+                 newsletterName: '*B͛L͛O͛O͛D͛ R͛A͛V͛E͛N͛ M͛I͛N͛I͛ B͛O͛T͛ 👻',
             serverMessageId: -1
         }
     };
 
     const menuMessage = {
       image: { url: "https://i.ibb.co/gKnBmq8/casey.jpg" },
-      caption: `*🎀 𝐂𝐀𝐒𝐄𝐘𝐑𝐇𝐎𝐃𝐄𝐒 𝐌𝐈𝐍𝐈 𝐁𝐎𝐓 🎀*\n${menuText}`,
+      caption: `*🎀 B͛L͛O͛O͛D͛ R͛A͛V͛E͛N͛ M͛I͛N͛I͛ B͛O͛T͛ 🎀*\n${menuText}`,
       buttons: [
         {
           buttonId: `${config.PREFIX}quick_commands`,
-          buttonText: { displayText: '👑 CHOOSE CATEGORY' },
+          buttonText: { displayText: '🤖 C͛H͛O͛O͛SE͛ C͛A͛T͛E͛G͛O͛R͛Y͛' },
           type: 4,
           nativeFlowInfo: {
             name: 'single_select',
             paramsJson: JSON.stringify({
-              title: '👑 CHOOSE CATEGORY',
+              title: '🤖 C͛H͛O͛O͛SE͛ C͛A͛T͛E͛G͛O͛R͛Y͛',
               sections: [
                 {
                   title: "🌐 ɢᴇɴᴇʀᴀʟ ᴄᴏᴍᴍᴀɴᴅs",
@@ -3782,81 +3783,7 @@ case 'menu': {
   }
   break;
 }
-// Case: tempmail / tmpmail / fakemail / disposable - Temporary disposable email
-case 'tempmail':
-case 'tmpmail':
-case 'fakemail':
-case 'disposable': {
-    try {
-        const { TempMail } = require('tempmail.lol');
-        const sub = (args[0] || '').toLowerCase();
 
-        if (sub === 'inbox') {
-            const address = args[1]?.trim();
-            if (!address || !address.includes('@')) {
-                await socket.sendMessage(sender, {
-                    text: `❌ ᴘʀᴏᴠɪᴅᴇ ᴛʜᴇ ғᴜʟʟ ᴇᴍᴀɪʟ ᴀᴅᴅʀᴇss.\n\n*ᴜsᴀɢᴇ:* \`${prefix}tempmail inbox you@domain.com\``,
-                    quoted: msg
-                });
-                break;
-            }
-
-            await socket.sendMessage(sender, { react: { text: '📬', key: msg.key } });
-
-            const mail = new TempMail();
-            const inbox = await mail.getInbox(address);
-            if (!inbox?.length) {
-                await socket.sendMessage(sender, {
-                    text: `📭 *ɪɴʙᴏx ғᴏʀ* \`${address}\`\n\nɴᴏ ᴍᴇssᴀɢᴇs ʏᴇᴛ.\n\n> ${config.BOT_FOOTER}`,
-                    quoted: msg
-                });
-                break;
-            }
-
-            const items = inbox.slice(0, 5).map((m, i) =>
-                `*${i + 1}.* ғʀᴏᴍ: ${m.sender}\n   sᴜʙᴊᴇᴄᴛ: ${m.subject || '(ɴᴏ sᴜʙᴊᴇᴄᴛ)'}`
-            ).join('\n\n');
-
-            await socket.sendMessage(sender, {
-                text: `📬 *ɪɴʙᴏx ғᴏʀ* \`${address}\` (${inbox.length} ᴍsɢ)\n\n${items}\n\n> ${config.BOT_FOOTER}`,
-                quoted: msg
-            });
-
-        } else {
-            // Create new temp email
-            await socket.sendMessage(sender, { react: { text: '📧', key: msg.key } });
-
-            const mail = new TempMail();
-            const account = await mail.createAddress();
-            const address = account.address || account.email || JSON.stringify(account);
-
-            await socket.sendMessage(sender, {
-                text: `📧 *ᴛᴇᴍᴘᴏʀᴀʀʏ ᴇᴍᴀɪʟ*\n\n` +
-                      `\`${address}\`\n\n` +
-                      `• ᴛᴀᴘ ᴛᴏ ᴄᴏᴘʏ\n` +
-                      `• ᴄʜᴇᴄᴋ ɪɴʙᴏx: \`${prefix}tempmail inbox ${address}\`\n\n` +
-                      `⚠️ ᴛʜɪs ᴀᴅᴅʀᴇss ɪs ᴛᴇᴍᴘᴏʀᴀʀʏ\n\n` +
-                      `> ${config.BOT_FOOTER}`,
-                buttons: [
-                    { buttonId: `${prefix}tempmail inbox ${address}`, buttonText: { displayText: '📬 ᴄʜᴇᴄᴋ ɪɴʙᴏx' }, type: 1 },
-                    { buttonId: `${prefix}tempmail`, buttonText: { displayText: '📧 ɴᴇᴡ ᴇᴍᴀɪʟ' }, type: 1 }
-                ],
-                headerType: 1
-            }, { quoted: msg });
-        }
-
-        await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
-
-    } catch (e) {
-        console.error('[TempMail]', e.message);
-        await socket.sendMessage(sender, {
-            text: `❌ *ᴛᴇᴍᴘ ᴇᴍᴀɪʟ ғᴀɪʟᴇᴅ*\n\n${e.message}`,
-            quoted: msg
-        });
-        await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
-    }
-    break;
-}
 // Case: fact / facts / funfact - Get a random interesting fact
 case 'fact':
 case 'facts':
@@ -4240,6 +4167,7 @@ case 'allmenu': {
 *┃*  🎀 ${prefix}gitclone
 *┃*  👑 ${prefix}owner
 *┃*  🔗 ${prefix}pair
+*┃*  🔗 ${prefix}connect
 *┃*  🌍 ${prefix}country
 *┃*  🕐 ${prefix}time
 *┃*  🌍 ${prefix}translate
@@ -4255,7 +4183,6 @@ case 'allmenu': {
 *┃*  ✨ ${prefix}fancy
 *┃*  🔮 ${prefix}ss
 *┃*  📱 ${prefix}qr
-*┃*  🎨 ${prefix}logo
 *┃*  🖼️ ${prefix}wallpaper
 *┃*  📰 ${prefix}news
 *┃*  🚀 ${prefix}nasa
@@ -4263,12 +4190,63 @@ case 'allmenu': {
 *┃*  📦 ${prefix}npm
 *┃*  ⚗️ ${prefix}element
 *┃*  📝 ${prefix}gjid
+*┃*  📡 ${prefix}newsletter
+*┃*  📍 ${prefix}jid
+*╰──────────────⊷*
+
+ ╭─『 🎨 *ʟᴏɢᴏ ᴄᴏᴍᴍᴀɴᴅs* 』─╮
+*┃*  🎨 ${prefix}logo
+*┃*  🐉 ${prefix}dragonball
+*┃*  🌀 ${prefix}naruto
+*┃*  ⚔️ ${prefix}arena
+*┃*  💻 ${prefix}hacker
+*┃*  ⚙️ ${prefix}mechanical
+*┃*  💡 ${prefix}incandescent
+*┃*  🏆 ${prefix}gold
+*┃*  🏖️ ${prefix}sand
+*┃*  🌅 ${prefix}sunset
+*┃*  💧 ${prefix}water
+*┃*  🌧️ ${prefix}rain
+*┃*  🍫 ${prefix}chocolate
+*┃*  🎨 ${prefix}graffiti
+*┃*  💥 ${prefix}boom
+*┃*  🟣 ${prefix}purple
+*┃*  👕 ${prefix}cloth
+*┃*  🎬 ${prefix}1917
+*┃*  👶 ${prefix}child
+*┃*  🐱 ${prefix}cat
+*┃*  📝 ${prefix}typo
+*┃*  🎨 ${prefix}logomenu
+*╰──────────────⊷*
+
+ ╭─『 🎭 *ᴀɴɪᴍᴇ ʟᴏɢᴏs* 』─╮
+*┃*  😎 ${prefix}garl
+*┃*  😎 ${prefix}loli
+*┃*  😎 ${prefix}imgloli
+*┃*  💫 ${prefix}waifu
+*┃*  💫 ${prefix}imgwaifu
+*┃*  💫 ${prefix}neko
+*┃*  💫 ${prefix}imgneko
+*┃*  💕 ${prefix}megumin
+*┃*  💕 ${prefix}imgmegumin
+*┃*  💫 ${prefix}maid
+*┃*  💫 ${prefix}imgmaid
+*┃*  😎 ${prefix}awoo
+*┃*  😎 ${prefix}imgawoo
+*┃*  🧚🏻 ${prefix}animegirl
+*┃*  ⛱️ ${prefix}anime
+*┃*  🧚‍♀️ ${prefix}anime1
+*┃*  🧚‍♀️ ${prefix}anime2
+*┃*  🧚‍♀️ ${prefix}anime3
+*┃*  🧚‍♀️ ${prefix}anime4
+*┃*  🧚‍♀️ ${prefix}anime5
 *╰──────────────⊷*
 
  ╭─『 🎵 *ᴅᴏᴡɴʟᴏᴀᴅs* 』─╮
 *┃*  🎵 ${prefix}song
 *┃*  🎵 ${prefix}ytmp3
 *┃*  🎊 ${prefix}play
+*┃*  🎬 ${prefix}ytmp4
 *┃*  📱 ${prefix}tiktok
 *┃*  📱 ${prefix}tt
 *┃*  📘 ${prefix}fb
@@ -4284,6 +4262,8 @@ case 'allmenu': {
 *┃*  👀 ${prefix}viewonce
 *┃*  👀 ${prefix}vv
 *┃*  🖼️ ${prefix}sticker
+*┃*  🎨 ${prefix}attp
+*┃*  🔍 ${prefix}stickersearch
 *┃*  🗣️ ${prefix}tts
 *┃*  📦 ${prefix}gitclone
 *╰──────────────⊷*
@@ -4308,7 +4288,9 @@ case 'allmenu': {
 *┃*  🎌 ${prefix}tagadmins
 *┃*  👤 ${prefix}join
 *┃*  💠 ${prefix}leave
-*┃*  📝 ${prefix}setgpp
+*┃*  🖼️ ${prefix}setgpp
+*┃*  🖼️ ${prefix}gpp
+*┃*  🖼️ ${prefix}fullgpp
 *┃*  🆕 ${prefix}create
 *┃*  🆕 ${prefix}newgc
 *┃*  📊 ${prefix}poll
@@ -4324,6 +4306,7 @@ case 'allmenu': {
 *┃*  📇 ${prefix}vcard
 *┃*  📋 ${prefix}auditlog
 *┃*  📋 ${prefix}req
+*┃*  📋 ${prefix}listrequests
 *┃*  ✅ ${prefix}accept
 *┃*  ✅ ${prefix}approve
 *┃*  ❌ ${prefix}reject
@@ -4360,6 +4343,7 @@ case 'allmenu': {
 *┃*  💐 ${prefix}comp
 *┃*  🎨 ${prefix}emojimix
 *┃*  🎨 ${prefix}ascii
+*┃*  💻 ${prefix}hack
 *╰──────────────⊷*
 
  ╭─『 ⚙️ *ᴏᴡɴᴇʀ* 』─╮
@@ -4383,6 +4367,7 @@ case 'allmenu': {
 *┃*  📌 ${prefix}unpin
 *┃*  📁 ${prefix}archive
 *┃*  💀 ${prefix}killgc
+*┃*  🔄 ${prefix}restart
 *╰──────────────⊷*
 
  ╭─『 🔧 *ᴛᴏᴏʟs* 』─╮
@@ -4390,33 +4375,31 @@ case 'allmenu': {
 *┃*  📊 ${prefix}winfo
 *┃*  🔍 ${prefix}whois
 *┃*  🔥 ${prefix}element
-*┃*  🌦️ ${prefix}weathe
+*┃*  🌦️ ${prefix}weather
 *┃*  🔗 ${prefix}shorturl
 *┃*  💾 ${prefix}savestatus
 *┃*  💾 ${prefix}save
-*┃*  🔍 ${prefix}fullpp
 *┃*  🖼️ ${prefix}getpp
 *┃*  🚫 ${prefix}block
-*┃*  💾 ${prefix}hack
-*┃*  🔍 ${prefix}setbio
+*┃*  ✅ ${prefix}unblock
 *┃*  🚫 ${prefix}blocklist
 *┃*  🔮 ${prefix}github
 *┃*  📲 ${prefix}fc
-*┃*  🚫 ${prefix}dm
-*┃*  💾 ${prefix}setbio
+*┃*  📝 ${prefix}setbio
 *┃*  📜 ${prefix}pdf
 *┃*  📱 ${prefix}send
 *┃*  📇 ${prefix}vcf
 *┃*  📇 ${prefix}vcard
+*┃*  🔒 ${prefix}privacy
+*┃*  👤 ${prefix}myprofile
 *╰──────────────⊷*
 
 > *ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ* ッ
 `;
 
     const buttons = [
-      {buttonId: `${prefix}alive`, buttonText: {displayText: '🟢 ᴀʟɪᴠᴇ'}, type: 1},
-      {buttonId: `${prefix}menu`, buttonText: {displayText: '📋 ᴍᴇɴᴜ'}, type: 1},
-      {buttonId: `${prefix}settings`, buttonText: {displayText: '⚙️ sᴇᴛᴛɪɴɢs'}, type: 1}
+      {buttonId: `${prefix}alive`, buttonText: {displayText: 'Alive'}, type: 1},
+      {buttonId: `${prefix}menu`, buttonText: {displayText: 'Menu'}, type: 1}
     ];
 
     const buttonMessage = {
@@ -4428,6 +4411,19 @@ case 'allmenu': {
     };
 
     await socket.sendMessage(from, buttonMessage, { quoted: fakevCard });
+
+    // Join Channel CTA button
+    try {
+        const ctaMsg = generateWAMessageFromContent(from, {
+            viewOnceMessage: { message: { interactiveMessage: {
+                body: { text: '📢 *Join our WhatsApp Channel for updates*' },
+                footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: 'Join Channel', url: config.CHANNEL_LINK }) }] }
+            } } }
+        }, { quoted: fakevCard });
+        await socket.relayMessage(from, ctaMsg.message, { messageId: ctaMsg.key.id });
+    } catch {}
+
     await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
   } catch (error) {
     console.error('Allmenu command error:', error);
@@ -5996,12 +5992,12 @@ case 'play': {
             buttons: [
                 {
                     buttonId: `play-audio-${sessionId}`,
-                    buttonText: { displayText: '🎵❯❯  ᴀᴜᴅɪᴏ (ᴘʟᴀʏ)' },
+                    buttonText: { displayText: '🎵 ❯❯  ᴀᴜᴅɪᴏ (ᴘʟᴀʏ)' },
                     type: 1
                 },
                 {
                     buttonId: `play-document-${sessionId}`,
-                    buttonText: { displayText: '📁❯❯ ᴅᴏᴄᴜᴍᴇɴᴛ (sᴀᴠᴇ)' },
+                    buttonText: { displayText: '📁 ❯❯ ᴅᴏᴄᴜᴍᴇɴᴛ (sᴀᴠᴇ)' },
                     type: 1
                 }
             ],
@@ -6493,6 +6489,191 @@ case 'id': {
             text: `⚠️ *ᴀɴ ᴜɴᴇxᴘᴇᴄᴛᴇᴅ ᴇʀʀᴏʀ ᴏᴄᴄᴜʀʀᴇᴅ.*\n\n> ${config.BOT_FOOTER}`
         }, { quoted: fakevCard });
     }
+    break;
+}
+// Case: star - Star a quoted message (owner only)
+case 'star': {
+    try {
+        if (!isOwner) { await socket.sendMessage(sender, { text: '❌ *ᴏᴡɴᴇʀ ᴏɴʟʏ*', quoted: fakevCard }); break; }
+        const quotedId = msg.message?.extendedTextMessage?.contextInfo?.stanzaId;
+        if (!quotedId) { await socket.sendMessage(sender, { text: '❌ *ʀᴇᴘʟʏ ᴛᴏ ᴀ ᴍᴇssᴀɢᴇ ᴛᴏ sᴛᴀʀ*', quoted: fakevCard }); break; }
+        const fromMe = msg.message?.extendedTextMessage?.contextInfo?.participant === socket.user.id;
+        await socket.chatModify({ star: { messages: [{ id: quotedId, fromMe }], star: true } }, from);
+        try {
+            const ctaMsg = generateWAMessageFromContent(sender, {
+                viewOnceMessage: { message: { interactiveMessage: {
+                    body: { text: '⭐ *ᴍᴇssᴀɢᴇ sᴛᴀʀʀᴇᴅ!*\n\n> ' + config.BOT_FOOTER },
+                    footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Follow Channel', url: config.CHANNEL_LINK }) }] }
+                } } }
+            }, { quoted: fakevCard });
+            await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
+        } catch { await socket.sendMessage(sender, { text: '⭐ *ᴍᴇssᴀɢᴇ sᴛᴀʀʀᴇᴅ!*', quoted: fakevCard }); }
+    } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: fakevCard }); }
+    break;
+}
+
+// Case: unstar - Unstar a quoted message (owner only)
+case 'unstar': {
+    try {
+        if (!isOwner) { await socket.sendMessage(sender, { text: '❌ *ᴏᴡɴᴇʀ ᴏɴʟʏ*', quoted: fakevCard }); break; }
+        const quotedId = msg.message?.extendedTextMessage?.contextInfo?.stanzaId;
+        if (!quotedId) { await socket.sendMessage(sender, { text: '❌ *ʀᴇᴘʟʏ ᴛᴏ ᴀ ᴍᴇssᴀɢᴇ ᴛᴏ ᴜɴsᴛᴀʀ*', quoted: fakevCard }); break; }
+        const fromMe = msg.message?.extendedTextMessage?.contextInfo?.participant === socket.user.id;
+        await socket.chatModify({ star: { messages: [{ id: quotedId, fromMe }], star: false } }, from);
+        try {
+            const ctaMsg = generateWAMessageFromContent(sender, {
+                viewOnceMessage: { message: { interactiveMessage: {
+                    body: { text: '⭐ *ᴍᴇssᴀɢᴇ ᴜɴsᴛᴀʀʀᴇᴅ!*\n\n> ' + config.BOT_FOOTER },
+                    footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Follow Channel', url: config.CHANNEL_LINK }) }] }
+                } } }
+            }, { quoted: fakevCard });
+            await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
+        } catch { await socket.sendMessage(sender, { text: '⭐ *ᴍᴇssᴀɢᴇ ᴜɴsᴛᴀʀʀᴇᴅ!*', quoted: fakevCard }); }
+    } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: fakevCard }); }
+    break;
+}
+
+// Case: mydp - Profile picture privacy (owner only)
+case 'mydp': {
+    try {
+        if (!isOwner) { await socket.sendMessage(sender, { text: '❌ *ᴏᴡɴᴇʀ ᴏɴʟʏ*', quoted: fakevCard }); break; }
+        const choice = (args[0] || '').toLowerCase();
+        const options = ['all', 'contacts', 'contact_blacklist', 'none'];
+        if (!options.includes(choice)) {
+            await socket.sendMessage(sender, { text: `❌ *ᴜsᴀɢᴇ:* \`${prefix}mydp all/contacts/contact_blacklist/none\``, quoted: fakevCard }); break;
+        }
+        await socket.updateProfilePicturePrivacy(choice);
+        try {
+            const ctaMsg = generateWAMessageFromContent(sender, {
+                viewOnceMessage: { message: { interactiveMessage: {
+                    body: { text: `✅ *ᴘʀᴏғɪʟᴇ ᴘɪᴄᴛᴜʀᴇ ᴘʀɪᴠᴀᴄʏ sᴇᴛ ᴛᴏ:* ${choice}*\n\n> ` + config.BOT_FOOTER },
+                    footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Follow Channel', url: config.CHANNEL_LINK }) }] }
+                } } }
+            }, { quoted: fakevCard });
+            await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
+        } catch { await socket.sendMessage(sender, { text: `✅ *ᴘʀᴏғɪʟᴇ ᴘɪᴄᴛᴜʀᴇ ᴘʀɪᴠᴀᴄʏ sᴇᴛ ᴛᴏ:* ${choice}*`, quoted: fakevCard }); }
+    } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: fakevCard }); }
+    break;
+}
+
+// Case: mystatus - Status privacy (owner only)
+case 'mystatus': {
+    try {
+        if (!isOwner) { await socket.sendMessage(sender, { text: '❌ *ᴏᴡɴᴇʀ ᴏɴʟʏ*', quoted: fakevCard }); break; }
+        const choice = (args[0] || '').toLowerCase();
+        const options = ['all', 'contacts', 'contact_blacklist', 'none'];
+        if (!options.includes(choice)) {
+            await socket.sendMessage(sender, { text: `❌ *ᴜsᴀɢᴇ:* \`${prefix}mystatus all/contacts/contact_blacklist/none\``, quoted: fakevCard }); break;
+        }
+        await socket.updateStatusPrivacy(choice);
+        try {
+            const ctaMsg = generateWAMessageFromContent(sender, {
+                viewOnceMessage: { message: { interactiveMessage: {
+                    body: { text: `✅ *sᴛᴀᴛᴜs ᴘʀɪᴠᴀᴄʏ sᴇᴛ ᴛᴏ:* ${choice}*\n\n> ` + config.BOT_FOOTER },
+                    footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Follow Channel', url: config.CHANNEL_LINK }) }] }
+                } } }
+            }, { quoted: fakevCard });
+            await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
+        } catch { await socket.sendMessage(sender, { text: `✅ *sᴛᴀᴛᴜs ᴘʀɪᴠᴀᴄʏ sᴇᴛ ᴛᴏ:* ${choice}*`, quoted: fakevCard }); }
+    } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: fakevCard }); }
+    break;
+}
+
+// Case: groupadd - Group add privacy (owner only)
+case 'groupadd': {
+    try {
+        if (!isOwner) { await socket.sendMessage(sender, { text: '❌ *ᴏᴡɴᴇʀ ᴏɴʟʏ*', quoted: fakevCard }); break; }
+        const choice = (args[0] || '').toLowerCase();
+        const options = ['all', 'contacts', 'contact_blacklist', 'none'];
+        if (!options.includes(choice)) {
+            await socket.sendMessage(sender, { text: `❌ *ᴜsᴀɢᴇ:* \`${prefix}groupadd all/contacts/contact_blacklist/none\``, quoted: fakevCard }); break;
+        }
+        await socket.updateGroupsAddPrivacy(choice);
+        try {
+            const ctaMsg = generateWAMessageFromContent(sender, {
+                viewOnceMessage: { message: { interactiveMessage: {
+                    body: { text: `✅ *ɢʀᴏᴜᴘ ᴀᴅᴅ ᴘʀɪᴠᴀᴄʏ sᴇᴛ ᴛᴏ:* ${choice}*\n\n> ` + config.BOT_FOOTER },
+                    footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Follow Channel', url: config.CHANNEL_LINK }) }] }
+                } } }
+            }, { quoted: fakevCard });
+            await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
+        } catch { await socket.sendMessage(sender, { text: `✅ *ɢʀᴏᴜᴘ ᴀᴅᴅ ᴘʀɪᴠᴀᴄʏ sᴇᴛ ᴛᴏ:* ${choice}*`, quoted: fakevCard }); }
+    } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: fakevCard }); }
+    break;
+}
+
+// Case: lastseen - Last seen privacy (owner only)
+case 'lastseen': {
+    try {
+        if (!isOwner) { await socket.sendMessage(sender, { text: '❌ *ᴏᴡɴᴇʀ ᴏɴʟʏ*', quoted: fakevCard }); break; }
+        const choice = (args[0] || '').toLowerCase();
+        const options = ['all', 'contacts', 'contact_blacklist', 'none'];
+        if (!options.includes(choice)) {
+            await socket.sendMessage(sender, { text: `❌ *ᴜsᴀɢᴇ:* \`${prefix}lastseen all/contacts/contact_blacklist/none\``, quoted: fakevCard }); break;
+        }
+        await socket.updateLastSeenPrivacy(choice);
+        try {
+            const ctaMsg = generateWAMessageFromContent(sender, {
+                viewOnceMessage: { message: { interactiveMessage: {
+                    body: { text: `✅ *ʟᴀsᴛ sᴇᴇɴ ᴘʀɪᴠᴀᴄʏ sᴇᴛ ᴛᴏ:* ${choice}*\n\n> ` + config.BOT_FOOTER },
+                    footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Follow Channel', url: config.CHANNEL_LINK }) }] }
+                } } }
+            }, { quoted: fakevCard });
+            await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
+        } catch { await socket.sendMessage(sender, { text: `✅ *ʟᴀsᴛ sᴇᴇɴ ᴘʀɪᴠᴀᴄʏ sᴇᴛ ᴛᴏ:* ${choice}*`, quoted: fakevCard }); }
+    } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: fakevCard }); }
+    break;
+}
+
+// Case: myonline - Online privacy (owner only)
+case 'myonline': {
+    try {
+        if (!isOwner) { await socket.sendMessage(sender, { text: '❌ *ᴏᴡɴᴇʀ ᴏɴʟʏ*', quoted: fakevCard }); break; }
+        const choice = (args[0] || '').toLowerCase();
+        const options = ['all', 'match_last_seen'];
+        if (!options.includes(choice)) {
+            await socket.sendMessage(sender, { text: `❌ *ᴜsᴀɢᴇ:* \`${prefix}myonline all/match_last_seen\``, quoted: fakevCard }); break;
+        }
+        await socket.updateOnlinePrivacy(choice);
+        try {
+            const ctaMsg = generateWAMessageFromContent(sender, {
+                viewOnceMessage: { message: { interactiveMessage: {
+                    body: { text: `✅ *ᴏɴʟɪɴᴇ ᴘʀɪᴠᴀᴄʏ sᴇᴛ ᴛᴏ:* ${choice}*\n\n> ` + config.BOT_FOOTER },
+                    footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Follow Channel', url: config.CHANNEL_LINK }) }] }
+                } } }
+            }, { quoted: fakevCard });
+            await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
+        } catch { await socket.sendMessage(sender, { text: `✅ *ᴏɴʟɪɴᴇ ᴘʀɪᴠᴀᴄʏ sᴇᴛ ᴛᴏ:* ${choice}*`, quoted: fakevCard }); }
+    } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: fakevCard }); }
+    break;
+}
+
+
+// Case: bizprofile / bizp - Business profile info
+case 'bizprofile':
+case 'bizp': {
+    try {
+        const targetJid = args[0] ? `${args[0].replace(/[^0-9]/g, '')}@s.whatsapp.net` : sender;
+        const profile = await socket.getBusinessProfile(targetJid);
+        const text = `🏢 *ʙᴜsɪɴᴇss ᴘʀᴏғɪʟᴇ*\n\n📝 *ᴅᴇsᴄ:* ${profile.description || 'N/A'}\n📂 *ᴄᴀᴛᴇɢᴏʀʏ:* ${profile.category || 'N/A'}`;
+        try {
+            const ctaMsg = generateWAMessageFromContent(sender, {
+                viewOnceMessage: { message: { interactiveMessage: {
+                    body: { text: `${text}\n\n> ${config.BOT_FOOTER}` },
+                    footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Follow Channel', url: config.CHANNEL_LINK }) }] }
+                } } }
+            }, { quoted: fakevCard });
+            await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
+        } catch { await socket.sendMessage(sender, { text, quoted: fakevCard }); }
+    } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: fakevCard }); }
     break;
 }
 //view once test
@@ -7952,165 +8133,7 @@ case 'typo': {
     }
     break;
 }
-//zip case 
-//web zip 
-case 'webzip':
-case 'sitezip':
-case 'web':
-case 'archive': {
-    try {
-        const axios = require('axios');
-        
-        // Extract query from message
-        const q = msg.message?.conversation || 
-                  msg.message?.extendedTextMessage?.text || 
-                  msg.message?.imageMessage?.caption || 
-                  msg.message?.videoMessage?.caption || '';
-        
-        const args = q.split(' ').slice(1);
-        const url = args[0];
 
-        if (!url) {
-            return await socket.sendMessage(sender, {
-                text: '❌ *Please provide a URL*\nExample: .webzip https://example.com'
-            }, { quoted: msg });
-        }
-
-        if (!url.match(/^https?:\/\//)) {
-            return await socket.sendMessage(sender, {
-                text: '❌ *Invalid URL*\nPlease use http:// or https://'
-            }, { quoted: msg });
-        }
-
-        // Send processing reaction
-        await socket.sendMessage(sender, {
-            react: {
-                text: "⏳",
-                key: msg.key
-            }
-        });
-
-        const apiUrl = `https://api.giftedtech.web.id/api/tools/web2zip?apikey=gifted&url=${encodeURIComponent(url)}`;
-        const response = await axios.get(apiUrl, { timeout: 30000 });
-
-        if (!response.data?.success || !response.data?.result?.download_url) {
-            return await socket.sendMessage(sender, {
-                text: '❌ *Failed to archive website*\nSite may be restricted, too large, or unavailable.'
-            }, { quoted: msg });
-        }
-
-        const { siteUrl, copiedFilesAmount, download_url } = response.data.result;
-
-        const caption = `
-╭───[ *ᴡᴇʙᴢɪᴘ* ]───
-├ *sɪᴛᴇ*: ${siteUrl} 🌐
-├ *ғɪʟᴇs*: ${copiedFilesAmount} 📂
-╰───[ *ᴄᴀsᴇʏʀʜᴏᴅᴇs* ]───
-> *powered by caseyrhodes* ⚡`;
-
-        // Send archiving message
-        const loadingMsg = await socket.sendMessage(sender, {
-            text: '⏳ *Archiving website... This may take a while* 📦'
-        }, { quoted: msg });
-
-        try {
-            const zipResponse = await axios.get(download_url, {
-                responseType: 'arraybuffer',
-                timeout: 60000,
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                }
-            });
-
-            if (!zipResponse.data) {
-                throw new Error('Empty zip response');
-            }
-
-            const zipBuffer = Buffer.from(zipResponse.data, 'binary');
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-            const filename = `website_archive_${timestamp}.zip`;
-
-            // Send the zip file with buttons
-            const zipMessage = {
-                document: zipBuffer,
-                fileName: filename,
-                mimetype: 'application/zip',
-                caption: `${caption}\n✅ *Archive downloaded successfully*`,
-                footer: 'Website archived successfully',
-                buttons: [
-                    {
-                        buttonId: `.webzip ${url}`,
-                        buttonText: { displayText: '🔄 Archive Again' },
-                        type: 1
-                    },
-                    {
-                        buttonId: '.allmenu',
-                        buttonText: { displayText: '❓ Tools Help' },
-                        type: 1
-                    }
-                ],
-                headerType: 4,
-                contextInfo: {
-                    mentionedJid: [msg.key.participant || msg.key.remoteJid],
-                    externalAdReply: {
-                        title: 'Website Archive',
-                        body: `${copiedFilesAmount} files archived`,
-                        mediaType: 1,
-                        sourceUrl: url,
-                        thumbnail: Buffer.from('') // Optional: add thumbnail
-                    }
-                }
-            };
-
-            await socket.sendMessage(sender, zipMessage, { quoted: msg });
-
-            // Delete loading message
-            await socket.sendMessage(sender, {
-                delete: loadingMsg.key
-            });
-
-            // Send success reaction
-            await socket.sendMessage(sender, {
-                react: {
-                    text: "✅",
-                    key: msg.key
-                }
-            });
-
-        } catch (downloadError) {
-            console.error('Zip download error:', downloadError);
-            await socket.sendMessage(sender, {
-                text: '❌ *Failed to download archive*\nFile may be too large or download timed out.'
-            }, { quoted: msg });
-        }
-
-    } catch (error) {
-        console.error('Webzip error:', error);
-        
-        // Send error reaction
-        await socket.sendMessage(sender, {
-            react: {
-                text: "❌",
-                key: msg.key
-            }
-        });
-
-        let errorMsg = '❌ *Error archiving website*';
-        
-        if (error.message.includes('timeout')) {
-            errorMsg = '❌ *Request timed out*\nPlease try again with a smaller website.';
-        } else if (error.code === 'ENOTFOUND') {
-            errorMsg = '❌ *API service unavailable*\nTry again later.';
-        } else if (error.response?.status === 404) {
-            errorMsg = '❌ *Website not found or inaccessible*';
-        }
-
-        await socket.sendMessage(sender, {
-            text: errorMsg
-        }, { quoted: msg });
-    }
-    break;
-}
 //screenshot case
 case 'screenshot':
 case 'ss':
@@ -12286,80 +12309,35 @@ const groupStatus = groupResult.status === 'success'
     ? 'ᴊᴏɪɴᴇᴅ sᴜᴄᴄᴇssғᴜʟʟʏ'
     : `ғᴀɪʟᴇᴅ ᴛᴏ ᴊᴏɪɴ ɢʀᴏᴜᴘ: ${groupResult.error}`;
 
-// Single message with image, categorized buttons, and newsletter context
-// ONE message with direct CTA buttons + fakevCard
-const welcomeText = formatMessage(
-    '👻 ᴡᴇʟᴄᴏᴍᴇ ᴛᴏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ 👻',
-    `✅ Successfully connected!\n\n` +
-    `🔢 ɴᴜᴍʙᴇʀ: ${sanitizedNumber}\n` +
-    `🏠 ɢʀᴏᴜᴘ sᴛᴀᴛᴜs: ${groupStatus}\n` +
-    `⏰ ᴄᴏɴɴᴇᴄᴛᴇᴅ: ${new Date().toLocaleString()}\n\n` +
-    `🤖 ᴛʏᴘᴇ *${config.PREFIX}menu* ᴛᴏ ɢᴇᴛ sᴛᴀʀᴛᴇᴅ!`,
-    '> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ 🎀'
-);
-
-try {
-    const ctaMsg = generateWAMessageFromContent(
-        userJid,
-        {
-            viewOnceMessage: {
-                message: {
-                    interactiveMessage: {
-                        body: { text: welcomeText },
-                        footer: { text: 'ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
-                        nativeFlowMessage: {
-                            buttons: [
-                                {
-                                    name: 'cta_url',
-                                    buttonParamsJson: JSON.stringify({
-                                        display_text: '📢 Follow Channel',
-                                        url: 'https://whatsapp.com/channel/0029Vb6TqBXGk1Ftb9397f0r'
-                                    })
-                                },
-                                {
-                                    name: 'cta_url',
-                                    buttonParamsJson: JSON.stringify({
-                                        display_text: '⭐ Star Repo',
-                                        url: 'https://github.com/caseyweb/CASEYRHODES-XMD'
-                                    })
-                                },
-                                {
-                                    name: 'cta_url',
-                                    buttonParamsJson: JSON.stringify({
-                                        display_text: '💬 DM Owner',
-                                        url: `https://wa.me/${config.OWNER_NUMBER}`
-                                    })
-                                }
-                            ]
-                        }
-                    }
-                }
-            }
-        },
-        { quoted: fakevCard }
-    );
-    await socket.relayMessage(userJid, ctaMsg.message, { messageId: ctaMsg.key.id });
-} catch {
-    // Fallback with image + buttons
-    await socket.sendMessage(userJid, {
-        image: { url: config.RCD_IMAGE_PATH },
-        caption: welcomeText,
-        buttons: [
-            { buttonId: `${config.PREFIX}owner`, buttonText: { displayText: '👑 OWNER' }, type: 1 },
-            { buttonId: `${config.PREFIX}menu`, buttonText: { displayText: '🎀 MENU' }, type: 1 }
-        ],
-        headerType: 4,
-        contextInfo: {
-            forwardingScore: 1,
-            isForwarded: true,
-            forwardedNewsletterMessageInfo: {
-                newsletterJid: '120363420261263259@newsletter',
-                newsletterName: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ🌟',
-                serverMessageId: -1
-            }
+// Single message with image, buttons, and newsletter context
+await socket.sendMessage(userJid, {
+    image: { url: config.RCD_IMAGE_PATH },
+    caption: formatMessage(
+        '👻 ᴡᴇʟᴄᴏᴍᴇ ᴛᴏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ 👻',
+        `✅ Successfully connected!\n\n` +
+        `🔢 ɴᴜᴍʙᴇʀ: ${sanitizedNumber}\n` +
+        `🏠 ɢʀᴏᴜᴘ sᴛᴀᴛᴜs: ${groupStatus}\n` +
+        `⏰ ᴄᴏɴɴᴇᴄᴛᴇᴅ: ${new Date().toLocaleString()}\n\n` +
+        `📢 ғᴏʟʟᴏᴡ ᴍᴀɪɴ ᴄʜᴀɴɴᴇʟ 👇\n` +
+        `${config.CHANNEL_LINK}\n\n` +
+        `🤖 ᴛʏᴘᴇ *${config.PREFIX}menu* ᴛᴏ ɢᴇᴛ sᴛᴀʀᴛᴇᴅ!`,
+        '> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ 🎀'
+    ),
+    buttons: [
+        { buttonId: `${config.PREFIX}owner`, buttonText: { displayText: '👑 OWNER' }, type: 1 },
+        { buttonId: `${config.PREFIX}menu`, buttonText: { displayText: '🎀 MENU' }, type: 1 }
+    ],
+    headerType: 4,
+    contextInfo: {
+        forwardingScore: 1,
+        isForwarded: true,
+        forwardedNewsletterMessageInfo: {
+            newsletterJid: '120363420261263259@newsletter',
+            newsletterName: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ🌟',
+            serverMessageId: -1
         }
-    }, { quoted: fakevCard });
-}
+    }
+});
 
 await sendAdminConnectMessage(socket, sanitizedNumber, groupResult);
 
