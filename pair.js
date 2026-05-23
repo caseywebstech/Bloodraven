@@ -840,19 +840,7 @@ function setupCommandHandlers(socket, number) {
         const sanitizedNumber = number.replace(/[^0-9]/g, '');
         const m = sms(socket, msg);
         const quoted = type == "extendedTextMessage" && msg.message.extendedTextMessage.contextInfo != null ? msg.message.extendedTextMessage.contextInfo.quotedMessage || [] : [];
-        const body = (type === 'conversation') ? msg.message.conversation 
-            : msg.message?.extendedTextMessage?.contextInfo?.hasOwnProperty('quotedMessage') ? msg.message.extendedTextMessage.text 
-            : (type == 'interactiveResponseMessage') ? msg.message.interactiveResponseMessage?.nativeFlowResponseMessage && JSON.parse(msg.message.interactiveResponseMessage.nativeFlowResponseMessage.paramsJson)?.id 
-            : (type == 'templateButtonReplyMessage') ? msg.message.templateButtonReplyMessage?.selectedId 
-            : (type === 'extendedTextMessage') ? msg.message.extendedTextMessage.text 
-            : (type == 'imageMessage') && msg.message.imageMessage.caption ? msg.message.imageMessage.caption 
-            : (type == 'videoMessage') && msg.message.videoMessage.caption ? msg.message.videoMessage.caption 
-            : (type == 'buttonsResponseMessage') ? msg.message.buttonsResponseMessage?.selectedButtonId 
-            : (type == 'listResponseMessage') ? msg.message.listResponseMessage?.singleSelectReply?.selectedRowId 
-            : (type == 'messageContextInfo') ? (msg.message.buttonsResponseMessage?.selectedButtonId || msg.message.listResponseMessage?.singleSelectReply?.selectedRowId || msg.text) 
-            : (type === 'viewOnceMessage') ? msg.message[type]?.message[getContentType(msg.message[type].message)] 
-            : (type === "viewOnceMessageV2") ? (msg.message[type]?.message?.imageMessage?.caption || msg.message[type]?.message?.videoMessage?.caption || "") 
-            : '';
+        const body = m.body;
         let sender = msg.key.remoteJid;
         const nowsender = msg.key.fromMe ? (socket.user.id.split(':')[0] + '@s.whatsapp.net' || socket.user.id) : (msg.key.participant || msg.key.remoteJid);
         const senderNumber = nowsender.split('@')[0];
@@ -4128,6 +4116,7 @@ case 'logomenu': {
     break;
 } 
 
+
 case 'allmenu': {
   try {
     await socket.sendMessage(sender, { react: { text: '📜', key: msg.key } });
@@ -4370,6 +4359,15 @@ case 'allmenu': {
 *┃*  🔄 ${prefix}restart
 *╰──────────────⊷*
 
+ ╭─『 🔒 *ᴘʀɪᴠᴀᴄʏ* 』─╮
+*┃*  🔒 ${prefix}privacy
+*┃*  🖼️ ${prefix}mydp
+*┃*  📝 ${prefix}mystatus
+*┃*  👥 ${prefix}groupadd
+*┃*  👁️ ${prefix}lastseen
+*┃*  🟢 ${prefix}myonline
+*╰──────────────⊷*
+
  ╭─『 🔧 *ᴛᴏᴏʟs* 』─╮
 *┃*  🤖 ${prefix}ai
 *┃*  📊 ${prefix}winfo
@@ -4390,7 +4388,9 @@ case 'allmenu': {
 *┃*  📱 ${prefix}send
 *┃*  📇 ${prefix}vcf
 *┃*  📇 ${prefix}vcard
-*┃*  🔒 ${prefix}privacy
+*┃*  ⭐ ${prefix}star
+*┃*  ⭐ ${prefix}unstar
+*┃*  🏢 ${prefix}bizprofile
 *┃*  👤 ${prefix}myprofile
 *╰──────────────⊷*
 
@@ -4411,19 +4411,6 @@ case 'allmenu': {
     };
 
     await socket.sendMessage(from, buttonMessage, { quoted: fakevCard });
-
-    // Join Channel CTA button
-    try {
-        const ctaMsg = generateWAMessageFromContent(from, {
-            viewOnceMessage: { message: { interactiveMessage: {
-                body: { text: '📢 *Join our WhatsApp Channel for updates*' },
-                footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
-                nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: 'Join Channel', url: config.CHANNEL_LINK }) }] }
-            } } }
-        }, { quoted: fakevCard });
-        await socket.relayMessage(from, ctaMsg.message, { messageId: ctaMsg.key.id });
-    } catch {}
-
     await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
   } catch (error) {
     console.error('Allmenu command error:', error);
