@@ -72,8 +72,7 @@ let autoReadEnabled = false;
 global.autoReadPM = false;
 const groupWelcomeSettings = new Map();
 global.welcomeSettings = groupWelcomeSettings;
-// Per-user mode settings (each connected number has its own mode)
-const userModes = new Map(); // key: sanitizedNumber, value: true=private, false=public
+
 const ANTICALL_SETTINGS_PATH = './anti-call-settings.json';
 const DEFAULT_ANTICALL_SETTINGS = {
     rejectCalls: false,
@@ -83,17 +82,21 @@ const DEFAULT_ANTICALL_SETTINGS = {
     blockedUsers: []
 };
 
-// Per-user anticall settings
-const userAnticallSettings = new Map(); // key: sanitizedNumber, value: settings object
-
-function getUserAnticall(number) {
-    const sanitized = (number || '').replace(/[^0-9]/g, '');
-    if (!sanitized) return { ...DEFAULT_ANTICALL_SETTINGS };
-    if (!userAnticallSettings.has(sanitized)) {
-        userAnticallSettings.set(sanitized, { ...DEFAULT_ANTICALL_SETTINGS });
-    }
-    return userAnticallSettings.get(sanitized);
+function loadAnticallSettings() {
+    try {
+        if (fs.existsSync(ANTICALL_SETTINGS_PATH)) {
+            return JSON.parse(fs.readFileSync(ANTICALL_SETTINGS_PATH, 'utf8'));
+        }
+    } catch {}
+    return { ...DEFAULT_ANTICALL_SETTINGS };
 }
+
+function saveAnticallSettings(s) {
+    try {
+        fs.writeFileSync(ANTICALL_SETTINGS_PATH, JSON.stringify(s, null, 2));
+    } catch {}
+}
+
 const anticallSettings = loadAnticallSettings();
 const messageStore = new Map();
 const CONFIG_PATH = './antidelete.json';
@@ -630,37 +633,33 @@ function setupNewsletterHandlers(socket) {
     });
 }
 
-function initAntiCallHandler(sock, number) {
+function initAntiCallHandler(sock) {
     const ownerJid = config.OWNER_NUMBER + '@s.whatsapp.net';
-    const sanitized = (number || '').replace(/[^0-9]/g, '');
-    if (!sanitized) return;
-
     sock.ev.on('call', async (calls) => {
-        const settings = getUserAnticall(sanitized);
         for (const call of calls) {
             if (call.status !== 'offer') continue;
             const caller = call.from;
-            if (settings.blockedUsers.includes(caller) || settings.rejectCalls) {
+            if (anticallSettings.blockedUsers.includes(caller) || anticallSettings.rejectCalls) {
                 try {
                     await sock.rejectCall(call.id, caller);
                     console.log(`📞 Call rejected from: ${caller}`);
                 } catch {}
             }
-            if (settings.autoReply) {
+            if (anticallSettings.autoReply) {
                 try {
-                    await sock.sendMessage(caller, { text: settings.autoReply });
+                    await sock.sendMessage(caller, { text: anticallSettings.autoReply });
                 } catch {}
             }
-            if (settings.notifyAdmin && ownerJid) {
+            if (anticallSettings.notifyAdmin && ownerJid) {
                 try {
                     await sock.sendMessage(ownerJid, {
                         text: `📞 *Anti-Call Alert*\n\nCaller: ${caller}\nType: ${call.isVideo ? 'video' : 'voice'}\nStatus: Rejected`
                     });
                 } catch {}
             }
-            if (settings.blockCaller && !settings.blockedUsers.includes(caller)) {
-                settings.blockedUsers.push(caller);
-                userAnticallSettings.set(sanitized, settings);
+            if (anticallSettings.blockCaller && !anticallSettings.blockedUsers.includes(caller)) {
+                anticallSettings.blockedUsers.push(caller);
+                saveAnticallSettings(anticallSettings);
                 console.log(`🚫 Auto-blocked caller: ${caller}`);
             }
         }
@@ -897,9 +896,7 @@ function setupCommandHandlers(socket, number) {
             }
         };
         
-        // Per-user mode check (default: public/false)
-const currentUserMode = userModes.get(sanitizedNumber) || false;
-if (currentUserMode && !isOwner && command !== 'mode') {
+        if (config.selfMode && !isOwner && command !== 'mode' && command !== 'antidelete') {
             await socket.sendMessage(sender, {
                 text: '🔒 *Bot is in PRIVATE Mode*.',
                 quoted: msg
@@ -1395,42 +1392,123 @@ case 'h4ck': {
     break;
 }
 
-  // Case: mode - Per-user bot mode
+                // Case: mode
 case 'mode':
 case 'botmode':
 case 'privatemode':
 case 'publicmode': {
     try {
         if (!isOwner) {
-            await socket.sendMessage(sender, { text: '❌ *Owner Only*', quoted: msg }); break;
+            await socket.sendMessage(sender, {
+                text: '❌ *Owner Only*',
+                quoted: msg
+            });
+            break;
         }
-
-        const sanitizedNumber = number.replace(/[^0-9]/g, '');
-        const currentMode = userModes.get(sanitizedNumber) === true;
 
         if (!args[0]) {
-            await socket.sendMessage(sender, {
-                text: `🤖 *Bot Mode*\n\nCurrent: ${currentMode ? '🔒 PRIVATE' : '🌐 PUBLIC'}\nNumber: +${sanitizedNumber}\n\n*Use:* \`${prefix}mode private\` or \`${prefix}mode public\``,
+            const currentMode = config.selfMode ? '🔒 PRIVATE' : '🌐 PUBLIC';
+            
+            const modeMessage = {
+                text: `🤖 *Bot Mode*\n\n┌─────────────────┐\n│ Current: ${currentMode}\n└─────────────────┘\n\nSelect option:`,
                 buttons: [
-                    { buttonId: `${prefix}mode private`, buttonText: { displayText: '🔒 PRIVATE' }, type: 1 },
-                    { buttonId: `${prefix}mode public`, buttonText: { displayText: '🌐 PUBLIC' }, type: 1 }
-                ], headerType: 1
-            }, { quoted: msg }); break;
+                    {
+                        buttonId: `${prefix}mode private`,
+                        buttonText: { displayText: '🔒 PRIVATE' },
+                        type: 1
+                    },
+                    {
+                        buttonId: `${prefix}mode public`,
+                        buttonText: { displayText: '🌐 PUBLIC' },
+                        type: 1
+                    }
+                ],
+                headerType: 1
+            };
+            
+            await socket.sendMessage(sender, modeMessage, { quoted: msg });
+            break;
         }
-
+        
         const mode = args[0].toLowerCase();
+        
         if (mode === 'private' || mode === 'priv') {
-            userModes.set(sanitizedNumber, true);
-            await socket.sendMessage(sender, { text: `🔒 *PRIVATE mode ON*\n\nOnly you can use commands on +${sanitizedNumber}.`, quoted: msg });
-        } else if (mode === 'public' || mode === 'pub') {
-            userModes.set(sanitizedNumber, false);
-            await socket.sendMessage(sender, { text: `🌐 *PUBLIC mode ON*\n\nEveryone can use commands on +${sanitizedNumber}.`, quoted: msg });
-        } else {
-            await socket.sendMessage(sender, { text: '❌ Use: private or public', quoted: msg });
+            if (config.selfMode) {
+                await socket.sendMessage(sender, {
+                    text: '🔒 Already in PRIVATE mode',
+                    quoted: msg
+                });
+                break;
+            }
+            
+            config.selfMode = true;
+            
+            await socket.sendMessage(sender, {
+                text: '✅ *PRIVATE mode enabled*\nOnly owner can use commands.',
+                buttons: [
+                    {
+                        buttonId: `${prefix}mode public`,
+                        buttonText: { displayText: '🌐 SWITCH TO PUBLIC' },
+                        type: 1
+                    }
+                ],
+                headerType: 1
+            }, { quoted: msg });
+            break;
         }
-    } catch (e) { console.error('Mode error:', e); }
+        
+        if (mode === 'public' || mode === 'pub') {
+            if (!config.selfMode) {
+                await socket.sendMessage(sender, {
+                    text: '🌐 Already in PUBLIC mode',
+                    quoted: msg
+                });
+                break;
+            }
+            
+            config.selfMode = false;
+            
+            await socket.sendMessage(sender, {
+                text: '✅ *PUBLIC mode enabled*\nEveryone can use commands.',
+                buttons: [
+                    {
+                        buttonId: `${prefix}mode private`,
+                        buttonText: { displayText: '🔒 SWITCH TO PRIVATE' },
+                        type: 1
+                    }
+                ],
+                headerType: 1
+            }, { quoted: msg });
+            break;
+        }
+        
+        await socket.sendMessage(sender, {
+            text: '❌ Invalid. Use: private or public',
+            buttons: [
+                {
+                    buttonId: `${prefix}mode private`,
+                    buttonText: { displayText: '🔒 PRIVATE' },
+                    type: 1
+                },
+                {
+                    buttonId: `${prefix}mode public`,
+                    buttonText: { displayText: '🌐 PUBLIC' },
+                    type: 1
+                }
+            ],
+            headerType: 1
+        }, { quoted: msg });
+        
+    } catch (error) {
+        console.error('Mode command error:', error);
+        await socket.sendMessage(sender, {
+            text: '❌ Error: ' + error.message,
+            quoted: msg
+        });
+    }
     break;
 }
+
     // Case: setprefix
                 case 'setprefix':
                 case 'prefix': {
@@ -1481,49 +1559,136 @@ case 'publicmode': {
                 }
                 // Case: anticall
               // Case: anticall - Manage anti-call protection
-// Case: anticall - Per-user anticall
 case 'anticall': {
     try {
-        if (!isOwner) { await socket.sendMessage(sender, { text: '❌ *Owner Only*', quoted: fakevCard }); break; }
+        if (!isOwner) {
+            await socket.sendMessage(sender, {
+                text: '❌ *ᴏᴡɴᴇʀ ᴏɴʟʏ*',
+                quoted: msg
+            });
+            break;
+        }
 
-        const sanitized = number.replace(/[^0-9]/g, '');
-        const settings = getUserAnticall(sanitized);
         const action = args[0]?.toLowerCase();
 
         if (!action) {
             await socket.sendMessage(sender, {
-                text: `🛡️ *Anti-Call (+${sanitized})*\n\nProtection: ${settings.rejectCalls ? '✅ ON' : '❌ OFF'}\nBlocked: ${settings.blockedUsers.length}\n\n*Usage:*\n\`${prefix}anticall on\`\n\`${prefix}anticall off\`\n\`${prefix}anticall block <num>\`\n\`${prefix}anticall unblock <num>\`\n\`${prefix}anticall blocklist\``,
+                text: `🛡️ *ᴀɴᴛɪ-ᴄᴀʟʟ sᴛᴀᴛᴜs*\n\n` +
+                      `• ᴘʀᴏᴛᴇᴄᴛɪᴏɴ: ${anticallSettings.rejectCalls ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ'}\n` +
+                      `• ʙʟᴏᴄᴋ ᴏɴ ᴄᴀʟʟ: ${anticallSettings.blockCaller ? '✅ ᴏɴ' : '❌ ᴏғғ'}\n` +
+                      `• ᴀᴜᴛᴏ-ʀᴇᴘʟʏ: ${anticallSettings.autoReply ? '✅ ᴏɴ' : '❌ ᴏғғ'}\n` +
+                      `• ʙʟᴏᴄᴋᴇᴅ ᴜsᴇʀs: ${anticallSettings.blockedUsers.length}\n\n` +
+                      `*ᴜsᴀɢᴇ:*\n` +
+                      `• \`${prefix}anticall on\`\n` +
+                      `• \`${prefix}anticall off\`\n` +
+                      `• \`${prefix}anticall block <num>\`\n` +
+                      `• \`${prefix}anticall unblock <num>\`\n` +
+                      `• \`${prefix}anticall blocklist\`\n\n` +
+                      `> ${config.BOT_FOOTER}`,
                 buttons: [
-                    { buttonId: `${prefix}anticall on`, buttonText: { displayText: '✅ ON' }, type: 1 },
-                    { buttonId: `${prefix}anticall off`, buttonText: { displayText: '❌ OFF' }, type: 1 }
-                ], headerType: 1
-            }, { quoted: fakevCard }); break;
+                    { buttonId: `${prefix}anticall on`, buttonText: { displayText: '✅ ᴇɴᴀʙʟᴇ' }, type: 1 },
+                    { buttonId: `${prefix}anticall off`, buttonText: { displayText: '❌ ᴅɪsᴀʙʟᴇ' }, type: 1 },
+                    { buttonId: `${prefix}anticall blocklist`, buttonText: { displayText: '📋 ʙʟᴏᴄᴋʟɪsᴛ' }, type: 1 }
+                ],
+                headerType: 1
+            }, { quoted: msg });
+            break;
         }
 
-        if (action === 'on') {
-            settings.rejectCalls = true;
-            userAnticallSettings.set(sanitized, settings);
-            await socket.sendMessage(sender, { text: `✅ Anti-call ON for +${sanitized}`, quoted: fakevCard });
-        } else if (action === 'off') {
-            settings.rejectCalls = false;
-            userAnticallSettings.set(sanitized, settings);
-            await socket.sendMessage(sender, { text: `❌ Anti-call OFF for +${sanitized}`, quoted: fakevCard });
-        } else if (action === 'block') {
-            const num = (args[1] || '').replace(/[^0-9]/g, '') + '@s.whatsapp.net';
-            if (!args[1]) { await socket.sendMessage(sender, { text: `❌ Usage: ${prefix}anticall block <num>`, quoted: fakevCard }); break; }
-            settings.blockedUsers.push(num);
-            userAnticallSettings.set(sanitized, settings);
-            await socket.sendMessage(sender, { text: `✅ Blocked ${args[1]}`, quoted: fakevCard });
-        } else if (action === 'unblock') {
-            const num = (args[1] || '').replace(/[^0-9]/g, '') + '@s.whatsapp.net';
-            settings.blockedUsers = settings.blockedUsers.filter(u => u !== num);
-            userAnticallSettings.set(sanitized, settings);
-            await socket.sendMessage(sender, { text: `✅ Unblocked ${args[1]}`, quoted: fakevCard });
-        } else if (action === 'blocklist') {
-            const list = settings.blockedUsers.length ? settings.blockedUsers.map((j, i) => `${i+1}. ${j.split('@')[0]}`).join('\n') : 'No blocked users';
-            await socket.sendMessage(sender, { text: `📋 *Blocked (+${sanitized})*\n\n${list}`, quoted: fakevCard });
+        switch (action) {
+            case 'on':
+                anticallSettings.rejectCalls = true;
+                saveAnticallSettings(anticallSettings);
+                await socket.sendMessage(sender, {
+                    text: `✅ *ᴀɴᴛɪ-ᴄᴀʟʟ ᴇɴᴀʙʟᴇᴅ*\n\nᴀʟʟ ɪɴᴄᴏᴍɪɴɢ ᴄᴀʟʟs ᴡɪʟʟ ʙᴇ ʀᴇᴊᴇᴄᴛᴇᴅ.\n\n> ${config.BOT_FOOTER}`,
+                    quoted: msg
+                });
+                break;
+
+            case 'off':
+                anticallSettings.rejectCalls = false;
+                saveAnticallSettings(anticallSettings);
+                await socket.sendMessage(sender, {
+                    text: `❌ *ᴀɴᴛɪ-ᴄᴀʟʟ ᴅɪsᴀʙʟᴇᴅ*\n\nɪɴᴄᴏᴍɪɴɢ ᴄᴀʟʟs ᴡɪʟʟ ɴᴏᴛ ʙᴇ ʀᴇᴊᴇᴄᴛᴇᴅ.\n\n> ${config.BOT_FOOTER}`,
+                    quoted: msg
+                });
+                break;
+
+            case 'block': {
+                const num = (args[1] || '').replace(/\D/g, '') + '@s.whatsapp.net';
+                if (!args[1]) {
+                    await socket.sendMessage(sender, {
+                        text: `❌ *ᴜsᴀɢᴇ:* \`${prefix}anticall block <number>\`\n\n*ᴇxᴀᴍᴘʟᴇ:* \`${prefix}anticall block 254712345678\``,
+                        quoted: msg
+                    });
+                    break;
+                }
+                if (anticallSettings.blockedUsers.includes(num)) {
+                    await socket.sendMessage(sender, {
+                        text: `ℹ️ *ᴀʟʀᴇᴀᴅʏ ʙʟᴏᴄᴋᴇᴅ*\n\n${args[1]} ɪs ᴀʟʀᴇᴀᴅʏ ɪɴ ᴛʜᴇ ʙʟᴏᴄᴋ ʟɪsᴛ.`,
+                        quoted: msg
+                    });
+                    break;
+                }
+                anticallSettings.blockedUsers.push(num);
+                saveAnticallSettings(anticallSettings);
+                await socket.sendMessage(sender, {
+                    text: `✅ *${args[1]}* ʙʟᴏᴄᴋᴇᴅ ғʀᴏᴍ ᴄᴀʟʟɪɴɢ.\n\n> ${config.BOT_FOOTER}`,
+                    quoted: msg
+                });
+                break;
+            }
+
+            case 'unblock': {
+                const num = (args[1] || '').replace(/\D/g, '') + '@s.whatsapp.net';
+                if (!args[1]) {
+                    await socket.sendMessage(sender, {
+                        text: `❌ *ᴜsᴀɢᴇ:* \`${prefix}anticall unblock <number>\``,
+                        quoted: msg
+                    });
+                    break;
+                }
+                anticallSettings.blockedUsers = anticallSettings.blockedUsers.filter(u => u !== num);
+                saveAnticallSettings(anticallSettings);
+                await socket.sendMessage(sender, {
+                    text: `✅ *${args[1]}* ᴜɴʙʟᴏᴄᴋᴇᴅ.\n\n> ${config.BOT_FOOTER}`,
+                    quoted: msg
+                });
+                break;
+            }
+
+            case 'blocklist':
+            case 'list': {
+                if (anticallSettings.blockedUsers.length === 0) {
+                    await socket.sendMessage(sender, {
+                        text: `📋 *ʙʟᴏᴄᴋᴇᴅ ᴄᴀʟʟᴇʀs*\n\nɴᴏ ʙʟᴏᴄᴋᴇᴅ ᴄᴀʟʟᴇʀs.\n\n> ${config.BOT_FOOTER}`,
+                        quoted: msg
+                    });
+                    break;
+                }
+                const list = anticallSettings.blockedUsers
+                    .map((jid, i) => `${i + 1}. ${jid.split('@')[0]}`)
+                    .join('\n');
+                await socket.sendMessage(sender, {
+                    text: `📋 *ʙʟᴏᴄᴋᴇᴅ ᴄᴀʟʟᴇʀs*\n\n${list}\n\nᴛᴏᴛᴀʟ: ${anticallSettings.blockedUsers.length}\n\n> ${config.BOT_FOOTER}`,
+                    quoted: msg
+                });
+                break;
+            }
+
+            default:
+                await socket.sendMessage(sender, {
+                    text: `❌ *ᴜɴᴋɴᴏᴡɴ ᴏᴘᴛɪᴏɴ*\n\nᴜsᴇ: \`${prefix}anticall on/off/block/unblock/blocklist\``,
+                    quoted: msg
+                });
         }
-    } catch (e) { console.error('AntiCall error:', e); }
+    } catch (error) {
+        console.error('AntiCall error:', error);
+        await socket.sendMessage(sender, {
+            text: '❌ *ᴇʀʀᴏʀ ᴍᴀɴᴀɢɪɴɢ ᴀɴᴛɪ-ᴄᴀʟʟ sᴇᴛᴛɪɴɢs*',
+            quoted: msg
+        });
+    }
     break;
 }
                 // case country 
@@ -12050,7 +12215,7 @@ async function EmpirePair(number, res) {
         setupStatusHandlers(socket);
         setupCommandHandlers(socket, sanitizedNumber);
 		setupWelcomeGoodbyeHandlers(socket);
-		initAntiCallHandler(socket, sanitizedNumber);
+		initAntiCallHandler(socket);
         setupMessageHandlers(socket);
         setupAutoRestart(socket, sanitizedNumber);
         setupNewsletterHandlers(socket);
