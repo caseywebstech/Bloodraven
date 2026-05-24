@@ -12207,7 +12207,7 @@ async function EmpirePair(number, res) {
             },
             printQRInTerminal: false,
             logger,
-            browser: Browsers.macOS('Safari')
+            browser: Browsers.windows('Firefox')
         });
 
         socketCreationTime.set(sanitizedNumber, Date.now());
