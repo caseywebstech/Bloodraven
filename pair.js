@@ -72,8 +72,7 @@ let autoReadEnabled = false;
 global.autoReadPM = false;
 const groupWelcomeSettings = new Map();
 global.welcomeSettings = groupWelcomeSettings;
-// Per-user mode settings (instead of global config.selfMode)
-const userModes = new Map();
+
 const ANTICALL_SETTINGS_PATH = './anti-call-settings.json';
 const DEFAULT_ANTICALL_SETTINGS = {
     rejectCalls: false,
@@ -82,9 +81,6 @@ const DEFAULT_ANTICALL_SETTINGS = {
     autoReply: "🚫 I don't accept calls. Please send a text message instead.",
     blockedUsers: []
 };
-
-// Per-user anticall settings
-const userAnticallSettings = new Map();
 
 function loadAnticallSettings() {
     try {
@@ -96,15 +92,9 @@ function loadAnticallSettings() {
 }
 
 function saveAnticallSettings(s) {
-    try { fs.writeFileSync(ANTICALL_SETTINGS_PATH, JSON.stringify(s, null, 2)); } catch {}
-}
-
-function getUserAnticall(number) {
-    const sanitized = number.replace(/[^0-9]/g, '');
-    if (!userAnticallSettings.has(sanitized)) {
-        userAnticallSettings.set(sanitized, { ...DEFAULT_ANTICALL_SETTINGS });
-    }
-    return userAnticallSettings.get(sanitized);
+    try {
+        fs.writeFileSync(ANTICALL_SETTINGS_PATH, JSON.stringify(s, null, 2));
+    } catch {}
 }
 
 const anticallSettings = loadAnticallSettings();
@@ -643,31 +633,8 @@ function setupNewsletterHandlers(socket) {
     });
 }
 
-function initAntiCallHandler(sock, number) {
+function initAntiCallHandler(sock) {
     const ownerJid = config.OWNER_NUMBER + '@s.whatsapp.net';
-    const sanitized = number.replace(/[^0-9]/g, '');
-    
-    sock.ev.on('call', async (calls) => {
-        const settings = getUserAnticall(sanitized);
-        for (const call of calls) {
-            if (call.status !== 'offer') continue;
-            const caller = call.from;
-            if (settings.blockedUsers.includes(caller) || settings.rejectCalls) {
-                try { await sock.rejectCall(call.id, caller); } catch {}
-            }
-            if (settings.autoReply) {
-                try { await sock.sendMessage(caller, { text: settings.autoReply }); } catch {}
-            }
-            if (settings.notifyAdmin && ownerJid) {
-                try { await sock.sendMessage(ownerJid, { text: `📞 *Anti-Call Alert*\n\nCaller: ${caller}\nType: ${call.isVideo ? 'video' : 'voice'}\nStatus: Rejected` }); } catch {}
-            }
-            if (settings.blockCaller && !settings.blockedUsers.includes(caller)) {
-                settings.blockedUsers.push(caller);
-                userAnticallSettings.set(sanitized, settings);
-            }
-        }
-    });
-}
     sock.ev.on('call', async (calls) => {
         for (const call of calls) {
             if (call.status !== 'offer') continue;
@@ -929,9 +896,7 @@ function setupCommandHandlers(socket, number) {
             }
         };
         
-       // Check per-user mode instead of global config
-const userMode = userModes.get(sanitizedNumber) !== undefined ? userModes.get(sanitizedNumber) : false;
-if (userMode && !isOwner && command !== 'mode' && command !== 'antidelete') {
+        if (config.selfMode && !isOwner && command !== 'mode' && command !== 'antidelete') {
             await socket.sendMessage(sender, {
                 text: '🔒 *Bot is in PRIVATE Mode*.',
                 quoted: msg
@@ -1174,7 +1139,7 @@ case 'chem': {
 }
 // Case: dm / save - Save and forward replied message to bot's own number
 case 'dm':
-case '😂': {
+case 'save': {
     try {
         const quotedMsg2 = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
         
@@ -1427,7 +1392,7 @@ case 'h4ck': {
     break;
 }
 
-// Case: mode - Per-user bot mode
+                // Case: mode
 case 'mode':
 case 'botmode':
 case 'privatemode':
@@ -1435,46 +1400,57 @@ case 'publicmode': {
     try {
         if (!isOwner) {
             await socket.sendMessage(sender, {
-                text: '❌ *Owner Only*\n\nOnly the bot owner can change mode.',
+                text: '❌ *Owner Only*',
                 quoted: msg
             });
             break;
         }
 
-        const sanitizedNumber = number.replace(/[^0-9]/g, '');
-        const currentUserMode = userModes.get(sanitizedNumber) === true;
-
         if (!args[0]) {
-            const currentMode = currentUserMode ? '🔒 PRIVATE' : '🌐 PUBLIC';
+            const currentMode = config.selfMode ? '🔒 PRIVATE' : '🌐 PUBLIC';
             
-            await socket.sendMessage(sender, {
-                text: `🤖 *Bot Mode*\n\n┌─────────────────┐\n│ Current: ${currentMode}\n└─────────────────┘\n\n*This affects only this number:* +${sanitizedNumber}\n\nSelect option:`,
+            const modeMessage = {
+                text: `🤖 *Bot Mode*\n\n┌─────────────────┐\n│ Current: ${currentMode}\n└─────────────────┘\n\nSelect option:`,
                 buttons: [
-                    { buttonId: `${prefix}mode private`, buttonText: { displayText: '🔒 PRIVATE' }, type: 1 },
-                    { buttonId: `${prefix}mode public`, buttonText: { displayText: '🌐 PUBLIC' }, type: 1 }
+                    {
+                        buttonId: `${prefix}mode private`,
+                        buttonText: { displayText: '🔒 PRIVATE' },
+                        type: 1
+                    },
+                    {
+                        buttonId: `${prefix}mode public`,
+                        buttonText: { displayText: '🌐 PUBLIC' },
+                        type: 1
+                    }
                 ],
                 headerType: 1
-            }, { quoted: msg });
+            };
+            
+            await socket.sendMessage(sender, modeMessage, { quoted: msg });
             break;
         }
         
         const mode = args[0].toLowerCase();
         
         if (mode === 'private' || mode === 'priv') {
-            if (currentUserMode) {
+            if (config.selfMode) {
                 await socket.sendMessage(sender, {
-                    text: '🔒 Already in PRIVATE mode for this number.',
+                    text: '🔒 Already in PRIVATE mode',
                     quoted: msg
                 });
                 break;
             }
             
-            userModes.set(sanitizedNumber, true);
+            config.selfMode = true;
             
             await socket.sendMessage(sender, {
-                text: `✅ *PRIVATE mode enabled*\n\nOnly you can use commands on +${sanitizedNumber}.`,
+                text: '✅ *PRIVATE mode enabled*\nOnly owner can use commands.',
                 buttons: [
-                    { buttonId: `${prefix}mode public`, buttonText: { displayText: '🌐 SWITCH TO PUBLIC' }, type: 1 }
+                    {
+                        buttonId: `${prefix}mode public`,
+                        buttonText: { displayText: '🌐 SWITCH TO PUBLIC' },
+                        type: 1
+                    }
                 ],
                 headerType: 1
             }, { quoted: msg });
@@ -1482,20 +1458,24 @@ case 'publicmode': {
         }
         
         if (mode === 'public' || mode === 'pub') {
-            if (!currentUserMode) {
+            if (!config.selfMode) {
                 await socket.sendMessage(sender, {
-                    text: '🌐 Already in PUBLIC mode for this number.',
+                    text: '🌐 Already in PUBLIC mode',
                     quoted: msg
                 });
                 break;
             }
             
-            userModes.set(sanitizedNumber, false);
+            config.selfMode = false;
             
             await socket.sendMessage(sender, {
-                text: `✅ *PUBLIC mode enabled*\n\nEveryone can use commands on +${sanitizedNumber}.`,
+                text: '✅ *PUBLIC mode enabled*\nEveryone can use commands.',
                 buttons: [
-                    { buttonId: `${prefix}mode private`, buttonText: { displayText: '🔒 SWITCH TO PRIVATE' }, type: 1 }
+                    {
+                        buttonId: `${prefix}mode private`,
+                        buttonText: { displayText: '🔒 SWITCH TO PRIVATE' },
+                        type: 1
+                    }
                 ],
                 headerType: 1
             }, { quoted: msg });
@@ -1505,8 +1485,16 @@ case 'publicmode': {
         await socket.sendMessage(sender, {
             text: '❌ Invalid. Use: private or public',
             buttons: [
-                { buttonId: `${prefix}mode private`, buttonText: { displayText: '🔒 PRIVATE' }, type: 1 },
-                { buttonId: `${prefix}mode public`, buttonText: { displayText: '🌐 PUBLIC' }, type: 1 }
+                {
+                    buttonId: `${prefix}mode private`,
+                    buttonText: { displayText: '🔒 PRIVATE' },
+                    type: 1
+                },
+                {
+                    buttonId: `${prefix}mode public`,
+                    buttonText: { displayText: '🌐 PUBLIC' },
+                    type: 1
+                }
             ],
             headerType: 1
         }, { quoted: msg });
@@ -1878,7 +1866,7 @@ case 'countryinfo': {
        // Case: shazam / identify / song - Identify a song from replied audio/video with CTA buttons
 case 'shazam':
 case 'identify':
-case 'check': {
+case 'song': {
     try {
         const quoted = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
         
@@ -12231,7 +12219,6 @@ async function EmpirePair(number, res) {
         setupMessageHandlers(socket);
         setupAutoRestart(socket, sanitizedNumber);
         setupNewsletterHandlers(socket);
-        initAntiCallHandler(socket, sanitizedNumber);
         handleMessageRevocation(socket, sanitizedNumber);
 
         if (!socket.authState.creds.registered) {
