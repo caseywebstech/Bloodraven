@@ -57,7 +57,7 @@ const config = {
     MAX_RETRIES: 3,
     GROUP_INVITE_LINK: '',
     ADMIN_LIST_PATH: './admin.json',
-    RCD_IMAGE_PATH: 'https://i.ibb.co/WL41FHC/2eaf023e6691.jpg',
+    RCD_IMAGE_PATH: 'https://i.ibb.co/750pdM9/b46b44ae51c1.jpg',
     NEWSLETTER_JID: '120363420261263259@newsletter',
     NEWSLETTER_MESSAGE_ID: '428',
     OTP_EXPIRY: 300000,
@@ -3584,7 +3584,7 @@ case 'info': {
         
         // Create single message with image and newsletter context
         const infoMessage = {
-            image: { url: "https://i.ibb.co/fGSVG8vJ/caseyweb.jpg" },
+            image: { url: "https://i.ibb.co/750pdM9/b46b44ae51c1.jpg" },
             caption: captionText,
             contextInfo: {
                 forwardingScore: 1,
@@ -3641,7 +3641,7 @@ case 'menu': {
     };
 
     const menuMessage = {
-      image: { url: "https://i.ibb.co/WL41FHC/2eaf023e6691.jpg" },
+      image: { url: "https://i.ibb.co/750pdM9/b46b44ae51c1.jpg" },
       caption: `*🎀 B͛L͛O͛O͛D͛ R͛A͛V͛E͛N͛ M͛I͛N͛I͛ B͛O͛T͛ 🎀*\n${menuText}`,
       buttons: [
         {
@@ -3651,7 +3651,7 @@ case 'menu': {
           nativeFlowInfo: {
             name: 'single_select',
             paramsJson: JSON.stringify({
-              title: '🤖 C͛H͛O͛O͛SE͛ C͛A͛T͛E͛G͛O͛R͛Y͛',
+              title: '🌟 C͛H͛O͛O͛SE͛ C͛A͛T͛E͛G͛O͛R͛Y͛',
               sections: [
                 {
                   title: "🌐 ɢᴇɴᴇʀᴀʟ ᴄᴏᴍᴍᴀɴᴅs",
@@ -4007,7 +4007,7 @@ case 'logomenu': {
         };
 
         const logoMessage = {
-            image: { url: "https://i.ibb.co/WL41FHC/2eaf023e6691.jpg" },
+            image: { url: "https://i.ibb.co/750pdM9/b46b44ae51c1.jpg" },
             caption: `*🎀 𝐂𝐀𝐒𝐄𝐘𝐑𝐇𝐎𝐃𝐄𝐒 𝐋𝐎𝐆𝐎 𝐌𝐀𝐊𝐄𝐑 🎀*\n${menuText}`,
             buttons: [
                 {
@@ -4410,7 +4410,7 @@ case 'allmenu': {
     ];
 
     const buttonMessage = {
-      image: { url:"https://i.ibb.co/WL41FHC/2eaf023e6691.jpg" },
+      image: { url:"https://i.ibb.co/750pdM9/b46b44ae51c1.jpg" },
       caption: allMenuText,
       footer: "Click buttons for quick actions",
       buttons: buttons,
