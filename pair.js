@@ -896,13 +896,21 @@ function setupCommandHandlers(socket, number) {
             }
         };
         
-        if (config.selfMode && !isOwner && command !== 'mode' && command !== 'antidelete') {
-            await socket.sendMessage(sender, {
-                text: '🔒 *Bot is in PRIVATE Mode*.',
-                quoted: msg
-            });
-            return;
-        }
+if (config.selfMode && !isOwner && command !== 'mode' && command !== 'antidelete') {
+    try {
+        const ctaMsg = generateWAMessageFromContent(sender, {
+            viewOnceMessage: { message: { interactiveMessage: {
+                body: { text: '🔒 *Bot is in PRIVATE Mode*.\n\nOnly the owner can use commands.\n\n> ' + config.BOT_FOOTER },
+                footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Follow Channel', url: config.CHANNEL_LINK }) }] }
+            } } }
+        }, { quoted: msg });
+        await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
+    } catch {
+        await socket.sendMessage(sender, { text: '🔒 *Bot is in PRIVATE Mode*.', quoted: msg });
+    }
+    return;
+}
         
         try {
                switch (command) {          
