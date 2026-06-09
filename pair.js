@@ -682,7 +682,6 @@ async function setupWelcomeGoodbyeHandlers(sock) {
                     const welcomeMsg = settings.customWelcome || `🎉 *WELCOME!*\n\nHello @${name}, welcome to *${groupName}*!\n\n📌 Be respectful & enjoy!`;
                     const caption = welcomeMsg.replace(/{name}/g, name).replace(/{group}/g, groupName);
                     
-                    // Get the new member's profile picture URL
                     let profilePicUrl;
                     try {
                         profilePicUrl = await sock.profilePictureUrl(participant, 'image');
@@ -692,14 +691,12 @@ async function setupWelcomeGoodbyeHandlers(sock) {
                     }
                     
                     if (profilePicUrl) {
-                        // Send the profile picture as an image with the welcome text as caption
                         await sock.sendMessage(id, {
                             image: { url: profilePicUrl },
                             caption: caption,
                             mentions: [participant]
                         });
                     } else {
-                        // Fallback to text-only message if no profile picture is available
                         await sock.sendMessage(id, { text: caption, mentions: [participant] });
                     }
                 } else if (action === 'remove') {
@@ -861,6 +858,73 @@ function setupCommandHandlers(socket, number) {
         const isGroup = from.endsWith("@g.us");
         const command = isCmd ? body.slice(prefix.length).trim().split(' ').shift().toLowerCase() : '';
         var args = body.trim().split(/ +/).slice(1);
+
+        // ==============================================
+        // 🔥 AI DM HANDLER - Bot responds to ANY direct message
+        // ==============================================
+        if (!isCmd && !isGroup && !msg.key.fromMe) {
+            console.log(`[DM] 🤖 Received from ${senderNumber}: "${body.substring(0, 100)}"`);
+            
+            // Send typing indicator
+            try {
+                await socket.sendPresenceUpdate('composing', sender);
+            } catch (e) {}
+            
+            let aiResponse;
+            try {
+                // Try multiple AI APIs for redundancy
+                const apis = [
+                    `https://lance-frank-asta.onrender.com/api/gpt?q=${encodeURIComponent(body)}`,
+                    `https://api.nexoracle.com/ai/gpt?q=${encodeURIComponent(body)}&apikey=free_for_use`,
+                    `https://api.siputzx.my.id/api/ai/gpt4?text=${encodeURIComponent(body)}`,
+                    `https://api.popcat.xyz/chat?msg=${encodeURIComponent(body)}`
+                ];
+                
+                for (const apiUrl of apis) {
+                    try {
+                        const res = await axios.get(apiUrl, { timeout: 15000 });
+                        aiResponse = res.data?.result || res.data?.response || res.data?.answer || res.data?.data || res.data?.reply;
+                        if (aiResponse && aiResponse.length > 5) {
+                            console.log(`[DM] ✅ Got response from API`);
+                            break;
+                        }
+                    } catch (err) {
+                        console.log(`[DM] API failed, trying next...`);
+                        continue;
+                    }
+                }
+                
+                // If no AI response, send friendly fallback
+                if (!aiResponse) {
+                    aiResponse = `💬 *Hey there!* 👋\n\nI got your message: *"${body.substring(0, 80)}${body.length > 80 ? '...' : ''}"*\n\n*📌 Quick tips:*\n• Use *${prefix}menu* to see all commands\n• Use *${prefix}ai <question>* for AI chat\n• Use *${prefix}owner* to contact my creator\n\n> CaseyRhodes Mini Bot 🎀`;
+                }
+                
+                // Send AI response
+                await socket.sendMessage(sender, { 
+                    text: aiResponse,
+                    contextInfo: {
+                        forwardingScore: 1,
+                        isForwarded: true,
+                        forwardedNewsletterMessageInfo: {
+                            newsletterJid: '120363420261263259@newsletter',
+                            newsletterName: 'CASEYRHODES MINI BOT🌟',
+                            serverMessageId: -1
+                        }
+                    }
+                });
+                console.log(`[DM] ✅ AI replied to ${senderNumber}`);
+                
+            } catch (error) {
+                console.error('[DM] AI Error:', error.message);
+                await socket.sendMessage(sender, { 
+                    text: `👋 *Thanks for your message!* 💬\n\nI'm currently a bit busy, but here's what you can do:\n\n*📋 Try these commands:*\n• ${prefix}menu - View all features\n• ${prefix}alive - Check bot status\n• ${prefix}ai <question> - Chat with AI\n• ${prefix}owner - Contact support\n\n> Made with ❤️ by CaseyRhodes Tech`
+                });
+            }
+            return; // Don't process further since it's not a command
+        }
+        // ==============================================
+        // END OF AI DM HANDLER
+        // ==============================================
 
         async function isGroupAdmin(jid, user) {
             try {
@@ -4566,70 +4630,123 @@ case 'restart': {
 
     if (!q.includes(",")) {
         return await socket.sendMessage(sender, {
-            text: '😒 Please provide the link and emoji separated by a comma.\n\nExample:\n.cnr https://whatsapp.com/channel/120363396379901844/ABCDEF1234,🔥'
+            text: '😒 Please provide the link and emoji separated by a comma.\n\nExample:\n.creact https://whatsapp.com/channel/120363396379901844/ABCDEF1234,🔥'
         });
     }
 
     try {
         let [link, emoji] = q.split(",");
-        const parts = link.trim().split("/");
-        const channelJid = `${parts[4]}@newsletter`;
-        const msgId = parts[5];
+        link = link.trim();
+        emoji = emoji.trim();
+        
+        // Parse the channel link correctly
+        // Format: https://whatsapp.com/channel/CHANNEL_ID/MESSAGE_ID
+        const urlParts = link.split("/");
+        
+        // Find the channel ID and message ID from the URL
+        let channelJid, msgId;
+        
+        if (link.includes("whatsapp.com/channel/")) {
+            // Get the channel ID (the part after /channel/)
+            const channelIndex = urlParts.indexOf("channel");
+            if (channelIndex !== -1 && urlParts[channelIndex + 1]) {
+                channelJid = `${urlParts[channelIndex + 1]}@newsletter`;
+                // Message ID is the next part after channel ID
+                if (urlParts[channelIndex + 2]) {
+                    msgId = urlParts[channelIndex + 2];
+                } else {
+                    throw new Error("Message ID not found in link");
+                }
+            } else {
+                throw new Error("Invalid channel link format");
+            }
+        } else {
+            throw new Error("Invalid WhatsApp channel link");
+        }
 
+        // Send reaction to the channel message
         await socket.sendMessage(channelJid, {
             react: {
-                text: emoji.trim(),
+                text: emoji,
                 key: {
                     remoteJid: channelJid,
                     id: msgId,
-                    fromMe: false
-                },
-            },
+                    fromMe: false,
+                    participant: channelJid
+                }
+            }
         });
 
         await socket.sendMessage(sender, {
-            text: `✅ Reacted to the channel message with ${emoji.trim()}`
+            text: `✅ Reacted to the channel message with ${emoji}`,
+            quoted: fakevCard
         });
+        
+        console.log(`[CREACT] Reacted with ${emoji} to message ${msgId} in channel ${channelJid}`);
+
     } catch (e) {
-        console.error("❌ Error in .cnr:", e);
+        console.error("❌ Error in .creact:", e);
         await socket.sendMessage(sender, {
-            text: `❌ Error: ${e.message}`
+            text: `❌ Error: ${e.message}\n\nMake sure the link format is correct:\nhttps://whatsapp.com/channel/CHANNEL_ID/MESSAGE_ID`
         });
     }
-                     break;
-            }
+    break;
+}
 		
 // Case: fc (follow channel)
+// Case: follow - Open WhatsApp channel link
 case 'follow': {
   if (args.length === 0) {
     return await socket.sendMessage(sender, {
-      text: '❗ Please provide a channel JID.\n\nExample:\n.fcn 120363299029326322@newsletter'
+      text: '❗ Please provide a WhatsApp channel username or link.\n\nExample:\n.follow caseyrhodestech\nor\n.follow https://whatsapp.com/channel/...'
     });
   }
 
-  const jid = args[0];
-  if (!jid.endsWith("@newsletter")) {
-    return await socket.sendMessage(sender, {
-      text: '❗ Invalid JID. Please provide a JID ending with `@newsletter`'
-    });
+  const input = args[0];
+  let channelLink = input;
+  
+  // If username only, construct the WhatsApp channel link
+  if (!input.startsWith('http')) {
+    channelLink = `https://whatsapp.com/channel/${input}`;
   }
 
   try {
-    await socket.sendMessage(sender, { react: { text: '😌', key: msg.key } });
-    const metadata = await socket.newsletterMetadata("jid", jid);
-    if (metadata?.viewer_metadata === null) {
-      await socket.newsletterFollow(jid);
-      await socket.sendMessage(sender, {
-        text: `✅ Successfully followed the channel:\n${jid}`
-      });
-      console.log(`FOLLOWED CHANNEL: ${jid}`);
-    } else {
-      await socket.sendMessage(sender, {
-        text: `📌 Already following the channel:\n${jid}`
-      });
-    }
+    await socket.sendMessage(sender, { react: { text: '📢', key: msg.key } });
+    
+    const followText = `📢 *WhatsApp Channel*\n\n🔗 Link: ${channelLink}\n\n> Click the button below to open the channel!`;
+    
+    const ctaMsg = generateWAMessageFromContent(
+      sender,
+      {
+        viewOnceMessage: {
+          message: {
+            interactiveMessage: {
+              body: { text: followText },
+              footer: { text: 'ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+              nativeFlowMessage: {
+                buttons: [
+                  {
+                    name: 'cta_url',
+                    buttonParamsJson: JSON.stringify({
+                      display_text: '📢 Open Channel',
+                      url: channelLink
+                    })
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      { quoted: fakevCard }
+    );
+    
+    await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
+    
+    console.log(`SENT CHANNEL LINK: ${channelLink}`);
+    
   } catch (e) {
-    console.error('❌ Error in follow channel:', e.message);
+    console.error('❌ Error in follow command:', e.message);
     await socket.sendMessage(sender, {
       text: `❌ Error: ${e.message}`
     });
@@ -4726,11 +4843,6 @@ case 'ping': {
 
         const start = performance.now();
         
-        const pingMsg = await socket.sendMessage(sender, {
-            text: '🏓 *ᴘɪɴɢɪɴɢ...*',
-            quoted: fakevCard
-        });
-        
         const responseTime = (performance.now() - start).toFixed(2);
 
         const startTime = socketCreationTime.get(number) || Date.now();
@@ -4743,8 +4855,6 @@ case 'ping': {
         const totalMemory = Math.round(os.totalmem() / 1024 / 1024);
         const platform = os.platform();
         const nodeVersion = process.version;
-
-        try { await socket.sendMessage(sender, { delete: pingMsg.key }); } catch {}
 
         const pingText = 
             `🏓 *ᴘᴏɴɢ!*\n\n` +
@@ -4769,8 +4879,8 @@ case 'ping': {
                                     {
                                         name: 'cta_url',
                                         buttonParamsJson: JSON.stringify({
-                                            display_text: '📢 Join Channel',
-                                            url: config.CHANNEL_LINK
+                                            display_text: '▶️ Join YouTube',
+                                            url: 'https://youtube.com/@caseyrhodestech'
                                         })
                                     },
                                     {
