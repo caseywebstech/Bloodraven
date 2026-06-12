@@ -1,3 +1,5 @@
+Please update this index mybe is the problem the bot is not responding on other people's dm 
+
 const express = require('express');
 const app = express();
 __path = process.cwd()
@@ -5,20 +7,12 @@ const bodyParser = require("body-parser");
 const PORT = process.env.PORT || 8000;
 let code = require('./pair');
 
-require('events').EventEmitter.defaultMaxListeners = 1000);
+require('events').EventEmitter.defaultMaxListeners = 1000;
 
-// Middleware
+// Fixed: Added app.use for bodyParser before routes that need it
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// Add CORS headers for better compatibility
-app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
-    next();
-});
-
-// Routes
 app.use('/code', code);
 app.use('/pair', async (req, res, next) => {
     res.sendFile(__path + '/pair.html');
@@ -27,19 +21,8 @@ app.use('/', async (req, res, next) => {
     res.sendFile(__path + '/main.html');
 });
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-    res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
-});
-
-// Error handling middleware
-app.use((err, req, res, next) => {
-    console.error('Error:', err);
-    res.status(500).json({ error: 'Internal server error' });
-});
-
-// Start server
-const server = app.listen(PORT, '0.0.0.0', () => {
+// ✅ Changed here to bind on 0.0.0.0
+app.listen(PORT, '0.0.0.0', () => {
     console.log(` 
 /*
 
@@ -67,15 +50,6 @@ const server = app.listen(PORT, '0.0.0.0', () => {
 */
 
 Server running on http://0.0.0.0:` + PORT);
-    console.log(`Health check: http://0.0.0.0:${PORT}/health`);
-});
-
-// Graceful shutdown
-process.on('SIGTERM', () => {
-    console.log('SIGTERM signal received: closing HTTP server');
-    server.close(() => {
-        console.log('HTTP server closed');
-    });
 });
 
 module.exports = app;
