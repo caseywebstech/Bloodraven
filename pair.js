@@ -1,3 +1,4 @@
+
 const express = require('express');
 const fs = require('fs-extra');
 const path = require('path');
@@ -682,6 +683,7 @@ async function setupWelcomeGoodbyeHandlers(sock) {
                     const welcomeMsg = settings.customWelcome || `🎉 *WELCOME!*\n\nHello @${name}, welcome to *${groupName}*!\n\n📌 Be respectful & enjoy!`;
                     const caption = welcomeMsg.replace(/{name}/g, name).replace(/{group}/g, groupName);
                     
+                    // Get the new member's profile picture URL
                     let profilePicUrl;
                     try {
                         profilePicUrl = await sock.profilePictureUrl(participant, 'image');
@@ -691,12 +693,14 @@ async function setupWelcomeGoodbyeHandlers(sock) {
                     }
                     
                     if (profilePicUrl) {
+                        // Send the profile picture as an image with the welcome text as caption
                         await sock.sendMessage(id, {
                             image: { url: profilePicUrl },
                             caption: caption,
                             mentions: [participant]
                         });
                     } else {
+                        // Fallback to text-only message if no profile picture is available
                         await sock.sendMessage(id, { text: caption, mentions: [participant] });
                     }
                 } else if (action === 'remove') {
@@ -858,73 +862,6 @@ function setupCommandHandlers(socket, number) {
         const isGroup = from.endsWith("@g.us");
         const command = isCmd ? body.slice(prefix.length).trim().split(' ').shift().toLowerCase() : '';
         var args = body.trim().split(/ +/).slice(1);
-
-        // ==============================================
-        // 🔥 AI DM HANDLER - Bot responds to ANY direct message
-        // ==============================================
-        if (!isCmd && !isGroup && !msg.key.fromMe) {
-            console.log(`[DM] 🤖 Received from ${senderNumber}: "${body.substring(0, 100)}"`);
-            
-            // Send typing indicator
-            try {
-                await socket.sendPresenceUpdate('composing', sender);
-            } catch (e) {}
-            
-            let aiResponse;
-            try {
-                // Try multiple AI APIs for redundancy
-                const apis = [
-                    `https://lance-frank-asta.onrender.com/api/gpt?q=${encodeURIComponent(body)}`,
-                    `https://api.nexoracle.com/ai/gpt?q=${encodeURIComponent(body)}&apikey=free_for_use`,
-                    `https://api.siputzx.my.id/api/ai/gpt4?text=${encodeURIComponent(body)}`,
-                    `https://api.popcat.xyz/chat?msg=${encodeURIComponent(body)}`
-                ];
-                
-                for (const apiUrl of apis) {
-                    try {
-                        const res = await axios.get(apiUrl, { timeout: 15000 });
-                        aiResponse = res.data?.result || res.data?.response || res.data?.answer || res.data?.data || res.data?.reply;
-                        if (aiResponse && aiResponse.length > 5) {
-                            console.log(`[DM] ✅ Got response from API`);
-                            break;
-                        }
-                    } catch (err) {
-                        console.log(`[DM] API failed, trying next...`);
-                        continue;
-                    }
-                }
-                
-                // If no AI response, send friendly fallback
-                if (!aiResponse) {
-                    aiResponse = `💬 *Hey there!* 👋\n\nI got your message: *"${body.substring(0, 80)}${body.length > 80 ? '...' : ''}"*\n\n*📌 Quick tips:*\n• Use *${prefix}menu* to see all commands\n• Use *${prefix}ai <question>* for AI chat\n• Use *${prefix}owner* to contact my creator\n\n> CaseyRhodes Mini Bot 🎀`;
-                }
-                
-                // Send AI response
-                await socket.sendMessage(sender, { 
-                    text: aiResponse,
-                    contextInfo: {
-                        forwardingScore: 1,
-                        isForwarded: true,
-                        forwardedNewsletterMessageInfo: {
-                            newsletterJid: '120363420261263259@newsletter',
-                            newsletterName: 'CASEYRHODES MINI BOT🌟',
-                            serverMessageId: -1
-                        }
-                    }
-                });
-                console.log(`[DM] ✅ AI replied to ${senderNumber}`);
-                
-            } catch (error) {
-                console.error('[DM] AI Error:', error.message);
-                await socket.sendMessage(sender, { 
-                    text: `👋 *Thanks for your message!* 💬\n\nI'm currently a bit busy, but here's what you can do:\n\n*📋 Try these commands:*\n• ${prefix}menu - View all features\n• ${prefix}alive - Check bot status\n• ${prefix}ai <question> - Chat with AI\n• ${prefix}owner - Contact support\n\n> Made with ❤️ by CaseyRhodes Tech`
-                });
-            }
-            return; // Don't process further since it's not a command
-        }
-        // ==============================================
-        // END OF AI DM HANDLER
-        // ==============================================
 
         async function isGroupAdmin(jid, user) {
             try {
