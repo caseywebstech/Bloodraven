@@ -1,4 +1,3 @@
-Update this too 
 
 const {
     proto,
