@@ -1,4 +1,4 @@
-Please update this index mybe is the problem the bot is not responding on other people's dm 
+ 
 
 const express = require('express');
 const app = express();
