@@ -8,7 +8,7 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
-      "@whiskeysockets/baileys": "npm:xmd-baileys@1.0.35",
+       "@whiskeysockets/baileys": "github.com/MLILA05/teslaminbot-baileys",
     "express": "^4.18.2",
     "fs-extra": "^11.2.0",
     "pino": "^9.7.0",
