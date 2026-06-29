@@ -1,4 +1,3 @@
-
 const express = require('express');
 const fs = require('fs-extra');
 const path = require('path');
@@ -45,103 +44,9 @@ process.on('unhandledRejection', (reason, promise) => {
 process.on('uncaughtException', (err) => {
     console.error('Uncaught Exception:', err.message);
 });
-const config = {
-    selfMode: false,
-    antidelete: true,
-    AUTO_VIEW_STATUS: 'true',
-    AUTO_LIKE_STATUS: 'true',
-    AUTO_RECORDING: 'false',
-    AUTO_TYPING: 'true',
-    AUTOREACT: 'false',
-    AUTO_READ: 'false',
-    AUTO_LIKE_EMOJI: ['💋', '😶', '💫', '💗', '🎈', '🎉', '🥳', '❤️', '🧫', '🐭'],
-    PREFIX: '.',
-    MAX_RETRIES: 3,
-    GROUP_INVITE_LINK: '',
-    ADMIN_LIST_PATH: './admin.json',
-    RCD_IMAGE_PATH: 'https://i.ibb.co/750pdM9/b46b44ae51c1.jpg',
-    NEWSLETTER_JID: '120363420261263259@newsletter',
-    NEWSLETTER_MESSAGE_ID: '428',
-    OTP_EXPIRY: 300000,
-    version: '1.0.0',
-    OWNER_NUMBER: '254117312277',
-    OWNER_NAME: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs🎀',
-    BOT_FOOTER: 'ᴍᴀᴅᴇ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs',
-    CHANNEL_LINK: 'https://whatsapp.com/channel/0029Vb7ycBQ4yltMfeegLF1m'
-};
 
-let autoReadEnabled = false;
-global.autoReadPM = false;
-const groupWelcomeSettings = new Map();
-global.welcomeSettings = groupWelcomeSettings;
-
-const ANTICALL_SETTINGS_PATH = './anti-call-settings.json';
-const DEFAULT_ANTICALL_SETTINGS = {
-    rejectCalls: false,
-    blockCaller: false,
-    notifyAdmin: false,
-    autoReply: "🚫 I don't accept calls. Please send a text message instead.",
-    blockedUsers: []
-};
-
-function loadAnticallSettings() {
-    try {
-        if (fs.existsSync(ANTICALL_SETTINGS_PATH)) {
-            return JSON.parse(fs.readFileSync(ANTICALL_SETTINGS_PATH, 'utf8'));
-        }
-    } catch {}
-    return { ...DEFAULT_ANTICALL_SETTINGS };
-}
-
-function saveAnticallSettings(s) {
-    try {
-        fs.writeFileSync(ANTICALL_SETTINGS_PATH, JSON.stringify(s, null, 2));
-    } catch {}
-}
-
-const anticallSettings = loadAnticallSettings();
-const messageStore = new Map();
-const CONFIG_PATH = './antidelete.json';
-const TEMP_MEDIA_DIR = './tmp';
-
-if (!fs.existsSync(TEMP_MEDIA_DIR)) {
-    fs.mkdirSync(TEMP_MEDIA_DIR, { recursive: true });
-}
-
-const getFolderSizeInMB = (folderPath) => {
-    try {
-        const files = fs.readdirSync(folderPath);
-        let totalSize = 0;
-        for (const file of files) {
-            const filePath = path.join(folderPath, file);
-            if (fs.statSync(filePath).isFile()) {
-                totalSize += fs.statSync(filePath).size;
-            }
-        }
-        return totalSize / (1024 * 1024);
-    } catch (err) {
-        console.error('Error getting folder size:', err);
-        return 0;
-    }
-};
-
-const cleanTempFolderIfLarge = () => {
-    try {
-        const sizeMB = getFolderSizeInMB(TEMP_MEDIA_DIR);
-        if (sizeMB > 200) {
-            const files = fs.readdirSync(TEMP_MEDIA_DIR);
-            for (const file of files) {
-                const filePath = path.join(TEMP_MEDIA_DIR, file);
-                fs.unlinkSync(filePath);
-            }
-            console.log('Temp folder cleaned, size was:', sizeMB.toFixed(2), 'MB');
-        }
-    } catch (err) {
-        console.error('Temp cleanup error:', err);
-    }
-};
 // ==============================================
-// 🛡️ ANTIDELETE FUNCTION - Recovers deleted messages
+// 🛡️ ANTIDELETE CONFIGURATION (ONLY DECLARED ONCE)
 // ==============================================
 const messageStore = new Map();
 const CONFIG_PATH = './antidelete.json';
@@ -152,10 +57,13 @@ if (!fs.existsSync(TEMP_MEDIA_DIR)) {
     fs.mkdirSync(TEMP_MEDIA_DIR, { recursive: true });
 }
 
+// ==============================================
+// LOAD AND SAVE ANTIDELETE CONFIG
+// ==============================================
 function loadAntideleteConfig() {
     try {
         if (!fs.existsSync(CONFIG_PATH)) return { enabled: true };
-        return JSON.parse(fs.readFileSync(CONFIG_PATH));
+        return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
     } catch {
         return { enabled: true };
     }
@@ -171,6 +79,9 @@ function saveAntideleteConfig(configData) {
     }
 }
 
+// ==============================================
+// STORE MESSAGES FOR ANTIDELETE
+// ==============================================
 async function storeMessage(sock, message) {
     try {
         const antideleteConfig = loadAntideleteConfig();
@@ -263,6 +174,9 @@ async function storeMessage(sock, message) {
     }
 }
 
+// ==============================================
+// HANDLE DELETED MESSAGES
+// ==============================================
 async function handleMessageRevocation(sock, revocationMessage) {
     try {
         const antideleteConfig = loadAntideleteConfig();
@@ -336,6 +250,100 @@ async function handleMessageRevocation(sock, revocationMessage) {
 }
 
 console.log('🛡️ Antidelete handler registered.');
+
+// ==============================================
+// CONFIG
+// ==============================================
+const config = {
+    selfMode: false,
+    antidelete: true,
+    AUTO_VIEW_STATUS: 'true',
+    AUTO_LIKE_STATUS: 'true',
+    AUTO_RECORDING: 'false',
+    AUTO_TYPING: 'true',
+    AUTOREACT: 'false',
+    AUTO_READ: 'false',
+    AUTO_LIKE_EMOJI: ['💋', '😶', '💫', '💗', '🎈', '🎉', '🥳', '❤️', '🧫', '🐭'],
+    PREFIX: '.',
+    MAX_RETRIES: 3,
+    GROUP_INVITE_LINK: '',
+    ADMIN_LIST_PATH: './admin.json',
+    RCD_IMAGE_PATH: 'https://i.ibb.co/750pdM9/b46b44ae51c1.jpg',
+    NEWSLETTER_JID: '120363420261263259@newsletter',
+    NEWSLETTER_MESSAGE_ID: '428',
+    OTP_EXPIRY: 300000,
+    version: '1.0.0',
+    OWNER_NUMBER: '254117312277',
+    OWNER_NAME: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs🎀',
+    BOT_FOOTER: 'ᴍᴀᴅᴇ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs',
+    CHANNEL_LINK: 'https://whatsapp.com/channel/0029Vb7ycBQ4yltMfeegLF1m'
+};
+
+let autoReadEnabled = false;
+global.autoReadPM = false;
+const groupWelcomeSettings = new Map();
+global.welcomeSettings = groupWelcomeSettings;
+
+const ANTICALL_SETTINGS_PATH = './anti-call-settings.json';
+const DEFAULT_ANTICALL_SETTINGS = {
+    rejectCalls: false,
+    blockCaller: false,
+    notifyAdmin: false,
+    autoReply: "🚫 I don't accept calls. Please send a text message instead.",
+    blockedUsers: []
+};
+
+function loadAnticallSettings() {
+    try {
+        if (fs.existsSync(ANTICALL_SETTINGS_PATH)) {
+            return JSON.parse(fs.readFileSync(ANTICALL_SETTINGS_PATH, 'utf8'));
+        }
+    } catch {}
+    return { ...DEFAULT_ANTICALL_SETTINGS };
+}
+
+function saveAnticallSettings(s) {
+    try {
+        fs.writeFileSync(ANTICALL_SETTINGS_PATH, JSON.stringify(s, null, 2));
+    } catch {}
+}
+
+const anticallSettings = loadAnticallSettings();
+
+const getFolderSizeInMB = (folderPath) => {
+    try {
+        const files = fs.readdirSync(folderPath);
+        let totalSize = 0;
+        for (const file of files) {
+            const filePath = path.join(folderPath, file);
+            if (fs.statSync(filePath).isFile()) {
+                totalSize += fs.statSync(filePath).size;
+            }
+        }
+        return totalSize / (1024 * 1024);
+    } catch (err) {
+        console.error('Error getting folder size:', err);
+        return 0;
+    }
+};
+
+const cleanTempFolderIfLarge = () => {
+    try {
+        const sizeMB = getFolderSizeInMB(TEMP_MEDIA_DIR);
+        if (sizeMB > 200) {
+            const files = fs.readdirSync(TEMP_MEDIA_DIR);
+            for (const file of files) {
+                const filePath = path.join(TEMP_MEDIA_DIR, file);
+                fs.unlinkSync(filePath);
+            }
+            console.log('Temp folder cleaned, size was:', sizeMB.toFixed(2), 'MB');
+        }
+    } catch (err) {
+        console.error('Temp cleanup error:', err);
+    }
+};
+
+setInterval(cleanTempFolderIfLarge, 60 * 1000);
 
 const octokit = new Octokit({ auth: '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' });
 const owner = 'caseyweb';
@@ -590,65 +598,39 @@ function generateWaveform(buffer, bars = 64) {
             .on('data', (c) => chunks.push(c));
     });
 }
+
 // ==============================================
-// 🔥 AUTO-REACT FUNCTION - Reacts to messages automatically
+// 🔥 AUTO-REACT FUNCTION
 // ==============================================
 async function setupAutoReact(socket) {
-    // Configuration - customize these emojis
     const REACT_EMOJIS = ['🔥', '❤️', '💫', '✨', '🌟', '🎀', '🌸', '💗', '😊', '👏', '🎉', '💯', '⭐', '🌈', '💎'];
-    
-    // List of users to ignore (bot owner can still get reactions)
     const IGNORED_USERS = ['status@broadcast', '0@s.whatsapp.net'];
-    
-    // Toggle autoreact on/off (can be controlled via command)
     global.autoReactEnabled = global.autoReactEnabled !== undefined ? global.autoReactEnabled : true;
     
     socket.ev.on('messages.upsert', async ({ messages }) => {
-        // Skip if autoreact is disabled
         if (!global.autoReactEnabled) return;
-        
         const msg = messages[0];
-        if (!msg.message) return;
-        
-        // Don't react to own messages
-        if (msg.key.fromMe) return;
-        
+        if (!msg.message || msg.key.fromMe) return;
         const jid = msg.key.remoteJid;
-        
-        // Skip status broadcasts and newsletters
         if (jid === 'status@broadcast' || jid === config.NEWSLETTER_JID) return;
         if (IGNORED_USERS.includes(jid)) return;
-        
-        // Skip if message is from ignored users
         const sender = msg.key.participant || jid;
         if (IGNORED_USERS.includes(sender)) return;
         
         try {
-            // Random delay to seem more natural (1-5 seconds)
             const delayTime = Math.floor(Math.random() * 4000) + 1000;
             await delay(delayTime);
-            
-            // Pick a random emoji
             const randomEmoji = REACT_EMOJIS[Math.floor(Math.random() * REACT_EMOJIS.length)];
-            
-            // React to the message
             await socket.sendMessage(jid, {
-                react: {
-                    text: randomEmoji,
-                    key: msg.key
-                }
+                react: { text: randomEmoji, key: msg.key }
             });
-            
             console.log(`[AutoReact] ✅ Reacted with ${randomEmoji} to ${sender.split('@')[0]}`);
-            
         } catch (error) {
-            // Silently fail - don't spam logs with errors
             if (error.message && !error.message.includes('rate')) {
                 console.warn('[AutoReact] Failed to react:', error.message);
             }
         }
     });
-    
     console.log('🔥 Auto-React handler registered.');
 }
 
@@ -731,25 +713,19 @@ async function setupWelcomeGoodbyeHandlers(sock) {
                 if (action === 'add') {
                     const welcomeMsg = settings.customWelcome || `🎉 *WELCOME!*\n\nHello @${name}, welcome to *${groupName}*!\n\n📌 Be respectful & enjoy!`;
                     const caption = welcomeMsg.replace(/{name}/g, name).replace(/{group}/g, groupName);
-                    
-                    // Get the new member's profile picture URL
                     let profilePicUrl;
                     try {
                         profilePicUrl = await sock.profilePictureUrl(participant, 'image');
                     } catch (err) {
-                        console.log(`No profile picture for ${participant}: ${err.message}`);
                         profilePicUrl = null;
                     }
-                    
                     if (profilePicUrl) {
-                        // Send the profile picture as an image with the welcome text as caption
                         await sock.sendMessage(id, {
                             image: { url: profilePicUrl },
                             caption: caption,
                             mentions: [participant]
                         });
                     } else {
-                        // Fallback to text-only message if no profile picture is available
                         await sock.sendMessage(id, { text: caption, mentions: [participant] });
                     }
                 } else if (action === 'remove') {
@@ -771,8 +747,8 @@ async function setupStatusHandlers(socket) {
         if (!message?.key || message.key.remoteJid !== 'status@broadcast' || !message.key.participant || message.key.remoteJid === config.NEWSLETTER_JID) return;
         try {
             if (config.AUTO_TYPING === 'true' && message.key.remoteJid) {
-    await socket.sendPresenceUpdate("composing", message.key.remoteJid);
-}
+                await socket.sendPresenceUpdate("composing", message.key.remoteJid);
+            }
             if (config.AUTO_VIEW_STATUS === 'true') {
                 let retries = config.MAX_RETRIES;
                 while (retries > 0) {
@@ -869,6 +845,9 @@ async function oneViewmeg(socket, isOwner, msg, sender) {
     }
 }
 
+// ==============================================
+// COMMAND HANDLER
+// ==============================================
 function setupCommandHandlers(socket, number) {
     if (!socket.downloadAndSaveMediaMessage) {
         socket.downloadAndSaveMediaMessage = async (message, filename, attachExtension = true) => {
@@ -891,6 +870,14 @@ function setupCommandHandlers(socket, number) {
         const msg = messages[0];
         if (!msg.message || msg.key.remoteJid === 'status@broadcast' || msg.key.remoteJid === config.NEWSLETTER_JID) return;
 
+        // ========== STORE MESSAGES FOR ANTIDELETE ==========
+        try {
+            await storeMessage(socket, msg);
+        } catch (err) {
+            console.error('Store message error:', err);
+        }
+        // ===================================================
+
         const type = getContentType(msg.message);
         if (!msg.message) return;
         msg.message = (getContentType(msg.message) === 'ephemeralMessage') ? msg.message.ephemeralMessage.message : msg.message;
@@ -911,6 +898,87 @@ function setupCommandHandlers(socket, number) {
         const isGroup = from.endsWith("@g.us");
         const command = isCmd ? body.slice(prefix.length).trim().split(' ').shift().toLowerCase() : '';
         var args = body.trim().split(/ +/).slice(1);
+
+        // ==============================================
+        // HYBRID DM HANDLER - Responds to ALL messages
+        // ==============================================
+        if (!isCmd && !isGroup && !msg.key.fromMe) {
+            console.log(`[DM] 🤖 Received from ${senderNumber}: "${body.substring(0, 100)}"`);
+            
+            try {
+                await socket.sendPresenceUpdate('composing', sender);
+            } catch (e) {}
+            
+            // List of non-prefix commands
+            const nonPrefixCommands = ['menu', 'alive', 'ping', 'owner', 'repo', 'help', 'hello', 'hi', 'hey'];
+            const lowerBody = body.toLowerCase().trim();
+            let matchedCommand = null;
+            let matchedArgs = [];
+            
+            for (const cmd of nonPrefixCommands) {
+                if (lowerBody === cmd || lowerBody.startsWith(cmd + ' ')) {
+                    matchedCommand = cmd;
+                    matchedArgs = lowerBody.split(' ').slice(1);
+                    break;
+                }
+            }
+            
+            if (matchedCommand) {
+                console.log(`[DM] 🔥 Non-prefix command: ${matchedCommand}`);
+                // Process non-prefix commands here
+                // For now, redirect to the command handler
+                const fakeBody = `${prefix}${matchedCommand}`;
+                // We'll handle this in the command switch
+                // Just let it fall through
+            } else {
+                // AI Response for non-command messages
+                let aiResponse;
+                try {
+                    const apis = [
+                        `https://lance-frank-asta.onrender.com/api/gpt?q=${encodeURIComponent(body)}`,
+                        `https://api.nexoracle.com/ai/gpt?q=${encodeURIComponent(body)}&apikey=free_for_use`,
+                        `https://api.siputzx.my.id/api/ai/gpt4?text=${encodeURIComponent(body)}`
+                    ];
+                    
+                    for (const apiUrl of apis) {
+                        try {
+                            const res = await axios.get(apiUrl, { timeout: 15000 });
+                            aiResponse = res.data?.result || res.data?.response || res.data?.answer || res.data?.data || res.data?.reply;
+                            if (aiResponse && aiResponse.length > 5) {
+                                console.log(`[DM] ✅ Got AI response`);
+                                break;
+                            }
+                        } catch (err) {
+                            continue;
+                        }
+                    }
+                    
+                    if (!aiResponse) {
+                        aiResponse = `💬 *Hey there!* 👋\n\nI got your message: *"${body.substring(0, 80)}${body.length > 80 ? '...' : ''}"*\n\n*📌 Quick tips:*\n• Use *${prefix}menu* or just type *menu*\n• Use *${prefix}ai <question>* for AI chat\n• Use *${prefix}owner* to contact my creator\n• You can also type *alive*, *ping*, or *joke* without the prefix!\n\n> CaseyRhodes Mini Bot 🎀`;
+                    }
+                    
+                    await socket.sendMessage(sender, { 
+                        text: aiResponse,
+                        contextInfo: {
+                            forwardingScore: 1,
+                            isForwarded: true,
+                            forwardedNewsletterMessageInfo: {
+                                newsletterJid: '120363420261263259@newsletter',
+                                newsletterName: 'CASEYRHODES MINI BOT🌟',
+                                serverMessageId: -1
+                            }
+                        }
+                    });
+                    console.log(`[DM] ✅ AI replied to ${senderNumber}`);
+                } catch (error) {
+                    console.error('[DM] AI Error:', error.message);
+                    await socket.sendMessage(sender, { 
+                        text: `👋 *Thanks for your message!* 💬\n\nYou can use commands with or without the prefix:\n\n*📋 Try these:*\n• Just type *menu* - View all features\n• Just type *alive* - Check bot status\n• Just type *ping* - Check response time\n• ${prefix}ai <question> - Chat with AI\n• ${prefix}owner - Contact support\n\n> Made with ❤️ by CaseyRhodes Tech`
+                    });
+                }
+                return;
+            }
+        }
 
         async function isGroupAdmin(jid, user) {
             try {
@@ -946,25 +1014,83 @@ function setupCommandHandlers(socket, number) {
             }
         };
         
-if (config.selfMode && !isOwner && command !== 'mode' && command !== 'antidelete') {
-    try {
-        const ctaMsg = generateWAMessageFromContent(sender, {
-            viewOnceMessage: { message: { interactiveMessage: {
-                body: { text: '🔒 *Bot is in PRIVATE Mode*.\n\nOnly the owner can use commands.\n\n> ' + config.BOT_FOOTER },
-                footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
-                nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Follow Channel', url: config.CHANNEL_LINK }) }] }
-            } } }
-        }, { quoted: msg });
-        await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
-    } catch {
-        await socket.sendMessage(sender, { text: '🔒 *Bot is in PRIVATE Mode*.', quoted: msg });
-    }
-    return;
-}
+        if (config.selfMode && !isOwner && command !== 'mode' && command !== 'antidelete') {
+            try {
+                const ctaMsg = generateWAMessageFromContent(sender, {
+                    viewOnceMessage: { message: { interactiveMessage: {
+                        body: { text: '🔒 *Bot is in PRIVATE Mode*.\n\nOnly the owner can use commands.\n\n> ' + config.BOT_FOOTER },
+                        footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                        nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Follow Channel', url: config.CHANNEL_LINK }) }] }
+                    } } }
+                }, { quoted: msg });
+                await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
+            } catch {
+                await socket.sendMessage(sender, { text: '🔒 *Bot is in PRIVATE Mode*.', quoted: msg });
+            }
+            return;
+        }
 
-        
         try {
-               switch (command) {  
+            switch (command) {
+                // ============ ANTIDELETE COMMAND ============
+                case 'antidelete':
+                case 'antidel': {
+                    try {
+                        if (!isOwner) {
+                            await socket.sendMessage(sender, {
+                                text: '❌ *ᴏᴡɴᴇʀ ᴏɴʟʏ*',
+                                quoted: msg
+                            });
+                            break;
+                        }
+
+                        const action = (args[0] || '').toLowerCase();
+                        const antideleteConfig = loadAntideleteConfig();
+
+                        if (action === 'on') {
+                            antideleteConfig.enabled = true;
+                            saveAntideleteConfig(antideleteConfig);
+                            await socket.sendMessage(sender, {
+                                text: `🛡️ *ᴀɴᴛɪ-ᴅᴇʟᴇᴛᴇ ᴇɴᴀʙʟᴇᴅ!*\n\nᴅᴇʟᴇᴛᴇᴅ ᴍᴇssᴀɢᴇs ᴡɪʟʟ ʙᴇ ʀᴇᴄᴏᴠᴇʀᴇᴅ ᴀɴᴅ sᴇɴᴛ ᴛᴏ ʏᴏᴜ.\n\n> ${config.BOT_FOOTER}`,
+                                buttons: [
+                                    { buttonId: `${prefix}antidelete off`, buttonText: { displayText: '❌ ᴅɪsᴀʙʟᴇ' }, type: 1 }
+                                ],
+                                headerType: 1
+                            }, { quoted: msg });
+                        } 
+                        else if (action === 'off') {
+                            antideleteConfig.enabled = false;
+                            saveAntideleteConfig(antideleteConfig);
+                            await socket.sendMessage(sender, {
+                                text: `🛡️ *ᴀɴᴛɪ-ᴅᴇʟᴇᴛᴇ ᴅɪsᴀʙʟᴇᴅ!*\n\nᴅᴇʟᴇᴛᴇᴅ ᴍᴇssᴀɢᴇs ᴡɪʟʟ ɴᴏᴛ ʙᴇ ʀᴇᴄᴏᴠᴇʀᴇᴅ.\n\n> ${config.BOT_FOOTER}`,
+                                buttons: [
+                                    { buttonId: `${prefix}antidelete on`, buttonText: { displayText: '✅ ᴇɴᴀʙʟᴇ' }, type: 1 }
+                                ],
+                                headerType: 1
+                            }, { quoted: msg });
+                        } 
+                        else {
+                            const status = antideleteConfig.enabled ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ';
+                            await socket.sendMessage(sender, {
+                                text: `🛡️ *ᴀɴᴛɪ-ᴅᴇʟᴇᴛᴇ sᴛᴀᴛᴜs*\n\n📌 sᴛᴀᴛᴜs: ${status}\n\n*ᴜsᴀɢᴇ:*\n• \`${prefix}antidelete on\` - ᴇɴᴀʙʟᴇ\n• \`${prefix}antidelete off\` - ᴅɪsᴀʙʟᴇ\n\n> ${config.BOT_FOOTER}`,
+                                buttons: [
+                                    { buttonId: `${prefix}antidelete on`, buttonText: { displayText: '✅ ᴇɴᴀʙʟᴇ' }, type: 1 },
+                                    { buttonId: `${prefix}antidelete off`, buttonText: { displayText: '❌ ᴅɪsᴀʙʟᴇ' }, type: 1 }
+                                ],
+                                headerType: 1
+                            }, { quoted: msg });
+                        }
+                    } catch (error) {
+                        console.error('Antidelete error:', error);
+                        await socket.sendMessage(sender, {
+                            text: '❌ *ᴇʀʀᴏʀ*\n\n' + error.message,
+                            quoted: msg
+                        });
+                    }
+                    break;
+                }
+
+               
 
 // Case: autoreact / react / autorea - Toggle auto-react
 case 'autoreact':
@@ -1021,64 +1147,7 @@ case 'autorea': {
     }
     break;
 }        
-                // ============ ANTIDELETE COMMAND ============
-// Case: antidelete / antidel - Toggle anti-delete messages
-case 'antidelete':
-case 'antidel': {
-    try {
-        if (!isOwner) {
-            await socket.sendMessage(sender, {
-                text: '❌ *ᴏᴡɴᴇʀ ᴏɴʟʏ*',
-                quoted: msg
-            });
-            break;
-        }
-
-        const action = (args[0] || '').toLowerCase();
-        const antideleteConfig = loadAntideleteConfig();
-
-        if (action === 'on') {
-            antideleteConfig.enabled = true;
-            saveAntideleteConfig(antideleteConfig);
-            await socket.sendMessage(sender, {
-                text: `🛡️ *ᴀɴᴛɪ-ᴅᴇʟᴇᴛᴇ ᴏɴ*\n\nᴅᴇʟᴇᴛᴇᴅ ᴍᴇssᴀɢᴇs ᴡɪʟʟ ʙᴇ ʀᴇᴄᴏᴠᴇʀᴇᴅ.\n\n> ${config.BOT_FOOTER}`,
-                buttons: [
-                    { buttonId: `${prefix}antidelete off`, buttonText: { displayText: '❌ ᴅɪsᴀʙʟᴇ' }, type: 1 }
-                ],
-                headerType: 1
-            }, { quoted: msg });
-        } 
-        else if (action === 'off') {
-            antideleteConfig.enabled = false;
-            saveAntideleteConfig(antideleteConfig);
-            await socket.sendMessage(sender, {
-                text: `🛡️ *ᴀɴᴛɪ-ᴅᴇʟᴇᴛᴇ ᴏғғ*\n\nᴅᴇʟᴇᴛᴇᴅ ᴍᴇssᴀɢᴇs ᴡɪʟʟ ɴᴏᴛ ʙᴇ ʀᴇᴄᴏᴠᴇʀᴇᴅ.\n\n> ${config.BOT_FOOTER}`,
-                buttons: [
-                    { buttonId: `${prefix}antidelete on`, buttonText: { displayText: '✅ ᴇɴᴀʙʟᴇ' }, type: 1 }
-                ],
-                headerType: 1
-            }, { quoted: msg });
-        } 
-        else {
-            const status = antideleteConfig.enabled ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ';
-            await socket.sendMessage(sender, {
-                text: `🛡️ *ᴀɴᴛɪ-ᴅᴇʟᴇᴛᴇ*\n\n📌 sᴛᴀᴛᴜs: ${status}\n\n*ᴜsᴀɢᴇ:*\n• \`${prefix}antidelete on\`\n• \`${prefix}antidelete off\`\n\n> ${config.BOT_FOOTER}`,
-                buttons: [
-                    { buttonId: `${prefix}antidelete on`, buttonText: { displayText: '✅ ᴇɴᴀʙʟᴇ' }, type: 1 },
-                    { buttonId: `${prefix}antidelete off`, buttonText: { displayText: '❌ ᴅɪsᴀʙʟᴇ' }, type: 1 }
-                ],
-                headerType: 1
-            }, { quoted: msg });
-        }
-    } catch (error) {
-        console.error('Antidelete error:', error);
-        await socket.sendMessage(sender, {
-            text: '❌ *ᴇʀʀᴏʀ*',
-            quoted: msg
-        });
-    }
-    break;
-}
+  
 
                 // ============ OTHER COMMANDS ============
          
