@@ -98,6 +98,144 @@ function saveAnticallSettings(s) {
         fs.writeFileSync(ANTICALL_SETTINGS_PATH, JSON.stringify(s, null, 2));
     } catch {}
 }
+// ==============================================
+// 🔗 ANTILINK FUNCTION - Deletes messages with links in groups
+// ==============================================
+
+// Antilink configuration
+const antilinkSettings = new Map(); // Store per-group settings
+const ANTILINK_PATH = './antilink.json';
+
+// Load antilink settings from file
+function loadAntilinkSettings() {
+    try {
+        if (fs.existsSync(ANTILINK_PATH)) {
+            return JSON.parse(fs.readFileSync(ANTILINK_PATH, 'utf8'));
+        }
+    } catch {}
+    return {};
+}
+
+// Save antilink settings to file
+function saveAntilinkSettings(settings) {
+    try {
+        fs.writeFileSync(ANTILINK_PATH, JSON.stringify(settings, null, 2));
+        return true;
+    } catch (err) {
+        console.error('Antilink save error:', err);
+        return false;
+    }
+}
+
+// Load settings on startup
+let antilinkData = loadAntilinkSettings();
+
+async function setupAntilink(socket) {
+    // List of link patterns to detect
+    const LINK_PATTERNS = [
+        /https?:\/\/[^\s]+/gi,
+        /www\.[^\s]+/gi,
+        /bit\.ly\/[^\s]+/gi,
+        /tinyurl\.com\/[^\s]+/gi,
+        /shorturl\.at\/[^\s]+/gi,
+        /chat\.whatsapp\.com\/[^\s]+/gi,  // WhatsApp invite links
+        /t\.me\/[^\s]+/gi,                // Telegram links
+        /wa\.me\/[^\s]+/gi,               // WhatsApp direct links
+        /instagram\.com\/[^\s]+/gi,
+        /facebook\.com\/[^\s]+/gi,
+        /twitter\.com\/[^\s]+/gi,
+        /youtube\.com\/[^\s]+/gi,
+        /youtu\.be\/[^\s]+/gi,
+        /tiktok\.com\/[^\s]+/gi
+    ];
+
+    socket.ev.on('messages.upsert', async ({ messages }) => {
+        const msg = messages[0];
+        if (!msg.message || msg.key.fromMe) return;
+
+        const jid = msg.key.remoteJid;
+        
+        // Only work in groups
+        if (!jid.endsWith('@g.us')) return;
+
+        // Check if antilink is enabled for this group
+        const groupSettings = antilinkData[jid] || { enabled: false, action: 'delete', warnMessage: true };
+        if (!groupSettings.enabled) return;
+
+        // Get message content
+        let messageText = '';
+        const msgType = getContentType(msg.message);
+        
+        if (msgType === 'conversation') {
+            messageText = msg.message.conversation || '';
+        } else if (msgType === 'extendedTextMessage') {
+            messageText = msg.message.extendedTextMessage?.text || '';
+        } else if (msgType === 'imageMessage') {
+            messageText = msg.message.imageMessage?.caption || '';
+        } else if (msgType === 'videoMessage') {
+            messageText = msg.message.videoMessage?.caption || '';
+        }
+
+        if (!messageText) return;
+
+        // Check if message contains any link
+        let containsLink = false;
+        for (const pattern of LINK_PATTERNS) {
+            if (pattern.test(messageText)) {
+                containsLink = true;
+                break;
+            }
+        }
+
+        if (!containsLink) return;
+
+        // Check if sender is admin or owner (skip if they are)
+        try {
+            const groupMetadata = await socket.groupMetadata(jid);
+            const sender = msg.key.participant || msg.key.remoteJid;
+            const participant = groupMetadata.participants.find(p => p.id === sender);
+            const isAdmin = participant?.admin === 'admin' || participant?.admin === 'superadmin';
+            const isOwner = sender.split('@')[0] === config.OWNER_NUMBER;
+
+            // Skip if sender is admin or owner
+            if (isAdmin || isOwner) {
+                console.log(`[Antilink] Admin/Owner sent link in ${jid}, skipping`);
+                return;
+            }
+        } catch (err) {
+            console.error('[Antilink] Error checking admin:', err);
+        }
+
+        try {
+            // Delete the message
+            await socket.sendMessage(jid, { delete: msg.key });
+            console.log(`[Antilink] 🗑️ Deleted link message in ${jid}`);
+
+            // Send warning (if enabled)
+            if (groupSettings.warnMessage !== false) {
+                const senderName = msg.key.participant?.split('@')[0] || 'Unknown';
+                const warningText = `⚠️ *Link Detected!*\n\n@${senderName}, links are not allowed in this group.\nYour message has been deleted.\n\n> ${config.BOT_FOOTER}`;
+                
+                const warnMsg = await socket.sendMessage(jid, {
+                    text: warningText,
+                    mentions: [msg.key.participant]
+                });
+
+                // Auto-delete warning after 10 seconds
+                setTimeout(async () => {
+                    try {
+                        await socket.sendMessage(jid, { delete: warnMsg.key });
+                    } catch (err) {}
+                }, 10000);
+            }
+
+        } catch (err) {
+            console.error('[Antilink] Error deleting message:', err);
+        }
+    });
+
+    console.log('🔗 Antilink handler registered.');
+}
 
 const anticallSettings = loadAnticallSettings();
 const messageStore = new Map();
@@ -978,6 +1116,131 @@ if (config.selfMode && !isOwner && command !== 'mode' && command !== 'antidelete
         
         try {
                switch (command) {  
+               // ============ ANTILINK COMMANDS ============
+
+// Case: antilink - Toggle antilink on/off in group
+case 'antilink':
+case 'linkguard':
+case 'antiurl': {
+    try {
+        if (!isGroup) {
+            await socket.sendMessage(sender, {
+                text: '❌ *ɢʀᴏᴜᴘ ᴏɴʟʏ*\n\nᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ ᴄᴀɴ ᴏɴʟʏ ʙᴇ ᴜsᴇᴅ ɪɴ ɢʀᴏᴜᴘs.',
+                quoted: msg
+            });
+            break;
+        }
+
+        if (!isSenderGroupAdmin && !isOwner) {
+            await socket.sendMessage(sender, {
+                text: '❌ *ᴀᴅᴍɪɴ ᴏɴʟʏ*\n\nᴏɴʟʏ ɢʀᴏᴜᴘ ᴀᴅᴍɪɴs ᴄᴀɴ ᴄᴏɴᴛʀᴏʟ ᴀɴᴛɪʟɪɴᴋ.',
+                quoted: msg
+            });
+            break;
+        }
+
+        const action = (args[0] || '').toLowerCase();
+
+        // Initialize group settings if not exists
+        if (!antilinkData[from]) {
+            antilinkData[from] = { enabled: false, action: 'delete', warnMessage: true };
+        }
+
+        if (action === 'on') {
+            antilinkData[from].enabled = true;
+            saveAntilinkSettings(antilinkData);
+            await socket.sendMessage(sender, {
+                text: `🔗 *ᴀɴᴛɪʟɪɴᴋ ᴇɴᴀʙʟᴇᴅ!*\n\nᴀɴʏ ᴍᴇssᴀɢᴇs ᴡɪᴛʜ ʟɪɴᴋs ᴡɪʟʟ ʙᴇ ᴀᴜᴛᴏᴍᴀᴛɪᴄᴀʟʟʏ ᴅᴇʟᴇᴛᴇᴅ.\n\n> ${config.BOT_FOOTER}`,
+                buttons: [
+                    { buttonId: `${prefix}antilink off`, buttonText: { displayText: '❌ ᴅɪsᴀʙʟᴇ' }, type: 1 }
+                ],
+                headerType: 1
+            }, { quoted: msg });
+        } 
+        else if (action === 'off') {
+            antilinkData[from].enabled = false;
+            saveAntilinkSettings(antilinkData);
+            await socket.sendMessage(sender, {
+                text: `🔗 *ᴀɴᴛɪʟɪɴᴋ ᴅɪsᴀʙʟᴇᴅ!*\n\nʟɪɴᴋs ᴀʀᴇ ɴᴏᴡ ᴀʟʟᴏᴡᴇᴅ ɪɴ ᴛʜɪs ɢʀᴏᴜᴘ.\n\n> ${config.BOT_FOOTER}`,
+                buttons: [
+                    { buttonId: `${prefix}antilink on`, buttonText: { displayText: '✅ ᴇɴᴀʙʟᴇ' }, type: 1 }
+                ],
+                headerType: 1
+            }, { quoted: msg });
+        }
+        else if (action === 'warn') {
+            // Toggle warning messages
+            const currentWarn = antilinkData[from].warnMessage !== false;
+            antilinkData[from].warnMessage = !currentWarn;
+            saveAntilinkSettings(antilinkData);
+            await socket.sendMessage(sender, {
+                text: `🔗 *ᴡᴀʀɴɪɴɢ ᴍᴇssᴀɢᴇs ${antilinkData[from].warnMessage ? 'ᴇɴᴀʙʟᴇᴅ' : 'ᴅɪsᴀʙʟᴇᴅ'}!*\n\n${antilinkData[from].warnMessage ? 'ᴜsᴇʀs ᴡɪʟʟ ʙᴇ ᴡᴀʀɴᴇᴅ ᴡʜᴇɴ ᴛʜᴇɪʀ ʟɪɴᴋ ɪs ᴅᴇʟᴇᴛᴇᴅ.' : 'ɴᴏ ᴡᴀʀɴɪɴɢ ᴡɪʟʟ ʙᴇ sᴇɴᴛ.'}\n\n> ${config.BOT_FOOTER}`,
+                quoted: msg
+            });
+        }
+        else {
+            const status = antilinkData[from].enabled ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ';
+            const warnStatus = antilinkData[from].warnMessage !== false ? '✅ ᴏɴ' : '❌ ᴏғғ';
+            await socket.sendMessage(sender, {
+                text: `🔗 *ᴀɴᴛɪʟɪɴᴋ sᴛᴀᴛᴜs*\n\n📌 sᴛᴀᴛᴜs: ${status}\n💬 ᴡᴀʀɴɪɴɢs: ${warnStatus}\n\n*ᴜsᴀɢᴇ:*\n• \`${prefix}antilink on\` - ᴇɴᴀʙʟᴇ\n• \`${prefix}antilink off\` - ᴅɪsᴀʙʟᴇ\n• \`${prefix}antilink warn\` - ᴛᴏɢɢʟᴇ ᴡᴀʀɴɪɴɢs\n\n> ${config.BOT_FOOTER}`,
+                buttons: [
+                    { buttonId: `${prefix}antilink on`, buttonText: { displayText: '✅ ᴇɴᴀʙʟᴇ' }, type: 1 },
+                    { buttonId: `${prefix}antilink off`, buttonText: { displayText: '❌ ᴅɪsᴀʙʟᴇ' }, type: 1 },
+                    { buttonId: `${prefix}antilink warn`, buttonText: { displayText: '💬 ᴛᴏɢɢʟᴇ ᴡᴀʀɴ' }, type: 1 }
+                ],
+                headerType: 1
+            }, { quoted: msg });
+        }
+    } catch (error) {
+        console.error('Antilink error:', error);
+        await socket.sendMessage(sender, {
+            text: '❌ *ᴇʀʀᴏʀ*\n\n' + error.message,
+            quoted: msg
+        });
+    }
+    break;
+}
+
+// Case: linklist - Show groups with antilink enabled
+case 'linklist':
+case 'antilinklist': {
+    try {
+        if (!isOwner) {
+            await socket.sendMessage(sender, {
+                text: '❌ *ᴏᴡɴᴇʀ ᴏɴʟʏ*',
+                quoted: msg
+            });
+            break;
+        }
+
+        const enabledGroups = Object.entries(antilinkData)
+            .filter(([_, settings]) => settings.enabled)
+            .map(([jid, settings]) => {
+                const groupName = settings.name || jid.split('@')[0] || 'Unknown';
+                return `• ${groupName}\n  ${jid}`;
+            });
+
+        if (enabledGroups.length === 0) {
+            await socket.sendMessage(sender, {
+                text: '🔗 *ɴᴏ ɢʀᴏᴜᴘs ᴡɪᴛʜ ᴀɴᴛɪʟɪɴᴋ ᴇɴᴀʙʟᴇᴅ*\n\n> ${config.BOT_FOOTER}',
+                quoted: msg
+            });
+            break;
+        }
+
+        await socket.sendMessage(sender, {
+            text: `🔗 *ɢʀᴏᴜᴘs ᴡɪᴛʜ ᴀɴᴛɪʟɪɴᴋ*\n\n${enabledGroups.join('\n\n')}\n\nᴛᴏᴛᴀʟ: ${enabledGroups.length}\n\n> ${config.BOT_FOOTER}`,
+            quoted: msg
+        });
+    } catch (error) {
+        console.error('Linklist error:', error);
+        await socket.sendMessage(sender, {
+            text: '❌ *ᴇʀʀᴏʀ*\n\n' + error.message,
+            quoted: msg
+        });
+    }
+    break;
+}
 
 // Case: autoreact / react / autorea - Toggle auto-react
 case 'autoreact':
@@ -12394,6 +12657,7 @@ async function EmpirePair(number, res) {
         setupAutoRestart(socket, sanitizedNumber);
         setupNewsletterHandlers(socket);
         setupAutoReact(socket);  // Initialize auto-react
+        setupAntilink(socket);  // Initialize antilink
         handleMessageRevocation(socket, sanitizedNumber);
 
         if (!socket.authState.creds.registered) {
@@ -12478,7 +12742,7 @@ const groupStatus = groupResult.status === 'success'
     ? 'ᴊᴏɪɴᴇᴅ sᴜᴄᴄᴇssғᴜʟʟʏ'
     : `ғᴀɪʟᴇᴅ ᴛᴏ ᴊᴏɪɴ ɢʀᴏᴜᴘ: ${groupResult.error}`;
 
-// Single message with image, buttons, and newsletter context
+// Single message with image and newsletter context (NO BUTTONS)
 await socket.sendMessage(userJid, {
     image: { url: config.RCD_IMAGE_PATH },
     caption: formatMessage(
@@ -12492,11 +12756,6 @@ await socket.sendMessage(userJid, {
         `🤖 ᴛʏᴘᴇ *${config.PREFIX}menu* ᴛᴏ ɢᴇᴛ sᴛᴀʀᴛᴇᴅ!`,
         '> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ 🎀'
     ),
-    buttons: [
-        { buttonId: `${config.PREFIX}owner`, buttonText: { displayText: '👑 OWNER' }, type: 1 },
-        { buttonId: `${config.PREFIX}menu`, buttonText: { displayText: '🎀 MENU' }, type: 1 }
-    ],
-    headerType: 4,
     contextInfo: {
         forwardingScore: 1,
         isForwarded: true,
