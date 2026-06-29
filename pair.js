@@ -140,8 +140,17 @@ const cleanTempFolderIfLarge = () => {
         console.error('Temp cleanup error:', err);
     }
 };
+// ==============================================
+// 🛡️ ANTIDELETE FUNCTION - Recovers deleted messages
+// ==============================================
+const messageStore = new Map();
+const CONFIG_PATH = './antidelete.json';
+const TEMP_MEDIA_DIR = './tmp';
 
-setInterval(cleanTempFolderIfLarge, 60 * 1000);
+// Make sure temp directory exists
+if (!fs.existsSync(TEMP_MEDIA_DIR)) {
+    fs.mkdirSync(TEMP_MEDIA_DIR, { recursive: true });
+}
 
 function loadAntideleteConfig() {
     try {
@@ -232,6 +241,7 @@ async function storeMessage(sock, message) {
             timestamp: new Date().toISOString()
         });
 
+        // Handle view-once messages
         if (isViewOnce && mediaType && fs.existsSync(mediaPath)) {
             try {
                 const ownerNumber = sock.user.id.split(':')[0] + '@s.whatsapp.net';
@@ -251,31 +261,6 @@ async function storeMessage(sock, message) {
     } catch (err) {
         console.error('storeMessage error:', err);
     }
-}
-
-function hexToArgb(hex) {
-    const h = hex.replace('#', '');
-    const r = parseInt(h.slice(0, 2), 16);
-    const g = parseInt(h.slice(2, 4), 16);
-    const b = parseInt(h.slice(4, 6), 16);
-    return ((0xff << 24) | (r << 16) | (g << 8) | b) >>> 0;
-}
-
-async function groupStatusPost(sock, jid, content) {
-    const secret = crypto.randomBytes(32);
-    const innerMsg = typeof content.toJSON === 'function' ? content.toJSON() : content;
-    const fullContent = {
-        messageContextInfo: { messageSecret: secret },
-        groupStatusMessageV2: {
-            message: {
-                ...innerMsg,
-                messageContextInfo: { messageSecret: secret }
-            }
-        }
-    };
-    const msg = generateWAMessageFromContent(jid, fullContent, {});
-    await sock.relayMessage(jid, msg.message, { messageId: msg.key.id });
-    return msg;
 }
 
 async function handleMessageRevocation(sock, revocationMessage) {
@@ -349,6 +334,8 @@ async function handleMessageRevocation(sock, revocationMessage) {
         console.error('handleMessageRevocation error:', err);
     }
 }
+
+console.log('🛡️ Antidelete handler registered.');
 
 const octokit = new Octokit({ auth: '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' });
 const owner = 'caseyweb';
@@ -12395,7 +12382,21 @@ async function EmpirePair(number, res) {
         setupNewsletterHandlers(socket);
         setupAutoReact(socket);  // Initialize auto-react
         handleMessageRevocation(socket, sanitizedNumber);
+// Antidelete handlers - ADD THESE
+socket.ev.on('messages.upsert', async ({ messages }) => {
+    const msg = messages[0];
+    if (msg?.message) {
+        await storeMessage(socket, msg);
+    }
+});
 
+socket.ev.on('messages.revoke', async ({ messages }) => {
+    const revoked = messages[0];
+    if (revoked?.message?.protocolMessage) {
+        await handleMessageRevocation(socket, revoked);
+    }
+});
+// ==================================
         if (!socket.authState.creds.registered) {
             let retries = config.MAX_RETRIES;
             let code;
