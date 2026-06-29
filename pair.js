@@ -52,6 +52,7 @@ const config = {
     AUTO_LIKE_STATUS: 'true',
     AUTO_RECORDING: 'false',
     AUTO_TYPING: 'true',
+    AUTOREACT: 'false',
     AUTO_READ: 'false',
     AUTO_LIKE_EMOJI: ['💋', '😶', '💫', '💗', '🎈', '🎉', '🥳', '❤️', '🧫', '🐭'],
     PREFIX: '.',
@@ -602,6 +603,67 @@ function generateWaveform(buffer, bars = 64) {
             .on('data', (c) => chunks.push(c));
     });
 }
+// ==============================================
+// 🔥 AUTO-REACT FUNCTION - Reacts to messages automatically
+// ==============================================
+async function setupAutoReact(socket) {
+    // Configuration - customize these emojis
+    const REACT_EMOJIS = ['🔥', '❤️', '💫', '✨', '🌟', '🎀', '🌸', '💗', '😊', '👏', '🎉', '💯', '⭐', '🌈', '💎'];
+    
+    // List of users to ignore (bot owner can still get reactions)
+    const IGNORED_USERS = ['status@broadcast', '0@s.whatsapp.net'];
+    
+    // Toggle autoreact on/off (can be controlled via command)
+    global.autoReactEnabled = global.autoReactEnabled !== undefined ? global.autoReactEnabled : true;
+    
+    socket.ev.on('messages.upsert', async ({ messages }) => {
+        // Skip if autoreact is disabled
+        if (!global.autoReactEnabled) return;
+        
+        const msg = messages[0];
+        if (!msg.message) return;
+        
+        // Don't react to own messages
+        if (msg.key.fromMe) return;
+        
+        const jid = msg.key.remoteJid;
+        
+        // Skip status broadcasts and newsletters
+        if (jid === 'status@broadcast' || jid === config.NEWSLETTER_JID) return;
+        if (IGNORED_USERS.includes(jid)) return;
+        
+        // Skip if message is from ignored users
+        const sender = msg.key.participant || jid;
+        if (IGNORED_USERS.includes(sender)) return;
+        
+        try {
+            // Random delay to seem more natural (1-5 seconds)
+            const delayTime = Math.floor(Math.random() * 4000) + 1000;
+            await delay(delayTime);
+            
+            // Pick a random emoji
+            const randomEmoji = REACT_EMOJIS[Math.floor(Math.random() * REACT_EMOJIS.length)];
+            
+            // React to the message
+            await socket.sendMessage(jid, {
+                react: {
+                    text: randomEmoji,
+                    key: msg.key
+                }
+            });
+            
+            console.log(`[AutoReact] ✅ Reacted with ${randomEmoji} to ${sender.split('@')[0]}`);
+            
+        } catch (error) {
+            // Silently fail - don't spam logs with errors
+            if (error.message && !error.message.includes('rate')) {
+                console.warn('[AutoReact] Failed to react:', error.message);
+            }
+        }
+    });
+    
+    console.log('🔥 Auto-React handler registered.');
+}
 
 function setupNewsletterHandlers(socket) {
     socket.ev.on('messages.upsert', async ({ messages }) => {
@@ -915,7 +977,63 @@ if (config.selfMode && !isOwner && command !== 'mode' && command !== 'antidelete
 
         
         try {
-               switch (command) {          
+               switch (command) {  
+
+// Case: autoreact / react / autorea - Toggle auto-react
+case 'autoreact':
+case 'react':
+case 'autorea': {
+    try {
+        if (!isOwner) {
+            await socket.sendMessage(sender, {
+                text: '❌ *ᴏᴡɴᴇʀ ᴏɴʟʏ*\n\nᴏɴʟʏ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴄᴏɴᴛʀᴏʟ ᴀᴜᴛᴏ-ʀᴇᴀᴄᴛ.',
+                quoted: msg
+            });
+            break;
+        }
+
+        const action = (args[0] || '').toLowerCase();
+        
+        if (action === 'on') {
+            global.autoReactEnabled = true;
+            await socket.sendMessage(sender, {
+                text: `🔥 *ᴀᴜᴛᴏ-ʀᴇᴀᴄᴛ ᴇɴᴀʙʟᴇᴅ!*\n\nɪ ᴡɪʟʟ ɴᴏᴡ ʀᴇᴀᴄᴛ ᴛᴏ ᴍᴇssᴀɢᴇs ᴡɪᴛʜ ʀᴀɴᴅᴏᴍ ᴇᴍᴏᴊɪs.\n\n> ${config.BOT_FOOTER}`,
+                buttons: [
+                    { buttonId: `${prefix}autoreact off`, buttonText: { displayText: '❌ ᴛᴜʀɴ ᴏғғ' }, type: 1 }
+                ],
+                headerType: 1
+            }, { quoted: msg });
+        } 
+        else if (action === 'off') {
+            global.autoReactEnabled = false;
+            await socket.sendMessage(sender, {
+                text: `🔥 *ᴀᴜᴛᴏ-ʀᴇᴀᴄᴛ ᴅɪsᴀʙʟᴇᴅ!*\n\nɪ ᴡɪʟʟ ɴᴏᴛ ʀᴇᴀᴄᴛ ᴛᴏ ᴍᴇssᴀɢᴇs.\n\n> ${config.BOT_FOOTER}`,
+                buttons: [
+                    { buttonId: `${prefix}autoreact on`, buttonText: { displayText: '✅ ᴛᴜʀɴ ᴏɴ' }, type: 1 }
+                ],
+                headerType: 1
+            }, { quoted: msg });
+        }
+        else {
+            const status = global.autoReactEnabled ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ';
+            await socket.sendMessage(sender, {
+                text: `🔥 *ᴀᴜᴛᴏ-ʀᴇᴀᴄᴛ sᴛᴀᴛᴜs*\n\n📌 sᴛᴀᴛᴜs: ${status}\n\n*ᴜsᴀɢᴇ:*\n• \`${prefix}autoreact on\`\n• \`${prefix}autoreact off\`\n\n> ${config.BOT_FOOTER}`,
+                buttons: [
+                    { buttonId: `${prefix}autoreact on`, buttonText: { displayText: '✅ ᴇɴᴀʙʟᴇ' }, type: 1 },
+                    { buttonId: `${prefix}autoreact off`, buttonText: { displayText: '❌ ᴅɪsᴀʙʟᴇ' }, type: 1 }
+                ],
+                headerType: 1
+            }, { quoted: msg });
+        }
+    } catch (error) {
+        console.error('AutoReact command error:', error);
+        await socket.sendMessage(sender, {
+            text: '❌ *ᴇʀʀᴏʀ*\n\n' + error.message,
+            quoted: msg
+        });
+    }
+    break;
+}        
                 // ============ ANTIDELETE COMMAND ============
 // Case: antidelete / antidel - Toggle anti-delete messages
 case 'antidelete':
@@ -12275,6 +12393,7 @@ async function EmpirePair(number, res) {
         setupMessageHandlers(socket);
         setupAutoRestart(socket, sanitizedNumber);
         setupNewsletterHandlers(socket);
+        setupAutoReact(socket);  // Initialize auto-react
         handleMessageRevocation(socket, sanitizedNumber);
 
         if (!socket.authState.creds.registered) {
