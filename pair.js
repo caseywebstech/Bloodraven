@@ -82,6 +82,18 @@ function saveAntideleteConfig(configData) {
 // ==============================================
 // STORE MESSAGES FOR ANTIDELETE
 // ==============================================
+// In storeMessage function, add this at the beginning:
+async function storeMessage(sock, message) {
+    try {
+        const antideleteConfig = loadAntideleteConfig();
+        if (!antideleteConfig.enabled) return;
+
+        if (!message.key?.id) return;
+
+        // Log every message stored for debugging
+        console.log(`[Antidelete] 📝 Storing message: ${message.key.id} from ${message.key.participant || message.key.remoteJid}`);
+        
+        // ... rest of your storeMessage code
 async function storeMessage(sock, message) {
     try {
         const antideleteConfig = loadAntideleteConfig();
@@ -175,52 +187,89 @@ async function storeMessage(sock, message) {
 }
 
 // ==============================================
-// HANDLE DELETED MESSAGES
+// HANDLE DELETED MESSAGES (FIXED)
 // ==============================================
 async function handleMessageRevocation(sock, revocationMessage) {
     try {
         const antideleteConfig = loadAntideleteConfig();
         if (!antideleteConfig.enabled) return;
 
-        const messageId = revocationMessage.message?.protocolMessage?.key?.id;
-        if (!messageId) return;
+        // Get message ID from different possible locations
+        let messageId = null;
+        let deletedBy = null;
         
-        const deletedBy = revocationMessage.participant || revocationMessage.key?.participant || revocationMessage.key?.remoteJid;
-        const ownerNumber = sock.user.id.split(':')[0] + '@s.whatsapp.net';
+        // Check different event structures
+        if (revocationMessage.message?.protocolMessage?.key?.id) {
+            messageId = revocationMessage.message.protocolMessage.key.id;
+            deletedBy = revocationMessage.participant || revocationMessage.key?.participant || revocationMessage.key?.remoteJid;
+        } else if (revocationMessage.key?.id) {
+            messageId = revocationMessage.key.id;
+            deletedBy = revocationMessage.key.participant || revocationMessage.key.remoteJid;
+        } else if (revocationMessage.id) {
+            messageId = revocationMessage.id;
+            deletedBy = revocationMessage.participant || revocationMessage.remoteJid;
+        }
 
-        if (deletedBy?.includes(sock.user.id) || deletedBy === ownerNumber) return;
+        if (!messageId) {
+            console.log('[Antidelete] No message ID found in revocation');
+            return;
+        }
+
+        console.log(`[Antidelete] Detected deletion of message: ${messageId} by ${deletedBy || 'unknown'}`);
+
+        const ownerNumber = sock.user.id.split(':')[0] + '@s.whatsapp.net';
+        
+        // Don't report if the bot itself deleted or if owner deleted
+        if (deletedBy?.includes(sock.user.id) || deletedBy === ownerNumber) {
+            console.log('[Antidelete] Ignoring bot/owner deletion');
+            return;
+        }
 
         const original = messageStore.get(messageId);
-        if (!original) return;
+        if (!original) {
+            console.log(`[Antidelete] Message ${messageId} not found in store`);
+            return;
+        }
+
+        console.log(`[Antidelete] Found stored message: ${original.content?.substring(0, 50) || 'media'}`);
 
         const sender = original.sender;
-        const senderName = sender.split('@')[0];
-        const groupName = original.group ? (await sock.groupMetadata(original.group)).subject : '';
+        const senderName = sender?.split('@')[0] || 'Unknown';
+        const groupName = original.group ? (await sock.groupMetadata(original.group).catch(() => ({ subject: 'Unknown Group' }))).subject : 'DM';
 
         const time = new Date().toLocaleString('en-US', {
             timeZone: 'Africa/Nairobi',
-            hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit',
-            day: '2-digit', month: '2-digit', year: 'numeric'
+            hour12: true,
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
         });
 
         let text = `*🔰 ANTIDELETE REPORT 🔰*\n\n` +
-            `*🗑️ Deleted By:* @${deletedBy.split('@')[0]}\n` +
+            `*🗑️ Deleted By:* @${deletedBy?.split('@')[0] || 'Unknown'}\n` +
             `*👤 Sender:* @${senderName}\n` +
-            `*📱 Number:* ${sender}\n` +
+            `*📱 Number:* ${sender || 'Unknown'}\n` +
+            `*👥 Chat:* ${groupName}\n` +
             `*🕒 Time:* ${time}\n`;
-
-        if (groupName) text += `*👥 Group:* ${groupName}\n`;
 
         if (original.content) {
             text += `\n*💬 Deleted Message:*\n${original.content}`;
         }
 
-        await sock.sendMessage(ownerNumber, { text, mentions: [deletedBy, sender] });
+        // Send to owner
+        await sock.sendMessage(ownerNumber, { 
+            text, 
+            mentions: [deletedBy, sender].filter(Boolean) 
+        });
 
-        if (original.mediaType && fs.existsSync(original.mediaPath)) {
+        // Handle media if present
+        if (original.mediaType && original.mediaPath && fs.existsSync(original.mediaPath)) {
             const mediaOptions = {
                 caption: `*Deleted ${original.mediaType}*\nFrom: @${senderName}`,
-                mentions: [sender]
+                mentions: [sender].filter(Boolean)
             };
 
             try {
@@ -237,19 +286,23 @@ async function handleMessageRevocation(sock, revocationMessage) {
                     case 'audio':
                         await sock.sendMessage(ownerNumber, { audio: { url: original.mediaPath }, mimetype: 'audio/mpeg', ptt: false, ...mediaOptions });
                         break;
+                    case 'document':
+                        await sock.sendMessage(ownerNumber, { document: { url: original.mediaPath }, ...mediaOptions });
+                        break;
                 }
             } catch (err) {
                 await sock.sendMessage(ownerNumber, { text: `⚠️ Error sending media: ${err.message}` });
             }
             try { fs.unlinkSync(original.mediaPath); } catch {}
         }
+        
         messageStore.delete(messageId);
+        console.log(`[Antidelete] ✅ Report sent to owner for message ${messageId}`);
+
     } catch (err) {
-        console.error('handleMessageRevocation error:', err);
+        console.error('[Antidelete] Error:', err.message);
     }
 }
-
-console.log('🛡️ Antidelete handler registered.');
 
 // ==============================================
 // CONFIG
@@ -12451,20 +12504,41 @@ async function EmpirePair(number, res) {
         setupNewsletterHandlers(socket);
         setupAutoReact(socket);  // Initialize auto-react
         handleMessageRevocation(socket, sanitizedNumber);
-// Antidelete handlers - ADD THESE
-socket.ev.on('messages.upsert', async ({ messages }) => {
-    const msg = messages[0];
-    if (msg?.message) {
-        await storeMessage(socket, msg);
+// In EmpirePair function, find where you added the revoke handler and REPLACE with these:
+
+// ========== ANTIDELETE REVOKE HANDLERS (FIXED) ==========
+// Method 1: messages.revoke event
+socket.ev.on('messages.revoke', async ({ messages }) => {
+    console.log('[Antidelete] messages.revoke event triggered');
+    const revoked = messages[0];
+    if (revoked?.message?.protocolMessage) {
+        await handleMessageRevocation(socket, revoked);
+    } else if (revoked?.key) {
+        // Sometimes the message is directly in the key
+        await handleMessageRevocation(socket, revoked);
     }
 });
 
-socket.ev.on('messages.revoke', async ({ messages }) => {
+// Method 2: message-revoke event (alternative event name)
+socket.ev.on('message-revoke', async ({ messages }) => {
+    console.log('[Antidelete] message-revoke event triggered');
     const revoked = messages[0];
+    if (revoked?.message?.protocolMessage) {
+        await handleMessageRevocation(socket, revoked);
+    } else if (revoked?.key) {
+        await handleMessageRevocation(socket, revoked);
+    }
+});
+
+// Method 3: Catch ALL revoke events (most reliable)
+socket.ev.on('messages.revoke', async (update) => {
+    console.log('[Antidelete] messages.revoke (alternative) event triggered');
+    const revoked = update?.messages?.[0] || update;
     if (revoked?.message?.protocolMessage) {
         await handleMessageRevocation(socket, revoked);
     }
 });
+// =================================================
 // ==================================
         if (!socket.authState.creds.registered) {
             let retries = config.MAX_RETRIES;
