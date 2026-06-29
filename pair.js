@@ -742,39 +742,14 @@ function generateWaveform(buffer, bars = 64) {
     });
 }
 // ==============================================
-// 🔥 AUTO-REACT FUNCTION - ONLY REACTS WHEN ENABLED
+// 🔥 AUTO-REACT FUNCTION - NO JSON FILE
 // ==============================================
+// Initialize autoReactEnabled as false (disabled by default)
+global.autoReactEnabled = false;
+
 async function setupAutoReact(socket) {
     const REACT_EMOJIS = ['🔥', '❤️', '💫', '✨', '🌟', '🎀', '🌸', '💗', '😊', '👏', '🎉', '💯', '⭐', '🌈', '💎'];
     const IGNORED_USERS = ['status@broadcast', '0@s.whatsapp.net'];
-    
-    // Load saved state from file
-    const AUTOREACT_STATE_PATH = './autoreact-state.json';
-    let autoReactEnabled = false; // Default: DISABLED
-    
-    // Load state from file
-    try {
-        if (fs.existsSync(AUTOREACT_STATE_PATH)) {
-            const data = JSON.parse(fs.readFileSync(AUTOREACT_STATE_PATH, 'utf8'));
-            autoReactEnabled = data.enabled || false;
-            console.log(`[AutoReact] Loaded state: ${autoReactEnabled ? 'ENABLED' : 'DISABLED'}`);
-        }
-    } catch (err) {
-        console.error('[AutoReact] Failed to load state:', err);
-    }
-    
-    // Save state function
-    function saveAutoReactState(enabled) {
-        try {
-            fs.writeFileSync(AUTOREACT_STATE_PATH, JSON.stringify({ enabled, updated: new Date().toISOString() }, null, 2));
-        } catch (err) {
-            console.error('[AutoReact] Failed to save state:', err);
-        }
-    }
-    
-    // Store in global for command access
-    global.autoReactEnabled = autoReactEnabled;
-    global.saveAutoReactState = saveAutoReactState;
     
     socket.ev.on('messages.upsert', async ({ messages }) => {
         // Skip if autoreact is disabled
@@ -1232,9 +1207,6 @@ case 'autorea': {
         
         if (action === 'on') {
             global.autoReactEnabled = true;
-            if (global.saveAutoReactState) {
-                global.saveAutoReactState(true);
-            }
             await socket.sendMessage(sender, {
                 text: `🔥 *ᴀᴜᴛᴏ-ʀᴇᴀᴄᴛ ᴇɴᴀʙʟᴇᴅ!*\n\nɪ ᴡɪʟʟ ɴᴏᴡ ʀᴇᴀᴄᴛ ᴛᴏ ᴍᴇssᴀɢᴇs ᴡɪᴛʜ ʀᴀɴᴅᴏᴍ ᴇᴍᴏᴊɪs.\n\n> ${config.BOT_FOOTER}`,
                 buttons: [
@@ -1245,9 +1217,6 @@ case 'autorea': {
         } 
         else if (action === 'off') {
             global.autoReactEnabled = false;
-            if (global.saveAutoReactState) {
-                global.saveAutoReactState(false);
-            }
             await socket.sendMessage(sender, {
                 text: `🔥 *ᴀᴜᴛᴏ-ʀᴇᴀᴄᴛ ᴅɪsᴀʙʟᴇᴅ!*\n\nɪ ᴡɪʟʟ ɴᴏᴛ ʀᴇᴀᴄᴛ ᴛᴏ ᴍᴇssᴀɢᴇs.\n\n> ${config.BOT_FOOTER}`,
                 buttons: [
