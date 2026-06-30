@@ -802,6 +802,8 @@ async function setupAutoReact(socket) {
     
     console.log('🔥 Auto-React handler registered.');
 }
+
+
 function initAntiCallHandler(sock) {
     const ownerJid = config.OWNER_NUMBER + '@s.whatsapp.net';
     sock.ev.on('call', async (calls) => {
@@ -1210,7 +1212,8 @@ case 'antilinklist': {
     break;
 }
 
-// ============ AUTOREACT COMMAND ============
+// ==============================================
+// AUTO-REACT COMMAND - Toggle autoreact on/off
 case 'autoreact':
 case 'react':
 case 'autorea': {
@@ -1248,7 +1251,7 @@ case 'autorea': {
         else {
             const status = global.autoReactEnabled ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ';
             await socket.sendMessage(sender, {
-                text: `🔥 *ᴀᴜᴛᴏ-ʀᴇᴀᴄᴛ sᴛᴀᴛᴜs*\n\n📌 sᴛᴀᴛᴜs: ${status}\n\n*ᴜsᴀɢᴇ:*\n• \`${prefix}autoreact on\` - ᴇɴᴀʙʟᴇ\n• \`${prefix}autoreact off\` - ᴅɪsᴀʙʟᴇ\n\n> ${config.BOT_FOOTER}`,
+                text: `🔥 *ᴀᴜᴛᴏ-ʀᴇᴀᴄᴛ sᴛᴀᴛᴜs*\n\n📌 sᴛᴀᴛᴜs: ${status}\n\n*ᴜsᴀɢᴇ:*\n• \`${prefix}autoreact on\`\n• \`${prefix}autoreact off\`\n\n> ${config.BOT_FOOTER}`,
                 buttons: [
                     { buttonId: `${prefix}autoreact on`, buttonText: { displayText: '✅ ᴇɴᴀʙʟᴇ' }, type: 1 },
                     { buttonId: `${prefix}autoreact off`, buttonText: { displayText: '❌ ᴅɪsᴀʙʟᴇ' }, type: 1 }
