@@ -753,7 +753,7 @@ async function setupAutoReact(socket) {
     const IGNORED_USERS = ['status@broadcast', '0@s.whatsapp.net'];
     
     // Toggle autoreact on/off (can be controlled via command)
-    global.autoReactEnabled = global.autoReactEnabled !== undefined ? global.autoReactEnabled : true;
+    global.autoReactEnabled = global.autoReactEnabled !== undefined ? global.autoReactEnabled : false;
     
     socket.ev.on('messages.upsert', async ({ messages }) => {
         // Skip if autoreact is disabled
