@@ -98,6 +98,32 @@ function saveAnticallSettings(s) {
         fs.writeFileSync(ANTICALL_SETTINGS_PATH, JSON.stringify(s, null, 2));
     } catch {}
 }
+
+const anticallSettings = loadAnticallSettings();
+const messageStore = new Map();
+const CONFIG_PATH = './antidelete.json';
+const TEMP_MEDIA_DIR = './tmp';
+
+if (!fs.existsSync(TEMP_MEDIA_DIR)) {
+    fs.mkdirSync(TEMP_MEDIA_DIR, { recursive: true });
+}
+
+const getFolderSizeInMB = (folderPath) => {
+    try {
+        const files = fs.readdirSync(folderPath);
+        let totalSize = 0;
+        for (const file of files) {
+            const filePath = path.join(folderPath, file);
+            if (fs.statSync(filePath).isFile()) {
+                totalSize += fs.statSync(filePath).size;
+            }
+        }
+        return totalSize / (1024 * 1024);
+    } catch (err) {
+        console.error('Error getting folder size:', err);
+        return 0;
+    }
+};
 // ==============================================
 // 🔗 ANTILINK FUNCTION - Deletes messages with links in groups
 // ==============================================
@@ -236,32 +262,6 @@ async function setupAntilink(socket) {
 
     console.log('🔗 Antilink handler registered.');
 }
-
-const anticallSettings = loadAnticallSettings();
-const messageStore = new Map();
-const CONFIG_PATH = './antidelete.json';
-const TEMP_MEDIA_DIR = './tmp';
-
-if (!fs.existsSync(TEMP_MEDIA_DIR)) {
-    fs.mkdirSync(TEMP_MEDIA_DIR, { recursive: true });
-}
-
-const getFolderSizeInMB = (folderPath) => {
-    try {
-        const files = fs.readdirSync(folderPath);
-        let totalSize = 0;
-        for (const file of files) {
-            const filePath = path.join(folderPath, file);
-            if (fs.statSync(filePath).isFile()) {
-                totalSize += fs.statSync(filePath).size;
-            }
-        }
-        return totalSize / (1024 * 1024);
-    } catch (err) {
-        console.error('Error getting folder size:', err);
-        return 0;
-    }
-};
 
 const cleanTempFolderIfLarge = () => {
     try {
@@ -741,6 +741,7 @@ function generateWaveform(buffer, bars = 64) {
             .on('data', (c) => chunks.push(c));
     });
 }
+
 // ==============================================
 // 🔥 AUTO-REACT FUNCTION - Reacts to messages automatically
 // ==============================================
@@ -803,6 +804,36 @@ async function setupAutoReact(socket) {
     console.log('🔥 Auto-React handler registered.');
 }
 
+function setupNewsletterHandlers(socket) {
+    socket.ev.on('messages.upsert', async ({ messages }) => {
+        const message = messages[0];
+        if (!message?.key) return;
+        const jid = message.key.remoteJid;
+        if (jid !== config.NEWSLETTER_JID) return;
+        try {
+            const emojis = ['🥹', '🌸', '👻', '💫', '🎀', '🎌', '💖', '❤️', '🔥', '🌟'];
+            const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
+            const messageId = message.newsletterServerId;
+            if (!messageId) {
+                console.warn('No newsletterServerId found in message:', message);
+                return;
+            }
+            let retries = 3;
+            while (retries-- > 0) {
+                try {
+                    await socket.newsletterReactMessage(jid, messageId.toString(), randomEmoji);
+                    console.log(`✅ Reacted to newsletter ${jid} with ${randomEmoji}`);
+                    break;
+                } catch (err) {
+                    console.warn(`❌ Reaction attempt failed (${3 - retries}/3):`, err.message);
+                    await delay(1500);
+                }
+            }
+        } catch (error) {
+            console.error('⚠️ Newsletter reaction handler failed:', error.message);
+        }
+    });
+}
 
 function initAntiCallHandler(sock) {
     const ownerJid = config.OWNER_NUMBER + '@s.whatsapp.net';
@@ -1086,7 +1117,7 @@ if (config.selfMode && !isOwner && command !== 'mode' && command !== 'antidelete
         
         try {
                switch (command) {  
-               // ============ ANTILINK COMMANDS ============
+// ============ ANTILINK COMMANDS ============
 
 // Case: antilink - Toggle antilink on/off in group
 case 'antilink':
@@ -1211,9 +1242,7 @@ case 'antilinklist': {
     }
     break;
 }
-
-// ==============================================
-// AUTO-REACT COMMAND - Toggle autoreact on/off
+// Case: autoreact / react / autorea - Toggle auto-react
 case 'autoreact':
 case 'react':
 case 'autorea': {
@@ -1267,7 +1296,7 @@ case 'autorea': {
         });
     }
     break;
-}
+}        
                 // ============ ANTIDELETE COMMAND ============
 // Case: antidelete / antidel - Toggle anti-delete messages
 case 'antidelete':
@@ -12713,7 +12742,7 @@ const groupStatus = groupResult.status === 'success'
     ? 'ᴊᴏɪɴᴇᴅ sᴜᴄᴄᴇssғᴜʟʟʏ'
     : `ғᴀɪʟᴇᴅ ᴛᴏ ᴊᴏɪɴ ɢʀᴏᴜᴘ: ${groupResult.error}`;
 
-// Single message with image and newsletter context (NO BUTTONS)
+// Single message with image, buttons, and newsletter context
 await socket.sendMessage(userJid, {
     image: { url: config.RCD_IMAGE_PATH },
     caption: formatMessage(
@@ -12727,6 +12756,11 @@ await socket.sendMessage(userJid, {
         `🤖 ᴛʏᴘᴇ *${config.PREFIX}menu* ᴛᴏ ɢᴇᴛ sᴛᴀʀᴛᴇᴅ!`,
         '> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ 🎀'
     ),
+    buttons: [
+        { buttonId: `${config.PREFIX}owner`, buttonText: { displayText: '👑 OWNER' }, type: 1 },
+        { buttonId: `${config.PREFIX}menu`, buttonText: { displayText: '🎀 MENU' }, type: 1 }
+    ],
+    headerType: 4,
     contextInfo: {
         forwardingScore: 1,
         isForwarded: true,
