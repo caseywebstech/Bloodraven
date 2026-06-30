@@ -742,45 +742,65 @@ function generateWaveform(buffer, bars = 64) {
     });
 }
 // ==============================================
-// 🔥 AUTO-REACT FUNCTION - NO JSON FILE
+// 🔥 AUTO-REACT FUNCTION - Reacts to messages automatically
 // ==============================================
-// Initialize autoReactEnabled as false (disabled by default)
-global.autoReactEnabled = false;
-
 async function setupAutoReact(socket) {
+    // Configuration - customize these emojis
     const REACT_EMOJIS = ['🔥', '❤️', '💫', '✨', '🌟', '🎀', '🌸', '💗', '😊', '👏', '🎉', '💯', '⭐', '🌈', '💎'];
+    
+    // List of users to ignore (bot owner can still get reactions)
     const IGNORED_USERS = ['status@broadcast', '0@s.whatsapp.net'];
+    
+    // Toggle autoreact on/off (can be controlled via command)
+    global.autoReactEnabled = global.autoReactEnabled !== undefined ? global.autoReactEnabled : true;
     
     socket.ev.on('messages.upsert', async ({ messages }) => {
         // Skip if autoreact is disabled
         if (!global.autoReactEnabled) return;
         
         const msg = messages[0];
-        if (!msg.message || msg.key.fromMe) return;
+        if (!msg.message) return;
+        
+        // Don't react to own messages
+        if (msg.key.fromMe) return;
         
         const jid = msg.key.remoteJid;
+        
+        // Skip status broadcasts and newsletters
         if (jid === 'status@broadcast' || jid === config.NEWSLETTER_JID) return;
         if (IGNORED_USERS.includes(jid)) return;
         
+        // Skip if message is from ignored users
         const sender = msg.key.participant || jid;
         if (IGNORED_USERS.includes(sender)) return;
         
         try {
+            // Random delay to seem more natural (1-5 seconds)
             const delayTime = Math.floor(Math.random() * 4000) + 1000;
             await delay(delayTime);
+            
+            // Pick a random emoji
             const randomEmoji = REACT_EMOJIS[Math.floor(Math.random() * REACT_EMOJIS.length)];
+            
+            // React to the message
             await socket.sendMessage(jid, {
-                react: { text: randomEmoji, key: msg.key }
+                react: {
+                    text: randomEmoji,
+                    key: msg.key
+                }
             });
+            
             console.log(`[AutoReact] ✅ Reacted with ${randomEmoji} to ${sender.split('@')[0]}`);
+            
         } catch (error) {
+            // Silently fail - don't spam logs with errors
             if (error.message && !error.message.includes('rate')) {
                 console.warn('[AutoReact] Failed to react:', error.message);
             }
         }
     });
     
-    console.log(`🔥 Auto-React handler registered. (Status: ${global.autoReactEnabled ? 'ENABLED' : 'DISABLED'})`);
+    console.log('🔥 Auto-React handler registered.');
 }
 function initAntiCallHandler(sock) {
     const ownerJid = config.OWNER_NUMBER + '@s.whatsapp.net';
