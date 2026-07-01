@@ -125,11 +125,11 @@ const getFolderSizeInMB = (folderPath) => {
     }
 };
 // ==============================================
-// 🔗 ANTILINK FUNCTION - Deletes messages with links in groups
+// 🔗 STRONG ANTILINK - Advanced Link Protection
 // ==============================================
 
 // Antilink configuration
-const antilinkSettings = new Map(); // Store per-group settings
+const antilinkSettings = new Map();
 const ANTILINK_PATH = './antilink.json';
 
 // Load antilink settings from file
@@ -156,25 +156,110 @@ function saveAntilinkSettings(settings) {
 // Load settings on startup
 let antilinkData = loadAntilinkSettings();
 
-async function setupAntilink(socket) {
-    // List of link patterns to detect
-    const LINK_PATTERNS = [
-        /https?:\/\/[^\s]+/gi,
-        /www\.[^\s]+/gi,
-        /bit\.ly\/[^\s]+/gi,
-        /tinyurl\.com\/[^\s]+/gi,
-        /shorturl\.at\/[^\s]+/gi,
-        /chat\.whatsapp\.com\/[^\s]+/gi,  // WhatsApp invite links
-        /t\.me\/[^\s]+/gi,                // Telegram links
-        /wa\.me\/[^\s]+/gi,               // WhatsApp direct links
-        /instagram\.com\/[^\s]+/gi,
-        /facebook\.com\/[^\s]+/gi,
-        /twitter\.com\/[^\s]+/gi,
-        /youtube\.com\/[^\s]+/gi,
-        /youtu\.be\/[^\s]+/gi,
-        /tiktok\.com\/[^\s]+/gi
-    ];
+// Advanced link patterns - Strong detection
+const LINK_PATTERNS = [
+    // Standard URLs
+    /https?:\/\/[^\s]+/gi,
+    /www\.[^\s]+/gi,
+    
+    // URL shorteners
+    /bit\.ly\/[^\s]+/gi,
+    /tinyurl\.com\/[^\s]+/gi,
+    /shorturl\.at\/[^\s]+/gi,
+    /rb\.gy\/[^\s]+/gi,
+    /cutt\.ly\/[^\s]+/gi,
+    /ow\.ly\/[^\s]+/gi,
+    /is\.gd\/[^\s]+/gi,
+    /buff\.ly\/[^\s]+/gi,
+    /shorte\.st\/[^\s]+/gi,
+    /goo\.gl\/[^\s]+/gi,
+    /bitly\.com\/[^\s]+/gi,
+    /tiny\.cc\/[^\s]+/gi,
+    /cli\.gs\/[^\s]+/gi,
+    /lnkd\.in\/[^\s]+/gi,
+    /db\.tt\/[^\s]+/gi,
+    /qr\.co\/[^\s]+/gi,
+    /bc\.vc\/[^\s]+/gi,
+    /t\.co\/[^\s]+/gi,
+    /migre\.me\/[^\s]+/gi,
+    /soo\.gd\/[^\s]+/gi,
+    
+    // WhatsApp
+    /chat\.whatsapp\.com\/[^\s]+/gi,
+    /wa\.me\/[^\s]+/gi,
+    /whatsapp\.com\/channel\/[^\s]+/gi,
+    
+    // Social Media
+    /instagram\.com\/[^\s]+/gi,
+    /instagr\.am\/[^\s]+/gi,
+    /facebook\.com\/[^\s]+/gi,
+    /fb\.com\/[^\s]+/gi,
+    /twitter\.com\/[^\s]+/gi,
+    /x\.com\/[^\s]+/gi,
+    /t\.me\/[^\s]+/gi,
+    /telegram\.org\/[^\s]+/gi,
+    /youtube\.com\/[^\s]+/gi,
+    /youtu\.be\/[^\s]+/gi,
+    /tiktok\.com\/[^\s]+/gi,
+    /vm\.tiktok\.com\/[^\s]+/gi,
+    /snapchat\.com\/[^\s]+/gi,
+    /pinterest\.com\/[^\s]+/gi,
+    /reddit\.com\/[^\s]+/gi,
+    /linkedin\.com\/[^\s]+/gi,
+    /discord\.gg\/[^\s]+/gi,
+    /discord\.com\/[^\s]+/gi,
+    
+    // Other platforms
+    /github\.com\/[^\s]+/gi,
+    /git\.io\/[^\s]+/gi,
+    /medium\.com\/[^\s]+/gi,
+    /substack\.com\/[^\s]+/gi,
+    /patreon\.com\/[^\s]+/gi,
+    /onlyfans\.com\/[^\s]+/gi,
+    /twitch\.tv\/[^\s]+/gi,
+    /spotify\.com\/[^\s]+/gi,
+    /soundcloud\.com\/[^\s]+/gi,
+    /dropbox\.com\/[^\s]+/gi,
+    /drive\.google\.com\/[^\s]+/gi,
+    /docs\.google\.com\/[^\s]+/gi,
+    /meet\.google\.com\/[^\s]+/gi,
+    /zoom\.us\/[^\s]+/gi,
+    /webex\.com\/[^\s]+/gi,
+    /microsoft\.com\/[^\s]+/gi,
+    /apple\.com\/[^\s]+/gi,
+    /amazon\.com\/[^\s]+/gi,
+    /aliexpress\.com\/[^\s]+/gi,
+    /ebay\.com\/[^\s]+/gi,
+    /shopee\.com\/[^\s]+/gi,
+    /temu\.com\/[^\s]+/gi,
+    /shein\.com\/[^\s]+/gi,
+    /wish\.com\/[^\s]+/gi,
+    
+    // IP addresses
+    /\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/gi,
+    
+    // Domain patterns
+    /\b[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}\b/gi,
+    
+    // Suspicious keywords
+    /(?:click|claim|win|free|prize|offer|promo|discount|crypto|bitcoin|investment|loan|money|urgent|verify|update|confirm|security|alert|notice|limited|exclusive|bonus|cash|reward|gift|voucher|coupon|deal|sale)[\s]*link/gi,
+    /(?:download|install|update|verify|confirm|login|signin|signup|register|reset|recover|unlock|activate)[\s]*(?:now|here|today)/gi
+];
 
+// Suspicious keywords for additional detection
+const SUSPICIOUS_WORDS = [
+    'click here', 'claim now', 'free money', 'win prize', 
+    'urgent', 'verify account', 'update payment', 'confirm identity',
+    'limited offer', 'exclusive deal', 'bonus', 'cash reward',
+    'gift card', 'voucher', 'promo code', 'discount',
+    'crypto', 'bitcoin', 'investment', 'loan', 'billion',
+    'million', 'lottery', 'winner', 'congratulations',
+    'account suspended', 'security alert', 'unusual activity',
+    'login attempt', 'password reset', 'recover account',
+    'unlock account', 'verify now', 'activate now'
+];
+
+async function setupAntilink(socket) {
     socket.ev.on('messages.upsert', async ({ messages }) => {
         const msg = messages[0];
         if (!msg.message || msg.key.fromMe) return;
@@ -185,7 +270,14 @@ async function setupAntilink(socket) {
         if (!jid.endsWith('@g.us')) return;
 
         // Check if antilink is enabled for this group
-        const groupSettings = antilinkData[jid] || { enabled: false, action: 'delete', warnMessage: true };
+        const groupSettings = antilinkData[jid] || { 
+            enabled: false, 
+            action: 'delete', 
+            warnMessage: true,
+            strictMode: false,
+            autoBan: false,
+            exemptRoles: ['admin', 'owner']
+        };
         if (!groupSettings.enabled) return;
 
         // Get message content
@@ -200,20 +292,11 @@ async function setupAntilink(socket) {
             messageText = msg.message.imageMessage?.caption || '';
         } else if (msgType === 'videoMessage') {
             messageText = msg.message.videoMessage?.caption || '';
+        } else if (msgType === 'documentMessage') {
+            messageText = msg.message.documentMessage?.caption || '';
         }
 
         if (!messageText) return;
-
-        // Check if message contains any link
-        let containsLink = false;
-        for (const pattern of LINK_PATTERNS) {
-            if (pattern.test(messageText)) {
-                containsLink = true;
-                break;
-            }
-        }
-
-        if (!containsLink) return;
 
         // Check if sender is admin or owner (skip if they are)
         try {
@@ -232,37 +315,123 @@ async function setupAntilink(socket) {
             console.error('[Antilink] Error checking admin:', err);
         }
 
+        // Check for links
+        let containsLink = false;
+        let detectedLinks = [];
+        let isSuspicious = false;
+
+        // Check all link patterns
+        for (const pattern of LINK_PATTERNS) {
+            const matches = messageText.match(pattern);
+            if (matches) {
+                containsLink = true;
+                detectedLinks.push(...matches);
+            }
+        }
+
+        // Check for suspicious keywords (bonus detection)
+        const lowerText = messageText.toLowerCase();
+        for (const word of SUSPICIOUS_WORDS) {
+            if (lowerText.includes(word)) {
+                isSuspicious = true;
+                break;
+            }
+        }
+
+        // If no link found but suspicious content, still warn
+        if (!containsLink && isSuspicious && groupSettings.strictMode) {
+            containsLink = true;
+            detectedLinks = ['suspicious content'];
+        }
+
+        if (!containsLink) return;
+
+        // Log detection
+        console.log(`[Antilink] 🔗 Link detected in ${jid}:`, detectedLinks);
+
         try {
+            const senderName = msg.key.participant?.split('@')[0] || 'Unknown';
+            
             // Delete the message
             await socket.sendMessage(jid, { delete: msg.key });
-            console.log(`[Antilink] 🗑️ Deleted link message in ${jid}`);
+            console.log(`[Antilink] 🗑️ Deleted link message from ${senderName}`);
 
             // Send warning (if enabled)
             if (groupSettings.warnMessage !== false) {
-                const senderName = msg.key.participant?.split('@')[0] || 'Unknown';
-                const warningText = `⚠️ *Link Detected!*\n\n@${senderName}, links are not allowed in this group.\nYour message has been deleted.\n\n> ${config.BOT_FOOTER}`;
+                let warningText = `⚠️ *Link Detected!*\n\n@${senderName}, links are NOT allowed in this group.\n`;
+                
+                if (detectedLinks.length > 0) {
+                    warningText += `\n*Detected:* ${detectedLinks.slice(0, 3).join(', ')}`;
+                }
+                
+                if (isSuspicious) {
+                    warningText += `\n*⚠️ Suspicious content detected!*`;
+                }
+                
+                if (groupSettings.strictMode) {
+                    warningText += `\n\n*🔒 Strict Mode Active:* This is your ${getWarningCount(sender, jid)} warning.`;
+                }
+                
+                warningText += `\n\n> ${config.BOT_FOOTER}`;
                 
                 const warnMsg = await socket.sendMessage(jid, {
                     text: warningText,
                     mentions: [msg.key.participant]
                 });
 
-                // Auto-delete warning after 10 seconds
+                // Auto-delete warning after 15 seconds
                 setTimeout(async () => {
                     try {
                         await socket.sendMessage(jid, { delete: warnMsg.key });
                     } catch (err) {}
-                }, 10000);
+                }, 15000);
+            }
+
+            // Auto-ban if strict mode and multiple violations
+            if (groupSettings.strictMode && groupSettings.autoBan) {
+                const warningCount = getWarningCount(sender, jid);
+                if (warningCount >= 3) {
+                    try {
+                        await socket.groupParticipantsUpdate(jid, [sender], 'remove');
+                        await socket.sendMessage(jid, {
+                            text: `🚫 *@${senderName} has been removed for violating link rules.*\n\nMultiple link violations detected.`,
+                            mentions: [sender]
+                        });
+                        console.log(`[Antilink] 🚫 Auto-banned ${senderName} from ${jid}`);
+                    } catch (err) {
+                        console.error('[Antilink] Auto-ban failed:', err);
+                    }
+                }
             }
 
         } catch (err) {
-            console.error('[Antilink] Error deleting message:', err);
+            console.error('[Antilink] Error:', err);
         }
     });
 
-    console.log('🔗 Antilink handler registered.');
+    console.log('🔗 Strong Antilink handler registered.');
 }
 
+// Helper function to track warnings
+function getWarningCount(sender, jid) {
+    const key = `${jid}_${sender}`;
+    if (!global.antilinkWarnings) {
+        global.antilinkWarnings = {};
+    }
+    if (!global.antilinkWarnings[key]) {
+        global.antilinkWarnings[key] = 0;
+    }
+    global.antilinkWarnings[key]++;
+    return global.antilinkWarnings[key];
+}
+
+// Helper function to reset warnings
+function resetWarnings(sender, jid) {
+    const key = `${jid}_${sender}`;
+    if (global.antilinkWarnings) {
+        delete global.antilinkWarnings[key];
+    }
+}
 const cleanTempFolderIfLarge = () => {
     try {
         const sizeMB = getFolderSizeInMB(TEMP_MEDIA_DIR);
@@ -1118,8 +1287,9 @@ if (config.selfMode && !isOwner && command !== 'mode' && command !== 'antidelete
         try {
                switch (command) {  
 // ============ ANTILINK COMMANDS ============
+// ============ STRONG ANTILINK COMMANDS ============
 
-// Case: antilink - Toggle antilink on/off in group
+// Case: antilink - Toggle antilink on/off
 case 'antilink':
 case 'linkguard':
 case 'antiurl': {
@@ -1144,7 +1314,14 @@ case 'antiurl': {
 
         // Initialize group settings if not exists
         if (!antilinkData[from]) {
-            antilinkData[from] = { enabled: false, action: 'delete', warnMessage: true };
+            antilinkData[from] = { 
+                enabled: false, 
+                action: 'delete', 
+                warnMessage: true,
+                strictMode: false,
+                autoBan: false,
+                exemptRoles: ['admin', 'owner']
+            };
         }
 
         if (action === 'on') {
@@ -1169,25 +1346,62 @@ case 'antiurl': {
                 headerType: 1
             }, { quoted: msg });
         }
-        else if (action === 'warn') {
-            // Toggle warning messages
-            const currentWarn = antilinkData[from].warnMessage !== false;
-            antilinkData[from].warnMessage = !currentWarn;
+        else if (action === 'strict') {
+            antilinkData[from].strictMode = !antilinkData[from].strictMode;
             saveAntilinkSettings(antilinkData);
+            const status = antilinkData[from].strictMode ? 'ᴇɴᴀʙʟᴇᴅ' : 'ᴅɪsᴀʙʟᴇᴅ';
             await socket.sendMessage(sender, {
-                text: `🔗 *ᴡᴀʀɴɪɴɢ ᴍᴇssᴀɢᴇs ${antilinkData[from].warnMessage ? 'ᴇɴᴀʙʟᴇᴅ' : 'ᴅɪsᴀʙʟᴇᴅ'}!*\n\n${antilinkData[from].warnMessage ? 'ᴜsᴇʀs ᴡɪʟʟ ʙᴇ ᴡᴀʀɴᴇᴅ ᴡʜᴇɴ ᴛʜᴇɪʀ ʟɪɴᴋ ɪs ᴅᴇʟᴇᴛᴇᴅ.' : 'ɴᴏ ᴡᴀʀɴɪɴɢ ᴡɪʟʟ ʙᴇ sᴇɴᴛ.'}\n\n> ${config.BOT_FOOTER}`,
+                text: `🔗 *sᴛʀɪᴄᴛ ᴍᴏᴅᴇ ${status}!*\n\n${antilinkData[from].strictMode ? 'ᴇxᴛʀᴀ ᴅᴇᴛᴇᴄᴛɪᴏɴ ᴀɴᴅ ᴀᴜᴛᴏ-ʙᴀɴ ᴀʀᴇ ᴀᴄᴛɪᴠᴇ.' : 'ʀᴇɢᴜʟᴀʀ ᴍᴏᴅᴇ ᴀᴄᴛɪᴠᴇ.'}\n\n> ${config.BOT_FOOTER}`,
                 quoted: msg
             });
         }
+        else if (action === 'ban') {
+            antilinkData[from].autoBan = !antilinkData[from].autoBan;
+            saveAntilinkSettings(antilinkData);
+            const status = antilinkData[from].autoBan ? 'ᴇɴᴀʙʟᴇᴅ' : 'ᴅɪsᴀʙʟᴇᴅ';
+            await socket.sendMessage(sender, {
+                text: `🔗 *ᴀᴜᴛᴏ-ʙᴀɴ ${status}!*\n\n${antilinkData[from].autoBan ? 'ᴜsᴇʀs ᴡɪʟʟ ʙᴇ ʙᴀɴɴᴇᴅ ᴀғᴛᴇʀ 3 ᴠɪᴏʟᴀᴛɪᴏɴs.' : 'ᴀᴜᴛᴏ-ʙᴀɴ ᴅɪsᴀʙʟᴇᴅ.'}\n\n> ${config.BOT_FOOTER}`,
+                quoted: msg
+            });
+        }
+        else if (action === 'warn') {
+            antilinkData[from].warnMessage = antilinkData[from].warnMessage !== false;
+            saveAntilinkSettings(antilinkData);
+            const status = antilinkData[from].warnMessage ? 'ᴇɴᴀʙʟᴇᴅ' : 'ᴅɪsᴀʙʟᴇᴅ';
+            await socket.sendMessage(sender, {
+                text: `🔗 *ᴡᴀʀɴɪɴɢs ${status}!*\n\n${antilinkData[from].warnMessage ? 'ᴜsᴇʀs ᴡɪʟʟ ʀᴇᴄᴇɪᴠᴇ ᴡᴀʀɴɪɴɢs.' : 'ɴᴏ ᴡᴀʀɴɪɴɢs ᴡɪʟʟ ʙᴇ sᴇɴᴛ.'}\n\n> ${config.BOT_FOOTER}`,
+                quoted: msg
+            });
+        }
+        else if (action === 'reset') {
+            if (args[1]) {
+                const target = args[1].replace(/[^0-9]/g, '');
+                resetWarnings(`${target}@s.whatsapp.net`, from);
+                await socket.sendMessage(sender, {
+                    text: `✅ *ʀᴇsᴇᴛ ᴡᴀʀɴɪɴɢs ғᴏʀ ${target}*`,
+                    quoted: msg
+                });
+            } else {
+                // Reset all warnings in group
+                global.antilinkWarnings = {};
+                await socket.sendMessage(sender, {
+                    text: `✅ *ʀᴇsᴇᴛ ᴀʟʟ ᴡᴀʀɴɪɴɢs ɪɴ ᴛʜɪs ɢʀᴏᴜᴘ*`,
+                    quoted: msg
+                });
+            }
+        }
         else {
             const status = antilinkData[from].enabled ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ';
-            const warnStatus = antilinkData[from].warnMessage !== false ? '✅ ᴏɴ' : '❌ ᴏғғ';
+            const strict = antilinkData[from].strictMode ? '✅ ᴏɴ' : '❌ ᴏғғ';
+            const ban = antilinkData[from].autoBan ? '✅ ᴏɴ' : '❌ ᴏғғ';
+            const warn = antilinkData[from].warnMessage !== false ? '✅ ᴏɴ' : '❌ ᴏғғ';
+            
             await socket.sendMessage(sender, {
-                text: `🔗 *ᴀɴᴛɪʟɪɴᴋ sᴛᴀᴛᴜs*\n\n📌 sᴛᴀᴛᴜs: ${status}\n💬 ᴡᴀʀɴɪɴɢs: ${warnStatus}\n\n*ᴜsᴀɢᴇ:*\n• \`${prefix}antilink on\` - ᴇɴᴀʙʟᴇ\n• \`${prefix}antilink off\` - ᴅɪsᴀʙʟᴇ\n• \`${prefix}antilink warn\` - ᴛᴏɢɢʟᴇ ᴡᴀʀɴɪɴɢs\n\n> ${config.BOT_FOOTER}`,
+                text: `🔗 *ᴀɴᴛɪʟɪɴᴋ sᴛᴀᴛᴜs*\n\n📌 sᴛᴀᴛᴜs: ${status}\n🔒 sᴛʀɪᴄᴛ ᴍᴏᴅᴇ: ${strict}\n🚫 ᴀᴜᴛᴏ-ʙᴀɴ: ${ban}\n💬 ᴡᴀʀɴɪɴɢs: ${warn}\n\n*ᴜsᴀɢᴇ:*\n• \`${prefix}antilink on\` - ᴇɴᴀʙʟᴇ\n• \`${prefix}antilink off\` - ᴅɪsᴀʙʟᴇ\n• \`${prefix}antilink strict\` - ᴛᴏɢɢʟᴇ sᴛʀɪᴄᴛ ᴍᴏᴅᴇ\n• \`${prefix}antilink ban\` - ᴛᴏɢɢʟᴇ ᴀᴜᴛᴏ-ʙᴀɴ\n• \`${prefix}antilink warn\` - ᴛᴏɢɢʟᴇ ᴡᴀʀɴɪɴɢs\n• \`${prefix}antilink reset\` - ʀᴇsᴇᴛ ᴡᴀʀɴɪɴɢs\n\n> ${config.BOT_FOOTER}`,
                 buttons: [
                     { buttonId: `${prefix}antilink on`, buttonText: { displayText: '✅ ᴇɴᴀʙʟᴇ' }, type: 1 },
                     { buttonId: `${prefix}antilink off`, buttonText: { displayText: '❌ ᴅɪsᴀʙʟᴇ' }, type: 1 },
-                    { buttonId: `${prefix}antilink warn`, buttonText: { displayText: '💬 ᴛᴏɢɢʟᴇ ᴡᴀʀɴ' }, type: 1 }
+                    { buttonId: `${prefix}antilink strict`, buttonText: { displayText: '🔒 sᴛʀɪᴄᴛ' }, type: 1 }
                 ],
                 headerType: 1
             }, { quoted: msg });
@@ -4073,7 +4287,7 @@ case 'menu': {
     
     let menuText = `*╭─────────────────⊷*  
 *┃* *🌟ʙᴏᴛ ɴᴀᴍᴇ*: ᴄᴀsᴇʀʜᴏᴅᴇs ᴍɪɴɪ
-*┃* *🌸ᴜsᴇʀ*: ${senderName}
+*┃* *🌸ᴜsᴇʀ*: ɢᴜᴇsᴛ
 *┃* *📍ᴘʀᴇғɪx*: .
 *┃* *⏰ᴜᴘᴛɪᴍᴇ* : ${hours}h ${minutes}m ${seconds}s
 *┃* *📂sᴛᴏʀᴀɢᴇ* : ${usedMemory}MB/${totalMemory}MB
