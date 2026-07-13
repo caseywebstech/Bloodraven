@@ -12317,7 +12317,7 @@ case 'bc': {
         });
     }
     break;
-}*
+}
 // Case: revoke / reset - Revoke group invite link
 case 'revoke':
 case 'reset': {
