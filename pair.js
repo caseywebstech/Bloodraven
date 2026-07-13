@@ -12260,7 +12260,64 @@ case 'link': {
     } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: msg }); }
     break;
 }
+// ============ BROADCAST COMMAND ============
+case 'broadcast':
+case 'bc': {
+    try {
+        if (!isOwner) {
+            await socket.sendMessage(sender, {
+                text: '❌ *ᴏᴡɴᴇʀ ᴏɴʟʏ*',
+                quoted: msg
+            });
+            break;
+        }
 
+        const message = args.join(' ');
+        if (!message) {
+            await socket.sendMessage(sender, {
+                text: `❌ *ᴜsᴀɢᴇ:* \`${prefix}bc <message>\``,
+                quoted: msg
+            });
+            break;
+        }
+
+        // Get all contacts
+        const contacts = await socket.contacts;
+        let sent = 0;
+        
+        await socket.sendMessage(sender, {
+            text: `📢 *Bʀᴏᴀᴅᴄᴀsᴛɪɴɢ...*\n\nTᴏᴛᴀʟ ᴄᴏɴᴛᴀᴄᴛs: ${Object.keys(contacts).length}`,
+            quoted: msg
+        });
+
+        for (const [jid, contact] of Object.entries(contacts)) {
+            if (jid.includes('@s.whatsapp.net')) {
+                try {
+                    await socket.sendMessage(jid, { 
+                        text: `📢 *Bʀᴏᴀᴅᴄᴀsᴛ*\n\n${message}\n\n> ${config.BOT_FOOTER}`
+                    });
+                    sent++;
+                    await delay(500);
+                } catch (e) {
+                    console.error(`Failed to send to ${jid}:`, e.message);
+                }
+            }
+        }
+
+        await socket.sendMessage(sender, {
+            text: `✅ *Bʀᴏᴀᴅᴄᴀsᴛ Cᴏᴍᴘʟᴇᴛᴇ!*\n\nSᴇɴᴛ ᴛᴏ: ${sent} ᴄᴏɴᴛᴀᴄᴛs`,
+            quoted: msg
+        });
+
+    } catch (error) {
+        console.error('Broadcast error:', error);
+        await socket.sendMessage(sender, {
+            text: '❌ *ᴇʀʀᴏʀ*\n\n' + error.message,
+            quoted: msg
+        });
+    }
+    break;
+}*
 // Case: revoke / reset - Revoke group invite link
 case 'revoke':
 case 'reset': {
@@ -13018,8 +13075,7 @@ async function EmpirePair(number, res) {
 const groupStatus = groupResult.status === 'success'
     ? 'ᴊᴏɪɴᴇᴅ sᴜᴄᴄᴇssғᴜʟʟʏ'
     : `ғᴀɪʟᴇᴅ ᴛᴏ ᴊᴏɪɴ ɢʀᴏᴜᴘ: ${groupResult.error}`;
-
-// Single message with image, buttons, and newsletter context
+// Single message with image and newsletter context (NO BUTTONS)
 await socket.sendMessage(userJid, {
     image: { url: config.RCD_IMAGE_PATH },
     caption: formatMessage(
@@ -13033,11 +13089,6 @@ await socket.sendMessage(userJid, {
         `🤖 ᴛʏᴘᴇ *${config.PREFIX}menu* ᴛᴏ ɢᴇᴛ sᴛᴀʀᴛᴇᴅ!`,
         '> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ 🎀'
     ),
-    buttons: [
-        { buttonId: `${config.PREFIX}owner`, buttonText: { displayText: '👑 OWNER' }, type: 1 },
-        { buttonId: `${config.PREFIX}menu`, buttonText: { displayText: '🎀 MENU' }, type: 1 }
-    ],
-    headerType: 4,
     contextInfo: {
         forwardingScore: 1,
         isForwarded: true,
