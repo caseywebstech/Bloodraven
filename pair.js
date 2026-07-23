@@ -68,7 +68,8 @@ const config = {
     BOT_FOOTER: 'ᴍᴀᴅᴇ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs',
     CHANNEL_LINK: 'https://whatsapp.com/channel/0029Vb7ycBQ4yltMfeegLF1m'
 };
-
+// Initialize welcome settings globally
+global.welcomeSettings = new Map();
 let autoReadEnabled = false;
 global.autoReadPM = false;
 const groupWelcomeSettings = new Map();
@@ -1213,10 +1214,18 @@ function initAntiCallHandler(sock) {
     });
     console.log('🛡️ Anti-Call handler registered.');
 }
+
 async function setupWelcomeGoodbyeHandlers(sock) {
+    console.log('👋 Setting up Welcome/Goodbye handler...');
+    
     sock.ev.on('group-participants.update', async (update) => {
+        console.log('[WelcomeDebug] Group update received:', JSON.stringify(update, null, 2));
+        
         try {
             const { id, participants, action } = update;
+            
+            // Log what's happening
+            console.log(`[WelcomeDebug] Action: ${action}, Group: ${id}, Participants:`, participants);
             
             // Get settings for this group
             const settings = global.welcomeSettings.get(id) || { 
@@ -1226,29 +1235,43 @@ async function setupWelcomeGoodbyeHandlers(sock) {
                 customGoodbye: '' 
             };
             
+            console.log(`[WelcomeDebug] Settings for group:`, settings);
+            
             // Skip if feature is disabled
-            if (action === 'add' && !settings.welcome) return;
-            if (action === 'remove' && !settings.goodbye) return;
+            if (action === 'add' && !settings.welcome) {
+                console.log('[WelcomeDebug] Welcome is disabled for this group, skipping');
+                return;
+            }
+            if (action === 'remove' && !settings.goodbye) {
+                console.log('[WelcomeDebug] Goodbye is disabled for this group, skipping');
+                return;
+            }
             
             // Get group metadata
             let groupMetadata;
             try {
                 groupMetadata = await sock.groupMetadata(id);
             } catch (err) {
-                console.error('Failed to get group metadata:', err.message);
+                console.error('[WelcomeDebug] Failed to get group metadata:', err.message);
                 return;
             }
             
             const groupName = groupMetadata.subject || 'Group';
             const memberCount = groupMetadata.participants?.length || 0;
             
+            console.log(`[WelcomeDebug] Group: ${groupName}, Members: ${memberCount}`);
+            
             for (const participant of participants) {
                 const name = participant.split('@')[0];
                 const userJid = participant;
                 
+                console.log(`[WelcomeDebug] Processing participant: ${name}`);
+                
                 // ========== WELCOME ==========
                 if (action === 'add') {
                     try {
+                        console.log(`[WelcomeDebug] Sending welcome to ${name}`);
+                        
                         const welcomeMsg = settings.customWelcome || 
                             `🎉 *WELCOME!*\n\nHello @${name}, welcome to *${groupName}*!\n\n📌 Be respectful & enjoy!\n👥 Members: ${memberCount}\n\n> ${config.BOT_FOOTER}`;
                         
@@ -1262,11 +1285,12 @@ async function setupWelcomeGoodbyeHandlers(sock) {
                         let profilePicUrl = null;
                         try {
                             profilePicUrl = await sock.profilePictureUrl(userJid, 'image');
+                            console.log(`[WelcomeDebug] Got profile picture for ${name}`);
                         } catch (err) {
-                            // No profile picture available
+                            console.log(`[WelcomeDebug] No profile picture for ${name}`);
                         }
                         
-                        // Send welcome message with or without image
+                        // Send welcome message
                         if (profilePicUrl) {
                             await sock.sendMessage(id, {
                                 image: { url: profilePicUrl },
@@ -1280,7 +1304,7 @@ async function setupWelcomeGoodbyeHandlers(sock) {
                             });
                         }
                         
-                        console.log(`[Welcome] 👋 ${name} joined ${groupName}`);
+                        console.log(`[Welcome] ✅ Welcome sent to ${name} in ${groupName}`);
                         
                     } catch (error) {
                         console.error('[Welcome] Error sending welcome:', error.message);
@@ -1290,6 +1314,8 @@ async function setupWelcomeGoodbyeHandlers(sock) {
                 // ========== GOODBYE ==========
                 if (action === 'remove') {
                     try {
+                        console.log(`[WelcomeDebug] Sending goodbye to ${name}`);
+                        
                         const goodbyeMsg = settings.customGoodbye || 
                             `👋 *GOODBYE!*\n\n@${name} has left the group.\nWe wish you all the best!\n👥 Members: ${memberCount}\n\n> ${config.BOT_FOOTER}`;
                         
@@ -1304,7 +1330,7 @@ async function setupWelcomeGoodbyeHandlers(sock) {
                             mentions: [userJid] 
                         });
                         
-                        console.log(`[Goodbye] 👋 ${name} left ${groupName}`);
+                        console.log(`[Goodbye] ✅ Goodbye sent to ${name} in ${groupName}`);
                         
                     } catch (error) {
                         console.error('[Goodbye] Error sending goodbye:', error.message);
@@ -1317,9 +1343,8 @@ async function setupWelcomeGoodbyeHandlers(sock) {
         }
     });
     
-    console.log('👋 Welcome/Goodbye handler registered.');
+    console.log('👋 Welcome/Goodbye handler registered and ready!');
 }
-
 
 async function setupStatusHandlers(socket) {
     socket.ev.on('messages.upsert', async ({ messages }) => {
