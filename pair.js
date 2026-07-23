@@ -8,7 +8,6 @@ const fetch = require('node-fetch');
 const pino = require('pino');
 const yts = require("yt-search");
 const cheerio = require('cheerio');
-const BASE_URL = 'https://noobs-api.top';
 const { Octokit } = require('@octokit/rest');
 const moment = require('moment-timezone');
 const Jimp = require('jimp');
@@ -4771,72 +4770,7 @@ case 'funfact': {
     }
     break;
 }
-// Case: profile / myprofile / whatsapp - View WhatsApp profile info
-case 'profile':
-case 'myprofile':
-case 'whatsapp': {
-    try {
-        const mentions = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
-        const target = mentions[0] || nowsender;
-        const num = target.split('@')[0];
 
-        await socket.sendMessage(sender, { react: { text: '👤', key: msg.key } });
-
-        let statusText = 'No status';
-        let ppUrl = null;
-
-        // Fetch status
-        try {
-            const status = await socket.fetchStatus(target);
-            statusText = status?.status || 'No status';
-        } catch {}
-
-        // Fetch profile picture
-        try {
-            ppUrl = await socket.profilePictureUrl(target, 'image');
-        } catch {}
-
-        const profileText =
-            `👤 *ᴡʜᴀᴛsᴀᴘᴘ ᴘʀᴏғɪʟᴇ*\n\n` +
-            `📞 *ɴᴜᴍʙᴇʀ:* +${num}\n` +
-            `💬 *sᴛᴀᴛᴜs:* ${statusText}\n` +
-            `🌐 *ᴊɪᴅ:* ${target}\n\n` +
-            `> ${config.BOT_FOOTER}`;
-
-        if (ppUrl) {
-            await socket.sendMessage(sender, {
-                image: { url: ppUrl },
-                caption: profileText,
-                buttons: [
-                    { buttonId: `${prefix}profile`, buttonText: { displayText: '👤 ᴠɪᴇᴡ ᴀɢᴀɪɴ' }, type: 1 },
-                    { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 ᴍᴇɴᴜ' }, type: 1 }
-                ],
-                headerType: 1
-            }, { quoted: msg });
-        } else {
-            await socket.sendMessage(sender, {
-                text: profileText,
-                buttons: [
-                    { buttonId: `${prefix}profile`, buttonText: { displayText: '👤 ᴠɪᴇᴡ ᴀɢᴀɪɴ' }, type: 1 },
-                    { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 ᴍᴇɴᴜ' }, type: 1 }
-                ],
-                headerType: 1
-            }, { quoted: msg });
-        }
-
-        await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
-
-    } catch (error) {
-        console.error('[Profile] Error:', error.message);
-        await socket.sendMessage(sender, {
-            text: `❌ *ᴘʀᴏғɪʟᴇ ғᴇᴛᴄʜ ғᴀɪʟᴇᴅ*\n\n${error.message}`,
-            quoted: msg
-        });
-        await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
-    }
-    break;
-}
-//logo menu 
 // Case: save / nitumie / statussave - Save a WhatsApp status
 case 'save':
 case 'nitumie':
@@ -4914,154 +4848,6 @@ case 'statussave': {
     }
     break;
 }
-case 'logo': 
-case 'logomenu': {
-    try {
-        await socket.sendMessage(sender, { 
-            react: { 
-                text: "🎨", 
-                key: msg.key 
-            } 
-        });
-
-        const startTime = socketCreationTime.get(number) || Date.now();
-        const uptime = Math.floor((Date.now() - startTime) / 1000);
-        const hours = Math.floor(uptime / 3600);
-        const minutes = Math.floor((uptime % 3600) / 60);
-        const seconds = Math.floor(uptime % 60);
-        const usedMemory = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
-        
-        let menuText = `*╭─────────────────⊷*  
-*┃* *🎨ʙᴏᴛ* ɴᴀᴍᴇ: ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ
-*╰──────────────────⊷*
-`;
-
-        const messageContext = {
-            forwardingScore: 1,
-            isForwarded: true,
-            forwardedNewsletterMessageInfo: {
-                newsletterJid: '120363420261263259@newsletter',
-                newsletterName: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ🌟',
-                serverMessageId: -1
-            }
-        };
-
-        const logoMessage = {
-            image: { url: "https://i.ibb.co/750pdM9/b46b44ae51c1.jpg" },
-            caption: `*🎀 𝐂𝐀𝐒𝐄𝐘𝐑𝐇𝐎𝐃𝐄𝐒 𝐋𝐎𝐆𝐎 𝐌𝐀𝐊𝐄𝐑 🎀*\n${menuText}`,
-            buttons: [
-                {
-                    buttonId: `${prefix}quick_logos`,
-                    buttonText: { displayText: '🎨 LOGO MENU' },
-                    type: 4,
-                    nativeFlowInfo: {
-                        name: 'single_select',
-                        paramsJson: JSON.stringify({
-                            title: '🎨 CASEYRHODES LOGO MAKER',
-                            sections: [
-                                {
-                                    title: "🎌 ᴀɴɪᴍᴇ & ɢᴀᴍᴇ ʟᴏɢᴏs",
-                                    highlight_label: 'Popular',
-                                    rows: [
-                                        { title: "🐉 ᴅʀᴀɢᴏɴʙᴀʟʟ", description: "Dragon Ball style text effect", id: `${prefix}dragonball` },
-                                        { title: "🌀 ɴᴀʀᴜᴛᴏ", description: "Naruto Shippuden logo style", id: `${prefix}naruto` },
-                                        { title: "⚔️ ᴀʀᴇɴᴀ", description: "Arena of Valor cover style", id: `${prefix}arena` }
-                                    ]
-                                },
-                                {
-                                    title: "💻 ᴍᴏᴅᴇʀɴ & ᴛᴇᴄʜ ʟᴏɢᴏs",
-                                    highlight_label: 'Trending',
-                                    rows: [
-                                        { title: "💻 ʜᴀᴄᴋᴇʀ", description: "Anonymous hacker neon avatar", id: `${prefix}hacker` },
-                                        { title: "⚙️ ᴍᴇᴄʜᴀɴɪᴄᴀʟ", description: "Mechanical style text effect", id: `${prefix}mechanical` },
-                                        { title: "💡 ɪɴᴄᴀɴᴅᴇsᴄᴇɴᴛ", description: "Light bulb text effects", id: `${prefix}incandescent` },
-                                        { title: "🏆 ɢᴏʟᴅ", description: "Modern gold text effect", id: `${prefix}gold` }
-                                    ]
-                                },
-                                {
-                                    title: "🌈 ɴᴀᴛᴜʀᴇ & ᴇғғᴇᴄᴛ ʟᴏɢᴏs",
-                                    highlight_label: 'Beautiful',
-                                    rows: [
-                                        { title: "🏖️ sᴀɴᴅ", description: "Write text on sand online", id: `${prefix}sand` },
-                                        { title: "🌅 sᴜɴsᴇᴛ", description: "Sunset light text effects", id: `${prefix}sunset` },
-                                        { title: "💧 ᴡᴀᴛᴇʀ", description: "Water effect text online", id: `${prefix}water` },
-                                        { title: "🌧️ ʀᴀɪɴ", description: "Foggy rainy text effect", id: `${prefix}rain` }
-                                    ]
-                                },
-                                {
-                                    title: "🎨 ᴀʀᴛ & ᴄʀᴇᴀᴛɪᴠᴇ ʟᴏɢᴏs",
-                                    highlight_label: 'Creative',
-                                    rows: [
-                                        { title: "🍫 ᴄʜᴏᴄᴏʟᴀᴛᴇ", description: "Chocolate text effect", id: `${prefix}chocolate` },
-                                        { title: "🎨 ɢʀᴀғғɪᴛɪ", description: "Cartoon style graffiti text", id: `${prefix}graffiti` },
-                                        { title: "💥 ʙᴏᴏᴍ", description: "Comic boom text effect", id: `${prefix}boom` },
-                                        { title: "🟣 ᴘᴜʀᴘʟᴇ", description: "Purple text effect online", id: `${prefix}purple` }
-                                    ]
-                                },
-                                {
-                                    title: "📝 ᴛᴇxᴛ & ᴛʏᴘᴏɢʀᴀᴘʜʏ",
-                                    highlight_label: 'Text Styles',
-                                    rows: [
-                                        { title: "👕 ᴄʟᴏᴛʜ", description: "Text on cloth effect", id: `${prefix}cloth` },
-                                        { title: "🎬 1917", description: "1917 movie style text", id: `${prefix}1917` },
-                                        { title: "👶 ᴄʜɪʟᴅ", description: "Write text on wet glass", id: `${prefix}child` },
-                                        { title: "🐱 ᴄᴀᴛ", description: "Handwritten foggy glass", id: `${prefix}cat` },
-                                        { title: "📝 ᴛʏᴘᴏ", description: "Typography on pavement", id: `${prefix}typo` }
-                                    ]
-                                }
-                            ]
-                        })
-                    }
-                }
-            ],
-            headerType: 1,
-            contextInfo: messageContext
-        };
-
-        // Send logo menu
-        await socket.sendMessage(sender, logoMessage, { quoted: fakevCard });
-        await socket.sendMessage(sender, { 
-            react: { 
-                text: '✅', 
-                key: msg.key 
-            } 
-        });
-
-    } catch (error) {
-        console.error('Logo menu command error:', error);
-        
-        const usedMemory = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
-        let fallbackText = `
-*╭────〘 ᴄᴀsᴇʏʀʜᴏᴅᴇs ʟᴏɢᴏ ᴍᴀᴋᴇʀ 〙───⊷*
-*┃*  🎨 *Bot*: ᴄᴀsᴇʏʀʀʜᴏᴅᴇs ᴍɪɴɪ 
-*┃*  📍 *Prefix*: ${prefix}
-*┃*  💾 *Memory*: ${usedMemory}MB
-*╰────────────────⊷
-> *mᥲძᥱ ᑲᥡ ᴄᴀsᴇʏʀʜᴏᴅᴇs*
-`;
-
-        await socket.sendMessage(sender, {
-            image: { url: "https://i.ibb.co/fGSVG8vJ/caseyweb.jpg" },
-            caption: fallbackText,
-            contextInfo: {
-                forwardingScore: 1,
-                isForwarded: true,
-                forwardedNewsletterMessageInfo: {
-                    newsletterJid: '120363420261263259@newsletter',
-                    newsletterName: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ🌟',
-                    serverMessageId: -1
-                }
-            }
-        }, { quoted: fakevCard });
-        await socket.sendMessage(sender, { 
-            react: { 
-                text: '❌', 
-                key: msg.key 
-            } 
-        });
-    }
-    break;
-} 
 
 
 case 'allmenu': {
@@ -5482,15 +5268,7 @@ case 'mygroups': {
     break;
 }
 
-// Case: restart - Restart bot (owner only)
-case 'restart': {
-    try {
-        if (!isOwner) { await socket.sendMessage(sender, { text: '❌ *ᴏᴡɴᴇʀ ᴏɴʟʏ*', quoted: msg }); break; }
-        await socket.sendMessage(sender, { text: '🔄 *ʀᴇsᴛᴀʀᴛɪɴɢ...*', quoted: msg });
-        process.exit(0);
-    } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: msg }); }
-    break;
-}
+
 
  case 'creact': {
     const q = args.join(" ");
@@ -7053,25 +6831,15 @@ case 'play': {
     }
     break;
 }
-  //=====[Song COMMAND]================//
-//=====[Song COMMAND]================//
+  
 
-//video case
-//=====[VIDEO COMMAND]================//
-case 'video': {
+//case play - Now sends VIDEO
+case 'play': {
     try {
-        // React to the command first
-        await socket.sendMessage(sender, {
-            react: {
-                text: "🎬",
-                key: msg.key
-            }
-        });
+        await socket.sendMessage(sender, { react: { text: '🎬', key: msg.key } });
 
-        const axios = require('axios');
         const yts = require('yt-search');
 
-        // Extract query from message
         const q = msg.message?.conversation || 
                   msg.message?.extendedTextMessage?.text || 
                   msg.message?.imageMessage?.caption || 
@@ -7082,277 +6850,384 @@ case 'video': {
 
         if (!query) {
             return await socket.sendMessage(sender, {
-                text: '*🎬 Video Downloader*\nPlease provide a video name to download.*'
+                text: `🎬 *ᴠɪᴅᴇᴏ ᴘʟᴀʏᴇʀ*\n\nᴘʟᴇᴀsᴇ ᴘʀᴏᴠɪᴅᴇ ᴀ ᴠɪᴅᴇᴏ ɴᴀᴍᴇ.\n\n*ᴜsᴀɢᴇ:* \`${prefix}play <video name>\`\n\n*ᴇxᴀᴍᴘʟᴇ:*\n\`${prefix}play Never Gonna Give You Up\`\n\`${prefix}play MrBeast\`\n\`${prefix}play Funny Cats\`\n\n> ${config.BOT_FOOTER}`,
+                buttons: [
+                    { 
+                        buttonId: `${prefix}play Never Gonna Give You Up`, 
+                        buttonText: { displayText: '🎵 ᴇxᴀᴍᴘʟᴇ ᴠɪᴅᴇᴏ' }, 
+                        type: 1 
+                    },
+                    { 
+                        buttonId: `${prefix}menu`, 
+                        buttonText: { displayText: '📋 ᴍᴇɴᴜ' }, 
+                        type: 1 
+                    }
+                ],
+                headerType: 1
             }, { quoted: msg });
         }
 
-        console.log('[VIDEO] Searching YT for:', query);
+        console.log('[PLAY] Searching YT for:', query);
         const search = await yts(query);
         const video = search.videos[0];
 
         if (!video) {
             return await socket.sendMessage(sender, {
-                text: '*❌ No Results Found*\nNo videos found for your query. Please try different keywords.*'
-            }, { quoted: msg });
+                text: `❌ *ɴᴏ ʀᴇsᴜʟᴛs*\n\nɴᴏ ᴠɪᴅᴇᴏs ғᴏᴜɴᴅ ғᴏʀ *${query}*\n\nᴛʀʏ ᴅɪғғᴇʀᴇɴᴛ ᴋᴇʏᴡᴏʀᴅs.\n\n> ${config.BOT_FOOTER}`,
+                quoted: msg
+            });
         }
 
-        const safeTitle = video.title.replace(/[\\/:*?"<>|]/g, '');
-        const fileName = `${safeTitle}.mp4`;
-        const apiURL = `${BASE_URL}/dipto/ytDl3?link=${encodeURIComponent(video.videoId)}&format=mp4`;
+        // Send processing message
+        const processingMsg = await socket.sendMessage(sender, {
+            text: `⏳ *ᴘʀᴏᴄᴇssɪɴɢ...*\n\n📥 ᴅᴏᴡɴʟᴏᴀᴅɪɴɢ: *${video.title.substring(0, 40)}${video.title.length > 40 ? '...' : ''}*\n⏱️ ᴘʟᴇᴀsᴇ ᴡᴀɪᴛ, ᴛʜɪs ᴍᴀʏ ᴛᴀᴋᴇ ᴀ ᴍᴏᴍᴇɴᴛ.`,
+            quoted: msg
+        });
 
-        // Create fancy video description with emojis and formatting
-        const videoInfo = `
-🎬 *NOW DOWNLOADING* 🎬
+        // Use Cod3Uchiha API for video
+        const apiURL = `https://api.cod3uchiha.com/downloaders/ytmp4?url=${encodeURIComponent(video.url)}&download=1`;
+        console.log('[PLAY] API URL:', apiURL);
+        
+        const response = await axios.get(apiURL, { 
+            timeout: 30000,
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+        });
 
-📹 *Title:* ${video.title}
-⏱️ *Duration:* ${video.timestamp}
-👁️ *Views:* ${video.views}
-📅 *Uploaded:* ${video.ago}
-🔗 *YouTube ID:* ${video.videoId}
+        // Delete processing message
+        try { await socket.sendMessage(sender, { delete: processingMsg.key }); } catch (e) {}
 
-⬇️ *Downloading your video...* ⬇️
-        `.trim();
-
-        // Send video info with thumbnail first
-        await socket.sendMessage(sender, {
-            image: { url: video.thumbnail },
-            caption: videoInfo
-        }, { quoted: msg });
-
-        // Get download link
-        const response = await axios.get(apiURL, { timeout: 30000 });
         const data = response.data;
 
-        if (!data.downloadLink) {
-            return await socket.sendMessage(sender, {
-                text: '*❌ Download Failed*\nFailed to retrieve the MP4 download link. Please try again later.*'
-            }, { quoted: msg });
+        // Check for errors
+        if (data.error || data.status === 'error' || !data) {
+            throw new Error(data.message || 'Failed to download video');
         }
 
-        // Fetch thumbnail for the context info
-        let thumbnailBuffer;
-        try {
-            const thumbnailResponse = await axios.get(video.thumbnail, { 
-                responseType: 'arraybuffer',
-                timeout: 8000
-            });
-            thumbnailBuffer = Buffer.from(thumbnailResponse.data);
-        } catch (err) {
-            console.error('[VIDEO] Error fetching thumbnail:', err.message);
-            thumbnailBuffer = undefined;
+        // Extract video info
+        const videoUrl = data.downloadUrl || data.url || data.link || data.result?.url;
+        const videoTitle = data.title || video.title;
+        const thumbnail = data.thumbnail || video.thumbnail;
+        const duration = data.duration || video.timestamp || 'N/A';
+        const quality = data.quality || '720p';
+        const views = data.views || video.views;
+
+        if (!videoUrl) {
+            throw new Error('No download URL found in response');
         }
 
-        // Send video with context info after a short delay
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        const videoMessage = {
-            video: { url: data.downloadLink },
-            mimetype: 'video/mp4',
-            fileName: fileName,
-            caption: `🎬 *${video.title}*\n⏱️ ${video.timestamp} | 👁️ ${video.views}\n\n📥 Downloaded by CaseyRhodes Mini`
-        };
+        // Format views
+        const formattedViews = views ? views.toLocaleString() : 'N/A';
 
-        // Add contextInfo only if we have a thumbnail
-        if (thumbnailBuffer) {
-            videoMessage.contextInfo = {
+        // Create video info caption
+        const caption = `🎬 *${videoTitle}*\n\n` +
+                       `⏱️ *ᴅᴜʀᴀᴛɪᴏɴ:* ${duration}\n` +
+                       `📹 *ǫᴜᴀʟɪᴛʏ:* ${quality}\n` +
+                       `👤 *ᴄʜᴀɴɴᴇʟ:* ${video.author?.name || 'Unknown'}\n` +
+                       `👁️ *ᴠɪᴇᴡs:* ${formattedViews}\n\n` +
+                       `📥 *ᴅᴏᴡɴʟᴏᴀᴅᴇᴅ ʙʏ* ${config.OWNER_NAME}\n\n` +
+                       `> ${config.BOT_FOOTER}`;
+
+        // Send the video
+        await socket.sendMessage(sender, {
+            video: { url: videoUrl },
+            caption: caption,
+            contextInfo: {
+                forwardingScore: 1,
+                isForwarded: true,
                 externalAdReply: {
-                    title: video.title.substring(0, 40),
-                    body: `Duration: ${video.timestamp} | Views: ${video.views}`,
-                    mediaType: 2, // 2 for video
-                    thumbnail: thumbnailBuffer,
-                    sourceUrl: `https://youtu.be/${video.videoId}`,
-                    renderLargerThumbnail: false
+                    title: videoTitle.substring(0, 40),
+                    body: `Duration: ${duration} | Quality: ${quality}`,
+                    mediaType: 2,
+                    thumbnailUrl: thumbnail,
+                    sourceUrl: video.url,
+                    renderLargerThumbnail: true
+                },
+                forwardedNewsletterMessageInfo: {
+                    newsletterJid: '120363420261263259@newsletter',
+                    newsletterName: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ🌟',
+                    serverMessageId: -1
                 }
-            };
-        }
+            },
+            buttons: [
+                { 
+                    buttonId: `${prefix}play`, 
+                    buttonText: { displayText: '🎬 ᴘʟᴀʏ ᴀɴᴏᴛʜᴇʀ' }, 
+                    type: 1 
+                },
+                { 
+                    buttonId: `${prefix}menu`, 
+                    buttonText: { displayText: '📋 ᴍᴇɴᴜ' }, 
+                    type: 1 
+                }
+            ],
+            headerType: 1
+        }, { quoted: msg });
 
-        await socket.sendMessage(sender, videoMessage);
+        // Success reaction
+        await socket.sendMessage(sender, { 
+            react: { text: '✅', key: msg.key } 
+        });
+
+        console.log(`[PLAY] ✅ Sent video: ${videoTitle}`);
 
     } catch (err) {
-        console.error('[VIDEO] Error:', err.message);
+        console.error('[PLAY] Error:', err.message);
+        
+        // Delete processing message if exists
+        try { 
+            await socket.sendMessage(sender, { delete: processingMsg.key }); 
+        } catch (e) {}
+
+        // Send error message
         await socket.sendMessage(sender, {
-            text: '*❌ Error Occurred*\nFailed to process your video request. Please try again later.*'
+            text: `❌ *ᴅᴏᴡɴʟᴏᴀᴅ ғᴀɪʟᴇᴅ*\n\n${err.message || 'Unknown error occurred'}\n\n*ᴛʀʏ ᴀɢᴀɪɴ ᴏʀ ᴜsᴇ ᴀ ᴅɪғғᴇʀᴇɴᴛ ǫᴜᴇʀʏ.*\n\n> ${config.BOT_FOOTER}`,
+            buttons: [
+                { 
+                    buttonId: `${prefix}play`, 
+                    buttonText: { displayText: '🔄 ʀᴇᴛʀʏ' }, 
+                    type: 1 
+                },
+                { 
+                    buttonId: `${prefix}menu`, 
+                    buttonText: { displayText: '📋 ᴍᴇɴᴜ' }, 
+                    type: 1 
+                }
+            ],
+            headerType: 1
         }, { quoted: msg });
+        
+        await socket.sendMessage(sender, { 
+            react: { text: '❌', key: msg.key } 
+        });
     }
     break;
 }
-
-
-//===============================                
-// 9
-                case 'dllogo': { 
-                await socket.sendMessage(sender, { react: { text: '🔋', key: msg.key } });
-                    const q = args.join(" "); 
-                    
-                    if (!q) return await socket.sendMessage(from, { text: "Please give me a URL to capture the screenshot, love 😘" }, { quoted: fakevCard });
-                    
-                    try {
-                        const res = await axios.get(q);
-                        const images = res.data.result.download_url;
-
-                        await socket.sendMessage(m.chat, {
-                            image: { url: images },
-                            caption: config.CAPTION
-                        }, { quoted: msg });
-                    } catch (e) {
-                        console.log('Logo Download Error:', e);
-                        await socket.sendMessage(from, {
-                            text: `❌ Oh, sweetie, something went wrong with the logo... 💔 Try again?`
-                        }, { quoted: fakevCard });
-                    }
-                    break;
-                }
-//===========text maker====================    
-
-//===============================
-                case 'fancy': {
-                await socket.sendMessage(sender, { react: { text: '🖋', key: msg.key } });
-                    const axios = require("axios");
-                    
-                    const q =
-                        msg.message?.conversation ||
-                        msg.message?.extendedTextMessage?.text ||
-                        msg.message?.imageMessage?.caption ||
-                        msg.message?.videoMessage?.caption || '';
-
-                    const text = q.trim().replace(/^.fancy\s+/i, "");
-
-                    if (!text) {
-                        return await socket.sendMessage(sender, {
-                            text: "❎ *Give me some text to make it fancy, sweetie 😘*\n\n📌 *Example:* `.fancy Malvin`"
-                        });
-                    }
-
-                    try {
-                        const apiUrl = `https://www.dark-yasiya-api.site/other/font?text=${encodeURIComponent(text)}`;
-                        const response = await axios.get(apiUrl);
-
-                        if (!response.data.status || !response.data.result) {
-                            return await socket.sendMessage(sender, {
-                                text: "❌ *Oh, darling, the fonts got shy! Try again later? 💔*"
-                            });
-                        }
-
-                        const fontList = response.data.result
-                            .map(font => `*${font.name}:*\n${font.result}`)
-                            .join("\n\n");
-
-                        const finalMessage = `🎨 *Fancy Fonts Converter*\n\n${fontList}\n\n_ᴘᴏᴡᴇʀᴇᴅ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ`;
-
-                        await socket.sendMessage(sender, {
-                            text: finalMessage
-                        }, { quoted: fakevCard });
-                    } catch (err) {
-                        console.error("Fancy Font Error:", err);
-                        await socket.sendMessage(sender, {
-                            text: "⚠️ *Something went wrong with the fonts, love 😢 Try again?*"
-                        });
-                    }
-                    break;
-                    }
-// Case: tiktok / tt / ttdl / tiktokdl - Download TikTok video without watermark
+// Case: tiktok / tt / ttdl / tiktokdl - Download TikTok videos
 case 'tiktok':
 case 'tt':
 case 'ttdl':
 case 'tiktokdl': {
     try {
-        const raw = args[0];
-        const url = raw?.match(/(https?:\/\/[^\s]+)/)?.[0];
-
-        if (!url || !/tiktok\.com|vt\.tiktok\.com/.test(url)) {
-            await socket.sendMessage(sender, {
-                text: `❌ *Invalid TikTok URL!*\n\nExample: .tiktok https://vt.tiktok.com/ZS...\n\n> ${config.BOT_FOOTER}`,
-                quoted: msg
-            });
-            break;
-        }
-
-        await socket.sendMessage(sender, { react: { text: '🎵', key: msg.key } });
-
-        const processingMsg = await socket.sendMessage(sender, {
-            text: '⏳ *Processing TikTok video...* (may take ~20 seconds)',
-            quoted: msg
+        // React to command
+        await socket.sendMessage(sender, { 
+            react: { text: '📱', key: msg.key } 
         });
 
-        const ENDPOINTS = [
-            {
-                name: 'TikWM',
-                url:  (u) => `https://tikwm.com/api/?url=${encodeURIComponent(u)}`,
-                parse: (data) => {
-                    if (!data?.data?.play) return null;
-                    return { videoUrl: data.data.play, author: data.data.author, likes: data.data.digg_count };
-                }
-            },
-            {
-                name: 'Tiklydown',
-                url:  (u) => `https://api.tiklydown.eu.org/api/download?url=${encodeURIComponent(u)}`,
-                parse: (data) => {
-                    if (!data?.videoUrl) return null;
-                    return { videoUrl: data.videoUrl, author: data.author, likes: data.stats?.digg_count };
-                }
-            }
-        ];
-
-        let result = null;
-        for (const ep of ENDPOINTS) {
-            try {
-                const { data } = await axios.get(ep.url(url), {
-                    timeout: 25000,
-                    headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'application/json' }
-                });
-                result = ep.parse(data);
-                if (result) { console.log(`[TikTok] Success via ${ep.name}`); break; }
-            } catch (e) {
-                console.warn(`[TikTok] ${ep.name} failed: ${e.message}`);
-            }
-        }
-
-        // delete processing message
-        try { await socket.sendMessage(sender, { delete: processingMsg.key }); } catch {}
-
-        if (!result) {
+        // Check if URL is provided
+        if (!args[0]) {
             await socket.sendMessage(sender, {
-                text: '❌ *All download methods failed.*\nThe video may be private or restricted.\n\n> ' + config.BOT_FOOTER,
+                text: `📱 *ᴛɪᴋᴛᴏᴋ ᴠɪᴅᴇᴏ ᴅᴏᴡɴʟᴏᴀᴅᴇʀ*\n\nᴅᴏᴡɴʟᴏᴀᴅ ᴛɪᴋᴛᴏᴋ ᴠɪᴅᴇᴏs ᴡɪᴛʜᴏᴜᴛ ᴡᴀᴛᴇʀᴍᴀʀᴋ.\n\n*ᴜsᴀɢᴇ:*\n\`${prefix}tiktok <ᴛɪᴋᴛᴏᴋ ʟɪɴᴋ>\`\n\n*ᴇxᴀᴍᴘʟᴇs:*\n• \`${prefix}tiktok https://www.tiktok.com/@user/video/xxx\`\n• \`${prefix}tt https://vm.tiktok.com/xxx\`\n• \`${prefix}ttdl https://vt.tiktok.com/xxx\`\n\n> ${config.BOT_FOOTER}`,
                 buttons: [
-                    { buttonId: `${prefix}tt`, buttonText: { displayText: '🔄 ʀᴇᴛʀʏ' }, type: 1 },
-                    { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 ᴍᴇɴᴜ' }, type: 1 }
+                    { 
+                        buttonId: `${prefix}tiktok https://www.tiktok.com/@tiktok/video/123456789`, 
+                        buttonText: { displayText: '📱 ᴇxᴀᴍᴘʟᴇ ᴠɪᴅᴇᴏ' }, 
+                        type: 1 
+                    },
+                    { 
+                        buttonId: `${prefix}menu`, 
+                        buttonText: { displayText: '📋 ᴍᴇɴᴜ' }, 
+                        type: 1 
+                    }
                 ],
                 headerType: 1
             }, { quoted: msg });
             break;
         }
 
-        // Download video directly as arraybuffer
-        const vidResponse = await axios.get(result.videoUrl, { responseType: 'arraybuffer', timeout: 30000 });
-        const videoBuffer = Buffer.from(vidResponse.data);
-        if (videoBuffer.length < 1024) throw new Error('Downloaded file too small');
+        // Extract URL from args
+        const url = args[0];
+        
+        // Validate TikTok URL
+        const tiktokRegex = /(?:https?:\/\/)?(?:www\.)?(?:vm\.tiktok\.com|vt\.tiktok\.com|tiktok\.com)\/(?:@[\w.-]+\/video\/\d+|[\w]+)/;
+        if (!tiktokRegex.test(url)) {
+            await socket.sendMessage(sender, {
+                text: `❌ *ɪɴᴠᴀʟɪᴅ ᴛɪᴋᴛᴏᴋ ʟɪɴᴋ*\n\nᴘʟᴇᴀsᴇ ᴘʀᴏᴠɪᴅᴇ ᴀ ᴠᴀʟɪᴅ ᴛɪᴋᴛᴏᴋ ᴜʀʟ.\n\n*ᴇxᴀᴍᴘʟᴇs:*\n• \`${prefix}tiktok https://www.tiktok.com/@user/video/xxx\`\n• \`${prefix}tt https://vm.tiktok.com/xxx\`\n• \`${prefix}ttdl https://vt.tiktok.com/xxx\``,
+                quoted: msg
+            });
+            await socket.sendMessage(sender, { 
+                react: { text: '❌', key: msg.key } 
+            });
+            break;
+        }
 
-        const authorName = result.author?.nickname || result.author?.name || 'Unknown';
-        const likes = result.likes ?? 'N/A';
-        const caption = `🎵 *TikTok*  •  👤 ${authorName}  •  ❤️ ${likes}\n\n> ${config.BOT_FOOTER}`;
+        // Send processing message
+        const processingMsg = await socket.sendMessage(sender, {
+            text: `⏳ *ᴘʀᴏᴄᴇssɪɴɢ...*\n\n📱 ᴅᴏᴡɴʟᴏᴀᴅɪɴɢ ᴛɪᴋᴛᴏᴋ ᴠɪᴅᴇᴏ\n📥 ᴘʟᴇᴀsᴇ ᴡᴀɪᴛ, ᴛʜɪs ᴍᴀʏ ᴛᴀᴋᴇ ᴀ ᴍᴏᴍᴇɴᴛ.`,
+            quoted: msg
+        });
 
-        await socket.sendMessage(sender, {
-            video: videoBuffer,
-            caption: caption,
-            buttons: [
-                { buttonId: `${prefix}tt`, buttonText: { displayText: '🎵 ᴅᴏᴡɴʟᴏᴀᴅ ᴀɢᴀɪɴ' }, type: 1 },
-                { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 ᴍᴇɴᴜ' }, type: 1 }
-            ],
-            headerType: 1
-        }, { quoted: msg });
+        // Encode URL for API
+        const encodedUrl = encodeURIComponent(url);
+        const apiUrl = `https://api.cod3uchiha.com/downloaders/tiktokdl?url=${encodedUrl}`;
 
-        await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
+        console.log(`[TikTok] 📥 Downloading: ${url}`);
+
+        // Fetch video info and download link
+        const response = await axios.get(apiUrl, { 
+            timeout: 30000,
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+        });
+
+        const data = response.data;
+
+        // Delete processing message
+        try { await socket.sendMessage(sender, { delete: processingMsg.key }); } catch (e) {}
+
+        // Check if response contains error
+        if (data.error || data.status === 'error' || !data) {
+            throw new Error(data.message || 'Failed to download video');
+        }
+
+        // Extract video info from response (supports multiple response formats)
+        const videoData = data.result || data.data || data;
+        
+        const videoTitle = videoData.title || videoData.desc || 'TikTok Video';
+        const videoUrl = videoData.play || videoData.videoUrl || videoData.download || videoData.url || videoData.link;
+        const thumbnail = videoData.cover || videoData.thumbnail || videoData.pic || 'https://via.placeholder.com/150';
+        const duration = videoData.duration || 'N/A';
+        const views = videoData.play_count || videoData.views || 'N/A';
+        const likes = videoData.digg_count || videoData.likes || 'N/A';
+        const shares = videoData.share_count || videoData.shares || 'N/A';
+        const comments = videoData.comment_count || videoData.comments || 'N/A';
+        const uploader = videoData.author?.nickname || videoData.author || videoData.nickname || 'Unknown';
+        const uploaderUsername = videoData.author?.unique_id || videoData.username || 'unknown';
+        const music = videoData.music || videoData.sound || 'Unknown';
+        const isWatermarked = videoData.watermarked || false;
+
+        if (!videoUrl) {
+            throw new Error('No download URL found in response');
+        }
+
+        // Determine if video has audio
+        const hasAudio = videoData.has_audio !== undefined ? videoData.has_audio : true;
+
+        // Create video info caption
+        const caption = `📱 *${videoTitle.substring(0, 60)}${videoTitle.length > 60 ? '...' : ''}*\n\n` +
+                       `👤 *ᴜᴘʟᴏᴀᴅᴇʀ:* ${uploader} (@${uploaderUsername})\n` +
+                       `⏱️ *ᴅᴜʀᴀᴛɪᴏɴ:* ${duration}s\n` +
+                       `👁️ *ᴠɪᴇᴡs:* ${formatNumber(views)}\n` +
+                       `❤️ *ʟɪᴋᴇs:* ${formatNumber(likes)}\n` +
+                       `💬 *ᴄᴏᴍᴍᴇɴᴛs:* ${formatNumber(comments)}\n` +
+                       `🔄 *sʜᴀʀᴇs:* ${formatNumber(shares)}\n` +
+                       `🎵 *sᴏᴜɴᴅ:* ${music.substring(0, 40)}${music.length > 40 ? '...' : ''}\n` +
+                       `💧 *ᴡᴀᴛᴇʀᴍᴀʀᴋ:* ${isWatermarked ? '✅ ʏᴇs' : '❌ ɴᴏ'}\n\n` +
+                       `📥 *ᴅᴏᴡɴʟᴏᴀᴅᴇᴅ ʙʏ* ${config.OWNER_NAME}\n\n` +
+                       `> ${config.BOT_FOOTER}`;
+
+        // Helper function to format numbers
+        function formatNumber(num) {
+            if (!num) return '0';
+            const n = parseInt(num);
+            if (isNaN(n)) return num;
+            if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+            if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+            return n.toString();
+        }
+
+        // Try to send video with audio
+        try {
+            await socket.sendMessage(sender, {
+                video: { url: videoUrl },
+                caption: caption,
+                contextInfo: {
+                    forwardingScore: 1,
+                    isForwarded: true,
+                    externalAdReply: {
+                        title: uploader,
+                        body: `❤️ ${formatNumber(likes)} likes | 👁️ ${formatNumber(views)} views`,
+                        mediaType: 2,
+                        thumbnailUrl: thumbnail,
+                        sourceUrl: url,
+                        renderLargerThumbnail: true
+                    },
+                    forwardedNewsletterMessageInfo: {
+                        newsletterJid: '120363420261263259@newsletter',
+                        newsletterName: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ🌟',
+                        serverMessageId: -1
+                    }
+                },
+                buttons: [
+                    { 
+                        buttonId: `${prefix}tiktok`, 
+                        buttonText: { displayText: '📱 ᴅᴏᴡɴʟᴏᴀᴅ ᴀɴᴏᴛʜᴇʀ' }, 
+                        type: 1 
+                    },
+                    { 
+                        buttonId: `${prefix}menu`, 
+                        buttonText: { displayText: '📋 ᴍᴇɴᴜ' }, 
+                        type: 1 
+                    }
+                ],
+                headerType: 1
+            }, { quoted: msg });
+        } catch (sendError) {
+            // If video send fails, try sending as document
+            console.log('[TikTok] Video send failed, trying as document...');
+            
+            const fileName = `${uploaderUsername}_${Date.now()}.mp4`;
+            
+            await socket.sendMessage(sender, {
+                document: { url: videoUrl },
+                fileName: fileName,
+                mimetype: 'video/mp4',
+                caption: caption,
+                contextInfo: {
+                    externalAdReply: {
+                        title: uploader,
+                        body: `❤️ ${formatNumber(likes)} likes | 👁️ ${formatNumber(views)} views`,
+                        mediaType: 2,
+                        thumbnailUrl: thumbnail,
+                        sourceUrl: url
+                    },
+                    forwardedNewsletterMessageInfo: {
+                        newsletterJid: '120363420261263259@newsletter',
+                        newsletterName: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ🌟',
+                        serverMessageId: -1
+                    }
+                }
+            }, { quoted: msg });
+        }
+
+        // Success reaction
+        await socket.sendMessage(sender, { 
+            react: { text: '✅', key: msg.key } 
+        });
+
+        console.log(`[TikTok] ✅ Sent: ${videoTitle}`);
 
     } catch (error) {
         console.error('[TikTok] Error:', error.message);
+
+        // Delete processing message if exists
+        try { 
+            await socket.sendMessage(sender, { delete: processingMsg.key }); 
+        } catch (e) {}
+
+        // Send error message
         await socket.sendMessage(sender, {
-            text: `❌ *TikTok download failed:* ${error.message}\n\n> ${config.BOT_FOOTER}`,
+            text: `❌ *ᴅᴏᴡɴʟᴏᴀᴅ ғᴀɪʟᴇᴅ*\n\n${error.message || 'Unknown error occurred'}\n\n*ᴛʀʏ ᴀɢᴀɪɴ ᴏʀ ᴜsᴇ ᴀ ᴅɪғғᴇʀᴇɴᴛ ʟɪɴᴋ.*\n\n> ${config.BOT_FOOTER}`,
             buttons: [
-                { buttonId: `${prefix}tt`, buttonText: { displayText: '🔄 ʀᴇᴛʀʏ' }, type: 1 }
+                { 
+                    buttonId: `${prefix}tiktok`, 
+                    buttonText: { displayText: '🔄 ʀᴇᴛʀʏ' }, 
+                    type: 1 
+                },
+                { 
+                    buttonId: `${prefix}menu`, 
+                    buttonText: { displayText: '📋 ᴍᴇɴᴜ' }, 
+                    type: 1 
+                }
             ],
             headerType: 1
         }, { quoted: msg });
-        await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
+
+        await socket.sendMessage(sender, { 
+            react: { text: '❌', key: msg.key } 
+        });
     }
     break;
 }
@@ -10267,66 +10142,7 @@ case 'readm': {
     }
     break;
 }
-//case cat
-case "cats": {
-    try {
-        await socket.sendMessage(sender, { react: { text: '🐱', key: msg.key } });
-        const res = await fetch('https://api.thecatapi.com/v1/images/search');
-        const data = await res.json();
-        if (!data || !data[0]?.url) {
-            await socket.sendMessage(sender, { 
-                text: '❌ Couldn\'t fetch cat image.' 
-            }, { quoted: fakevCard });
-            break;
-        }
-        await socket.sendMessage(sender, {
-            image: { url: data[0].url },
-            caption: '🐱 Meow~ Here\'s a cute cat for you!',
-            buttons: [
-                { buttonId: '.cat', buttonText: { displayText: '🐱 Another Cat' }, type: 1 }
-            ]
-        }, { quoted: fakevCard });
-    } catch (err) {
-        console.error(err);
-        await socket.sendMessage(sender, { 
-            text: '❌ Failed to fetch cat image.',
-            buttons: [
-                { buttonId: '.cat', buttonText: { displayText: '🔄 Try Again' }, type: 1 }
-            ]
-        }, { quoted: fakevCard });
-    }
-    break;
-}
-//case dog 
-case "dog": {
-    try {
-        await socket.sendMessage(sender, { react: { text: '🦮', key: msg.key } });
-        const res = await fetch('https://dog.ceo/api/breeds/image/random');
-        const data = await res.json();
-        if (!data || !data.message) {
-            await socket.sendMessage(sender, { 
-                text: '❌ Couldn\'t fetch dog image.' 
-            }, { quoted: fakevCard });
-            break;
-        }
-        await socket.sendMessage(sender, {
-            image: { url: data.message },
-            caption: '🐶 Woof! Here\'s a cute dog!',
-            buttons: [
-                { buttonId: '.dog', buttonText: { displayText: '🐶 Another Dog' }, type: 1 }
-            ]
-        }, { quoted: fakevCard });
-    } catch (err) {
-        console.error(err);
-        await socket.sendMessage(sender, { 
-            text: '❌ Failed to fetch dog image.',
-            buttons: [
-                { buttonId: '.dog', buttonText: { displayText: '🔄 Try Again' }, type: 1 }
-            ]
-        }, { quoted: fakevCard });
-    }
-    break;
-}
+
 
 case 'fact': {
     try {
@@ -11364,53 +11180,7 @@ case 'profilepic': {
     }
     break;
 }
-//===============================
-                  case 'aiimg': { 
-                  await socket.sendMessage(sender, { react: { text: '🔮', key: msg.key } });
-                    const axios = require('axios');
-                    
-                    const q =
-                        msg.message?.conversation ||
-                        msg.message?.extendedTextMessage?.text ||
-                        msg.message?.imageMessage?.caption ||
-                        msg.message?.videoMessage?.caption || '';
 
-                    const prompt = q.trim();
-
-                    if (!prompt) {
-                        return await socket.sendMessage(sender, {
-                            text: '🎨 *Give me a spicy prompt to create your AI image, darling 😘*'
-                        });
-                    }
-
-                    try {
-                        await socket.sendMessage(sender, {
-                            text: '🧠 *Crafting your dreamy image, love...*',
-                        });
-
-                        const apiUrl = `https://api.siputzx.my.id/api/ai/flux?prompt=${encodeURIComponent(prompt)}`;
-                        const response = await axios.get(apiUrl, { responseType: 'arraybuffer' });
-
-                        if (!response || !response.data) {
-                            return await socket.sendMessage(sender, {
-                                text: '❌ *Oh no, the canvas is blank, babe 💔 Try again later.*'
-                            });
-                        }
-
-                        const imageBuffer = Buffer.from(response.data, 'binary');
-
-                        await socket.sendMessage(sender, {
-                            image: imageBuffer,
-                            caption: `🧠 *ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ AI IMAGE*\n\n📌 Prompt: ${prompt}`
-                        }, { quoted: fakevCard });
-                    } catch (err) {
-                        console.error('AI Image Error:', err);
-                        await socket.sendMessage(sender, {
-                            text: `❗ *Something broke my heart, love 😢*: ${err.response?.data?.message || err.message || 'Unknown error'}`
-                        });
-                    }
-                    break;
-                }
 //===============================
                 case 'gossip': {
                 await socket.sendMessage(sender, { react: { text: '😅', key: msg.key } });
@@ -12453,33 +12223,242 @@ case 'gdesc': {
     break;
 }
 
-// Case: lock / close - Lock group
+
+// ==============================================
+// 👥 TAGALL COMMAND - Mention all group members
+// ==============================================
+
+// Case: tagall / everyone / all - Tag all group members
+case 'tagall':
+case 'everyone':
+case 'all':
+case 'mentions': {
+    try {
+        // Check if it's a group
+        if (!isGroup) {
+            await socket.sendMessage(sender, {
+                text: '❌ *ɢʀᴏᴜᴘ ᴏɴʟʏ*\n\nᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ ᴄᴀɴ ᴏɴʟʏ ʙᴇ ᴜsᴇᴅ ɪɴ ɢʀᴏᴜᴘs.',
+                quoted: fakevCard
+            });
+            break;
+        }
+
+        // Send typing indicator
+        await socket.sendPresenceUpdate('composing', from);
+
+        // Get group metadata
+        const groupMetadata = await socket.groupMetadata(from);
+        const participants = groupMetadata.participants;
+        const groupName = groupMetadata.subject || 'Group';
+        const participantCount = participants.length;
+
+        // Check if user has permission (admin or owner)
+        const isAdmin = isSenderGroupAdmin || isOwner;
+        if (!isAdmin) {
+            await socket.sendMessage(sender, {
+                text: '❌ *ᴀᴅᴍɪɴ ᴏɴʟʏ*\n\nᴏɴʟʏ ɢʀᴏᴜᴘ ᴀᴅᴍɪɴs ᴄᴀɴ ᴛᴀɢ ᴀʟʟ ᴍᴇᴍʙᴇʀs.',
+                quoted: fakevCard
+            });
+            break;
+        }
+
+        // Extract custom message
+        const customMessage = args.join(' ').trim() || '📢 Attention everyone!';
+
+        // Get sender info
+        const senderName = nowsender.split('@')[0];
+        
+        // Build mentions list
+        const mentions = participants.map(p => p.id);
+        
+        // Get admin list for special badge
+        const admins = participants.filter(p => p.admin === 'admin' || p.admin === 'superadmin');
+        const adminIds = admins.map(p => p.id);
+
+        // Build the tag message
+        let tagText = `╭━━〔 *👥 ᴛᴀɢ ᴀʟʟ* 〕━━┈⊷\n`;
+        tagText += `┃\n`;
+        tagText += `┃ 📢 *${customMessage}*\n`;
+        tagText += `┃\n`;
+        tagText += `┃ 👥 *ᴛᴏᴛᴀʟ ᴍᴇᴍʙᴇʀs:* ${participantCount}\n`;
+        tagText += `┃ 🛡️ *ᴀᴅᴍɪɴs:* ${admins.length}\n`;
+        tagText += `┃ 📌 *ɢʀᴏᴜᴘ:* ${groupName}\n`;
+        tagText += `┃ 👤 *ʙʏ:* @${senderName}\n`;
+        tagText += `┃\n`;
+        tagText += `╰━━━━━━━━━━━━━━━━━━━━⊷\n\n`;
+
+        // Add all members with numbers
+        let memberList = '';
+        participants.forEach((p, index) => {
+            const isAdmin = p.admin === 'admin' || p.admin === 'superadmin';
+            const emoji = isAdmin ? '🛡️' : '👤';
+            const name = p.id.split('@')[0];
+            memberList += `${emoji} ${index + 1}. @${name}\n`;
+        });
+
+        // Truncate if too long (WhatsApp has message limits)
+        const maxLength = 4000;
+        if (memberList.length > maxLength) {
+            memberList = memberList.substring(0, maxLength) + '\n... ᴀɴᴅ ᴍᴏʀᴇ ᴍᴇᴍʙᴇʀs';
+        }
+
+        tagText += memberList;
+        tagText += `\n> ${config.BOT_FOOTER}`;
+
+        // Send the tag message with all mentions
+        await socket.sendMessage(from, {
+            text: tagText,
+            mentions: mentions,
+            contextInfo: {
+                forwardingScore: 1,
+                isForwarded: true,
+                externalAdReply: {
+                    title: `👥 Tag All - ${participantCount} members`,
+                    body: customMessage,
+                    mediaType: 1,
+                    thumbnailUrl: config.RCD_IMAGE_PATH,
+                    sourceUrl: config.CHANNEL_LINK,
+                    renderLargerThumbnail: true
+                },
+                forwardedNewsletterMessageInfo: {
+                    newsletterJid: '120363420261263259@newsletter',
+                    newsletterName: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ🌟',
+                    serverMessageId: -1
+                }
+            }
+        }, { quoted: fakevCard });
+
+        // React with success
+        await socket.sendMessage(sender, { 
+            react: { text: '✅', key: msg.key } 
+        });
+
+        console.log(`[TagAll] ✅ Tagged ${participantCount} members in ${groupName}`);
+
+    } catch (error) {
+        console.error('[TagAll] Error:', error.message);
+        
+        // Send error message
+        await socket.sendMessage(sender, {
+            text: `❌ *ᴛᴀɢ ᴀʟʟ ғᴀɪʟᴇᴅ*\n\n${error.message || 'Unknown error occurred'}\n\n> ${config.BOT_FOOTER}`,
+            quoted: fakevCard
+        });
+        
+        await socket.sendMessage(sender, { 
+            react: { text: '❌', key: msg.key } 
+        });
+    }
+    break;
+}
+// Case: lock / close - Lock group (Admin/Owner only)
 case 'lock':
 case 'close': {
     try {
-        if (!isGroup) { await socket.sendMessage(sender, { text: '❌ *ɢʀᴏᴜᴘ ᴏɴʟʏ*', quoted: msg }); break; }
+        // Check if it's a group
+        if (!isGroup) {
+            await socket.sendMessage(sender, { 
+                text: '❌ *ɢʀᴏᴜᴘ ᴏɴʟʏ*\n\nᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ ᴄᴀɴ ᴏɴʟʏ ʙᴇ ᴜsᴇᴅ ɪɴ ɢʀᴏᴜᴘs.', 
+                quoted: msg 
+            });
+            break;
+        }
+
+        // Check if user is admin or owner
+        if (!isSenderGroupAdmin && !isOwner) {
+            await socket.sendMessage(sender, {
+                text: '❌ *ᴀᴅᴍɪɴ ᴏɴʟʏ*\n\nᴏɴʟʏ ɢʀᴏᴜᴘ ᴀᴅᴍɪɴs ᴏʀ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ʟᴏᴄᴋ ᴛʜɪs ɢʀᴏᴜᴘ.',
+                quoted: msg
+            });
+            break;
+        }
+
+        // Lock the group
         await socket.groupSettingUpdate(from, 'announcement');
+        
+        // Send success message with unlock button
         await socket.sendMessage(sender, {
-            text: `🔒 *ɢʀᴏᴜᴘ ʟᴏᴄᴋᴇᴅ!*\n\nᴏɴʟʏ ᴀᴅᴍɪɴs ᴄᴀɴ sᴇɴᴅ ᴍᴇssᴀɢᴇs.`,
-            buttons: [{ buttonId: `${prefix}unlock`, buttonText: { displayText: '🔓 ᴜɴʟᴏᴄᴋ' }, type: 1 }],
+            text: `🔒 *ɢʀᴏᴜᴘ ʟᴏᴄᴋᴇᴅ!*\n\n✅ ᴏɴʟʏ ᴀᴅᴍɪɴs ᴄᴀɴ sᴇɴᴅ ᴍᴇssᴀɢᴇs ɴᴏᴡ.\n👤 *ʟᴏᴄᴋᴇᴅ ʙʏ:* @${senderNumber}`,
+            mentions: [sender],
+            buttons: [
+                { 
+                    buttonId: `${prefix}unlock`, 
+                    buttonText: { displayText: '🔓 ᴜɴʟᴏᴄᴋ' }, 
+                    type: 1 
+                }
+            ],
             headerType: 1
         }, { quoted: msg });
-    } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: msg }); }
+
+        // React with success
+        await socket.sendMessage(sender, { 
+            react: { text: '🔒', key: msg.key } 
+        });
+
+        console.log(`[Lock] 🔒 Group ${from} locked by ${senderNumber}`);
+
+    } catch (e) { 
+        console.error('[Lock] Error:', e.message);
+        await socket.sendMessage(sender, { 
+            text: '❌ *ғᴀɪʟᴇᴅ ᴛᴏ ʟᴏᴄᴋ ɢʀᴏᴜᴘ*\n\n' + e.message, 
+            quoted: msg 
+        });
+    }
     break;
 }
 
-// Case: unlock / open - Unlock group
+// Case: unlock / open - Unlock group (Admin/Owner only)
 case 'unlock':
 case 'open': {
     try {
-        if (!isGroup) { await socket.sendMessage(sender, { text: '❌ *ɢʀᴏᴜᴘ ᴏɴʟʏ*', quoted: msg }); break; }
+        // Check if it's a group
+        if (!isGroup) {
+            await socket.sendMessage(sender, { 
+                text: '❌ *ɢʀᴏᴜᴘ ᴏɴʟʏ*\n\nᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ ᴄᴀɴ ᴏɴʟʏ ʙᴇ ᴜsᴇᴅ ɪɴ ɢʀᴏᴜᴘs.', 
+                quoted: msg 
+            });
+            break;
+        }
+
+        // Check if user is admin or owner
+        if (!isSenderGroupAdmin && !isOwner) {
+            await socket.sendMessage(sender, {
+                text: '❌ *ᴀᴅᴍɪɴ ᴏɴʟʏ*\n\nᴏɴʟʏ ɢʀᴏᴜᴘ ᴀᴅᴍɪɴs ᴏʀ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜɴʟᴏᴄᴋ ᴛʜɪs ɢʀᴏᴜᴘ.',
+                quoted: msg
+            });
+            break;
+        }
+
+        // Unlock the group
         await socket.groupSettingUpdate(from, 'not_announcement');
+        
+        // Send success message with lock button
         await socket.sendMessage(sender, {
-            text: `🔓 *ɢʀᴏᴜᴘ ᴜɴʟᴏᴄᴋᴇᴅ!*\n\nᴇᴠᴇʀʏᴏɴᴇ ᴄᴀɴ sᴇɴᴅ ᴍᴇssᴀɢᴇs.`,
-            buttons: [{ buttonId: `${prefix}lock`, buttonText: { displayText: '🔒 ʟᴏᴄᴋ' }, type: 1 }],
+            text: `🔓 *ɢʀᴏᴜᴘ ᴜɴʟᴏᴄᴋᴇᴅ!*\n\n✅ ᴇᴠᴇʀʏᴏɴᴇ ᴄᴀɴ sᴇɴᴅ ᴍᴇssᴀɢᴇs ɴᴏᴡ.\n👤 *ᴜɴʟᴏᴄᴋᴇᴅ ʙʏ:* @${senderNumber}`,
+            mentions: [sender],
+            buttons: [
+                { 
+                    buttonId: `${prefix}lock`, 
+                    buttonText: { displayText: '🔒 ʟᴏᴄᴋ' }, 
+                    type: 1 
+                }
+            ],
             headerType: 1
         }, { quoted: msg });
-    } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: msg }); }
+
+        // React with success
+        await socket.sendMessage(sender, { 
+            react: { text: '🔓', key: msg.key } 
+        });
+
+        console.log(`[Unlock] 🔓 Group ${from} unlocked by ${senderNumber}`);
+
+    } catch (e) { 
+        console.error('[Unlock] Error:', e.message);
+        await socket.sendMessage(sender, { 
+            text: '❌ *ғᴀɪʟᴇᴅ ᴛᴏ ᴜɴʟᴏᴄᴋ ɢʀᴏᴜᴘ*\n\n' + e.message, 
+            quoted: msg 
+        });
+    }
     break;
 }
 
