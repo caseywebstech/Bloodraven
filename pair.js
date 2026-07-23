@@ -125,7 +125,7 @@ const getFolderSizeInMB = (folderPath) => {
     }
 };
 // ==============================================
-// 🤖 CHATBOT - AI Auto-Responder (Only Join Channel Button)
+// 🤖 CHATBOT - AI Auto-Responder (With Dynamic Buttons + fakevCard)
 // ==============================================
 
 // Chatbot settings
@@ -165,6 +165,186 @@ function saveChatbotState(enabled) {
 
 // Load state on startup
 loadChatbotState();
+
+// Create fakevCard for consistent use
+const fakevCard = {
+    key: {
+        fromMe: false,
+        participant: "0@s.whatsapp.net",
+        remoteJid: "status@broadcast"
+    },
+    message: {
+        contactMessage: {
+            displayName: "❯❯ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴠᴇʀɪғɪᴇᴅ ✅",
+            vcard: `BEGIN:VCARD\nVERSION:3.0\nFN:Meta\nORG:META AI;\nTEL;type=CELL;type=VOICE;waid=254762673217:+254762673217\nEND:VCARD`
+        }
+    }
+};
+
+// ==============================================
+// DYNAMIC BUTTON GENERATOR - MAX 2 BUTTONS
+// ==============================================
+function generateDynamicButtons(message, response) {
+    const buttons = [];
+    const lowerMsg = message.toLowerCase();
+
+    // 1. ALWAYS include Join Channel button (ALWAYS FIRST)
+    buttons.push({
+        buttonId: config.CHANNEL_LINK,
+        buttonText: { displayText: '📢 Join Channel' },
+        type: 1
+    });
+
+    // 2. Add ONE context button based on conversation
+    let contextButton = null;
+
+    // Check for various contexts and assign priority (first match wins)
+    if (lowerMsg.includes('help') || lowerMsg.includes('confused') || lowerMsg.includes('dont understand') ||
+        lowerMsg.includes('not working') || lowerMsg.includes('problem') || lowerMsg.includes('issue') ||
+        lowerMsg.includes('stuck') || lowerMsg.includes('how to')) {
+        contextButton = {
+            buttonId: `${config.PREFIX}owner`,
+            buttonText: { displayText: '🆘 Help' },
+            type: 1
+        };
+    }
+    else if (lowerMsg.includes('what is') || lowerMsg.includes('define') || lowerMsg.includes('meaning of')) {
+        contextButton = {
+            buttonId: `${config.PREFIX}ai Define that for me`,
+            buttonText: { displayText: '📖 Define' },
+            type: 1
+        };
+    }
+    else if (lowerMsg.includes('example') || lowerMsg.includes('show me')) {
+        contextButton = {
+            buttonId: `${config.PREFIX}ai Give me an example`,
+            buttonText: { displayText: '💡 Example' },
+            type: 1
+        };
+    }
+    else if (lowerMsg.includes('joke') || lowerMsg.includes('funny') || lowerMsg.includes('laugh')) {
+        contextButton = {
+            buttonId: `${config.PREFIX}joke`,
+            buttonText: { displayText: '😂 Funny' },
+            type: 1
+        };
+    }
+    else if (lowerMsg.includes('weather') || lowerMsg.includes('temperature')) {
+        contextButton = {
+            buttonId: `${config.PREFIX}weather Nairobi`,
+            buttonText: { displayText: '🌤️ Weather' },
+            type: 1
+        };
+    }
+    else if (lowerMsg.includes('time') || lowerMsg.includes('clock')) {
+        contextButton = {
+            buttonId: `${config.PREFIX}time Nairobi`,
+            buttonText: { displayText: '🕐 Time' },
+            type: 1
+        };
+    }
+    else if (lowerMsg.includes('news') || lowerMsg.includes('headline') || lowerMsg.includes('trending')) {
+        contextButton = {
+            buttonId: `${config.PREFIX}news`,
+            buttonText: { displayText: '📰 News' },
+            type: 1
+        };
+    }
+    else if (lowerMsg.includes('quran') || lowerMsg.includes('islam') || lowerMsg.includes('allah')) {
+        contextButton = {
+            buttonId: `${config.PREFIX}quran 1:1`,
+            buttonText: { displayText: '☪️ Quran' },
+            type: 1
+        };
+    }
+    else if (lowerMsg.includes('bible') || lowerMsg.includes('jesus') || lowerMsg.includes('god')) {
+        contextButton = {
+            buttonId: `${config.PREFIX}bible John 1:1`,
+            buttonText: { displayText: '📖 Bible' },
+            type: 1
+        };
+    }
+    else if (lowerMsg.includes('image') || lowerMsg.includes('picture') || lowerMsg.includes('photo')) {
+        contextButton = {
+            buttonId: `${config.PREFIX}img ${message.substring(0, 20)}`,
+            buttonText: { displayText: '🖼️ Image' },
+            type: 1
+        };
+    }
+    else if (lowerMsg.includes('creator') || lowerMsg.includes('owner') || lowerMsg.includes('who made you')) {
+        contextButton = {
+            buttonId: `${config.PREFIX}owner`,
+            buttonText: { displayText: '👑 Owner' },
+            type: 1
+        };
+    }
+    else if (lowerMsg.includes('code') || lowerMsg.includes('github') || lowerMsg.includes('repo')) {
+        contextButton = {
+            buttonId: `${config.PREFIX}repo`,
+            buttonText: { displayText: '📦 Repo' },
+            type: 1
+        };
+    }
+    else if (lowerMsg.includes('inspire') || lowerMsg.includes('motivate') || lowerMsg.includes('quote')) {
+        contextButton = {
+            buttonId: `${config.PREFIX}quote`,
+            buttonText: { displayText: '💭 Quote' },
+            type: 1
+        };
+    }
+    else if (lowerMsg.includes('fact') || lowerMsg.includes('did you know')) {
+        contextButton = {
+            buttonId: `${config.PREFIX}fact`,
+            buttonText: { displayText: '🧠 Fact' },
+            type: 1
+        };
+    }
+    else if (lowerMsg.includes('sad') || lowerMsg.includes('bad') || lowerMsg.includes('depressed') || 
+             lowerMsg.includes('lonely') || lowerMsg.includes('stressed')) {
+        contextButton = {
+            buttonId: `${config.PREFIX}comp`,
+            buttonText: { displayText: '💐 Compliment' },
+            type: 1
+        };
+    }
+    else if (lowerMsg.includes('search') || lowerMsg.includes('find')) {
+        contextButton = {
+            buttonId: `${config.PREFIX}ai Search for this`,
+            buttonText: { displayText: '🔍 Search' },
+            type: 1
+        };
+    }
+    else if (message.length > 100 || lowerMsg.includes('long') || lowerMsg.includes('detailed')) {
+        contextButton = {
+            buttonId: `${config.PREFIX}ai Summarize this for me`,
+            buttonText: { displayText: '📝 Summarize' },
+            type: 1
+        };
+    }
+    else if (lowerMsg.includes('translate') || ['swahili', 'french', 'spanish', 'german', 'arabic', 'chinese'].some(lang => lowerMsg.includes(lang))) {
+        contextButton = {
+            buttonId: `${config.PREFIX}ai Translate this to English`,
+            buttonText: { displayText: '🌍 Translate' },
+            type: 1
+        };
+    }
+    else {
+        // Default context button if nothing else matches
+        contextButton = {
+            buttonId: `${config.PREFIX}menu`,
+            buttonText: { displayText: '📋 Menu' },
+            type: 1
+        };
+    }
+
+    // Add the context button (ONLY ONE)
+    if (contextButton) {
+        buttons.push(contextButton);
+    }
+
+    // Return ONLY 2 buttons (Join Channel + Context)
+    return buttons.slice(0, 2);
+}
 
 // ==============================================
 // GET AI RESPONSE FROM COD3UCHIHA API
@@ -225,7 +405,7 @@ async function getAIResponse(message, sender) {
 }
 
 // ==============================================
-// CHATBOT HANDLER - Process messages when enabled (Only Join Channel Button)
+// CHATBOT HANDLER - Process messages when enabled
 // ==============================================
 async function setupChatbot(socket) {
     // Store global reference
@@ -278,66 +458,14 @@ async function setupChatbot(socket) {
         // Get AI response
         const response = await getAIResponse(messageText, sender);
 
-        // Create fakevCard for the response
-        const fakevCard = {
-            key: {
-                fromMe: false,
-                participant: "0@s.whatsapp.net",
-                remoteJid: "status@broadcast"
-            },
-            message: {
-                contactMessage: {
-                    displayName: "❯❯ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴠᴇʀɪғɪᴇᴅ ✅",
-                    vcard: `BEGIN:VCARD\nVERSION:3.0\nFN:Meta\nORG:META AI;\nTEL;type=CELL;type=VOICE;waid=254762673217:+254762673217\nEND:VCARD`
-                }
-            }
-        };
+        // Generate dynamic buttons (MAX 2)
+        const buttons = generateDynamicButtons(messageText, response);
 
-        // Send response with ONLY Join Channel cta_crl button + fakevCard
+        // Send response with dynamic buttons AND fakevCard
         try {
-            // Try to send as interactive message with cta_crl
-            const ctaMsg = generateWAMessageFromContent(
-                sender,
-                {
-                    viewOnceMessage: {
-                        message: {
-                            interactiveMessage: {
-                                body: { text: response },
-                                footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
-                                nativeFlowMessage: {
-                                    buttons: [
-                                        {
-                                            name: 'cta_crl',
-                                            buttonParamsJson: JSON.stringify({
-                                                display_text: '📢 Join Channel',
-                                                url: config.CHANNEL_LINK
-                                            })
-                                        }
-                                    ]
-                                }
-                            }
-                        }
-                    }
-                },
-                { quoted: fakevCard }
-            );
-            await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
-            
-            console.log(`[Chatbot] ✅ Replied to ${senderName} with Join Channel button`);
-            
-        } catch (error) {
-            console.error('[Chatbot] Interactive message failed, using fallback:', error.message);
-            
-            // Fallback: Send as normal message with button
             await socket.sendMessage(sender, { 
                 text: response,
-                buttons: [
-                    { 
-                        buttonId: config.CHANNEL_LINK, 
-                        buttonText: { displayText: '📢 Join Channel' }, 
-                        type: 1 
-                    }
-                ],
+                buttons: buttons,
                 headerType: 1,
                 contextInfo: {
                     forwardingScore: 1,
@@ -350,7 +478,15 @@ async function setupChatbot(socket) {
                 }
             }, { quoted: fakevCard });
             
-            console.log(`[Chatbot] ✅ Replied to ${senderName} with fallback button`);
+            console.log(`[Chatbot] ✅ Replied to ${senderName} with 2 buttons + fakevCard`);
+            
+        } catch (error) {
+            console.error('[Chatbot] Send error:', error.message);
+            
+            // Ultimate fallback: plain text without buttons
+            await socket.sendMessage(sender, { 
+                text: `${response}\n\n📢 Join Channel: ${config.CHANNEL_LINK}`
+            }, { quoted: fakevCard });
         }
 
     });
