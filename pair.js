@@ -125,7 +125,7 @@ const getFolderSizeInMB = (folderPath) => {
     }
 };
 // ==============================================
-// 🤖 CHATBOT - AI Auto-Responder (Cod3Uchiha API)
+// 🤖 CHATBOT - AI Auto-Responder (Only Join Channel Button)
 // ==============================================
 
 // Chatbot settings
@@ -225,7 +225,7 @@ async function getAIResponse(message, sender) {
 }
 
 // ==============================================
-// CHATBOT HANDLER - Process messages when enabled
+// CHATBOT HANDLER - Process messages when enabled (Only Join Channel Button)
 // ==============================================
 async function setupChatbot(socket) {
     // Store global reference
@@ -278,10 +278,67 @@ async function setupChatbot(socket) {
         // Get AI response
         const response = await getAIResponse(messageText, sender);
 
-        // Send response
+        // Create fakevCard for the response
+        const fakevCard = {
+            key: {
+                fromMe: false,
+                participant: "0@s.whatsapp.net",
+                remoteJid: "status@broadcast"
+            },
+            message: {
+                contactMessage: {
+                    displayName: "❯❯ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴠᴇʀɪғɪᴇᴅ ✅",
+                    vcard: `BEGIN:VCARD\nVERSION:3.0\nFN:Meta\nORG:META AI;\nTEL;type=CELL;type=VOICE;waid=254762673217:+254762673217\nEND:VCARD`
+                }
+            }
+        };
+
+        // Send response with ONLY Join Channel cta_crl button + fakevCard
         try {
+            // Try to send as interactive message with cta_crl
+            const ctaMsg = generateWAMessageFromContent(
+                sender,
+                {
+                    viewOnceMessage: {
+                        message: {
+                            interactiveMessage: {
+                                body: { text: response },
+                                footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                                nativeFlowMessage: {
+                                    buttons: [
+                                        {
+                                            name: 'cta_crl',
+                                            buttonParamsJson: JSON.stringify({
+                                                display_text: '📢 Join Channel',
+                                                url: config.CHANNEL_LINK
+                                            })
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                },
+                { quoted: fakevCard }
+            );
+            await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
+            
+            console.log(`[Chatbot] ✅ Replied to ${senderName} with Join Channel button`);
+            
+        } catch (error) {
+            console.error('[Chatbot] Interactive message failed, using fallback:', error.message);
+            
+            // Fallback: Send as normal message with button
             await socket.sendMessage(sender, { 
                 text: response,
+                buttons: [
+                    { 
+                        buttonId: config.CHANNEL_LINK, 
+                        buttonText: { displayText: '📢 Join Channel' }, 
+                        type: 1 
+                    }
+                ],
+                headerType: 1,
                 contextInfo: {
                     forwardingScore: 1,
                     isForwarded: true,
@@ -291,11 +348,11 @@ async function setupChatbot(socket) {
                         serverMessageId: -1
                     }
                 }
-            });
-            console.log(`[Chatbot] ✅ Replied to ${senderName}`);
-        } catch (error) {
-            console.error('[Chatbot] Send error:', error.message);
+            }, { quoted: fakevCard });
+            
+            console.log(`[Chatbot] ✅ Replied to ${senderName} with fallback button`);
         }
+
     });
 
     console.log(`🤖 Chatbot handler registered. (Status: ${global.chatbotEnabled ? 'ENABLED' : 'DISABLED'})`);
