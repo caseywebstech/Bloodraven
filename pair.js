@@ -125,7 +125,7 @@ const getFolderSizeInMB = (folderPath) => {
     }
 };
 // ==============================================
-// 🤖 CHATBOT - AI Auto-Responder (Toggle On/Off)
+// 🤖 CHATBOT - AI Auto-Responder (Cod3Uchiha API)
 // ==============================================
 
 // Chatbot settings
@@ -167,7 +167,7 @@ function saveChatbotState(enabled) {
 loadChatbotState();
 
 // ==============================================
-// GET AI RESPONSE FROM MULTIPLE APIS
+// GET AI RESPONSE FROM COD3UCHIHA API
 // ==============================================
 async function getAIResponse(message, sender) {
     try {
@@ -181,55 +181,25 @@ async function getAIResponse(message, sender) {
             context = lastMessages.map(m => `${m.role}: ${m.content}`).join('\n') + '\n';
         }
 
-        // Try multiple AI APIs
-        const apis = [
-            {
-                url: `https://lance-frank-asta.onrender.com/api/gpt?q=${encodeURIComponent(message)}`,
-                parser: (data) => data?.result || data?.response || data?.answer
-            },
-            {
-                url: `https://api.nexoracle.com/ai/gpt?q=${encodeURIComponent(message)}&apikey=free_for_use`,
-                parser: (data) => data?.result || data?.response || data?.answer
-            },
-            {
-                url: `https://api.siputzx.my.id/api/ai/gpt4?text=${encodeURIComponent(message)}`,
-                parser: (data) => data?.data || data?.result || data?.answer
-            },
-            {
-                url: `https://api.popcat.xyz/chat?msg=${encodeURIComponent(message)}`,
-                parser: (data) => data?.reply || data?.response
-            },
-            {
-                url: `https://api.ryzendesu.xyz/api/ai/gpt?text=${encodeURIComponent(message)}`,
-                parser: (data) => data?.result || data?.response || data?.answer
-            }
-        ];
-
-        let response = null;
-        let usedApi = '';
-
-        for (const api of apis) {
-            try {
-                console.log(`[Chatbot] Trying API: ${api.url.split('?')[0]}`);
-                const res = await axios.get(api.url, { timeout: 15000 });
-                const data = res.data;
-                response = api.parser(data);
-                
-                if (response && typeof response === 'string' && response.length > 3) {
-                    usedApi = api.url.split('?')[0];
-                    console.log(`[Chatbot] ✅ Got response from ${usedApi}`);
-                    break;
-                }
-            } catch (err) {
-                console.log(`[Chatbot] API failed: ${err.message}`);
-                continue;
-            }
+        // Use Cod3Uchiha API only
+        const apiUrl = `https://api.cod3uchiha.com/ai/gpt5?text=${encodeURIComponent(message)}`;
+        
+        console.log(`[Chatbot] Sending request to Cod3Uchiha API`);
+        const res = await axios.get(apiUrl, { timeout: 20000 });
+        const data = res.data;
+        
+        let response = data?.result || data?.response || data?.answer || data?.data || data?.reply;
+        
+        // If response is an object, stringify it
+        if (typeof response === 'object') {
+            response = JSON.stringify(response);
+        }
+        
+        if (!response || response.length < 2) {
+            throw new Error('Empty response from API');
         }
 
-        // If no AI response, use fallback
-        if (!response) {
-            response = `💬 *I'm here!* 🤖\n\nI received your message: *"${message.substring(0, 50)}${message.length > 50 ? '...' : ''}"*\n\n📌 *Quick commands:*\n• Type *menu* to see all features\n• Type *alive* to check if I'm online\n• Type *owner* to contact my creator\n\n> CaseyRhodes Mini Bot 🎀`;
-        }
+        console.log(`[Chatbot] ✅ Got response from Cod3Uchiha API`);
 
         // Store conversation history
         if (chatbotHistory) {
@@ -247,8 +217,10 @@ async function getAIResponse(message, sender) {
         return response;
 
     } catch (error) {
-        console.error('[Chatbot] AI Error:', error.message);
-        return `🤖 *Sorry, I'm having trouble right now!*\n\nPlease try again later or use *menu* to see my commands.\n\n> CaseyRhodes Mini Bot 🎀`;
+        console.error('[Chatbot] API Error:', error.message);
+        
+        // Fallback response if API fails
+        return `🤖 *I'm having trouble connecting right now!*\n\nPlease try again later or use *menu* to see my commands.\n\n> CaseyRhodes Mini Bot 🎀`;
     }
 }
 
