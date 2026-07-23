@@ -299,9 +299,8 @@ async function setupChatbot(socket) {
 
     console.log(`🤖 Chatbot handler registered. (Status: ${global.chatbotEnabled ? 'ENABLED' : 'DISABLED'})`);
 }
-
 // ==============================================
-// 👋 WELCOME & GOODBYE SYSTEM
+// 👋 WELCOME & GOODBYE SYSTEM (FIXED)
 // ==============================================
 
 // Settings storage
@@ -317,12 +316,10 @@ function loadWelcomeSettings() {
                 welcomeSettings.set(key, value);
             }
             console.log(`[Welcome] Loaded settings for ${welcomeSettings.size} groups`);
-            return data;
         }
     } catch (err) {
         console.error('[Welcome] Failed to load settings:', err);
     }
-    return {};
 }
 
 // Save welcome settings to file
@@ -353,10 +350,11 @@ async function setupWelcomeGoodbye(sock) {
                 welcome: false, 
                 goodbye: false, 
                 customWelcome: '', 
-                customGoodbye: '',
-                welcomeImage: false,
-                goodbyeImage: false
+                customGoodbye: ''
             };
+
+            // Skip if both are disabled
+            if (!settings.welcome && !settings.goodbye) return;
 
             // Get group info
             let groupMetadata;
@@ -378,8 +376,11 @@ async function setupWelcomeGoodbye(sock) {
                     try {
                         // Get profile picture
                         let ppUrl = null;
+                        let ppBuffer = null;
                         try {
                             ppUrl = await sock.profilePictureUrl(userJid, 'image');
+                            const ppResponse = await axios.get(ppUrl, { responseType: 'arraybuffer' });
+                            ppBuffer = Buffer.from(ppResponse.data);
                         } catch (e) {
                             // No profile picture
                         }
@@ -403,27 +404,11 @@ async function setupWelcomeGoodbye(sock) {
                             .replace(/{mention}/g, `@${name}`);
 
                         // Send welcome with or without image
-                        if (ppUrl && settings.welcomeImage !== false) {
+                        if (ppBuffer && ppBuffer.length > 1000) {
                             await sock.sendMessage(id, {
-                                image: { url: ppUrl },
+                                image: ppBuffer,
                                 caption: welcomeMsg,
-                                mentions: [userJid],
-                                contextInfo: {
-                                    forwardingScore: 1,
-                                    isForwarded: true,
-                                    externalAdReply: {
-                                        title: `Welcome to ${groupName}`,
-                                        body: `New member: @${name}`,
-                                        mediaType: 1,
-                                        thumbnailUrl: ppUrl,
-                                        sourceUrl: config.CHANNEL_LINK
-                                    },
-                                    forwardedNewsletterMessageInfo: {
-                                        newsletterJid: '120363420261263259@newsletter',
-                                        newsletterName: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ🌟',
-                                        serverMessageId: -1
-                                    }
-                                }
+                                mentions: [userJid]
                             });
                         } else {
                             await sock.sendMessage(id, {
@@ -432,19 +417,16 @@ async function setupWelcomeGoodbye(sock) {
                             });
                         }
 
-                        // Send private welcome message to new member (optional)
-                        if (settings.privateWelcome) {
-                            try {
-                                await sock.sendMessage(userJid, {
-                                    text: `👋 *Welcome to ${groupName}!*\n\n${settings.privateWelcome || 'Enjoy your stay!'}\n\n> ${config.BOT_FOOTER}`
-                                });
-                            } catch (e) {
-                                // User may have privacy settings
-                            }
-                        }
-
                     } catch (error) {
-                        console.error('[Welcome] Error sending welcome:', error);
+                        console.error('[Welcome] Error:', error.message);
+                        // Fallback: send simple welcome
+                        try {
+                            const fallbackMsg = `🎉 *WELCOME!*\n\nHello @${name}, welcome to *${groupName}*!\n\n> ${config.BOT_FOOTER}`;
+                            await sock.sendMessage(id, {
+                                text: fallbackMsg,
+                                mentions: [userJid]
+                            });
+                        } catch (e) {}
                     }
                 }
 
@@ -473,28 +455,17 @@ async function setupWelcomeGoodbye(sock) {
 
                         await sock.sendMessage(id, {
                             text: goodbyeMsg,
-                            mentions: [userJid],
-                            contextInfo: {
-                                forwardingScore: 1,
-                                isForwarded: true,
-                                externalAdReply: {
-                                    title: `${name} left ${groupName}`,
-                                    body: `Goodbye!`,
-                                    mediaType: 1,
-                                    thumbnailUrl: config.RCD_IMAGE_PATH,
-                                    sourceUrl: config.CHANNEL_LINK
-                                }
-                            }
+                            mentions: [userJid]
                         });
 
                     } catch (error) {
-                        console.error('[Goodbye] Error sending goodbye:', error);
+                        console.error('[Goodbye] Error:', error.message);
                     }
                 }
             }
 
         } catch (error) {
-            console.error('[WelcomeGoodbye] Error:', error);
+            console.error('[WelcomeGoodbye] Error:', error.message);
         }
     });
 
@@ -3347,13 +3318,6 @@ case 'trt': {
     break;
 }
 
-
-// ==============================================
-// WELCOME & GOODBYE COMMANDS
-// ==============================================
-
-// Add these to your switch statement:
-
 // ============ WELCOME COMMAND ============
 case 'welcome':
 case 'welc': {
@@ -3379,9 +3343,7 @@ case 'welc': {
             welcome: false, 
             goodbye: false, 
             customWelcome: '', 
-            customGoodbye: '',
-            welcomeImage: true,
-            privateWelcome: ''
+            customGoodbye: ''
         };
 
         if (action === 'on') {
@@ -3454,9 +3416,7 @@ case 'goodb': {
             welcome: false, 
             goodbye: false, 
             customWelcome: '', 
-            customGoodbye: '',
-            welcomeImage: true,
-            privateWelcome: ''
+            customGoodbye: ''
         };
 
         if (action === 'on') {
@@ -3537,9 +3497,7 @@ case 'setwelc': {
             welcome: false, 
             goodbye: false, 
             customWelcome: '', 
-            customGoodbye: '',
-            welcomeImage: true,
-            privateWelcome: ''
+            customGoodbye: ''
         };
         
         settings.customWelcome = newMessage;
@@ -3594,9 +3552,7 @@ case 'setgoodb': {
             welcome: false, 
             goodbye: false, 
             customWelcome: '', 
-            customGoodbye: '',
-            welcomeImage: true,
-            privateWelcome: ''
+            customGoodbye: ''
         };
         
         settings.customGoodbye = newMessage;
