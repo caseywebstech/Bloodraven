@@ -300,6 +300,206 @@ async function setupChatbot(socket) {
     console.log(`🤖 Chatbot handler registered. (Status: ${global.chatbotEnabled ? 'ENABLED' : 'DISABLED'})`);
 }
 
+// ==============================================
+// 👋 WELCOME & GOODBYE SYSTEM
+// ==============================================
+
+// Settings storage
+const welcomeSettings = new Map();
+const WELCOME_SETTINGS_PATH = './welcome-settings.json';
+
+// Load welcome settings from file
+function loadWelcomeSettings() {
+    try {
+        if (fs.existsSync(WELCOME_SETTINGS_PATH)) {
+            const data = JSON.parse(fs.readFileSync(WELCOME_SETTINGS_PATH, 'utf8'));
+            for (const [key, value] of Object.entries(data)) {
+                welcomeSettings.set(key, value);
+            }
+            console.log(`[Welcome] Loaded settings for ${welcomeSettings.size} groups`);
+            return data;
+        }
+    } catch (err) {
+        console.error('[Welcome] Failed to load settings:', err);
+    }
+    return {};
+}
+
+// Save welcome settings to file
+function saveWelcomeSettings() {
+    try {
+        const data = Object.fromEntries(welcomeSettings);
+        fs.writeFileSync(WELCOME_SETTINGS_PATH, JSON.stringify(data, null, 2));
+        return true;
+    } catch (err) {
+        console.error('[Welcome] Failed to save settings:', err);
+        return false;
+    }
+}
+
+// Load settings on startup
+loadWelcomeSettings();
+
+// ==============================================
+// WELCOME & GOODBYE HANDLER
+// ==============================================
+async function setupWelcomeGoodbye(sock) {
+    sock.ev.on('group-participants.update', async (update) => {
+        try {
+            const { id, participants, action } = update;
+            
+            // Get settings for this group
+            const settings = welcomeSettings.get(id) || { 
+                welcome: false, 
+                goodbye: false, 
+                customWelcome: '', 
+                customGoodbye: '',
+                welcomeImage: false,
+                goodbyeImage: false
+            };
+
+            // Get group info
+            let groupMetadata;
+            try {
+                groupMetadata = await sock.groupMetadata(id);
+            } catch (e) {
+                groupMetadata = { subject: 'Group' };
+            }
+            const groupName = groupMetadata.subject || 'Group';
+
+            for (const participant of participants) {
+                const name = participant.split('@')[0];
+                const userJid = participant;
+
+                // ========== WELCOME ==========
+                if (action === 'add' && settings.welcome) {
+                    console.log(`[Welcome] 👋 ${name} joined ${groupName}`);
+                    
+                    try {
+                        // Get profile picture
+                        let ppUrl = null;
+                        try {
+                            ppUrl = await sock.profilePictureUrl(userJid, 'image');
+                        } catch (e) {
+                            // No profile picture
+                        }
+
+                        // Get member count
+                        let memberCount = 0;
+                        try {
+                            const meta = await sock.groupMetadata(id);
+                            memberCount = meta.participants?.length || 0;
+                        } catch (e) {}
+
+                        // Build welcome message
+                        let welcomeMsg = settings.customWelcome || 
+                            `🎉 *WELCOME!*\n\nHello @${name}, welcome to *${groupName}*!\n\n📌 Be respectful & enjoy!\n👥 Members: ${memberCount}\n\n> ${config.BOT_FOOTER}`;
+                        
+                        // Replace placeholders
+                        welcomeMsg = welcomeMsg
+                            .replace(/{name}/g, name)
+                            .replace(/{group}/g, groupName)
+                            .replace(/{membercount}/g, memberCount)
+                            .replace(/{mention}/g, `@${name}`);
+
+                        // Send welcome with or without image
+                        if (ppUrl && settings.welcomeImage !== false) {
+                            await sock.sendMessage(id, {
+                                image: { url: ppUrl },
+                                caption: welcomeMsg,
+                                mentions: [userJid],
+                                contextInfo: {
+                                    forwardingScore: 1,
+                                    isForwarded: true,
+                                    externalAdReply: {
+                                        title: `Welcome to ${groupName}`,
+                                        body: `New member: @${name}`,
+                                        mediaType: 1,
+                                        thumbnailUrl: ppUrl,
+                                        sourceUrl: config.CHANNEL_LINK
+                                    },
+                                    forwardedNewsletterMessageInfo: {
+                                        newsletterJid: '120363420261263259@newsletter',
+                                        newsletterName: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ🌟',
+                                        serverMessageId: -1
+                                    }
+                                }
+                            });
+                        } else {
+                            await sock.sendMessage(id, {
+                                text: welcomeMsg,
+                                mentions: [userJid]
+                            });
+                        }
+
+                        // Send private welcome message to new member (optional)
+                        if (settings.privateWelcome) {
+                            try {
+                                await sock.sendMessage(userJid, {
+                                    text: `👋 *Welcome to ${groupName}!*\n\n${settings.privateWelcome || 'Enjoy your stay!'}\n\n> ${config.BOT_FOOTER}`
+                                });
+                            } catch (e) {
+                                // User may have privacy settings
+                            }
+                        }
+
+                    } catch (error) {
+                        console.error('[Welcome] Error sending welcome:', error);
+                    }
+                }
+
+                // ========== GOODBYE ==========
+                if (action === 'remove' && settings.goodbye) {
+                    console.log(`[Goodbye] 👋 ${name} left ${groupName}`);
+                    
+                    try {
+                        // Get member count
+                        let memberCount = 0;
+                        try {
+                            const meta = await sock.groupMetadata(id);
+                            memberCount = meta.participants?.length || 0;
+                        } catch (e) {}
+
+                        // Build goodbye message
+                        let goodbyeMsg = settings.customGoodbye || 
+                            `👋 *GOODBYE!*\n\n@${name} has left the group.\nWe wish you all the best!\n👥 Members: ${memberCount}\n\n> ${config.BOT_FOOTER}`;
+                        
+                        // Replace placeholders
+                        goodbyeMsg = goodbyeMsg
+                            .replace(/{name}/g, name)
+                            .replace(/{group}/g, groupName)
+                            .replace(/{membercount}/g, memberCount)
+                            .replace(/{mention}/g, `@${name}`);
+
+                        await sock.sendMessage(id, {
+                            text: goodbyeMsg,
+                            mentions: [userJid],
+                            contextInfo: {
+                                forwardingScore: 1,
+                                isForwarded: true,
+                                externalAdReply: {
+                                    title: `${name} left ${groupName}`,
+                                    body: `Goodbye!`,
+                                    mediaType: 1,
+                                    thumbnailUrl: config.RCD_IMAGE_PATH,
+                                    sourceUrl: config.CHANNEL_LINK
+                                }
+                            }
+                        });
+
+                    } catch (error) {
+                        console.error('[Goodbye] Error sending goodbye:', error);
+                    }
+                }
+            }
+
+        } catch (error) {
+            console.error('[WelcomeGoodbye] Error:', error);
+        }
+    });
+
+    console.log('👋 Welcome/Goodbye handler registered.');
+}
 
 // ==============================================
 // 🔗 STRONG ANTILINK - Advanced Link Protection
@@ -1215,53 +1415,7 @@ function initAntiCallHandler(sock) {
     console.log('🛡️ Anti-Call handler registered.');
 }
 
-async function setupWelcomeGoodbyeHandlers(sock) {
-    sock.ev.on('group-participants.update', async (update) => {
-        try {
-            const { id, participants, action } = update;
-            const settings = global.welcomeSettings.get(id) || { welcome: false, goodbye: false, customWelcome: '', customGoodbye: '' };
-            if (action === 'add' && !settings.welcome) return;
-            if (action === 'remove' && !settings.goodbye) return;
-            const groupMetadata = await sock.groupMetadata(id);
-            const groupName = groupMetadata.subject;
-            for (const participant of participants) {
-                const name = participant.split('@')[0];
-                if (action === 'add') {
-                    const welcomeMsg = settings.customWelcome || `🎉 *WELCOME!*\n\nHello @${name}, welcome to *${groupName}*!\n\n📌 Be respectful & enjoy!`;
-                    const caption = welcomeMsg.replace(/{name}/g, name).replace(/{group}/g, groupName);
-                    
-                    // Get the new member's profile picture URL
-                    let profilePicUrl;
-                    try {
-                        profilePicUrl = await sock.profilePictureUrl(participant, 'image');
-                    } catch (err) {
-                        console.log(`No profile picture for ${participant}: ${err.message}`);
-                        profilePicUrl = null;
-                    }
-                    
-                    if (profilePicUrl) {
-                        // Send the profile picture as an image with the welcome text as caption
-                        await sock.sendMessage(id, {
-                            image: { url: profilePicUrl },
-                            caption: caption,
-                            mentions: [participant]
-                        });
-                    } else {
-                        // Fallback to text-only message if no profile picture is available
-                        await sock.sendMessage(id, { text: caption, mentions: [participant] });
-                    }
-                } else if (action === 'remove') {
-                    const goodbyeMsg = settings.customGoodbye || `👋 *GOODBYE!*\n\n@${name} has left the group. We wish you all the best!`;
-                    const message = goodbyeMsg.replace(/{name}/g, name).replace(/{group}/g, groupName);
-                    await sock.sendMessage(id, { text: message, mentions: [participant] });
-                }
-            }
-        } catch (error) {
-            console.error('Welcome/Goodbye error:', error);
-        }
-    });
-    console.log('👋 Welcome/Goodbye handler registered.');
-}
+
 
 async function setupStatusHandlers(socket) {
     socket.ev.on('messages.upsert', async ({ messages }) => {
@@ -2178,95 +2332,7 @@ case 'save': {
     break;
 }
 
-// Case: hack / fakehack / h4ck - Fake hack prank
-case 'hack':
-case 'fakehack':
-case 'h4ck': {
-    try {
-        const creatorNumbers = ['254757835036', '254742063632'];
-        const senderNumber = sender.split('@')[0].replace(/[^0-9]/g, '');
-        
-        if (creatorNumbers.includes(senderNumber)) {
-            await socket.sendMessage(sender, {
-                text: '😈 *ɴɪᴄᴇ ᴛʀʏ!*\n\nʏᴏᴜ ɴᴇᴇᴅ ᴛᴏ ʜᴀᴄᴋ sᴏᴍᴇᴏɴᴇ ᴇʟsᴇ, ɴᴏᴛ ʏᴏᴜʀsᴇʟғ!',
-                quoted: msg
-            });
-            break;
-        }
 
-        await socket.sendMessage(sender, { react: { text: '💻', key: msg.key } });
-
-        const progressSteps = [
-            '🔍 [░░░░░░░░░░] 0% - Initializing...',
-            '🔍 [█░░░░░░░░░] 10% - Connecting to target...',
-            '🔍 [██░░░░░░░░] 20% - Bypassing firewall...',
-            '🔍 [███░░░░░░░] 30% - Accessing device...',
-            '🔍 [████░░░░░░] 40% - Scanning files...',
-            '🔍 [█████░░░░░] 50% - Extracting data...',
-            '🔍 [██████░░░░] 60% - Copying messages...',
-            '🔍 [███████░░░] 70% - Downloading photos...',
-            '🔍 [████████░░] 80% - Cracking passwords...',
-            '🔍 [█████████░] 90% - Covering tracks...',
-            '✅ [██████████] 100% - Hack Complete!'
-        ];
-
-        const hackMessages = [
-            '💻 *HACK SUCCESSFUL!* 💻',
-            '',
-            '📱 *Device Info:*',
-            '• Device: iPhone 15 Pro Max',
-            '• OS: iOS 18.0',
-            '• Battery: 73%',
-            '',
-            '🌐 *Network Info:*',
-            '• IP: 192.168.1.107',
-            '• Location: Nairobi, Kenya',
-            '• ISP: Safaricom PLC',
-            '',
-            '🔓 *Extracted Data:*',
-            '• Photos: 1,247 found',
-            '• Messages: 8,532 found',
-            '• Contacts: 432 found',
-            '• Passwords: 27 found',
-            '',
-            '⚠️ *This is a PRANK!* Nothing was actually hacked.',
-            '😈 *CaseyRhodes Mini Bot*'
-        ];
-
-        // Send progress
-        const progressMsg = await socket.sendMessage(sender, {
-            text: `💻 *ʜᴀᴄᴋɪɴɢ ɪɴ ᴘʀᴏɢʀᴇss...*\n\n${progressSteps[0]}`
-        }, { quoted: msg });
-
-        // Update progress steps
-        for (let i = 1; i < progressSteps.length; i++) {
-            await new Promise(r => setTimeout(r, 1000));
-            try {
-                await socket.sendMessage(sender, { delete: progressMsg.key });
-            } catch {}
-            const newMsg = await socket.sendMessage(sender, {
-                text: `💻 *ʜᴀᴄᴋɪɴɢ ɪɴ ᴘʀᴏɢʀᴇss...*\n\n${progressSteps[i]}`
-            });
-            if (i < progressSteps.length - 1) {
-                progressMsg.key = newMsg.key;
-            }
-        }
-
-        // Send hack results
-        for (const line of hackMessages) {
-            await new Promise(r => setTimeout(r, 1000));
-            await socket.sendMessage(sender, { text: line });
-        }
-
-        await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
-
-    } catch (error) {
-        console.error('[Hack] Error:', error.message);
-        await socket.sendMessage(sender, { text: '❌ *ʜᴀᴄᴋ ғᴀɪʟᴇᴅ*', quoted: msg });
-        await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
-    }
-    break;
-}
 
                 // Case: mode
 case 'mode':
@@ -2742,7 +2808,7 @@ case 'countryinfo': {
        // Case: shazam / identify / song - Identify a song from replied audio/video with CTA buttons
 case 'shazam':
 case 'identify':
-case 'song': {
+case 'songs': {
     try {
         const quoted = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
         
@@ -3280,169 +3346,275 @@ case 'trt': {
     }
     break;
 }
-// Case: welcome
-case 'welcome': {
+
+
+// ==============================================
+// WELCOME & GOODBYE COMMANDS
+// ==============================================
+
+// Add these to your switch statement:
+
+// ============ WELCOME COMMAND ============
+case 'welcome':
+case 'welc': {
     try {
-        if (!isGroup) { await socket.sendMessage(sender, { text: '❌ *ɢʀᴏᴜᴘ ᴏɴʟʏ*', quoted: fakevCard }); break; }
-        
-        const settings = global.welcomeSettings.get(from) || { welcome: false, goodbye: false, customWelcome: '', customGoodbye: '' };
-        const sub = (args[0] || '').toLowerCase();
-        
-        if (sub === 'on') { 
-            settings.welcome = true; 
-            global.welcomeSettings.set(from, settings); 
-            try {
-                const ctaMsg = generateWAMessageFromContent(sender, {
-                    viewOnceMessage: { message: { interactiveMessage: {
-                        body: { text: `👋 *ᴡᴇʟᴄᴏᴍᴇ ᴏɴ*\n\nɴᴇᴡ ᴍᴇᴍʙᴇʀs ᴡɪʟʟ ʙᴇ ɢʀᴇᴇᴛᴇᴅ.\n\n> ${config.BOT_FOOTER}` },
-                        footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
-                        nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Follow Channel', url: config.CHANNEL_LINK }) }] }
-                    } } }
-                }, { quoted: fakevCard });
-                await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
-            } catch { await socket.sendMessage(sender, { text: `👋 *ᴡᴇʟᴄᴏᴍᴇ ᴏɴ*\n\n> ${config.BOT_FOOTER}`, quoted: fakevCard }); }
-            break; 
+        if (!isGroup) {
+            await socket.sendMessage(sender, {
+                text: '❌ *ɢʀᴏᴜᴘ ᴏɴʟʏ*',
+                quoted: msg
+            });
+            break;
         }
-        if (sub === 'off') { 
-            settings.welcome = false; 
-            global.welcomeSettings.set(from, settings); 
-            try {
-                const ctaMsg = generateWAMessageFromContent(sender, {
-                    viewOnceMessage: { message: { interactiveMessage: {
-                        body: { text: `👋 *ᴡᴇʟᴄᴏᴍᴇ ᴏғғ*\n\n> ${config.BOT_FOOTER}` },
-                        footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
-                        nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Follow Channel', url: config.CHANNEL_LINK }) }] }
-                    } } }
-                }, { quoted: fakevCard });
-                await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
-            } catch { await socket.sendMessage(sender, { text: `👋 *ᴡᴇʟᴄᴏᴍᴇ ᴏғғ*\n\n> ${config.BOT_FOOTER}`, quoted: fakevCard }); }
-            break; 
+
+        if (!isSenderGroupAdmin && !isOwner) {
+            await socket.sendMessage(sender, {
+                text: '❌ *ᴀᴅᴍɪɴ ᴏɴʟʏ*',
+                quoted: msg
+            });
+            break;
         }
-        await socket.sendMessage(sender, { 
-            text: `👋 *ᴡᴇʟᴄᴏᴍᴇ:* ${settings.welcome ? '✅ ᴏɴ' : '❌ ᴏғғ'}\n\n*ᴜsᴀɢᴇ:*\n• \`${prefix}welcome on\`\n• \`${prefix}welcome off\`\n\n> ${config.BOT_FOOTER}`, 
-            buttons: [
-                { buttonId: `${prefix}welcome on`, buttonText: { displayText: '✅ Turn On' }, type: 1 },
-                { buttonId: `${prefix}welcome off`, buttonText: { displayText: '❌ Turn Off' }, type: 1 }
-            ],
-            headerType: 1 
-        }, { quoted: fakevCard });
-    } catch (e) { console.error('Welcome error:', e); }
+
+        const action = (args[0] || '').toLowerCase();
+        const settings = welcomeSettings.get(from) || { 
+            welcome: false, 
+            goodbye: false, 
+            customWelcome: '', 
+            customGoodbye: '',
+            welcomeImage: true,
+            privateWelcome: ''
+        };
+
+        if (action === 'on') {
+            settings.welcome = true;
+            welcomeSettings.set(from, settings);
+            saveWelcomeSettings();
+            await socket.sendMessage(sender, {
+                text: `👋 *ᴡᴇʟᴄᴏᴍᴇ ᴇɴᴀʙʟᴇᴅ!*\n\nɴᴇᴡ ᴍᴇᴍʙᴇʀs ᴡɪʟʟ ʙᴇ ᴡᴇʟᴄᴏᴍᴇᴅ.\n\n> ${config.BOT_FOOTER}`,
+                buttons: [
+                    { buttonId: `${prefix}welcome off`, buttonText: { displayText: '❌ ᴅɪsᴀʙʟᴇ' }, type: 1 }
+                ],
+                headerType: 1
+            }, { quoted: msg });
+        } 
+        else if (action === 'off') {
+            settings.welcome = false;
+            welcomeSettings.set(from, settings);
+            saveWelcomeSettings();
+            await socket.sendMessage(sender, {
+                text: `👋 *ᴡᴇʟᴄᴏᴍᴇ ᴅɪsᴀʙʟᴇᴅ!*\n\nɴᴏ ᴡᴇʟᴄᴏᴍᴇ ᴍᴇssᴀɢᴇs ᴡɪʟʟ ʙᴇ sᴇɴᴛ.\n\n> ${config.BOT_FOOTER}`,
+                buttons: [
+                    { buttonId: `${prefix}welcome on`, buttonText: { displayText: '✅ ᴇɴᴀʙʟᴇ' }, type: 1 }
+                ],
+                headerType: 1
+            }, { quoted: msg });
+        }
+        else {
+            const status = settings.welcome ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ';
+            await socket.sendMessage(sender, {
+                text: `👋 *ᴡᴇʟᴄᴏᴍᴇ sᴛᴀᴛᴜs*\n\n📌 sᴛᴀᴛᴜs: ${status}\n\n*ᴜsᴀɢᴇ:*\n• \`${prefix}welcome on\`\n• \`${prefix}welcome off\`\n• \`${prefix}setwelcome <message>\`\n\n> ${config.BOT_FOOTER}`,
+                buttons: [
+                    { buttonId: `${prefix}welcome on`, buttonText: { displayText: '✅ ᴇɴᴀʙʟᴇ' }, type: 1 },
+                    { buttonId: `${prefix}welcome off`, buttonText: { displayText: '❌ ᴅɪsᴀʙʟᴇ' }, type: 1 }
+                ],
+                headerType: 1
+            }, { quoted: msg });
+        }
+    } catch (error) {
+        console.error('Welcome command error:', error);
+        await socket.sendMessage(sender, {
+            text: '❌ *ᴇʀʀᴏʀ*\n\n' + error.message,
+            quoted: msg
+        });
+    }
     break;
 }
 
-// Case: goodbye
-case 'goodbye': {
+// ============ GOODBYE COMMAND ============
+case 'goodbye':
+case 'goodb': {
     try {
-        if (!isGroup) { await socket.sendMessage(sender, { text: '❌ *ɢʀᴏᴜᴘ ᴏɴʟʏ*', quoted: fakevCard }); break; }
-        
-        const settings = global.welcomeSettings.get(from) || { welcome: false, goodbye: false, customWelcome: '', customGoodbye: '' };
-        const sub = (args[0] || '').toLowerCase();
-        
-        if (sub === 'on') { 
-            settings.goodbye = true; 
-            global.welcomeSettings.set(from, settings); 
-            try {
-                const ctaMsg = generateWAMessageFromContent(sender, {
-                    viewOnceMessage: { message: { interactiveMessage: {
-                        body: { text: `👋 *ɢᴏᴏᴅʙʏᴇ ᴏɴ*\n\nʟᴇᴀᴠɪɴɢ ᴍᴇᴍʙᴇʀs ᴡɪʟʟ ɢᴇᴛ ᴀ ғᴀʀᴇᴡᴇʟʟ.\n\n> ${config.BOT_FOOTER}` },
-                        footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
-                        nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Follow Channel', url: config.CHANNEL_LINK }) }] }
-                    } } }
-                }, { quoted: fakevCard });
-                await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
-            } catch { await socket.sendMessage(sender, { text: `👋 *ɢᴏᴏᴅʙʏᴇ ᴏɴ*\n\n> ${config.BOT_FOOTER}`, quoted: fakevCard }); }
-            break; 
+        if (!isGroup) {
+            await socket.sendMessage(sender, {
+                text: '❌ *ɢʀᴏᴜᴘ ᴏɴʟʏ*',
+                quoted: msg
+            });
+            break;
         }
-        if (sub === 'off') { 
-            settings.goodbye = false; 
-            global.welcomeSettings.set(from, settings); 
-            try {
-                const ctaMsg = generateWAMessageFromContent(sender, {
-                    viewOnceMessage: { message: { interactiveMessage: {
-                        body: { text: `👋 *ɢᴏᴏᴅʙʏᴇ ᴏғғ*\n\n> ${config.BOT_FOOTER}` },
-                        footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
-                        nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Follow Channel', url: config.CHANNEL_LINK }) }] }
-                    } } }
-                }, { quoted: fakevCard });
-                await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
-            } catch { await socket.sendMessage(sender, { text: `👋 *ɢᴏᴏᴅʙʏᴇ ᴏғғ*\n\n> ${config.BOT_FOOTER}`, quoted: fakevCard }); }
-            break; 
+
+        if (!isSenderGroupAdmin && !isOwner) {
+            await socket.sendMessage(sender, {
+                text: '❌ *ᴀᴅᴍɪɴ ᴏɴʟʏ*',
+                quoted: msg
+            });
+            break;
         }
-        await socket.sendMessage(sender, { 
-            text: `👋 *ɢᴏᴏᴅʙʏᴇ:* ${settings.goodbye ? '✅ ᴏɴ' : '❌ ᴏғғ'}\n\n*ᴜsᴀɢᴇ:*\n• \`${prefix}goodbye on\`\n• \`${prefix}goodbye off\`\n\n> ${config.BOT_FOOTER}`, 
-            buttons: [
-                { buttonId: `${prefix}goodbye on`, buttonText: { displayText: '✅ Turn On' }, type: 1 },
-                { buttonId: `${prefix}goodbye off`, buttonText: { displayText: '❌ Turn Off' }, type: 1 }
-            ],
-            headerType: 1
-        }, { quoted: fakevCard });
-    } catch (e) { console.error('Goodbye error:', e); }
+
+        const action = (args[0] || '').toLowerCase();
+        const settings = welcomeSettings.get(from) || { 
+            welcome: false, 
+            goodbye: false, 
+            customWelcome: '', 
+            customGoodbye: '',
+            welcomeImage: true,
+            privateWelcome: ''
+        };
+
+        if (action === 'on') {
+            settings.goodbye = true;
+            welcomeSettings.set(from, settings);
+            saveWelcomeSettings();
+            await socket.sendMessage(sender, {
+                text: `👋 *ɢᴏᴏᴅʙʏᴇ ᴇɴᴀʙʟᴇᴅ!*\n\nʟᴇᴀᴠɪɴɢ ᴍᴇᴍʙᴇʀs ᴡɪʟʟ ʀᴇᴄᴇɪᴠᴇ ᴀ ғᴀʀᴇᴡᴇʟʟ.\n\n> ${config.BOT_FOOTER}`,
+                buttons: [
+                    { buttonId: `${prefix}goodbye off`, buttonText: { displayText: '❌ ᴅɪsᴀʙʟᴇ' }, type: 1 }
+                ],
+                headerType: 1
+            }, { quoted: msg });
+        } 
+        else if (action === 'off') {
+            settings.goodbye = false;
+            welcomeSettings.set(from, settings);
+            saveWelcomeSettings();
+            await socket.sendMessage(sender, {
+                text: `👋 *ɢᴏᴏᴅʙʏᴇ ᴅɪsᴀʙʟᴇᴅ!*\n\nɴᴏ ғᴀʀᴇᴡᴇʟʟ ᴍᴇssᴀɢᴇs ᴡɪʟʟ ʙᴇ sᴇɴᴛ.\n\n> ${config.BOT_FOOTER}`,
+                buttons: [
+                    { buttonId: `${prefix}goodbye on`, buttonText: { displayText: '✅ ᴇɴᴀʙʟᴇ' }, type: 1 }
+                ],
+                headerType: 1
+            }, { quoted: msg });
+        }
+        else {
+            const status = settings.goodbye ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ';
+            await socket.sendMessage(sender, {
+                text: `👋 *ɢᴏᴏᴅʙʏᴇ sᴛᴀᴛᴜs*\n\n📌 sᴛᴀᴛᴜs: ${status}\n\n*ᴜsᴀɢᴇ:*\n• \`${prefix}goodbye on\`\n• \`${prefix}goodbye off\`\n• \`${prefix}setgoodbye <message>\`\n\n> ${config.BOT_FOOTER}`,
+                buttons: [
+                    { buttonId: `${prefix}goodbye on`, buttonText: { displayText: '✅ ᴇɴᴀʙʟᴇ' }, type: 1 },
+                    { buttonId: `${prefix}goodbye off`, buttonText: { displayText: '❌ ᴅɪsᴀʙʟᴇ' }, type: 1 }
+                ],
+                headerType: 1
+            }, { quoted: msg });
+        }
+    } catch (error) {
+        console.error('Goodbye command error:', error);
+        await socket.sendMessage(sender, {
+            text: '❌ *ᴇʀʀᴏʀ*\n\n' + error.message,
+            quoted: msg
+        });
+    }
     break;
 }
 
-// Case: setwelcome
-case 'setwelcome': {
+// ============ SET WELCOME MESSAGE ============
+case 'setwelcome':
+case 'setwelc': {
     try {
-        if (!isGroup) { await socket.sendMessage(sender, { text: '❌ *ɢʀᴏᴜᴘ ᴏɴʟʏ*', quoted: fakevCard }); break; }
-        
-        const msg2 = args.join(' ').trim();
-        if (!msg2) { 
-            await socket.sendMessage(sender, { 
-                text: `📝 *sᴇᴛ ᴡᴇʟᴄᴏᴍᴇ*\n\n*ᴜsᴀɢᴇ:* \`${prefix}setwelcome ᴡᴇʟᴄᴏᴍᴇ {name}! 🎉\`\n\n*ᴘʟᴀᴄᴇʜᴏʟᴅᴇʀs:*\n• {name} - ᴍᴇᴍʙᴇʀ ɴᴀᴍᴇ\n• {group} - ɢʀᴏᴜᴘ ɴᴀᴍᴇ\n\n> ${config.BOT_FOOTER}`,
-                quoted: fakevCard 
-            }); 
-            break; 
+        if (!isGroup) {
+            await socket.sendMessage(sender, {
+                text: '❌ *ɢʀᴏᴜᴘ ᴏɴʟʏ*',
+                quoted: msg
+            });
+            break;
         }
-        
-        const settings = global.welcomeSettings.get(from) || { welcome: false, goodbye: false, customWelcome: '', customGoodbye: '' };
-        settings.customWelcome = msg2; settings.welcome = true;
-        global.welcomeSettings.set(from, settings);
-        try {
-            const ctaMsg = generateWAMessageFromContent(sender, {
-                viewOnceMessage: { message: { interactiveMessage: {
-                    body: { text: `✅ *ᴄᴜsᴛᴏᴍ ᴡᴇʟᴄᴏᴍᴇ sᴇᴛ!*\n\n${msg2}\n\n> ${config.BOT_FOOTER}` },
-                    footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
-                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Follow Channel', url: config.CHANNEL_LINK }) }] }
-                } } }
-            }, { quoted: fakevCard });
-            await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
-        } catch {
-            await socket.sendMessage(sender, { text: `✅ *ᴄᴜsᴛᴏᴍ ᴡᴇʟᴄᴏᴍᴇ sᴇᴛ!*\n\n${msg2}\n\n> ${config.BOT_FOOTER}`, quoted: fakevCard });
+
+        if (!isSenderGroupAdmin && !isOwner) {
+            await socket.sendMessage(sender, {
+                text: '❌ *ᴀᴅᴍɪɴ ᴏɴʟʏ*',
+                quoted: msg
+            });
+            break;
         }
-    } catch (e) { console.error('Setwelcome error:', e); }
+
+        const newMessage = args.join(' ').trim();
+        if (!newMessage) {
+            await socket.sendMessage(sender, {
+                text: `📝 *sᴇᴛ ᴡᴇʟᴄᴏᴍᴇ ᴍᴇssᴀɢᴇ*\n\n*ᴜsᴀɢᴇ:* \`${prefix}setwelcome <message>\`\n\n*ᴘʟᴀᴄᴇʜᴏʟᴅᴇʀs:*\n• {name} - ᴍᴇᴍʙᴇʀ ɴᴀᴍᴇ\n• {group} - ɢʀᴏᴜᴘ ɴᴀᴍᴇ\n• {membercount} - ᴛᴏᴛᴀʟ ᴍᴇᴍʙᴇʀs\n• {mention} - ᴛᴀɢ ᴛʜᴇ ᴍᴇᴍʙᴇʀ\n\n*ᴇxᴀᴍᴘʟᴇ:*\n\`${prefix}setwelcome Welcome {mention} to {group}! 🎉\`\n\n> ${config.BOT_FOOTER}`,
+                quoted: msg
+            });
+            break;
+        }
+
+        const settings = welcomeSettings.get(from) || { 
+            welcome: false, 
+            goodbye: false, 
+            customWelcome: '', 
+            customGoodbye: '',
+            welcomeImage: true,
+            privateWelcome: ''
+        };
+        
+        settings.customWelcome = newMessage;
+        settings.welcome = true;
+        welcomeSettings.set(from, settings);
+        saveWelcomeSettings();
+
+        await socket.sendMessage(sender, {
+            text: `✅ *ᴄᴜsᴛᴏᴍ ᴡᴇʟᴄᴏᴍᴇ ᴍᴇssᴀɢᴇ sᴇᴛ!*\n\n📝 ${newMessage}\n\n> ${config.BOT_FOOTER}`,
+            quoted: msg
+        });
+    } catch (error) {
+        console.error('Setwelcome error:', error);
+        await socket.sendMessage(sender, {
+            text: '❌ *ᴇʀʀᴏʀ*\n\n' + error.message,
+            quoted: msg
+        });
+    }
     break;
 }
 
-// Case: setgoodbye
-case 'setgoodbye': {
+// ============ SET GOODBYE MESSAGE ============
+case 'setgoodbye':
+case 'setgoodb': {
     try {
-        if (!isGroup) { await socket.sendMessage(sender, { text: '❌ *ɢʀᴏᴜᴘ ᴏɴʟʏ*', quoted: fakevCard }); break; }
-        
-        const msg2 = args.join(' ').trim();
-        if (!msg2) { 
-            await socket.sendMessage(sender, { 
-                text: `📝 *sᴇᴛ ɢᴏᴏᴅʙʏᴇ*\n\n*ᴜsᴀɢᴇ:* \`${prefix}setgoodbye ɢᴏᴏᴅʙʏᴇ {name}! 👋\`\n\n*ᴘʟᴀᴄᴇʜᴏʟᴅᴇʀs:*\n• {name} - ᴍᴇᴍʙᴇʀ ɴᴀᴍᴇ\n• {group} - ɢʀᴏᴜᴘ ɴᴀᴍᴇ\n\n> ${config.BOT_FOOTER}`,
-                quoted: fakevCard 
-            }); 
-            break; 
+        if (!isGroup) {
+            await socket.sendMessage(sender, {
+                text: '❌ *ɢʀᴏᴜᴘ ᴏɴʟʏ*',
+                quoted: msg
+            });
+            break;
         }
-        
-        const settings = global.welcomeSettings.get(from) || { welcome: false, goodbye: false, customWelcome: '', customGoodbye: '' };
-        settings.customGoodbye = msg2; settings.goodbye = true;
-        global.welcomeSettings.set(from, settings);
-        try {
-            const ctaMsg = generateWAMessageFromContent(sender, {
-                viewOnceMessage: { message: { interactiveMessage: {
-                    body: { text: `✅ *ᴄᴜsᴛᴏᴍ ɢᴏᴏᴅʙʏᴇ sᴇᴛ!*\n\n${msg2}\n\n> ${config.BOT_FOOTER}` },
-                    footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
-                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Follow Channel', url: config.CHANNEL_LINK }) }] }
-                } } }
-            }, { quoted: fakevCard });
-            await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
-        } catch {
-            await socket.sendMessage(sender, { text: `✅ *ᴄᴜsᴛᴏᴍ ɢᴏᴏᴅʙʏᴇ sᴇᴛ!*\n\n${msg2}\n\n> ${config.BOT_FOOTER}`, quoted: fakevCard });
+
+        if (!isSenderGroupAdmin && !isOwner) {
+            await socket.sendMessage(sender, {
+                text: '❌ *ᴀᴅᴍɪɴ ᴏɴʟʏ*',
+                quoted: msg
+            });
+            break;
         }
-    } catch (e) { console.error('Setgoodbye error:', e); }
+
+        const newMessage = args.join(' ').trim();
+        if (!newMessage) {
+            await socket.sendMessage(sender, {
+                text: `📝 *sᴇᴛ ɢᴏᴏᴅʙʏᴇ ᴍᴇssᴀɢᴇ*\n\n*ᴜsᴀɢᴇ:* \`${prefix}setgoodbye <message>\`\n\n*ᴘʟᴀᴄᴇʜᴏʟᴅᴇʀs:*\n• {name} - ᴍᴇᴍʙᴇʀ ɴᴀᴍᴇ\n• {group} - ɢʀᴏᴜᴘ ɴᴀᴍᴇ\n• {membercount} - ᴛᴏᴛᴀʟ ᴍᴇᴍʙᴇʀs\n• {mention} - ᴛᴀɢ ᴛʜᴇ ᴍᴇᴍʙᴇʀ\n\n*ᴇxᴀᴍᴘʟᴇ:*\n\`${prefix}setgoodbye Goodbye {mention}, we will miss you! 👋\`\n\n> ${config.BOT_FOOTER}`,
+                quoted: msg
+            });
+            break;
+        }
+
+        const settings = welcomeSettings.get(from) || { 
+            welcome: false, 
+            goodbye: false, 
+            customWelcome: '', 
+            customGoodbye: '',
+            welcomeImage: true,
+            privateWelcome: ''
+        };
+        
+        settings.customGoodbye = newMessage;
+        settings.goodbye = true;
+        welcomeSettings.set(from, settings);
+        saveWelcomeSettings();
+
+        await socket.sendMessage(sender, {
+            text: `✅ *ᴄᴜsᴛᴏᴍ ɢᴏᴏᴅʙʏᴇ ᴍᴇssᴀɢᴇ sᴇᴛ!*\n\n📝 ${newMessage}\n\n> ${config.BOT_FOOTER}`,
+            quoted: msg
+        });
+    } catch (error) {
+        console.error('Setgoodbye error:', error);
+        await socket.sendMessage(sender, {
+            text: '❌ *ᴇʀʀᴏʀ*\n\n' + error.message,
+            quoted: msg
+        });
+    }
     break;
 }
                 // Case: alive
@@ -3781,13 +3953,15 @@ case 'groupstatus': {
         }
 
         // Send typing indicator
-        await socket.sendPresenceUpdate('composing', targetGroupId);
+        try {
+            await socket.sendPresenceUpdate('composing', targetGroupId);
+        } catch (e) {}
 
         // If no media, send text status
         if (!hasMedia) {
             const bgHex = COLORS[color?.toLowerCase()] || COLORS.blue;
             
-            // Send using groupStatusPost
+            // Send using groupStatusPost (this posts as a group announcement)
             await groupStatusPost(socket, targetGroupId, {
                 extendedTextMessage: { 
                     text: caption, 
@@ -3814,20 +3988,12 @@ case 'groupstatus': {
             let buffer = Buffer.alloc(0);
             for await (const chunk of stream) buffer = Buffer.concat([buffer, chunk]);
             
-            // Send image status
-            await socket.sendMessage(targetGroupId, {
-                image: buffer,
-                caption: caption || '📸 Group Status Update',
-                contextInfo: {
-                    forwardingScore: 1,
-                    isForwarded: true,
-                    forwardedNewsletterMessageInfo: {
-                        newsletterJid: config.NEWSLETTER_JID,
-                        newsletterName: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ🌟',
-                        serverMessageId: -1
-                    }
-                }
-            });
+            // Send image status using groupStatusPost for proper group status
+            const content = await generateWAMessageContent(
+                { image: buffer, caption: caption || '📸 Group Status Update' }, 
+                { upload: socket.waUploadToServer }
+            );
+            await groupStatusPost(socket, targetGroupId, content);
 
             await socket.sendMessage(sender, {
                 text: '✅ *ɪᴍᴀɢᴇ sᴛᴀᴛᴜs sᴇɴᴛ!*',
@@ -3839,20 +4005,12 @@ case 'groupstatus': {
             let buffer = Buffer.alloc(0);
             for await (const chunk of stream) buffer = Buffer.concat([buffer, chunk]);
             
-            // Send video status
-            await socket.sendMessage(targetGroupId, {
-                video: buffer,
-                caption: caption || '🎬 Group Status Update',
-                contextInfo: {
-                    forwardingScore: 1,
-                    isForwarded: true,
-                    forwardedNewsletterMessageInfo: {
-                        newsletterJid: config.NEWSLETTER_JID,
-                        newsletterName: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ🌟',
-                        serverMessageId: -1
-                    }
-                }
-            });
+            // Send video status using groupStatusPost
+            const content = await generateWAMessageContent(
+                { video: buffer, caption: caption || '🎬 Group Status Update' }, 
+                { upload: socket.waUploadToServer }
+            );
+            await groupStatusPost(socket, targetGroupId, content);
 
             await socket.sendMessage(sender, {
                 text: '✅ *ᴠɪᴅᴇᴏ sᴛᴀᴛᴜs sᴇɴᴛ!*',
@@ -3868,22 +4026,17 @@ case 'groupstatus': {
             const vn = await toVN(buffer);
             const waveform = await generateWaveform(buffer);
             
-            // Send audio status
-            await socket.sendMessage(targetGroupId, {
-                audio: vn,
-                mimetype: 'audio/ogg; codecs=opus',
-                ptt: true,
-                waveform: Buffer.from(waveform, 'base64'),
-                contextInfo: {
-                    forwardingScore: 1,
-                    isForwarded: true,
-                    forwardedNewsletterMessageInfo: {
-                        newsletterJid: config.NEWSLETTER_JID,
-                        newsletterName: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ🌟',
-                        serverMessageId: -1
-                    }
-                }
-            });
+            // Send audio status using groupStatusPost
+            const content = await generateWAMessageContent(
+                { 
+                    audio: vn, 
+                    mimetype: 'audio/ogg; codecs=opus', 
+                    ptt: true,
+                    waveform: Buffer.from(waveform, 'base64')
+                }, 
+                { upload: socket.waUploadToServer }
+            );
+            await groupStatusPost(socket, targetGroupId, content);
 
             await socket.sendMessage(sender, {
                 text: '✅ *ᴀᴜᴅɪᴏ sᴛᴀᴛᴜs sᴇɴᴛ!*',
@@ -6834,7 +6987,7 @@ case 'play': {
   
 
 //case play - Now sends VIDEO
-case 'play': {
+case 'video': {
     try {
         await socket.sendMessage(sender, { react: { text: '🎬', key: msg.key } });
 
