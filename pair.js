@@ -219,7 +219,7 @@ async function getAIResponse(message, sender) {
         console.error('[Chatbot] API Error:', error.message);
         
         // Fallback response if API fails
-        return `🤖 *I'm having trouble connecting right now!*\n\nPlease try again later or use *menu* to see my commands.\n\n> CaseyRhodes Mini Bot 🎀`;
+        return `🤖 *I'm having trouble connecting right now!*\n\nPlease try again later or use *menu* to see my commands.\n\n> Caseyrhodes Mini Bot 🎀`;
     }
 }
 
@@ -931,125 +931,7 @@ let totalcmds = async () => {
         return 0;
     }
 }
-// ==============================================
-// 👋 WELCOME & GOODBYE SYSTEM (FIXED - No Pairing Issues)
-// ==============================================
 
-// Simple in-memory storage - NO FILE OPERATIONS
-const welcomeSettings = new Map();
-
-// WELCOME & GOODBYE HANDLER - ONLY FOR GROUPS
-async function setupWelcomeGoodbye(sock) {
-    // Only set up AFTER bot is connected
-    sock.ev.on('group-participants.update', async (update) => {
-        try {
-            const { id, participants, action } = update;
-            
-            // Get settings for this group (default: disabled)
-            const settings = welcomeSettings.get(id) || { 
-                welcome: false, 
-                goodbye: false, 
-                customWelcome: '', 
-                customGoodbye: ''
-            };
-
-            // Skip if both are disabled
-            if (!settings.welcome && !settings.goodbye) return;
-
-            // Get group info
-            let groupMetadata;
-            try {
-                groupMetadata = await sock.groupMetadata(id);
-            } catch (e) {
-                groupMetadata = { subject: 'Group' };
-            }
-            const groupName = groupMetadata.subject || 'Group';
-
-            for (const participant of participants) {
-                const name = participant.split('@')[0];
-                const userJid = participant;
-
-                // ========== WELCOME ==========
-                if (action === 'add' && settings.welcome) {
-                    try {
-                        // Get member count
-                        let memberCount = 0;
-                        try {
-                            const meta = await sock.groupMetadata(id);
-                            memberCount = meta.participants?.length || 0;
-                        } catch (e) {}
-
-                        // Build welcome message
-                        let welcomeMsg = settings.customWelcome || 
-                            `🎉 *WELCOME!*\n\nHello @${name}, welcome to *${groupName}*!\n\n📌 Be respectful & enjoy!\n👥 Members: ${memberCount}\n\n> ${config.BOT_FOOTER}`;
-                        
-                        // Replace placeholders
-                        welcomeMsg = welcomeMsg
-                            .replace(/{name}/g, name)
-                            .replace(/{group}/g, groupName)
-                            .replace(/{membercount}/g, memberCount)
-                            .replace(/{mention}/g, `@${name}`);
-
-                        // Try to get and send profile picture
-                        try {
-                            const ppUrl = await sock.profilePictureUrl(userJid, 'image');
-                            await sock.sendMessage(id, {
-                                image: { url: ppUrl },
-                                caption: welcomeMsg,
-                                mentions: [userJid]
-                            });
-                        } catch (e) {
-                            // No profile picture, send text only
-                            await sock.sendMessage(id, {
-                                text: welcomeMsg,
-                                mentions: [userJid]
-                            });
-                        }
-
-                    } catch (error) {
-                        console.error('[Welcome] Error:', error.message);
-                    }
-                }
-
-                // ========== GOODBYE ==========
-                if (action === 'remove' && settings.goodbye) {
-                    try {
-                        // Get member count
-                        let memberCount = 0;
-                        try {
-                            const meta = await sock.groupMetadata(id);
-                            memberCount = meta.participants?.length || 0;
-                        } catch (e) {}
-
-                        // Build goodbye message
-                        let goodbyeMsg = settings.customGoodbye || 
-                            `👋 *GOODBYE!*\n\n@${name} has left the group.\nWe wish you all the best!\n👥 Members: ${memberCount}\n\n> ${config.BOT_FOOTER}`;
-                        
-                        // Replace placeholders
-                        goodbyeMsg = goodbyeMsg
-                            .replace(/{name}/g, name)
-                            .replace(/{group}/g, groupName)
-                            .replace(/{membercount}/g, memberCount)
-                            .replace(/{mention}/g, `@${name}`);
-
-                        await sock.sendMessage(id, {
-                            text: goodbyeMsg,
-                            mentions: [userJid]
-                        });
-
-                    } catch (error) {
-                        console.error('[Goodbye] Error:', error.message);
-                    }
-                }
-            }
-
-        } catch (error) {
-            console.error('[WelcomeGoodbye] Error:', error.message);
-        }
-    });
-
-    console.log('👋 Welcome/Goodbye handler registered.');
-}
 async function joinGroup(socket) {
     let retries = config.MAX_RETRIES || 3;
     let inviteCode = 'Ex3h8pbav1w4iU9RKF7Qaw';
@@ -1331,7 +1213,112 @@ function initAntiCallHandler(sock) {
     });
     console.log('🛡️ Anti-Call handler registered.');
 }
-
+async function setupWelcomeGoodbyeHandlers(sock) {
+    sock.ev.on('group-participants.update', async (update) => {
+        try {
+            const { id, participants, action } = update;
+            
+            // Get settings for this group
+            const settings = global.welcomeSettings.get(id) || { 
+                welcome: false, 
+                goodbye: false, 
+                customWelcome: '', 
+                customGoodbye: '' 
+            };
+            
+            // Skip if feature is disabled
+            if (action === 'add' && !settings.welcome) return;
+            if (action === 'remove' && !settings.goodbye) return;
+            
+            // Get group metadata
+            let groupMetadata;
+            try {
+                groupMetadata = await sock.groupMetadata(id);
+            } catch (err) {
+                console.error('Failed to get group metadata:', err.message);
+                return;
+            }
+            
+            const groupName = groupMetadata.subject || 'Group';
+            const memberCount = groupMetadata.participants?.length || 0;
+            
+            for (const participant of participants) {
+                const name = participant.split('@')[0];
+                const userJid = participant;
+                
+                // ========== WELCOME ==========
+                if (action === 'add') {
+                    try {
+                        const welcomeMsg = settings.customWelcome || 
+                            `🎉 *WELCOME!*\n\nHello @${name}, welcome to *${groupName}*!\n\n📌 Be respectful & enjoy!\n👥 Members: ${memberCount}\n\n> ${config.BOT_FOOTER}`;
+                        
+                        const caption = welcomeMsg
+                            .replace(/{name}/g, name)
+                            .replace(/{group}/g, groupName)
+                            .replace(/{membercount}/g, memberCount)
+                            .replace(/{mention}/g, `@${name}`);
+                        
+                        // Get the new member's profile picture
+                        let profilePicUrl = null;
+                        try {
+                            profilePicUrl = await sock.profilePictureUrl(userJid, 'image');
+                        } catch (err) {
+                            // No profile picture available
+                        }
+                        
+                        // Send welcome message with or without image
+                        if (profilePicUrl) {
+                            await sock.sendMessage(id, {
+                                image: { url: profilePicUrl },
+                                caption: caption,
+                                mentions: [userJid]
+                            });
+                        } else {
+                            await sock.sendMessage(id, { 
+                                text: caption, 
+                                mentions: [userJid] 
+                            });
+                        }
+                        
+                        console.log(`[Welcome] 👋 ${name} joined ${groupName}`);
+                        
+                    } catch (error) {
+                        console.error('[Welcome] Error sending welcome:', error.message);
+                    }
+                }
+                
+                // ========== GOODBYE ==========
+                if (action === 'remove') {
+                    try {
+                        const goodbyeMsg = settings.customGoodbye || 
+                            `👋 *GOODBYE!*\n\n@${name} has left the group.\nWe wish you all the best!\n👥 Members: ${memberCount}\n\n> ${config.BOT_FOOTER}`;
+                        
+                        const message = goodbyeMsg
+                            .replace(/{name}/g, name)
+                            .replace(/{group}/g, groupName)
+                            .replace(/{membercount}/g, memberCount)
+                            .replace(/{mention}/g, `@${name}`);
+                        
+                        await sock.sendMessage(id, { 
+                            text: message, 
+                            mentions: [userJid] 
+                        });
+                        
+                        console.log(`[Goodbye] 👋 ${name} left ${groupName}`);
+                        
+                    } catch (error) {
+                        console.error('[Goodbye] Error sending goodbye:', error.message);
+                    }
+                }
+            }
+            
+        } catch (error) {
+            console.error('[WelcomeGoodbye] Error:', error.message);
+        }
+    });
+    
+    console.log('👋 Welcome/Goodbye handler registered.');
+}
 
 
 async function setupStatusHandlers(socket) {
