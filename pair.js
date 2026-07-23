@@ -300,42 +300,11 @@ async function setupChatbot(socket) {
     console.log(`🤖 Chatbot handler registered. (Status: ${global.chatbotEnabled ? 'ENABLED' : 'DISABLED'})`);
 }
 // ==============================================
-// 👋 WELCOME & GOODBYE SYSTEM (FIXED)
+// 👋 WELCOME & GOODBYE SYSTEM (NO JSON ERRORS)
 // ==============================================
 
-// Settings storage
+// Settings storage - using Map only, no file saving
 const welcomeSettings = new Map();
-const WELCOME_SETTINGS_PATH = './welcome-settings.json';
-
-// Load welcome settings from file
-function loadWelcomeSettings() {
-    try {
-        if (fs.existsSync(WELCOME_SETTINGS_PATH)) {
-            const data = JSON.parse(fs.readFileSync(WELCOME_SETTINGS_PATH, 'utf8'));
-            for (const [key, value] of Object.entries(data)) {
-                welcomeSettings.set(key, value);
-            }
-            console.log(`[Welcome] Loaded settings for ${welcomeSettings.size} groups`);
-        }
-    } catch (err) {
-        console.error('[Welcome] Failed to load settings:', err);
-    }
-}
-
-// Save welcome settings to file
-function saveWelcomeSettings() {
-    try {
-        const data = Object.fromEntries(welcomeSettings);
-        fs.writeFileSync(WELCOME_SETTINGS_PATH, JSON.stringify(data, null, 2));
-        return true;
-    } catch (err) {
-        console.error('[Welcome] Failed to save settings:', err);
-        return false;
-    }
-}
-
-// Load settings on startup
-loadWelcomeSettings();
 
 // ==============================================
 // WELCOME & GOODBYE HANDLER
@@ -345,7 +314,7 @@ async function setupWelcomeGoodbye(sock) {
         try {
             const { id, participants, action } = update;
             
-            // Get settings for this group
+            // Get settings for this group (default: disabled)
             const settings = welcomeSettings.get(id) || { 
                 welcome: false, 
                 goodbye: false, 
@@ -374,17 +343,6 @@ async function setupWelcomeGoodbye(sock) {
                     console.log(`[Welcome] 👋 ${name} joined ${groupName}`);
                     
                     try {
-                        // Get profile picture
-                        let ppUrl = null;
-                        let ppBuffer = null;
-                        try {
-                            ppUrl = await sock.profilePictureUrl(userJid, 'image');
-                            const ppResponse = await axios.get(ppUrl, { responseType: 'arraybuffer' });
-                            ppBuffer = Buffer.from(ppResponse.data);
-                        } catch (e) {
-                            // No profile picture
-                        }
-
                         // Get member count
                         let memberCount = 0;
                         try {
@@ -403,14 +361,16 @@ async function setupWelcomeGoodbye(sock) {
                             .replace(/{membercount}/g, memberCount)
                             .replace(/{mention}/g, `@${name}`);
 
-                        // Send welcome with or without image
-                        if (ppBuffer && ppBuffer.length > 1000) {
+                        // Try to get and send profile picture
+                        try {
+                            const ppUrl = await sock.profilePictureUrl(userJid, 'image');
                             await sock.sendMessage(id, {
-                                image: ppBuffer,
+                                image: { url: ppUrl },
                                 caption: welcomeMsg,
                                 mentions: [userJid]
                             });
-                        } else {
+                        } catch (e) {
+                            // No profile picture, send text only
                             await sock.sendMessage(id, {
                                 text: welcomeMsg,
                                 mentions: [userJid]
@@ -3349,7 +3309,6 @@ case 'welc': {
         if (action === 'on') {
             settings.welcome = true;
             welcomeSettings.set(from, settings);
-            saveWelcomeSettings();
             await socket.sendMessage(sender, {
                 text: `👋 *ᴡᴇʟᴄᴏᴍᴇ ᴇɴᴀʙʟᴇᴅ!*\n\nɴᴇᴡ ᴍᴇᴍʙᴇʀs ᴡɪʟʟ ʙᴇ ᴡᴇʟᴄᴏᴍᴇᴅ.\n\n> ${config.BOT_FOOTER}`,
                 buttons: [
@@ -3361,7 +3320,6 @@ case 'welc': {
         else if (action === 'off') {
             settings.welcome = false;
             welcomeSettings.set(from, settings);
-            saveWelcomeSettings();
             await socket.sendMessage(sender, {
                 text: `👋 *ᴡᴇʟᴄᴏᴍᴇ ᴅɪsᴀʙʟᴇᴅ!*\n\nɴᴏ ᴡᴇʟᴄᴏᴍᴇ ᴍᴇssᴀɢᴇs ᴡɪʟʟ ʙᴇ sᴇɴᴛ.\n\n> ${config.BOT_FOOTER}`,
                 buttons: [
@@ -3422,7 +3380,6 @@ case 'goodb': {
         if (action === 'on') {
             settings.goodbye = true;
             welcomeSettings.set(from, settings);
-            saveWelcomeSettings();
             await socket.sendMessage(sender, {
                 text: `👋 *ɢᴏᴏᴅʙʏᴇ ᴇɴᴀʙʟᴇᴅ!*\n\nʟᴇᴀᴠɪɴɢ ᴍᴇᴍʙᴇʀs ᴡɪʟʟ ʀᴇᴄᴇɪᴠᴇ ᴀ ғᴀʀᴇᴡᴇʟʟ.\n\n> ${config.BOT_FOOTER}`,
                 buttons: [
@@ -3434,7 +3391,6 @@ case 'goodb': {
         else if (action === 'off') {
             settings.goodbye = false;
             welcomeSettings.set(from, settings);
-            saveWelcomeSettings();
             await socket.sendMessage(sender, {
                 text: `👋 *ɢᴏᴏᴅʙʏᴇ ᴅɪsᴀʙʟᴇᴅ!*\n\nɴᴏ ғᴀʀᴇᴡᴇʟʟ ᴍᴇssᴀɢᴇs ᴡɪʟʟ ʙᴇ sᴇɴᴛ.\n\n> ${config.BOT_FOOTER}`,
                 buttons: [
@@ -3503,7 +3459,6 @@ case 'setwelc': {
         settings.customWelcome = newMessage;
         settings.welcome = true;
         welcomeSettings.set(from, settings);
-        saveWelcomeSettings();
 
         await socket.sendMessage(sender, {
             text: `✅ *ᴄᴜsᴛᴏᴍ ᴡᴇʟᴄᴏᴍᴇ ᴍᴇssᴀɢᴇ sᴇᴛ!*\n\n📝 ${newMessage}\n\n> ${config.BOT_FOOTER}`,
@@ -3558,7 +3513,6 @@ case 'setgoodb': {
         settings.customGoodbye = newMessage;
         settings.goodbye = true;
         welcomeSettings.set(from, settings);
-        saveWelcomeSettings();
 
         await socket.sendMessage(sender, {
             text: `✅ *ᴄᴜsᴛᴏᴍ ɢᴏᴏᴅʙʏᴇ ᴍᴇssᴀɢᴇ sᴇᴛ!*\n\n📝 ${newMessage}\n\n> ${config.BOT_FOOTER}`,
