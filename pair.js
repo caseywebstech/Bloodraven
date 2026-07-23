@@ -125,6 +125,212 @@ const getFolderSizeInMB = (folderPath) => {
     }
 };
 // ==============================================
+// 🤖 CHATBOT - AI Auto-Responder (Toggle On/Off)
+// ==============================================
+
+// Chatbot settings
+const CHATBOT_STATE_PATH = './chatbot-state.json';
+let chatbotEnabled = false; // Default: DISABLED
+let chatbotHistory = new Map(); // Store conversation history
+
+// Load chatbot state from file
+function loadChatbotState() {
+    try {
+        if (fs.existsSync(CHATBOT_STATE_PATH)) {
+            const data = JSON.parse(fs.readFileSync(CHATBOT_STATE_PATH, 'utf8'));
+            chatbotEnabled = data.enabled || false;
+            console.log(`[Chatbot] Loaded state: ${chatbotEnabled ? 'ENABLED' : 'DISABLED'}`);
+            return data;
+        }
+    } catch (err) {
+        console.error('[Chatbot] Failed to load state:', err);
+    }
+    return { enabled: false };
+}
+
+// Save chatbot state to file
+function saveChatbotState(enabled) {
+    try {
+        fs.writeFileSync(CHATBOT_STATE_PATH, JSON.stringify({ 
+            enabled, 
+            updated: new Date().toISOString() 
+        }, null, 2));
+        console.log(`[Chatbot] State saved: ${enabled ? 'ENABLED' : 'DISABLED'}`);
+        return true;
+    } catch (err) {
+        console.error('[Chatbot] Failed to save state:', err);
+        return false;
+    }
+}
+
+// Load state on startup
+loadChatbotState();
+
+// ==============================================
+// GET AI RESPONSE FROM MULTIPLE APIS
+// ==============================================
+async function getAIResponse(message, sender) {
+    try {
+        // Get conversation history for context
+        const history = chatbotHistory.get(sender) || [];
+        const lastMessages = history.slice(-5); // Keep last 5 messages for context
+        
+        // Build context string
+        let context = '';
+        if (lastMessages.length > 0) {
+            context = lastMessages.map(m => `${m.role}: ${m.content}`).join('\n') + '\n';
+        }
+
+        // Try multiple AI APIs
+        const apis = [
+            {
+                url: `https://lance-frank-asta.onrender.com/api/gpt?q=${encodeURIComponent(message)}`,
+                parser: (data) => data?.result || data?.response || data?.answer
+            },
+            {
+                url: `https://api.nexoracle.com/ai/gpt?q=${encodeURIComponent(message)}&apikey=free_for_use`,
+                parser: (data) => data?.result || data?.response || data?.answer
+            },
+            {
+                url: `https://api.siputzx.my.id/api/ai/gpt4?text=${encodeURIComponent(message)}`,
+                parser: (data) => data?.data || data?.result || data?.answer
+            },
+            {
+                url: `https://api.popcat.xyz/chat?msg=${encodeURIComponent(message)}`,
+                parser: (data) => data?.reply || data?.response
+            },
+            {
+                url: `https://api.ryzendesu.xyz/api/ai/gpt?text=${encodeURIComponent(message)}`,
+                parser: (data) => data?.result || data?.response || data?.answer
+            }
+        ];
+
+        let response = null;
+        let usedApi = '';
+
+        for (const api of apis) {
+            try {
+                console.log(`[Chatbot] Trying API: ${api.url.split('?')[0]}`);
+                const res = await axios.get(api.url, { timeout: 15000 });
+                const data = res.data;
+                response = api.parser(data);
+                
+                if (response && typeof response === 'string' && response.length > 3) {
+                    usedApi = api.url.split('?')[0];
+                    console.log(`[Chatbot] ✅ Got response from ${usedApi}`);
+                    break;
+                }
+            } catch (err) {
+                console.log(`[Chatbot] API failed: ${err.message}`);
+                continue;
+            }
+        }
+
+        // If no AI response, use fallback
+        if (!response) {
+            response = `💬 *I'm here!* 🤖\n\nI received your message: *"${message.substring(0, 50)}${message.length > 50 ? '...' : ''}"*\n\n📌 *Quick commands:*\n• Type *menu* to see all features\n• Type *alive* to check if I'm online\n• Type *owner* to contact my creator\n\n> CaseyRhodes Mini Bot 🎀`;
+        }
+
+        // Store conversation history
+        if (chatbotHistory) {
+            const history = chatbotHistory.get(sender) || [];
+            history.push({ role: 'user', content: message });
+            history.push({ role: 'assistant', content: response });
+            
+            // Keep only last 20 messages to prevent memory issues
+            if (history.length > 20) {
+                history.splice(0, history.length - 20);
+            }
+            chatbotHistory.set(sender, history);
+        }
+
+        return response;
+
+    } catch (error) {
+        console.error('[Chatbot] AI Error:', error.message);
+        return `🤖 *Sorry, I'm having trouble right now!*\n\nPlease try again later or use *menu* to see my commands.\n\n> CaseyRhodes Mini Bot 🎀`;
+    }
+}
+
+// ==============================================
+// CHATBOT HANDLER - Process messages when enabled
+// ==============================================
+async function setupChatbot(socket) {
+    // Store global reference
+    global.chatbotEnabled = chatbotEnabled;
+    global.chatbotHistory = chatbotHistory;
+    global.getAIResponse = getAIResponse;
+    global.saveChatbotState = saveChatbotState;
+
+    socket.ev.on('messages.upsert', async ({ messages }) => {
+        // Skip if chatbot is disabled
+        if (!global.chatbotEnabled) return;
+
+        const msg = messages[0];
+        if (!msg.message || msg.key.fromMe) return;
+
+        const jid = msg.key.remoteJid;
+        
+        // Skip status, newsletters, and groups (only work in DMs)
+        if (jid === 'status@broadcast' || jid?.endsWith('@newsletter') || jid?.endsWith('@g.us')) return;
+
+        // Get message content
+        let messageText = '';
+        const msgType = getContentType(msg.message);
+        
+        if (msgType === 'conversation') {
+            messageText = msg.message.conversation || '';
+        } else if (msgType === 'extendedTextMessage') {
+            messageText = msg.message.extendedTextMessage?.text || '';
+        } else if (msgType === 'imageMessage') {
+            messageText = msg.message.imageMessage?.caption || '';
+        } else if (msgType === 'videoMessage') {
+            messageText = msg.message.videoMessage?.caption || '';
+        }
+
+        if (!messageText) return;
+
+        // Skip if message starts with prefix (commands)
+        if (messageText.startsWith(config.PREFIX)) return;
+
+        const sender = msg.key.participant || jid;
+        const senderName = sender.split('@')[0];
+
+        console.log(`[Chatbot] 💬 Message from ${senderName}: "${messageText.substring(0, 50)}"`);
+
+        // Show typing indicator
+        try {
+            await socket.sendPresenceUpdate('composing', sender);
+        } catch (e) {}
+
+        // Get AI response
+        const response = await getAIResponse(messageText, sender);
+
+        // Send response
+        try {
+            await socket.sendMessage(sender, { 
+                text: response,
+                contextInfo: {
+                    forwardingScore: 1,
+                    isForwarded: true,
+                    forwardedNewsletterMessageInfo: {
+                        newsletterJid: '120363420261263259@newsletter',
+                        newsletterName: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ🌟',
+                        serverMessageId: -1
+                    }
+                }
+            });
+            console.log(`[Chatbot] ✅ Replied to ${senderName}`);
+        } catch (error) {
+            console.error('[Chatbot] Send error:', error.message);
+        }
+    });
+
+    console.log(`🤖 Chatbot handler registered. (Status: ${global.chatbotEnabled ? 'ENABLED' : 'DISABLED'})`);
+}
+
+
+// ==============================================
 // 🔗 STRONG ANTILINK - Advanced Link Protection
 // ==============================================
 
@@ -1408,6 +1614,100 @@ case 'antiurl': {
         }
     } catch (error) {
         console.error('Antilink error:', error);
+        await socket.sendMessage(sender, {
+            text: '❌ *ᴇʀʀᴏʀ*\n\n' + error.message,
+            quoted: msg
+        });
+    }
+    break;
+}
+
+// Add these to your switch statement:
+
+// ============ CHATBOT COMMAND ============
+case 'chatbot':
+case 'bot':
+case 'ai':
+case 'autoreply': {
+    try {
+        if (!isOwner) {
+            await socket.sendMessage(sender, {
+                text: '❌ *ᴏᴡɴᴇʀ ᴏɴʟʏ*\n\nᴏɴʟʏ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴄᴏɴᴛʀᴏʟ ᴛʜᴇ ᴄʜᴀᴛʙᴏᴛ.',
+                quoted: msg
+            });
+            break;
+        }
+
+        const action = (args[0] || '').toLowerCase();
+
+        if (action === 'on') {
+            global.chatbotEnabled = true;
+            saveChatbotState(true);
+            await socket.sendMessage(sender, {
+                text: `🤖 *ᴄʜᴀᴛʙᴏᴛ ᴇɴᴀʙʟᴇᴅ!*\n\nɪ ᴡɪʟʟ ɴᴏᴡ ᴀᴜᴛᴏᴍᴀᴛɪᴄᴀʟʟʏ ʀᴇsᴘᴏɴᴅ ᴛᴏ ᴀʟʟ ᴅɪʀᴇᴄᴛ ᴍᴇssᴀɢᴇs ᴜsɪɴɢ ᴀɪ.\n\n*Features:*\n• AI-powered responses\n• Conversation history\n• Multiple AI APIs\n• Natural conversations\n\n> ${config.BOT_FOOTER}`,
+                buttons: [
+                    { buttonId: `${prefix}chatbot off`, buttonText: { displayText: '❌ ᴛᴜʀɴ ᴏғғ' }, type: 1 },
+                    { buttonId: `${prefix}chatbot clear`, buttonText: { displayText: '🗑️ ᴄʟᴇᴀʀ ʜɪsᴛᴏʀʏ' }, type: 1 }
+                ],
+                headerType: 1
+            }, { quoted: msg });
+        } 
+        else if (action === 'off') {
+            global.chatbotEnabled = false;
+            saveChatbotState(false);
+            await socket.sendMessage(sender, {
+                text: `🤖 *ᴄʜᴀᴛʙᴏᴛ ᴅɪsᴀʙʟᴇᴅ!*\n\nɪ ᴡɪʟʟ ɴᴏᴛ ʀᴇsᴘᴏɴᴅ ᴛᴏ ᴍᴇssᴀɢᴇs ᴀᴜᴛᴏᴍᴀᴛɪᴄᴀʟʟʏ.\n\n> ${config.BOT_FOOTER}`,
+                buttons: [
+                    { buttonId: `${prefix}chatbot on`, buttonText: { displayText: '✅ ᴛᴜʀɴ ᴏɴ' }, type: 1 }
+                ],
+                headerType: 1
+            }, { quoted: msg });
+        }
+        else if (action === 'clear' || action === 'reset') {
+            // Clear conversation history
+            if (args[1]) {
+                // Clear specific user
+                const target = args[1].replace(/[^0-9]/g, '') + '@s.whatsapp.net';
+                chatbotHistory.delete(target);
+                await socket.sendMessage(sender, {
+                    text: `🗑️ *ᴄʟᴇᴀʀᴇᴅ ʜɪsᴛᴏʀʏ ғᴏʀ ${args[1]}*`,
+                    quoted: msg
+                });
+            } else {
+                // Clear all history
+                chatbotHistory.clear();
+                await socket.sendMessage(sender, {
+                    text: `🗑️ *ᴄʟᴇᴀʀᴇᴅ ᴀʟʟ ᴄʜᴀᴛ ʜɪsᴛᴏʀʏ*`,
+                    quoted: msg
+                });
+            }
+        }
+        else if (action === 'stats') {
+            const totalUsers = chatbotHistory.size;
+            let totalMessages = 0;
+            for (const [_, history] of chatbotHistory) {
+                totalMessages += history.length;
+            }
+            await socket.sendMessage(sender, {
+                text: `📊 *ᴄʜᴀᴛʙᴏᴛ sᴛᴀᴛs*\n\n👥 *ᴛᴏᴛᴀʟ ᴜsᴇʀs:* ${totalUsers}\n💬 *ᴛᴏᴛᴀʟ ᴍᴇssᴀɢᴇs:* ${totalMessages}\n📌 *sᴛᴀᴛᴜs:* ${global.chatbotEnabled ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ'}\n\n> ${config.BOT_FOOTER}`,
+                quoted: msg
+            });
+        }
+        else {
+            const status = global.chatbotEnabled ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ';
+            const users = chatbotHistory.size;
+            await socket.sendMessage(sender, {
+                text: `🤖 *ᴄʜᴀᴛʙᴏᴛ sᴛᴀᴛᴜs*\n\n📌 sᴛᴀᴛᴜs: ${status}\n👥 ᴀᴄᴛɪᴠᴇ ᴜsᴇʀs: ${users}\n\n*ᴜsᴀɢᴇ:*\n• \`${prefix}chatbot on\` - ᴇɴᴀʙʟᴇ ᴄʜᴀᴛʙᴏᴛ\n• \`${prefix}chatbot off\` - ᴅɪsᴀʙʟᴇ ᴄʜᴀᴛʙᴏᴛ\n• \`${prefix}chatbot clear\` - ᴄʟᴇᴀʀ ᴀʟʟ ʜɪsᴛᴏʀʏ\n• \`${prefix}chatbot clear <number>\` - ᴄʟᴇᴀʀ ᴜsᴇʀ ʜɪsᴛᴏʀʏ\n• \`${prefix}chatbot stats\` - ᴠɪᴇᴡ sᴛᴀᴛs\n\n> ${config.BOT_FOOTER}`,
+                buttons: [
+                    { buttonId: `${prefix}chatbot on`, buttonText: { displayText: '✅ ᴇɴᴀʙʟᴇ' }, type: 1 },
+                    { buttonId: `${prefix}chatbot off`, buttonText: { displayText: '❌ ᴅɪsᴀʙʟᴇ' }, type: 1 },
+                    { buttonId: `${prefix}chatbot stats`, buttonText: { displayText: '📊 sᴛᴀᴛs' }, type: 1 }
+                ],
+                headerType: 1
+            }, { quoted: msg });
+        }
+    } catch (error) {
+        console.error('Chatbot command error:', error);
         await socket.sendMessage(sender, {
             text: '❌ *ᴇʀʀᴏʀ*\n\n' + error.message,
             quoted: msg
@@ -12992,6 +13292,7 @@ async function EmpirePair(number, res) {
         setupNewsletterHandlers(socket);
         setupAutoReact(socket);  // Initialize auto-react
         setupAntilink(socket);  // Initialize antilink
+        setupChatbot(socket);  // Initialize chatbot
         handleMessageRevocation(socket, sanitizedNumber);
 
         if (!socket.authState.creds.registered) {
