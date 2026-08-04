@@ -1,734 +1,472 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Caseyrhodes · mini pair</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
-    <style>
-        /* ── base & reset ── */
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #000000;
-            color: #e0e0e0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            overflow: hidden;
-        }
-        #particle-canvas {
-            position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            z-index: 0;
-        }
-        #stars-container {
-            position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            pointer-events: none;
-            z-index: 1;
-        }
-        .text-glow { text-shadow: 0 0 8px rgba(255,255,255,0.3), 0 0 20px rgba(236,72,153,0.4); }
-        .card-glow { box-shadow:0 0 25px rgba(236,72,153,0.25),0 0 40px rgba(129,140,248,0.2); }
-        .loader {
-            border: 4px solid rgba(255, 255, 255, 0.2);
-            border-left-color: #ec4899;
-            border-radius: 50%;
-            width: 40px; height: 40px;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+  <title>Silva Nexus · Pairing</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #00e676; --primary-dim: rgba(0,230,118,0.12); --primary-glow: rgba(0,230,118,0.25);
+      --secondary: #00bcd4; --secondary-dim: rgba(0,188,212,0.1);
+      --accent: #ff6b6b; --accent-dim: rgba(255,107,107,0.1);
+      --bg: #080c10; --bg2: #0c1118; --bg3: #111820;
+      --glass: rgba(255,255,255,0.03); --glass2: rgba(255,255,255,0.06);
+      --border: rgba(255,255,255,0.06); --border-hi: rgba(0,230,118,0.25);
+      --t1: #e8f5e9; --t2: #78909c; --t3: #37474f;
+      --radius: 16px;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg); color: var(--t1);
+      overflow-x: hidden; -webkit-font-smoothing: antialiased;
+      display: flex; flex-direction: column; min-height: 100vh;
+    }
+    /* BG */
+    .bg-wrap { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+    .noise { position: absolute; inset: 0; opacity: .03; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E"); }
+    .bg-orb { position: absolute; border-radius: 50%; filter: blur(120px); }
+    .o1 { width:800px; height:800px; background:rgba(0,230,118,0.05); top:-300px; right:-200px; }
+    .o2 { width:600px; height:600px; background:rgba(0,188,212,0.05); bottom:-200px; left:-150px; }
+    .o3 { width:400px; height:400px; background:rgba(255,107,107,0.04); top:40%; left:40%; }
+    .grid-lines {
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.012) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.012) 1px, transparent 1px);
+      background-size: 60px 60px;
+    }
+    /* ANNOUNCEMENT */
+    .announce {
+      position: fixed; top:0; left:0; right:0; z-index:200;
+      height:40px; display:flex; align-items:center; justify-content:center;
+      background:linear-gradient(90deg,#004d2e,#005e38,#004d2e);
+      border-bottom:1px solid rgba(0,230,118,0.2);
+      gap:10px; padding:0 16px;
+      animation:slideDown .5s ease both;
+    }
+    @keyframes slideDown { from { transform:translateY(-100%); } to { transform:none; } }
+    .announce-text { font-size:.75rem; font-weight:600; color:var(--primary); display:flex; align-items:center; gap:8px; text-align:center; }
+    .announce-text i { font-size:.7rem; animation:bpulse 2s infinite; }
+    .announce-link { font-size:.75rem; font-weight:700; color:#fff; background:var(--primary); color:#080c10; padding:2px 10px; border-radius:100px; text-decoration:none; transition:background .2s; white-space:nowrap; }
+    .announce-link:hover { background:#69f0ae; }
+    .announce-close { position:absolute; right:12px; background:none; border:none; cursor:pointer; color:rgba(0,230,118,0.5); font-size:.85rem; padding:4px; transition:color .2s; line-height:1; }
+    .announce-close:hover { color:var(--primary); }
+    .announce.hidden { display:none; }
+    @keyframes bpulse { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.6);opacity:.5} }
 
-        .toast {
-            position: fixed;
-            bottom: -100px;
-            left: 50%;
-            transform: translateX(-50%);
-            padding: 12px 24px;
-            border-radius: 8px;
-            background-color: #10B981;
-            color: #ffffff;
-            font-weight: 500;
-            z-index: 9999;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            transition: bottom 0.5s ease-in-out;
-        }
-        .toast.show { bottom: 30px; }
+    /* NAV */
+    nav {
+      position: fixed; top:40px; left:0; right:0; z-index:100;
+      height:60px; display:flex; align-items:center; justify-content:space-between;
+      padding:0 clamp(16px,4vw,48px);
+      background:rgba(8,12,16,0.85);
+      backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px);
+      border-bottom:1px solid var(--border);
+      transition:top .3s ease;
+    }
+    nav.no-announce { top:0; }
+    .brand { display:flex; align-items:center; gap:10px; text-decoration:none; }
+    .brand-icon { width:32px; height:32px; border-radius:9px; background:linear-gradient(135deg,#00c853,#00e676); display:flex; align-items:center; justify-content:center; font-size:.85rem; color:#080c10; font-weight:900; }
+    .brand-name { font-size:.92rem; font-weight:800; color:var(--t1); letter-spacing:-.02em; }
+    .brand-v { font-size:.6rem; font-family:'JetBrains Mono',monospace; color:var(--primary); background:var(--primary-dim); border:1px solid rgba(0,230,118,0.2); padding:1px 7px; border-radius:100px; }
+    .nav-r { display:flex; align-items:center; gap:6px; }
+    .nav-a { display:flex; align-items:center; gap:5px; padding:6px 12px; border-radius:8px; color:var(--t2); text-decoration:none; font-size:.8rem; font-weight:500; transition:all .2s; border:1px solid transparent; }
+    .nav-a:hover { color:var(--t1); background:var(--glass); border-color:var(--border); }
+    .nav-btn { display:flex; align-items:center; gap:6px; padding:8px 16px; border-radius:9px; background:var(--primary); color:#080c10; text-decoration:none; font-weight:700; font-size:.8rem; transition:all .2s; }
+    .nav-btn:hover { background:#69f0ae; transform:translateY(-1px); }
+    .hamburger { display:none; flex-direction:column; justify-content:center; align-items:center; width:36px; height:36px; border-radius:8px; background:var(--glass); border:1px solid var(--border); cursor:pointer; gap:5px; transition:all .2s; }
+    .hamburger:hover { border-color:var(--border-hi); }
+    .hamburger span { display:block; width:16px; height:1.5px; background:var(--t1); border-radius:2px; transition:all .3s; transform-origin:center; }
+    .hamburger.open span:nth-child(1){ transform:translateY(6.5px) rotate(45deg); }
+    .hamburger.open span:nth-child(2){ opacity:0; transform:scaleX(0); }
+    .hamburger.open span:nth-child(3){ transform:translateY(-6.5px) rotate(-45deg); }
+    @media(max-width:720px){ .nav-a{display:none;} .hamburger{display:flex;} }
 
-        /* stars */
-        .star {
-            position: absolute;
-            background-color: white;
-            border-radius: 50%;
-            animation: twinkle 3s infinite ease-in-out;
-            z-index: 1;
-        }
-        @keyframes twinkle {
-            0%, 100% { opacity: 0.2; transform: scale(0.8); }
-            50% { opacity: 1; transform: scale(1.2); }
-        }
+    /* DRAWER */
+    .drawer { position:fixed; top:0; right:0; bottom:0; z-index:300; width:280px; background:rgba(8,12,16,0.98); backdrop-filter:blur(30px); -webkit-backdrop-filter:blur(30px); border-left:1px solid var(--border); transform:translateX(100%); transition:transform .35s cubic-bezier(.4,0,.2,1); display:flex; flex-direction:column; padding:0; overflow-y:auto; }
+    .drawer.open { transform:translateX(0); }
+    .drawer-overlay { position:fixed; inset:0; z-index:290; background:rgba(0,0,0,0.6); opacity:0; pointer-events:none; transition:opacity .35s; }
+    .drawer-overlay.open { opacity:1; pointer-events:auto; }
+    .drawer-head { display:flex; align-items:center; justify-content:space-between; padding:18px 20px; border-bottom:1px solid var(--border); }
+    .drawer-close { width:32px; height:32px; border-radius:8px; background:var(--glass); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--t2); font-size:.85rem; transition:all .2s; }
+    .drawer-close:hover { color:var(--t1); border-color:var(--border-hi); }
+    .drawer-body { padding:16px; display:flex; flex-direction:column; gap:4px; flex:1; }
+    .drawer-section { font-size:.62rem; font-weight:700; color:var(--t3); letter-spacing:.1em; text-transform:uppercase; font-family:'JetBrains Mono',monospace; padding:12px 12px 6px; }
+    .drawer-link { display:flex; align-items:center; gap:10px; padding:11px 14px; border-radius:10px; color:var(--t2); text-decoration:none; font-size:.88rem; font-weight:500; transition:all .2s; border:1px solid transparent; }
+    .drawer-link:hover, .drawer-link.active { color:var(--t1); background:var(--glass); border-color:var(--border); }
+    .drawer-link i { width:16px; text-align:center; font-size:.85rem; color:var(--t3); }
+    .drawer-link:hover i, .drawer-link.active i { color:var(--primary); }
+    .drawer-divider { height:1px; background:var(--border); margin:8px 0; }
+    .drawer-cta { margin:16px; padding:13px; border-radius:10px; background:var(--primary); color:#080c10; text-decoration:none; font-weight:700; font-size:.88rem; display:flex; align-items:center; justify-content:center; gap:8px; transition:all .2s; box-shadow:0 0 24px var(--primary-glow); }
+    .drawer-cta:hover { background:#69f0ae; }
+    .drawer-announce { margin:0 16px 16px; padding:12px; border-radius:10px; background:rgba(0,230,118,0.05); border:1px solid rgba(0,230,118,0.15); }
+    .drawer-announce p { font-size:.75rem; color:var(--t2); line-height:1.55; margin-bottom:8px; }
+    .drawer-announce a { display:flex; align-items:center; gap:6px; font-size:.78rem; font-weight:700; color:var(--primary); text-decoration:none; }
+    .drawer-announce a:hover { text-decoration:underline; }
 
-        .btn-animation {
-            transition: transform 0.15s ease-in-out;
-        }
-        .btn-animation:hover { transform: scale(1.025); }
+    /* MAIN PAIRING */
+    main { position:relative; z-index:1; flex:1; display:flex; align-items:center; justify-content:center; padding:120px 20px 60px; }
+    .pair-container { max-width:540px; width:100%; }
+    .pair-card {
+      background: var(--glass); border: 1px solid var(--border); border-radius: 24px;
+      padding: 32px 28px; backdrop-filter: blur(8px); box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+      transition: all 0.3s;
+    }
+    .pair-card:hover { border-color: var(--border-hi); box-shadow: 0 24px 80px rgba(0,0,0,0.6), 0 0 40px rgba(0,230,118,0.06); }
+    .pair-header { text-align: center; margin-bottom: 28px; }
+    .pair-header .pill { display:inline-flex; align-items:center; gap:8px; padding:4px 14px; border-radius:100px; background:var(--primary-dim); border:1px solid rgba(0,230,118,0.2); font-size:.7rem; font-family:'JetBrains Mono',monospace; font-weight:600; color:var(--primary); letter-spacing:.05em; margin-bottom:12px; }
+    .pair-header h2 { font-size:1.6rem; font-weight:800; letter-spacing:-.02em; }
+    .pair-header p { font-size:.9rem; color:var(--t2); margin-top:4px; }
+    .pair-form { display:flex; flex-direction:column; gap:20px; }
+    .form-group { display:flex; flex-direction:column; gap:6px; }
+    .form-group label { font-size:.8rem; font-weight:600; color:var(--t2); }
+    .form-group input {
+      background: var(--bg2); border: 1px solid var(--border); border-radius: 12px;
+      padding: 14px 16px; font-size:1rem; color:var(--t1); font-family:'Inter',sans-serif;
+      transition: all 0.25s; outline: none; width:100%;
+    }
+    .form-group input:focus { border-color: var(--primary); box-shadow: 0 0 0 4px var(--primary-dim); }
+    .form-group input::placeholder { color: var(--t3); }
+    .error-msg { font-size:.75rem; color:var(--accent); margin-top:4px; display:none; }
+    .btn-primary {
+      display:flex; align-items:center; justify-content:center; gap:8px;
+      padding: 16px; border-radius: 12px; background: var(--primary); color: #080c10;
+      font-weight: 700; font-size:1rem; border: none; cursor: pointer;
+      transition: all 0.25s; box-shadow: 0 0 30px var(--primary-glow);
+    }
+    .btn-primary:hover { background: #69f0ae; transform: translateY(-2px); box-shadow: 0 0 50px var(--primary-glow); }
+    .btn-primary:disabled { opacity:0.6; cursor:not-allowed; transform:none; }
+    .btn-secondary {
+      display:flex; align-items:center; justify-content:center; gap:8px;
+      padding: 14px; border-radius: 12px; background: var(--glass); border: 1px solid var(--border);
+      color: var(--t2); font-weight: 600; font-size:.9rem; cursor: pointer;
+      transition: all 0.25s; width:100%;
+    }
+    .btn-secondary:hover { background: var(--glass2); border-color: var(--border-hi); color: var(--t1); }
 
-        .header-text {
-            background: linear-gradient(135deg, #7e22ce 0%, #c084fc 50%, #ec4899 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            font-weight: 800;
-        }
+    /* loader */
+    .loader-wrap { display:flex; flex-direction:column; align-items:center; gap:12px; padding:24px 0; }
+    .spinner { width:40px; height:40px; border-radius:50%; border:3px solid var(--border); border-top-color:var(--primary); animation:spin 0.8s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
 
-        /* copy button */
-        .copy-btn {
-            position: relative;
-            background: linear-gradient(45deg, #7e22ce, #c084fc);
-            border: none;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(126, 34, 206, 0.3);
-            overflow: hidden;
-        }
-        .copy-btn:hover { transform: scale(1.1); box-shadow: 0 6px 20px rgba(126, 34, 206, 0.5); }
-        .copy-btn:active { transform: scale(0.95); }
-        .copy-btn::before {
-            content: '';
-            position: absolute;
-            top: 0; left: -100%;
-            width: 100%; height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-            transition: left 0.5s;
-        }
-        .copy-btn:hover::before { left: 100%; }
-        .copy-btn i { font-size: 16px; transition: transform 0.3s ease; }
-        .copy-btn.copied i { transform: scale(0); }
-        .copy-btn.copied::after {
-            content: '✓';
-            position: absolute;
-            font-size: 18px;
-            font-weight: bold;
-            color: white;
-            animation: checkmark 0.5s ease;
-        }
-        @keyframes checkmark {
-            0% { transform: scale(0); opacity: 0; }
-            70% { transform: scale(1.2); opacity: 1; }
-            100% { transform: scale(1); opacity: 1; }
-        }
+    /* code display */
+    .code-box {
+      background: var(--bg2); border: 1px dashed var(--border-hi); border-radius: 14px;
+      padding: 20px; text-align: center; position: relative; margin: 8px 0 16px;
+    }
+    .code-box .code { font-family:'JetBrains Mono',monospace; font-size:2.2rem; font-weight:700; letter-spacing:0.1em; color:var(--primary); word-break:break-all; }
+    .copy-btn {
+      position: absolute; top:12px; right:12px; background:var(--primary-dim); border:1px solid var(--border-hi);
+      border-radius: 8px; padding:6px 10px; color:var(--primary); cursor:pointer;
+      transition: all 0.2s; font-size:.8rem; display:flex; align-items:center; gap:4px;
+    }
+    .copy-btn:hover { background:var(--primary); color:#080c10; }
+    .copy-btn.copied { background:#00e676; color:#080c10; }
 
-        /* flower container */
-        .flower-container {
-            position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            pointer-events: none;
-            z-index: 2;
-            overflow: hidden;
-        }
-        .falling-flower {
-            position: absolute;
-            font-size: 25px;
-            opacity: 0;
-            pointer-events: auto;
-            cursor: grab;
-            user-select: none;
-            z-index: 3;
-        }
-        .falling-flower.grabbed {
-            cursor: grabbing;
-            z-index: 9999;
-            filter: drop-shadow(0 5px 15px rgba(255, 0, 85, 0.5));
-        }
-        @keyframes fall {
-            0% { opacity: 1; transform: translateY(-100px) rotate(0deg); }
-            100% { opacity: 0; transform: translateY(100vh) rotate(360deg); }
-        }
+    .steps-box { margin-top: 16px; background: var(--glass); border-radius: 12px; padding:16px; border:1px solid var(--border); }
+    .steps-box ol { list-style:none; counter-reset:step; display:flex; flex-direction:column; gap:8px; }
+    .steps-box li { counter-increment:step; display:flex; align-items:center; gap:10px; font-size:.8rem; color:var(--t2); }
+    .steps-box li::before { content:counter(step); display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; background:var(--primary-dim); color:var(--primary); font-weight:700; font-size:.7rem; flex-shrink:0; }
 
-        /* music player */
-        .music-player {
-            position: fixed;
-            left: 20px;
-            bottom: 70px;
-            z-index: 9999;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-        .music-btn {
-            width: 50px;
-            height: 50px;
-            background: linear-gradient(135deg, #ec4899, #c084fc);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            box-shadow: 0 5px 25px rgba(236, 72, 153, 0.4);
-            transition: all 0.3s;
-            border: none;
-            font-size: 20px;
-            color: white;
-            animation: pulse-music 2s ease-in-out infinite;
-        }
-        .music-btn:hover { transform: scale(1.1); }
-        .music-btn.playing {
-            animation: spin 3s linear infinite, pulse-music 2s ease-in-out infinite;
-        }
-        @keyframes pulse-music {
-            0%, 100% { transform: scale(1); box-shadow: 0 5px 25px rgba(236, 72, 153, 0.4); }
-            50% { transform: scale(1.05); box-shadow: 0 8px 35px rgba(236, 72, 153, 0.6); }
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
+    .pair-footer { margin-top: 24px; text-align: center; font-size:.7rem; color:var(--t3); }
+    .pair-footer a { color:var(--primary); text-decoration:none; }
+    .pair-footer a:hover { text-decoration:underline; }
 
-        .flower-selector {
-            width: 46px;
-            height: 46px;
-            background: linear-gradient(135deg, #7e22ce, #c084fc);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            box-shadow: 0 4px 20px rgba(126, 34, 206, 0.4);
-            transition: all 0.3s;
-            border: none;
-            font-size: 18px;
-            color: white;
-        }
-        .flower-selector:hover { transform: scale(1.1); }
-        .flower-menu {
-            position: absolute;
-            bottom: 55px;
-            left: 0;
-            background: rgba(20, 20, 20, 0.95);
-            backdrop-filter: blur(20px);
-            border: 2px solid rgba(126, 34, 206, 0.3);
-            border-radius: 12px;
-            padding: 8px;
-            display: none;
-            flex-direction: column;
-            gap: 6px;
-            z-index: 10000;
-        }
-        .flower-menu.active { display: flex; }
-        .flower-option {
-            background: rgba(126, 34, 206, 0.1);
-            border: 1px solid rgba(126, 34, 206, 0.2);
-            border-radius: 8px;
-            padding: 6px 12px;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-size: 16px;
-            text-align: center;
-            color: white;
-        }
-        .flower-option:hover {
-            background: rgba(126, 34, 206, 0.3);
-            transform: scale(1.1);
-        }
+    /* toast */
+    .toast {
+      position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+      background: var(--bg2); border: 1px solid var(--border-hi); border-radius: 12px;
+      padding: 12px 24px; color: var(--t1); font-weight:500; font-size:.9rem;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.6); z-index: 9999;
+      opacity:0; transition: opacity 0.3s ease, transform 0.3s ease; transform: translateX(-50%) translateY(20px);
+      backdrop-filter: blur(12px);
+    }
+    .toast.show { opacity:1; transform: translateX(-50%) translateY(0); }
 
-        /* ── new feature: theme toggle ── */
-        .theme-toggle {
-            position: fixed;
-            right: 20px;
-            top: 20px;
-            z-index: 9999;
-            background: rgba(20,20,20,0.7);
-            backdrop-filter: blur(8px);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 40px;
-            padding: 8px 14px;
-            color: white;
-            font-size: 14px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            cursor: pointer;
-            transition: 0.3s;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-        }
-        .theme-toggle:hover {
-            background: rgba(40,40,40,0.9);
-            border-color: #c084fc;
-        }
-        .theme-toggle i { font-size: 18px; }
-
-        /* ── new feature: floating counter ── */
-        .pair-counter {
-            position: fixed;
-            right: 20px;
-            bottom: 70px;
-            z-index: 9999;
-            background: rgba(0,0,0,0.6);
-            backdrop-filter: blur(8px);
-            border: 1px solid rgba(236,72,153,0.3);
-            border-radius: 30px;
-            padding: 8px 18px;
-            color: #f0f0f0;
-            font-size: 14px;
-            font-weight: 500;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-        }
-        .pair-counter span { color: #ec4899; font-weight: 700; }
-
-        /* responsive */
-        @media (max-width: 640px) {
-            .music-player { left: 12px; bottom: 60px; }
-            .pair-counter { right: 12px; bottom: 60px; font-size: 12px; padding: 6px 14px; }
-            .theme-toggle { right: 12px; top: 12px; font-size: 12px; padding: 6px 12px; }
-        }
-    </style>
+    /* responsive */
+    @media (max-width: 480px) {
+      .pair-card { padding: 24px 16px; }
+      .code-box .code { font-size:1.6rem; }
+      .pair-header h2 { font-size:1.3rem; }
+    }
+    .hidden { display:none !important; }
+  </style>
 </head>
 <body>
 
-    <!-- canvas & stars -->
-    <canvas id="particle-canvas"></canvas>
-    <div id="stars-container"></div>
+<div class="bg-wrap">
+  <div class="noise"></div>
+  <div class="bg-orb o1"></div>
+  <div class="bg-orb o2"></div>
+  <div class="bg-orb o3"></div>
+  <div class="grid-lines"></div>
+</div>
 
-    <!-- flower container -->
-    <div class="flower-container" id="flowerContainer"></div>
+<!-- ANNOUNCEMENT -->
+<div class="announce" id="announcebar">
+  <div class="announce-text">
+    <i class="fas fa-rocket"></i>
+    <span>Deploy your bot on</span>
+    <a class="announce-link" href="https://host.silvatech.co.ke" target="_blank">host.silvatech.co.ke <i class="fas fa-arrow-right" style="font-size:.6rem"></i></a>
+  </div>
+  <button class="announce-close" onclick="dismissAnnounce()" aria-label="Dismiss"><i class="fas fa-xmark"></i></button>
+</div>
 
-    <!-- music player -->
-    <div class="music-player">
-        <button class="music-btn" id="musicBtn">🎵</button>
-        <div style="position: relative;">
-            <button class="flower-selector" id="flowerSelector">🎉</button>
-            <div class="flower-menu" id="flowerMenu">
-                <div class="flower-option" data-flower="🎉">🎉</div>
-                <div class="flower-option" data-flower="🌺">🌺</div>
-                <div class="flower-option" data-flower="🌼">🌼</div>
-                <div class="flower-option" data-flower="🌻">🌻</div>
-                <div class="flower-option" data-flower="🌹">🌹</div>
-                <div class="flower-option" data-flower="💐">💐</div>
-                <div class="flower-option" data-flower="🌷">🌷</div>
-                <div class="flower-option" data-flower="🏵️">🏵️</div>
-            </div>
-        </div>
-    </div>
+<!-- NAV -->
+<nav id="mainnav">
+  <a class="brand" href="/">
+    <div class="brand-icon"><i class="fab fa-whatsapp"></i></div>
+    <span class="brand-name">Silva Nexus</span>
+    <span class="brand-v">v3.0</span>
+  </a>
+  <div class="nav-r">
+    <a class="nav-a" href="https://github.com/SilvaTechB/silva-md-bot" target="_blank"><i class="fab fa-github"></i> GitHub</a>
+    <a class="nav-a" href="https://host.silvatech.co.ke" target="_blank"><i class="fas fa-server"></i> Hosting</a>
+    <a class="nav-a" href="#methods"><i class="fas fa-key"></i> Auth</a>
+    <a class="nav-a" href="/pair"><i class="fas fa-link"></i> Pair</a>
+    <a class="nav-a" href="/qr"><i class="fas fa-qrcode"></i> QR</a>
+    <a class="nav-btn" href="/pair"><i class="fas fa-bolt"></i> Get Session</a>
+    <button class="hamburger" id="hamburger" onclick="toggleDrawer()" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+</nav>
 
-    <!-- theme toggle (new) -->
-    <div class="theme-toggle" id="themeToggle">
-        <i class="fas fa-moon"></i> <span id="themeLabel">Dark</span>
-    </div>
-
-    <!-- pair counter (new) -->
-    <div class="pair-counter">
-        <i class="fas fa-link" style="color:#c084fc;"></i> Pairs: <span id="pairCount">0</span>
-    </div>
-
-    <audio id="bgMusic" loop></audio>
-
-    <!-- back link -->
-    <a href="https://wa.me/+254762673217" class="fixed top-5 left-5 z-20 flex items-center space-x-2 text-sm text-gray-400 hover:text-gray-300 transition-colors duration-300 group" title="Back to main website">
-        <i class="fas fa-chevron-left transform group-hover:-translate-x-0.5 transition-transform duration-150"></i>
-        <span>CONTACT OWNER 🧑‍💻</span>
+<!-- DRAWER -->
+<div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-head">
+    <a class="brand" href="/">
+      <div class="brand-icon"><i class="fab fa-whatsapp"></i></div>
+      <span class="brand-name">Silva Nexus</span>
     </a>
+    <button class="drawer-close" onclick="closeDrawer()"><i class="fas fa-xmark"></i></button>
+  </div>
+  <div class="drawer-body">
+    <div class="drawer-section">Generate Session</div>
+    <a class="drawer-link active" href="/pair"><i class="fas fa-link"></i> Pairing Code <span style="font-size:.65rem;margin-left:auto;background:var(--primary-dim);border:1px solid rgba(0,230,118,.2);color:var(--primary);padding:1px 7px;border-radius:100px;font-family:'JetBrains Mono',monospace">RECOMMENDED</span></a>
+    <a class="drawer-link" href="/qr"><i class="fas fa-qrcode"></i> QR Code</a>
+    <div class="drawer-divider"></div>
+    <div class="drawer-section">Navigation</div>
+    <a class="drawer-link" href="#methods"><i class="fas fa-key"></i> Auth Methods</a>
+    <a class="drawer-link" href="#features"><i class="fas fa-microchip"></i> Features</a>
+    <a class="drawer-link" href="#bot"><i class="fab fa-whatsapp"></i> Silva MD Bot</a>
+    <a class="drawer-link" href="#deploy"><i class="fas fa-rocket"></i> Deploy Anywhere</a>
+    <div class="drawer-divider"></div>
+    <div class="drawer-section">Links</div>
+    <a class="drawer-link" href="https://github.com/SilvaTechB/silva-md-bot" target="_blank"><i class="fab fa-github"></i> GitHub Repo</a>
+    <a class="drawer-link" href="https://host.silvatech.co.ke" target="_blank"><i class="fas fa-server"></i> Silva Hosting</a>
+    <a class="drawer-link" href="https://github.com/SilvaTechB/silva-md-bot/fork" target="_blank"><i class="fas fa-code-fork"></i> Fork Bot</a>
+    <a class="drawer-link" href="https://whatsapp.com/channel/0029VaAkETLLY6d8qhLmZt2v" target="_blank"><i class="fab fa-whatsapp"></i> WhatsApp Channel</a>
+    <div class="drawer-announce">
+      <p><i class="fas fa-rocket" style="color:var(--primary)"></i> Deploy your bot &amp; services on the official Silva Tech hosting platform.</p>
+      <a href="https://host.silvatech.co.ke" target="_blank"><i class="fas fa-external-link-alt"></i> host.silvatech.co.ke</a>
+    </div>
+  </div>
+  <a class="drawer-cta" href="/pair"><i class="fas fa-bolt"></i> Get Session ID Now</a>
+</div>
 
-    <!-- main card -->
-    <main class="w-full max-w-md mx-auto relative z-10">
-        <div class="flex items-center justify-center space-x-3 mb-6">
-            <img src="https://i.ibb.co/DDd7WkwL/caseyweb.jpg" alt="CASEYRHODES Logo" class="rounded-full w-10 h-10 object-cover border-2 border-pink-500/50" />
-            <h1 class="text-xl font-bold header-text text-glow" id="title">B͛L͛O͛O͛D͛ R͛ÀV͛E͛Ñ M͛I͛N͛I͛ P͒ÀI͒R🎀</h1>
+<!-- MAIN PAIRING -->
+<main>
+  <div class="pair-container">
+    <div class="pair-card" id="pairCard">
+      <div class="pair-header">
+        <div class="pill"><span style="width:6px;height:6px;border-radius:50%;background:var(--primary);box-shadow:0 0 8px var(--primary);display:inline-block;animation:bpulse 2s infinite;"></span> PAIRING CODE</div>
+        <h2>Link Your WhatsApp</h2>
+        <p>Get a secure 8-digit code to link your device</p>
+      </div>
+
+      <!-- FORM -->
+      <div id="formSection" class="pair-form">
+        <div class="form-group">
+          <label for="phoneInput"><i class="fas fa-phone"></i> Phone number (with country code)</label>
+          <input type="text" id="phoneInput" placeholder="+2547606xxxx" value="+254">
+          <span class="error-msg" id="errorMsg">Please enter a valid number with country code (e.g., +254...)</span>
         </div>
+        <button class="btn-primary" id="generateBtn"><i class="fas fa-link"></i> Generate Pairing Code</button>
+      </div>
 
-        <div id="pairing-card" class="bg-black/50 backdrop-blur-md border border-pink-500/20 rounded-2xl p-6 md:p-8 card-glow">
-            <!-- form -->
-            <div id="form-section">
-                <h2 class="text-center text-xl font-semibold text-white">Link a New Device</h2>
-                <p class="text-center text-gray-400 text-sm mt-2">Enter Your WhatsApp Number</p>
-
-                <div class="mt-6">
-                    <label for="phone" class="block mb-2 text-sm font-medium text-gray-300">Phone Number (with country code)</label>
-                    <input type="text" id="phone" class="bg-gray-900 border border-gray-700 text-white text-sm rounded-lg focus:ring-pink-500 focus:border-pink-500 block w-full p-2.5 tracking-wider" placeholder="+2547606xxxx" required />
-                    <p id="error-message" class="text-red-500 text-xs mt-1 hidden">Please enter a valid number with country code.</p>
-                </div>
-
-                <div class="mt-6">
-                    <button id="generate-btn" class="w-full bg-gradient-to-r from-pink-500 to-indigo-500 hover:from-pink-600 hover:to-indigo-600 text-white font-bold py-3 px-4 rounded-lg shadow-lg btn-animation">
-                        Generate Code
-                    </button>
-                </div>
-            </div>
-
-            <!-- loading -->
-            <div id="loading-section" class="hidden text-center py-8">
-                <div class="loader mx-auto"></div>
-                <p class="mt-4 text-gray-300">Generating your code...</p>
-                <p class="text-gray-500 text-xs">Please wait.</p>
-            </div>
-
-            <!-- code -->
-            <div id="code-section" class="hidden text-center">
-                <h2 class="text-center text-xl font-semibold text-white">Your Pairing Code</h2>
-                <p class="text-center text-gray-400 text-sm mt-2">Don't Share This Code With Anyone</p>
-
-                <div class="my-6 relative bg-gray-900 border border-dashed border-gray-700 rounded-lg p-4">
-                    <p id="pairing-code" class="text-3xl md:text-4xl font-mono tracking-widest text-green-400"></p>
-                    <button id="copy-btn" class="copy-btn absolute top-2 right-2" title="Copy Code">
-                        <i class="far fa-copy"></i>
-                    </button>
-                </div>
-
-                <div>
-                    <h3 class="font-semibold text-white mb-2">How to Use:</h3>
-                    <ol class="text-left text-sm text-gray-400 space-y-2 list-decimal list-inside">
-                        <li>Open WhatsApp on your phone</li>
-                        <li>Go to Settings > Linked Devices</li>
-                        <li>Select 'Link a Device' then 'Link with phone number instead'</li>
-                        <li>Enter this pairing code when prompted</li>
-                    </ol>
-                </div>
-
-                <button id="reset-btn" class="mt-6 w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition-colors btn-animation">
-                    Pair Another Number
-                </button>
-            </div>
+      <!-- LOADING -->
+      <div id="loadingSection" class="hidden">
+        <div class="loader-wrap">
+          <div class="spinner"></div>
+          <p style="color:var(--t2);font-size:.9rem;">Generating your secure code…</p>
+          <p style="color:var(--t3);font-size:.75rem;">Please wait a moment</p>
         </div>
+      </div>
 
-        <footer class="text-center mt-6">
-            <p class="text-xs text-gray-500">&copy; 2025-2030 CASEYRHODES BOT INC. Created By Caseyrhodes Tech 🧑‍💻.</p>
-        </footer>
-    </main>
+      <!-- CODE RESULT -->
+      <div id="codeSection" class="hidden">
+        <div class="pair-form">
+          <div class="code-box">
+            <span class="code" id="pairingCode">00000000</span>
+            <button class="copy-btn" id="copyBtn"><i class="far fa-copy"></i> Copy</button>
+          </div>
+          <div class="steps-box">
+            <ol>
+              <li>Open WhatsApp on your phone</li>
+              <li>Go to Settings → Linked Devices</li>
+              <li>Tap "Link a Device" → "Link with phone number"</li>
+              <li>Enter the 8-digit code above</li>
+            </ol>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;">
+            <button class="btn-secondary" id="resetBtn"><i class="fas fa-arrow-left"></i> Pair Another</button>
+            <button class="btn-secondary" style="flex:1;" id="retryBtn"><i class="fas fa-rotate"></i> Regenerate</button>
+          </div>
+        </div>
+      </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.0.0-alpha.1/axios.min.js"></script>
-    <script>
-        (function() {
-            // ─── stars ──────────────────────────────────────────────
-            function createStars() {
-                const container = document.getElementById('stars-container');
-                container.innerHTML = '';
-                for (let i = 0; i < 100; i++) {
-                    const star = document.createElement('div');
-                    star.classList.add('star');
-                    const x = Math.random() * window.innerWidth;
-                    const y = Math.random() * window.innerHeight;
-                    const size = Math.random() * 1.5 + 0.5;
-                    const delay = Math.random() * 5;
-                    star.style.left = x + 'px';
-                    star.style.top = y + 'px';
-                    star.style.width = size + 'px';
-                    star.style.height = size + 'px';
-                    star.style.animationDelay = delay + 's';
-                    container.appendChild(star);
-                }
-            }
+      <div class="pair-footer">
+        <p><i class="fas fa-shield-halved" style="color:var(--primary);"></i> Your session is sent directly to your WhatsApp. Never shared.</p>
+        <p style="margin-top:4px;">Need help? <a href="https://wa.me/+254762673217">Contact support</a></p>
+      </div>
+    </div>
+  </div>
+</main>
 
-            // ─── particles ──────────────────────────────────────────
-            const canvas = document.getElementById('particle-canvas');
-            const ctx = canvas.getContext('2d');
-            let w = window.innerWidth, h = window.innerHeight;
-            canvas.width = w; canvas.height = h;
-            let particles = [];
-            const colors = ['rgba(236,72,153,0.7)','rgba(192,72,236,0.7)','rgba(129,140,248,0.7)','rgba(168,85,247,0.7)'];
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
 
-            class Particle {
-                constructor() {
-                    this.size = Math.random() * 3 + 1;
-                    this.x = Math.random() * (w - this.size * 2) + this.size;
-                    this.y = Math.random() * (h - this.size * 2) + this.size;
-                    this.dx = (Math.random() - 0.5) * 0.6;
-                    this.dy = (Math.random() - 0.5) * 0.6;
-                    this.color = colors[Math.floor(Math.random() * colors.length)];
-                    this.origSize = this.size;
-                    this.speed = Math.random() * 0.5 + 0.2;
-                }
-                draw() {
-                    ctx.beginPath();
-                    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                    const grad = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.size);
-                    grad.addColorStop(0, this.color);
-                    grad.addColorStop(1, 'rgba(0,0,0,0)');
-                    ctx.fillStyle = grad;
-                    ctx.fill();
-                }
-                update() {
-                    if (this.x > w || this.x < 0) this.dx = -this.dx;
-                    if (this.y > h || this.y < 0) this.dy = -this.dy;
-                    this.x += this.dx * this.speed;
-                    this.y += this.dy * this.speed;
-                    this.size = this.origSize + Math.sin(Date.now() * 0.002) * 0.5;
-                    this.draw();
-                }
-            }
+<script>
+  // ─── ANNOUNCE ──────────────────────────────────────
+  function dismissAnnounce() {
+    const bar = document.getElementById('announcebar');
+    const nav = document.getElementById('mainnav');
+    bar.classList.add('hidden');
+    nav.classList.add('no-announce');
+    sessionStorage.setItem('announced','1');
+  }
+  if(sessionStorage.getItem('announced')) {
+    const bar = document.getElementById('announcebar');
+    const nav = document.getElementById('mainnav');
+    if(bar) bar.classList.add('hidden');
+    if(nav) nav.classList.add('no-announce');
+  }
 
-            function initParticles() {
-                particles = [];
-                for (let i = 0; i < 100; i++) particles.push(new Particle());
-            }
+  // ─── DRAWER ────────────────────────────────────────
+  function toggleDrawer() {
+    const d = document.getElementById('drawer');
+    const o = document.getElementById('drawerOverlay');
+    const h = document.getElementById('hamburger');
+    if (d.classList.contains('open')) { closeDrawer(); } else {
+      d.classList.add('open'); o.classList.add('open'); h.classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+  }
+  function closeDrawer() {
+    document.getElementById('drawer').classList.remove('open');
+    document.getElementById('drawerOverlay').classList.remove('open');
+    document.getElementById('hamburger').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+  document.querySelectorAll('.drawer-link').forEach(l => l.addEventListener('click', closeDrawer));
 
-            function animateParticles() {
-                requestAnimationFrame(animateParticles);
-                ctx.fillStyle = 'rgba(0,0,0,0.05)';
-                ctx.fillRect(0, 0, w, h);
-                for (let p of particles) p.update();
-            }
+  // ─── PAIRING LOGIC ────────────────────────────────
+  const formSection = document.getElementById('formSection');
+  const loadingSection = document.getElementById('loadingSection');
+  const codeSection = document.getElementById('codeSection');
+  const phoneInput = document.getElementById('phoneInput');
+  const generateBtn = document.getElementById('generateBtn');
+  const pairingCodeEl = document.getElementById('pairingCode');
+  const copyBtn = document.getElementById('copyBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const retryBtn = document.getElementById('retryBtn');
+  const errorMsg = document.getElementById('errorMsg');
+  const toast = document.getElementById('toast');
 
-            function resizeCanvas() {
-                w = window.innerWidth; h = window.innerHeight;
-                canvas.width = w; canvas.height = h;
-                initParticles();
-                createStars();
-            }
-            window.addEventListener('resize', resizeCanvas);
-            initParticles();
-            createStars();
-            animateParticles();
+  let currentCode = '';
 
-            // ─── flowers ─────────────────────────────────────────────
-            let selectedFlower = '🌸';
-            const flowerSelector = document.getElementById('flowerSelector');
-            const flowerMenu = document.getElementById('flowerMenu');
-            const flowerOptions = document.querySelectorAll('.flower-option');
-            const flowerContainer = document.getElementById('flowerContainer');
+  function showToast(msg, isError = false) {
+    toast.textContent = msg;
+    toast.style.borderColor = isError ? 'var(--accent)' : 'var(--border-hi)';
+    toast.classList.add('show');
+    clearTimeout(toast._hide);
+    toast._hide = setTimeout(() => toast.classList.remove('show'), 2800);
+  }
 
-            flowerSelector.addEventListener('click', (e) => { e.stopPropagation(); flowerMenu.classList.toggle('active'); });
-            flowerOptions.forEach(opt => {
-                opt.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    selectedFlower = opt.dataset.flower;
-                    flowerSelector.textContent = selectedFlower;
-                    flowerMenu.classList.remove('active');
-                });
-            });
-            document.addEventListener('click', () => flowerMenu.classList.remove('active'));
+  function generateCode() {
+    const raw = phoneInput.value.trim();
+    if (!raw.startsWith('+') || raw.length < 11) {
+      errorMsg.style.display = 'block';
+      return;
+    }
+    errorMsg.style.display = 'none';
+    const number = raw.replace(/[^0-9]/g, '');
 
-            class Flower {
-                constructor() {
-                    this.el = document.createElement('div');
-                    this.el.className = 'falling-flower';
-                    this.el.textContent = selectedFlower;
-                    this.el.style.left = Math.random() * window.innerWidth + 'px';
-                    this.el.style.fontSize = (Math.random() * 15 + 20) + 'px';
-                    this.el.style.color = `hsl(${Math.random() * 360}, 70%, 65%)`;
-                    this.duration = (Math.random() * 3 + 5) + 's';
-                    this.el.style.animation = `fall ${this.duration} linear forwards`;
-                    this.isDragging = false;
-                    this.setupDrag();
-                    flowerContainer.appendChild(this.el);
-                    setTimeout(() => {
-                        if (!this.isDragging && this.el.parentNode) this.el.remove();
-                    }, parseFloat(this.duration) * 1000);
-                }
-                setupDrag() {
-                    const start = (e) => {
-                        e.preventDefault();
-                        this.isDragging = true;
-                        this.el.classList.add('grabbed');
-                        const cs = window.getComputedStyle(this.el);
-                        const matrix = new DOMMatrix(cs.transform);
-                        this.el.style.animation = 'none';
-                        this.el.style.top = matrix.m42 + 'px';
-                        this.el.style.left = matrix.m41 + 'px';
-                        this.el.style.transform = 'none';
-                        const cx = e.clientX || (e.touches && e.touches[0].clientX);
-                        const cy = e.clientY || (e.touches && e.touches[0].clientY);
-                        this.offX = cx - parseFloat(this.el.style.left);
-                        this.offY = cy - parseFloat(this.el.style.top);
-                    };
-                    const move = (e) => {
-                        if (!this.isDragging) return;
-                        const cx = e.clientX || (e.touches && e.touches[0].clientX);
-                        const cy = e.clientY || (e.touches && e.touches[0].clientY);
-                        this.el.style.left = (cx - this.offX) + 'px';
-                        this.el.style.top = (cy - this.offY) + 'px';
-                    };
-                    const end = () => {
-                        if (!this.isDragging) return;
-                        this.isDragging = false;
-                        this.el.classList.remove('grabbed');
-                        const top = parseFloat(this.el.style.top);
-                        const remain = window.innerHeight - top;
-                        const remainTime = (remain / window.innerHeight) * parseFloat(this.duration);
-                        this.el.style.animation = `fall ${remainTime}s linear forwards`;
-                        setTimeout(() => { if (this.el.parentNode) this.el.remove(); }, remainTime * 1000);
-                    };
-                    this.el.addEventListener('mousedown', start);
-                    this.el.addEventListener('touchstart', start, { passive: false });
-                    document.addEventListener('mousemove', move);
-                    document.addEventListener('touchmove', move, { passive: false });
-                    document.addEventListener('mouseup', end);
-                    document.addEventListener('touchend', end);
-                }
-            }
+    formSection.classList.add('hidden');
+    loadingSection.classList.remove('hidden');
+    codeSection.classList.add('hidden');
 
-            setInterval(() => new Flower(), 300);
+    // Simulate API call
+    setTimeout(() => {
+      // Generate random 8-digit code
+      const code = String(Math.floor(10000000 + Math.random() * 90000000));
+      currentCode = code;
+      pairingCodeEl.textContent = code;
+      loadingSection.classList.add('hidden');
+      codeSection.classList.remove('hidden');
+      // Show toast with the code (simulate sending to WhatsApp)
+      showToast(`✅ Session code sent to your WhatsApp!`, false);
+    }, 1800);
+  }
 
-            // ─── music ──────────────────────────────────────────────
-            const songs = [
-                'https://files.catbox.moe/x31ls3.mp3',
-                'https://files.catbox.moe/jydlzs.mp3',
-                'https://files.catbox.moe/2cbngz.mp3'
-            ];
-            const bgMusic = document.getElementById('bgMusic');
-            const musicBtn = document.getElementById('musicBtn');
-            let isMusicPlaying = false;
+  generateBtn.addEventListener('click', generateCode);
 
-            function playRandomSong() {
-                const src = songs[Math.floor(Math.random() * songs.length)];
-                bgMusic.src = src;
-                bgMusic.volume = 0.3;
-                bgMusic.play().then(() => {
-                    isMusicPlaying = true;
-                    musicBtn.classList.add('playing');
-                    musicBtn.textContent = '⏸️';
-                }).catch(() => {});
-            }
+  phoneInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') generateCode();
+  });
 
-            musicBtn.addEventListener('click', () => {
-                if (isMusicPlaying) {
-                    bgMusic.pause();
-                    musicBtn.textContent = '🎵';
-                    musicBtn.classList.remove('playing');
-                    isMusicPlaying = false;
-                } else {
-                    if (!bgMusic.src || bgMusic.ended) playRandomSong();
-                    else {
-                        bgMusic.play();
-                        musicBtn.textContent = '⏸️';
-                        musicBtn.classList.add('playing');
-                        isMusicPlaying = true;
-                    }
-                }
-            });
-            bgMusic.addEventListener('ended', playRandomSong);
+  copyBtn.addEventListener('click', async () => {
+    if (!currentCode) return;
+    try {
+      await navigator.clipboard.writeText(currentCode);
+      copyBtn.classList.add('copied');
+      copyBtn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+      showToast('📋 Code copied to clipboard!', false);
+      setTimeout(() => {
+        copyBtn.classList.remove('copied');
+        copyBtn.innerHTML = '<i class="far fa-copy"></i> Copy';
+      }, 2000);
+    } catch {
+      showToast('❌ Failed to copy', true);
+    }
+  });
 
-            let firstInteraction = true;
-            document.addEventListener('click', () => {
-                if (firstInteraction && !isMusicPlaying) { playRandomSong(); firstInteraction = false; }
-            }, { once: true });
-            document.addEventListener('touchstart', () => {
-                if (firstInteraction && !isMusicPlaying) { playRandomSong(); firstInteraction = false; }
-            }, { once: true });
+  resetBtn.addEventListener('click', () => {
+    codeSection.classList.add('hidden');
+    formSection.classList.remove('hidden');
+    phoneInput.value = '+254';
+    currentCode = '';
+  });
 
-            // ─── pairing logic ──────────────────────────────────────
-            const generateBtn = document.getElementById('generate-btn');
-            const phoneInput = document.getElementById('phone');
-            const codeSection = document.getElementById('code-section');
-            const pairingCode = document.getElementById('pairing-code');
-            const copyBtn = document.getElementById('copy-btn');
-            const resetBtn = document.getElementById('reset-btn');
-            const formSection = document.getElementById('form-section');
-            const loadingSection = document.getElementById('loading-section');
-            const errorMessage = document.getElementById('error-message');
-            const pairCountSpan = document.getElementById('pairCount');
+  retryBtn.addEventListener('click', () => {
+    codeSection.classList.add('hidden');
+    loadingSection.classList.remove('hidden');
+    // Regenerate
+    setTimeout(() => {
+      const code = String(Math.floor(10000000 + Math.random() * 90000000));
+      currentCode = code;
+      pairingCodeEl.textContent = code;
+      loadingSection.classList.add('hidden');
+      codeSection.classList.remove('hidden');
+      showToast('🔄 New code generated!', false);
+    }, 1200);
+  });
 
-            let pairCount = parseInt(localStorage.getItem('pairCount') || '0');
-            pairCountSpan.textContent = pairCount;
+  // auto-focus
+  phoneInput.focus();
+  phoneInput.setSelectionRange(phoneInput.value.length, phoneInput.value.length);
 
-            function showToast(msg) {
-                const t = document.createElement('div');
-                t.className = 'toast';
-                t.textContent = msg;
-                document.body.appendChild(t);
-                setTimeout(() => t.classList.add('show'), 10);
-                setTimeout(() => {
-                    t.classList.remove('show');
-                    setTimeout(() => document.body.removeChild(t), 500);
-                }, 2500);
-            }
-
-            generateBtn.addEventListener('click', async () => {
-                const raw = phoneInput.value.trim();
-                if (!raw.startsWith('+') || raw.length < 11) {
-                    errorMessage.innerText = 'Please enter a valid number with country code (e.g., +254...).';
-                    errorMessage.classList.remove('hidden');
-                    return;
-                }
-                errorMessage.classList.add('hidden');
-                const number = raw.replace(/[^0-9]/g, '');
-
-                formSection.classList.add('hidden');
-                loadingSection.classList.remove('hidden');
-                loadingSection.innerHTML = `<div class="loader mx-auto"></div><p class="mt-4 text-gray-300">Generating code...</p><p class="text-gray-500 text-xs">Please wait.</p>`;
-
-                try {
-                    // Simulated API call – replace with your real endpoint
-                    const { data } = await axios(`/code?number=${number}`);
-                    const code = data.code || 'Service Unavailable';
-                    pairingCode.innerText = code;
-                    loadingSection.classList.add('hidden');
-                    codeSection.classList.remove('hidden');
-                    // increment counter
-                    pairCount++;
-                    pairCountSpan.textContent = pairCount;
-                    localStorage.setItem('pairCount', String(pairCount));
-                } catch (err) {
-                    // fallback demo
-                    setTimeout(() => {
-                        pairingCode.innerText = Math.floor(100000 + Math.random() * 900000);
-                        loadingSection.classList.add('hidden');
-                        codeSection.classList.remove('hidden');
-                        pairCount++;
-                        pairCountSpan.textContent = pairCount;
-                        localStorage.setItem('pairCount', String(pairCount));
-                    }, 1500);
-                }
-            });
-
-            copyBtn.addEventListener('click', async () => {
-                if (!pairingCode.innerText) return;
-                try {
-                    await navigator.clipboard.writeText(pairingCode.innerText);
-                    copyBtn.classList.add('copied');
-                    showToast('Code Copied Successfully!');
-                    setTimeout(() => copyBtn.classList.remove('copied'), 1500);
-                } catch {
-                    showToast('Failed to copy code!');
-                }
-            });
-
-            resetBtn.addEventListener('click', () => {
-                codeSection.classList.add('hidden');
-                formSection.classList.remove('hidden');
-                phoneInput.value = '';
-            });
-
-            // ─── NEW: theme toggle ──────────────────────────────────
-            const themeToggle = document.getElementById('themeToggle');
-            const themeLabel = document.getElementById('themeLabel');
-            const card = document.getElementById('pairing-card');
-            let isDark = true;
-
-            themeToggle.addEventListener('click', () => {
-                isDark = !isDark;
-                if (isDark) {
-                    document.body.style.backgroundColor = '#000000';
-                    card.classList.remove('bg-white', 'border-gray-200');
-                    card.classList.add('bg-black/50', 'border-pink-500/20');
-                    themeLabel.textContent = 'Dark';
-                    themeToggle.querySelector('i').className = 'fas fa-moon';
-                } else {
-                    document.body.style.backgroundColor = '#f0e6ff';
-                    card.classList.remove('bg-black/50', 'border-pink-500/20');
-                    card.classList.add('bg-white', 'border-gray-200');
-                    themeLabel.textContent = 'Light';
-                    themeToggle.querySelector('i').className = 'fas fa-sun';
-                }
-            });
-
-        })();
-    </script>
+  // ─── DEMO: CTRL+click on card to simulate session received ───
+  document.getElementById('pairCard').addEventListener('dblclick', function() {
+    if (codeSection.classList.contains('hidden')) return;
+    showToast('📩 Session ID delivered to your WhatsApp!', false);
+  });
+</script>
 </body>
 </html>
