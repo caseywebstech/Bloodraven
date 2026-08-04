@@ -168,7 +168,7 @@
     }
     .flower-option:hover { background: rgba(124,58,237,0.3); transform: scale(1.04); border-color: rgba(236,72,153,0.3); }
 
-    /* ===== STATS BADGE STYLES (moved below) ===== */
+    /* ===== STATS BADGE STYLES ===== */
     .stat-badge {
       background: rgba(255,255,255,0.03);
       border: 1px solid rgba(255,255,255,0.06);
@@ -194,7 +194,7 @@
       margin-top: 0.5rem;
     }
 
-    /* owner profile - NO CARD */
+    /* owner profile */
     .owner-card {
       padding: 1rem 0;
       border-top: 1px solid rgba(255,255,255,0.04);
@@ -252,7 +252,7 @@
                   0 0 0 1px rgba(236, 72, 153, 0.08);
     }
 
-    /* input/button styling inside card */
+    /* input/button styling */
     input {
       background: rgba(0,0,0,0.4);
       border: 1px solid rgba(255,255,255,0.06);
@@ -313,10 +313,6 @@
       border-radius: 50%;
     }
 
-    .dev-link {
-      border-radius: 40px;
-    }
-
     .tag-pill {
       border-radius: 40px;
     }
@@ -353,12 +349,67 @@
       font-weight: 500;
     }
 
+    /* ===== PREMIUM UPGRADE SECTION ===== */
+    .premium-section {
+      background: linear-gradient(135deg, rgba(236,72,153,0.05), rgba(124,58,237,0.05));
+      border: 1px solid rgba(236,72,153,0.12);
+      border-radius: 16px;
+      padding: 0.8rem 1rem;
+      margin: 0.5rem 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.8rem;
+      transition: 0.3s ease;
+    }
+    .premium-section:hover {
+      border-color: rgba(236,72,153,0.25);
+      background: linear-gradient(135deg, rgba(236,72,153,0.08), rgba(124,58,237,0.08));
+    }
+    .premium-text {
+      font-size: 0.7rem;
+      color: #94a3b8;
+      line-height: 1.4;
+    }
+    .premium-text strong {
+      color: #f472b6;
+      font-weight: 600;
+    }
+    .premium-text .emoji {
+      font-size: 0.9rem;
+    }
+    .whatsapp-btn {
+      background: linear-gradient(135deg, #25D366, #128C7E);
+      border: none;
+      color: white;
+      font-weight: 600;
+      padding: 0.4rem 1rem;
+      border-radius: 30px;
+      font-size: 0.7rem;
+      cursor: pointer;
+      transition: 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      white-space: nowrap;
+      flex-shrink: 0;
+      box-shadow: 0 4px 15px rgba(37, 211, 102, 0.2);
+    }
+    .whatsapp-btn:hover {
+      transform: scale(1.04);
+      box-shadow: 0 6px 25px rgba(37, 211, 102, 0.35);
+    }
+    .whatsapp-btn:active { transform: scale(0.96); }
+    .whatsapp-btn i { font-size: 0.8rem; }
+
     @media (max-width: 480px) {
       .music-widget { left: 12px; bottom: 70px; }
       .owner-card { flex-direction: column; text-align: center; padding: 1rem 0; }
       .pairing-card { padding: 1rem; }
       .bot-features { grid-template-columns: 1fr 1fr; gap: 6px; }
       .stats-container { gap: 6px; }
+      .premium-section { flex-direction: column; text-align: center; padding: 1rem; }
+      .whatsapp-btn { width: 100%; justify-content: center; }
     }
   </style>
 </head>
@@ -447,7 +498,7 @@
   </div>
   <!-- ===== END PAIRING CARD ===== -->
 
-  <!-- ===== STATS - MOVED BELOW CARD ===== -->
+  <!-- ===== STATS - BELOW CARD ===== -->
   <div class="stats-container">
     <span class="stat-badge"><i class="fas fa-user-astronaut"></i> caseyrhodes · v2.1</span>
     <span class="stat-badge"><i class="fas fa-users"></i> <span id="liveCount">247</span> online</span>
@@ -483,13 +534,24 @@
     </div>
   </div>
 
+  <!-- ===== PREMIUM UPGRADE SECTION ===== -->
+  <div class="premium-section">
+    <div class="premium-text">
+      <span class="emoji">⭐</span> <strong>Premium Benefits</strong> — Unlock unlimited pairs, priority support, and exclusive features. <span class="emoji">🚀</span>
+      <span style="display:block;font-size:0.6rem;color:#64748b;margin-top:2px;">DM owner to upgrade your account</span>
+    </div>
+    <a href="https://wa.me/+254762673217" target="_blank" class="whatsapp-btn">
+      <i class="fab fa-whatsapp"></i> DM Owner
+    </a>
+  </div>
+
   <!-- ===== OWNER PROFILE ===== -->
-  <div class="owner-card mt-4">
+  <div class="owner-card mt-2">
     <img class="owner-avatar" src="https://url.bmbxmd.workers.dev/IMG-20260723-WA0000.jpg" alt="Blood Raven">
     <div class="owner-info">
       <h4>✦ BLOOD RAVEN</h4>
-      <div class="sub">Bot by Caseyrhodes Tech Inc</div>
-      <span class="badge-meta"><i class="fas fa-robot mr-1"></i> Meta AI · v3.2</span>
+      <div class="sub">Mini Bot · By Caseyrhodes Tech</div>
+      <span class="badge-meta"><i class="fas fa-robot mr-1"></i> Sri Lankan WhatsApp Bot</span>
       <div class="flex gap-2 mt-1.5 flex-wrap">
         <span class="text-[10px] bg-white/5 px-2 py-0.5 text-gray-400 border border-white/5 tag-pill">
           <i class="fab fa-whatsapp text-emerald-400"></i> whatsapp
