@@ -232,7 +232,25 @@
       border-radius: 40px;
     }
 
-    /* input/button styling - NO CARD BG */
+    /* ===== PAIRING CARD - ROUNDED & VISIBLE ===== */
+    .pairing-card {
+      background: rgba(10, 10, 18, 0.55);
+      backdrop-filter: blur(16px) saturate(1.4);
+      border: 1px solid rgba(236, 72, 153, 0.15);
+      box-shadow: 0 20px 50px -12px rgba(0,0,0,0.7), 
+                  0 0 0 1px rgba(236, 72, 153, 0.03),
+                  inset 0 1px 0 rgba(255,255,255,0.02);
+      border-radius: 20px;
+      padding: 1.5rem;
+      transition: 0.3s ease;
+    }
+    .pairing-card:hover {
+      border-color: rgba(236, 72, 153, 0.25);
+      box-shadow: 0 24px 60px -12px rgba(0,0,0,0.8), 
+                  0 0 0 1px rgba(236, 72, 153, 0.08);
+    }
+
+    /* input/button styling inside card */
     input {
       background: rgba(0,0,0,0.4);
       border: 1px solid rgba(255,255,255,0.06);
@@ -289,7 +307,6 @@
       border-radius: 12px;
     }
 
-    /* header avatar */
     .header-avatar {
       border-radius: 50%;
     }
@@ -306,6 +323,7 @@
       .dev-panel { flex-direction: column; align-items: stretch; gap: 6px; }
       .music-widget { left: 12px; bottom: 70px; }
       .owner-card { flex-direction: column; text-align: center; padding: 1rem 0; }
+      .pairing-card { padding: 1rem; }
     }
   </style>
 </head>
@@ -337,7 +355,7 @@
 <!-- audio -->
 <audio id="bgMusic" loop></audio>
 
-<!-- MAIN - NO CARDS -->
+<!-- MAIN -->
 <main class="w-full max-w-md mx-auto relative z-10">
 
   <!-- header -->
@@ -358,44 +376,50 @@
     <span class="stat-badge"><i class="fas fa-clock"></i> <span id="uptimeDisplay">00:00</span></span>
   </div>
 
-  <!-- form section - NO CARD -->
-  <div id="form-section">
-    <h2 class="text-lg font-semibold text-white">Link new device</h2>
-    <p class="text-gray-400 text-xs mt-0.5">Enter your WhatsApp number</p>
-    <div class="mt-3">
-      <label class="block text-xs font-medium text-gray-400 mb-1">Phone (country code)</label>
-      <input id="phone" type="text" placeholder="+254 7xx xxx xxx">
-      <p id="error-message" class="text-red-400 text-xs mt-1 hidden">Please include country code (+254...)</p>
-    </div>
-    <button id="generate-btn" class="btn-primary mt-4">Generate code</button>
-  </div>
+  <!-- ===== PAIRING CARD - ROUNDED & VISIBLE ===== -->
+  <div class="pairing-card">
 
-  <!-- loading -->
-  <div id="loading-section" class="hidden text-center py-8">
-    <div class="loader mx-auto"></div>
-    <p class="mt-4 text-gray-300 text-sm">generating secure code ...</p>
-  </div>
+    <!-- form section -->
+    <div id="form-section">
+      <h2 class="text-lg font-semibold text-white">Link new device</h2>
+      <p class="text-gray-400 text-xs mt-0.5">Enter your WhatsApp number</p>
+      <div class="mt-3">
+        <label class="block text-xs font-medium text-gray-400 mb-1">Phone (country code)</label>
+        <input id="phone" type="text" placeholder="+254 7xx xxx xxx">
+        <p id="error-message" class="text-red-400 text-xs mt-1 hidden">Please include country code (+254...)</p>
+      </div>
+      <button id="generate-btn" class="btn-primary mt-4">Generate code</button>
+    </div>
 
-  <!-- code result - NO CARD -->
-  <div id="code-section" class="hidden text-center">
-    <div class="flex items-center justify-between">
-      <h2 class="text-lg font-semibold text-white">pairing code</h2>
-      <span class="text-[10px] text-green-400 bg-green-400/10 px-3 py-1 border border-green-400/20 tag-pill"><i class="fas fa-lock text-[8px]"></i> one-time</span>
+    <!-- loading -->
+    <div id="loading-section" class="hidden text-center py-8">
+      <div class="loader mx-auto"></div>
+      <p class="mt-4 text-gray-300 text-sm">generating secure code ...</p>
     </div>
-    <div class="code-box my-4">
-      <p id="pairing-code" class="text-3xl font-mono tracking-[0.3em] text-green-300"></p>
-      <button id="copy-btn" class="copy-btn absolute top-2 right-2" title="copy"><i class="far fa-copy"></i></button>
+
+    <!-- code result -->
+    <div id="code-section" class="hidden text-center">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-semibold text-white">pairing code</h2>
+        <span class="text-[10px] text-green-400 bg-green-400/10 px-3 py-1 border border-green-400/20 tag-pill"><i class="fas fa-lock text-[8px]"></i> one-time</span>
+      </div>
+      <div class="code-box my-4">
+        <p id="pairing-code" class="text-3xl font-mono tracking-[0.3em] text-green-300"></p>
+        <button id="copy-btn" class="copy-btn absolute top-2 right-2" title="copy"><i class="far fa-copy"></i></button>
+      </div>
+      <div class="how-to-box text-left text-xs text-gray-400">
+        <p class="font-medium text-gray-300 flex items-center gap-1"><i class="fas fa-circle-info text-pink-400"></i> how to use:</p>
+        <ul class="list-decimal list-inside space-y-1 mt-1 text-gray-400">
+          <li>Open WhatsApp → Settings → Linked Devices</li>
+          <li>Tap "Link a device" → "Link with phone number"</li>
+          <li>Enter the code above</li>
+        </ul>
+      </div>
+      <button id="reset-btn" class="btn-secondary mt-4">Pair another number</button>
     </div>
-    <div class="how-to-box text-left text-xs text-gray-400">
-      <p class="font-medium text-gray-300 flex items-center gap-1"><i class="fas fa-circle-info text-pink-400"></i> how to use:</p>
-      <ul class="list-decimal list-inside space-y-1 mt-1 text-gray-400">
-        <li>Open WhatsApp → Settings → Linked Devices</li>
-        <li>Tap "Link a device" → "Link with phone number"</li>
-        <li>Enter the code above</li>
-      </ul>
-    </div>
-    <button id="reset-btn" class="btn-secondary mt-4">Pair another number</button>
+
   </div>
+  <!-- ===== END PAIRING CARD ===== -->
 
   <!-- ===== OWNER PROFILE - NO CARD ===== -->
   <div class="owner-card mt-6">
