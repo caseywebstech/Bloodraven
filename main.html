@@ -62,7 +62,6 @@
       backdrop-filter: blur(12px);
       border: 1px solid rgba(236,72,153,0.3);
       padding: 12px 28px;
-      border-radius: 40px;
       color: #f0f0f5;
       font-weight: 500;
       z-index: 999;
@@ -76,7 +75,6 @@
     .copy-btn {
       background: linear-gradient(145deg, #6d28d9, #7c3aed);
       border: none;
-      border-radius: 50%;
       width: 40px; height: 40px;
       display: flex;
       align-items: center;
@@ -122,7 +120,6 @@
     .music-btn {
       width: 54px; height: 54px;
       background: linear-gradient(145deg, #7c3aed, #ec4899);
-      border-radius: 30px;
       display: flex; align-items: center; justify-content: center;
       border: none; font-size: 22px; color: white;
       box-shadow: 0 8px 24px rgba(236,72,153,0.3);
@@ -139,7 +136,6 @@
     .flower-selector {
       width: 50px; height: 50px;
       background: linear-gradient(145deg, #4f46e5, #7c3aed);
-      border-radius: 30px;
       border: none; font-size: 20px; color: white;
       box-shadow: 0 4px 16px rgba(79,70,229,0.3);
       cursor: pointer;
@@ -152,7 +148,6 @@
       background: rgba(12,12,20,0.9);
       backdrop-filter: blur(14px);
       border: 1px solid rgba(124,58,237,0.25);
-      border-radius: 20px;
       padding: 8px;
       display: none;
       flex-wrap: wrap;
@@ -163,7 +158,6 @@
     .flower-menu.active { display: flex; }
     .flower-option {
       background: rgba(124,58,237,0.1);
-      border-radius: 40px;
       padding: 8px 14px;
       cursor: pointer;
       transition: 0.15s;
@@ -180,7 +174,6 @@
       border: 1px solid rgba(255,255,255,0.04);
       backdrop-filter: blur(4px);
       padding: 0.3rem 1rem;
-      border-radius: 40px;
       font-size: 0.7rem;
       letter-spacing: 0.02em;
       color: #b0b8c5;
@@ -190,7 +183,6 @@
     }
     .dev-panel {
       background: rgba(0,0,0,0.3);
-      border-radius: 18px;
       padding: 0.6rem 1.2rem;
       border: 1px solid rgba(255,255,255,0.03);
       backdrop-filter: blur(6px);
@@ -211,12 +203,11 @@
     }
     @keyframes blink { 0%,100%{ opacity:1 } 50%{ opacity:0.2 } }
 
-    /* owner profile card */
+    /* owner profile card - SQUARE */
     .owner-card {
       background: rgba(0,0,0,0.25);
       backdrop-filter: blur(8px);
       border: 1px solid rgba(255,255,255,0.04);
-      border-radius: 24px;
       padding: 1.2rem 1.5rem;
       display: flex;
       align-items: center;
@@ -229,7 +220,6 @@
     }
     .owner-avatar {
       width: 70px; height: 70px;
-      border-radius: 40px;
       object-fit: cover;
       border: 2px solid rgba(168,85,247,0.3);
       box-shadow: 0 8px 24px rgba(0,0,0,0.5);
@@ -249,7 +239,6 @@
     }
     .owner-info .badge-meta {
       background: rgba(168,85,247,0.12);
-      border-radius: 40px;
       padding: 0.1rem 0.8rem;
       font-size: 0.6rem;
       border: 1px solid rgba(168,85,247,0.1);
@@ -299,16 +288,16 @@
   <!-- header with dev info inline -->
   <div class="flex items-center justify-between mb-4">
     <div class="flex items-center gap-2">
-      <img src="https://i.ibb.co/DDd7WkwL/caseyweb.jpg" alt="casey" class="w-9 h-9 rounded-full border-2 border-pink-400/50 object-cover">
+      <img src="https://i.ibb.co/DDd7WkwL/caseyweb.jpg" alt="casey" class="w-9 h-9 border-2 border-pink-400/50 object-cover">
       <h1 class="text-base font-extrabold text-gradient glow-pulse tracking-tight">BLOOD RAVEN · PAIR</h1>
     </div>
-    <a href="https://wa.me/+254762673217" class="text-xs text-gray-400 hover:text-pink-300 transition flex items-center gap-1 bg-white/5 px-3 py-1 rounded-full border border-white/5">
+    <a href="https://wa.me/+254762673217" class="text-xs text-gray-400 hover:text-pink-300 transition flex items-center gap-1 bg-white/5 px-3 py-1 border border-white/5">
       <i class="fas fa-code"></i> <span class="hidden xs:inline">dev</span>
     </a>
   </div>
 
-  <!-- pairing card -->
-  <div class="glass-card rounded-2xl p-5 md:p-7">
+  <!-- pairing card - SQUARE -->
+  <div class="glass-card p-5 md:p-7">
 
     <!-- developer info + stats integrated -->
     <div class="dev-panel mb-5">
@@ -323,10 +312,10 @@
       <p class="text-gray-400 text-xs mt-0.5">Enter your WhatsApp number</p>
       <div class="mt-3">
         <label class="block text-xs font-medium text-gray-400 mb-1">Phone (country code)</label>
-        <input id="phone" type="text" class="w-full bg-gray-900/70 border border-gray-700/60 text-white text-sm rounded-xl p-3 focus:ring-2 focus:ring-pink-500/60 outline-none transition" placeholder="+254 7xx xxx xxx">
+        <input id="phone" type="text" class="w-full bg-gray-900/70 border border-gray-700/60 text-white text-sm p-3 focus:ring-2 focus:ring-pink-500/60 outline-none transition" placeholder="+254 7xx xxx xxx">
         <p id="error-message" class="text-red-400 text-xs mt-1 hidden">Please include country code (+254...)</p>
       </div>
-      <button id="generate-btn" class="w-full mt-4 bg-gradient-to-r from-pink-500 to-indigo-500 hover:from-pink-600 hover:to-indigo-600 text-white font-bold py-3 rounded-xl shadow-lg transition transform hover:scale-[1.02] active:scale-[0.98]">
+      <button id="generate-btn" class="w-full mt-4 bg-gradient-to-r from-pink-500 to-indigo-500 hover:from-pink-600 hover:to-indigo-600 text-white font-bold py-3 shadow-lg transition transform hover:scale-[1.02] active:scale-[0.98]">
         Generate code
       </button>
     </div>
@@ -341,13 +330,13 @@
     <div id="code-section" class="hidden text-center">
       <div class="flex items-center justify-between">
         <h2 class="text-lg font-semibold text-white">pairing code</h2>
-        <span class="text-[10px] text-green-400 bg-green-400/10 px-3 py-1 rounded-full border border-green-400/20"><i class="fas fa-lock text-[8px]"></i> one-time</span>
+        <span class="text-[10px] text-green-400 bg-green-400/10 px-3 py-1 border border-green-400/20"><i class="fas fa-lock text-[8px]"></i> one-time</span>
       </div>
-      <div class="my-4 relative bg-gray-900/80 border border-dashed border-gray-600/50 rounded-2xl p-4">
+      <div class="my-4 relative bg-gray-900/80 border border-dashed border-gray-600/50 p-4">
         <p id="pairing-code" class="text-3xl font-mono tracking-[0.3em] text-green-300"></p>
         <button id="copy-btn" class="copy-btn absolute top-2 right-2" title="copy"><i class="far fa-copy"></i></button>
       </div>
-      <div class="text-left text-xs text-gray-400 bg-white/5 p-3 rounded-xl">
+      <div class="text-left text-xs text-gray-400 bg-white/5 p-3">
         <p class="font-medium text-gray-300 flex items-center gap-1"><i class="fas fa-circle-info text-pink-400"></i> how to use:</p>
         <ul class="list-decimal list-inside space-y-1 mt-1 text-gray-400">
           <li>Open WhatsApp → Settings → Linked Devices</li>
@@ -355,25 +344,29 @@
           <li>Enter the code above</li>
         </ul>
       </div>
-      <button id="reset-btn" class="mt-4 w-full bg-gray-700/70 hover:bg-gray-600 text-white font-medium py-2.5 rounded-xl transition">Pair another number</button>
+      <button id="reset-btn" class="mt-4 w-full bg-gray-700/70 hover:bg-gray-600 text-white font-medium py-2.5 transition">Pair another number</button>
     </div>
   </div>
 
-  <!-- ===== OWNER PROFILE SECTION (with image from catbox) ===== -->
+  <!-- ===== OWNER PROFILE SECTION (BLOOD RAVEN) - SQUARE ===== -->
   <div class="mt-6 owner-card">
-    <img class="owner-avatar" src="https://files.catbox.moe/5uli5p.jpeg" alt="Silva MD · Bot by Silva Tech Inc">
+    <img class="owner-avatar" src="https://files.catbox.moe/5uli5p.jpeg" alt="Blood Raven · Bot by Caseyrhodes Tech">
     <div class="owner-info">
-      <h4>✦ SILVA MD</h4>
-      <div class="sub">Bot by Silva Tech Inc</div>
+      <h4>✦ BLOOD RAVEN</h4>
+      <div class="sub">Bot by Caseyrhodes Tech Inc</div>
       <span class="badge-meta"><i class="fas fa-robot mr-1"></i> Meta AI · v3.2</span>
       <div class="flex gap-2 mt-1.5">
-        <span class="text-[10px] bg-white/5 px-2 py-0.5 rounded-full text-gray-400 border border-white/5"><i class="fab fa-whatsapp text-emerald-400"></i> whatsapp</span>
-        <span class="text-[10px] bg-white/5 px-2 py-0.5 rounded-full text-gray-400 border border-white/5"><i class="fas fa-globe text-blue-400"></i> silvatech.io</span>
+        <span class="text-[10px] bg-white/5 px-2 py-0.5 text-gray-400 border border-white/5">
+          <i class="fab fa-whatsapp text-emerald-400"></i> whatsapp
+        </span>
+        <span class="text-[10px] bg-white/5 px-2 py-0.5 text-gray-400 border border-white/5">
+          <i class="fas fa-globe text-blue-400"></i> caseyrhodes.tech
+        </span>
       </div>
     </div>
   </div>
 
-  <!-- footer + extra dev credit -->
+  <!-- footer -->
   <div class="text-center mt-4 flex flex-wrap items-center justify-center gap-3 text-[10px] text-gray-500">
     <span>© 2025 CASEYRHODES · BOT INC</span>
     <span class="w-px h-3 bg-gray-700"></span>
