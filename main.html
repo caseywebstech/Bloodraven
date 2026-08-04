@@ -168,11 +168,11 @@
     }
     .flower-option:hover { background: rgba(124,58,237,0.3); transform: scale(1.04); border-color: rgba(236,72,153,0.3); }
 
-    /* dev panel - NO CARD */
+    /* ===== STATS BADGE STYLES (moved below) ===== */
     .stat-badge {
       background: rgba(255,255,255,0.03);
       border: 1px solid rgba(255,255,255,0.06);
-      padding: 0.3rem 1rem;
+      padding: 0.4rem 1rem;
       font-size: 0.7rem;
       letter-spacing: 0.02em;
       color: #b0b8c5;
@@ -181,16 +181,18 @@
       gap: 6px;
       border-radius: 40px;
     }
-    .dev-panel {
-      padding: 0.6rem 0;
-      border-bottom: 1px solid rgba(255,255,255,0.04);
+    .stat-badge i { color: #a78bfa; width: 18px; }
+
+    .stats-container {
       display: flex;
       flex-wrap: wrap;
       align-items: center;
-      justify-content: space-between;
-      gap: 12px;
+      justify-content: center;
+      gap: 10px;
+      padding: 0.6rem 0;
+      border-top: 1px solid rgba(255,255,255,0.04);
+      margin-top: 0.5rem;
     }
-    .dev-panel i { color: #a78bfa; width: 20px; }
 
     /* owner profile - NO CARD */
     .owner-card {
@@ -232,7 +234,7 @@
       border-radius: 40px;
     }
 
-    /* ===== PAIRING CARD - ROUNDED & VISIBLE ===== */
+    /* ===== PAIRING CARD ===== */
     .pairing-card {
       background: rgba(10, 10, 18, 0.55);
       backdrop-filter: blur(16px) saturate(1.4);
@@ -319,11 +321,44 @@
       border-radius: 40px;
     }
 
+    /* ===== BOT INFO FEATURES ===== */
+    .bot-features {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 0.5rem;
+    }
+    .feature-item {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.04);
+      padding: 0.5rem 0.7rem;
+      border-radius: 12px;
+      text-align: center;
+      transition: 0.2s;
+      font-size: 0.65rem;
+      color: #94a3b8;
+    }
+    .feature-item:hover {
+      background: rgba(168,85,247,0.05);
+      border-color: rgba(168,85,247,0.15);
+    }
+    .feature-item i {
+      display: block;
+      font-size: 1.1rem;
+      margin-bottom: 3px;
+      color: #a78bfa;
+    }
+    .feature-item .highlight {
+      color: #eaeef2;
+      font-weight: 500;
+    }
+
     @media (max-width: 480px) {
-      .dev-panel { flex-direction: column; align-items: stretch; gap: 6px; }
       .music-widget { left: 12px; bottom: 70px; }
       .owner-card { flex-direction: column; text-align: center; padding: 1rem 0; }
       .pairing-card { padding: 1rem; }
+      .bot-features { grid-template-columns: 1fr 1fr; gap: 6px; }
+      .stats-container { gap: 6px; }
     }
   </style>
 </head>
@@ -358,25 +393,16 @@
 <!-- MAIN -->
 <main class="w-full max-w-md mx-auto relative z-10">
 
-  <!-- header -->
-  <div class="flex items-center justify-between mb-4">
-    <div class="flex items-center gap-2">
-      <img src="https://i.ibb.co/DDd7WkwL/caseyweb.jpg" alt="casey" class="w-9 h-9 border-2 border-pink-400/50 object-cover header-avatar">
-      <h1 class="text-base font-extrabold text-gradient glow-pulse tracking-tight">BLOOD RAVEN · PAIR</h1>
+  <!-- ===== HEADER - TITLE CENTERED ===== -->
+  <div class="text-center mb-4">
+    <div class="flex items-center justify-center gap-2">
+      <img src="https://i.ibb.co/DDd7WkwL/caseyweb.jpg" alt="casey" class="w-10 h-10 border-2 border-pink-400/50 object-cover header-avatar">
+      <h1 class="text-xl font-extrabold text-gradient glow-pulse tracking-tight">BLOOD RAVEN · PAIR</h1>
     </div>
-    <a href="https://wa.me/+254762673217" class="text-xs text-gray-400 hover:text-pink-300 transition flex items-center gap-1 bg-white/5 px-3 py-1 border border-white/5 dev-link">
-      <i class="fas fa-code"></i> <span class="hidden xs:inline">dev</span>
-    </a>
+    <p class="text-[10px] text-gray-500 mt-0.5 tracking-widest">⚡ secure device linking ⚡</p>
   </div>
 
-  <!-- dev panel - NO CARD -->
-  <div class="dev-panel mb-5">
-    <span class="stat-badge"><i class="fas fa-user-astronaut"></i> caseyrhodes · v2.1</span>
-    <span class="stat-badge"><i class="fas fa-users"></i> <span id="liveCount">247</span> online</span>
-    <span class="stat-badge"><i class="fas fa-clock"></i> <span id="uptimeDisplay">00:00</span></span>
-  </div>
-
-  <!-- ===== PAIRING CARD - ROUNDED & VISIBLE ===== -->
+  <!-- ===== PAIRING CARD ===== -->
   <div class="pairing-card">
 
     <!-- form section -->
@@ -421,8 +447,44 @@
   </div>
   <!-- ===== END PAIRING CARD ===== -->
 
-  <!-- ===== OWNER PROFILE - NO CARD ===== -->
-  <div class="owner-card mt-6">
+  <!-- ===== STATS - MOVED BELOW CARD ===== -->
+  <div class="stats-container">
+    <span class="stat-badge"><i class="fas fa-user-astronaut"></i> caseyrhodes · v2.1</span>
+    <span class="stat-badge"><i class="fas fa-users"></i> <span id="liveCount">247</span> online</span>
+    <span class="stat-badge"><i class="fas fa-clock"></i> <span id="uptimeDisplay">00:00</span></span>
+    <span class="stat-badge"><i class="fas fa-code-branch"></i> 1.2k pairs</span>
+  </div>
+
+  <!-- ===== BOT INFO FEATURES ===== -->
+  <div class="bot-features">
+    <div class="feature-item">
+      <i class="fas fa-shield-alt"></i>
+      <span class="highlight">End-to-End</span><br>Encrypted
+    </div>
+    <div class="feature-item">
+      <i class="fas fa-bolt"></i>
+      <span class="highlight">Instant</span><br>Pairing
+    </div>
+    <div class="feature-item">
+      <i class="fas fa-mobile-alt"></i>
+      <span class="highlight">Multi-Device</span><br>Support
+    </div>
+    <div class="feature-item">
+      <i class="fas fa-infinity"></i>
+      <span class="highlight">Unlimited</span><br>Links
+    </div>
+    <div class="feature-item">
+      <i class="fas fa-robot"></i>
+      <span class="highlight">AI-Powered</span><br>Bot
+    </div>
+    <div class="feature-item">
+      <i class="fas fa-cloud"></i>
+      <span class="highlight">99.9%</span><br>Uptime
+    </div>
+  </div>
+
+  <!-- ===== OWNER PROFILE ===== -->
+  <div class="owner-card mt-4">
     <img class="owner-avatar" src="https://files.catbox.moe/5uli5p.jpeg" alt="Blood Raven">
     <div class="owner-info">
       <h4>✦ BLOOD RAVEN</h4>
