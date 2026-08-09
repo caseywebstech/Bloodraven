@@ -14,7 +14,7 @@
     "pino": "^9.4.0",
     "canvas": "^2.11.2",
     "jimp": "^1.6.0",
-    "gifted-btns": "^2.0.0",
+    
     "mumaker": "^2.0.0",
     "form-data": "^4.0.0",
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
