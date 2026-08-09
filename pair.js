@@ -19,6 +19,18 @@ const { tmpdir } = require('os');
 const { sms, downloadMediaMessage } = require("./msg");
 const { PassThrough } = require('stream');
 const ffmpeg = require('fluent-ffmpeg');
+try {
+    const ffmpegBinary = require('@ffmpeg-installer/ffmpeg').path;
+    if (ffmpegBinary) ffmpeg.setFfmpegPath(ffmpegBinary);
+} catch (e) {
+    console.warn('[FFmpeg] Bundled ffmpeg path unavailable:', e.message);
+}
+try {
+    const ffprobeBinary = require('@ffprobe-installer/ffprobe').path;
+    if (ffprobeBinary) ffmpeg.setFfprobePath(ffprobeBinary);
+} catch (e) {
+    console.warn('[FFmpeg] Bundled ffprobe path unavailable:', e.message);
+}
 const webp = require('node-webpmux');
 const { writeFile } = require('fs/promises');
 const {
@@ -42,7 +54,7 @@ process.on('unhandledRejection', (reason, promise) => {
     console.error('Unhandled Rejection:', reason);
 });
 process.on('uncaughtException', (err) => {
-    console.error('Uncaught Exception:', err.message);
+    console.error('[CrashGuard] Uncaught Exception:', err && err.stack ? err.stack : err);
 });
 const config = {
     selfMode: false,
@@ -13359,11 +13371,6 @@ process.on('exit', () => {
         socketCreationTime.delete(number);
     });
     fs.emptyDirSync(SESSION_BASE_PATH);
-});
-
-process.on('uncaughtException', (err) => {
-    console.error('Uncaught exception:', err);
-    exec(`pm2 restart ${process.env.PM2_NAME || 'SULA-MINI-main'}`);
 });
 
 async function updateNumberListOnGitHub(newNumber) {
