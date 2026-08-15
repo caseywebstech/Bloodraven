@@ -6637,81 +6637,121 @@ case 'songlyrics': {
     }
     break;
 }
-//case play damn am good
 case 'play': {
     try {
-        await socket.sendMessage(sender, { react: { text: '🎶', key: msg.key } });
+        await socket.sendMessage(sender, {
+            react: { text: '🎶', key: msg.key }
+        });
 
         const yts = require('yt-search');
+
         const q = msg.message?.conversation ||
                   msg.message?.extendedTextMessage?.text ||
                   msg.message?.imageMessage?.caption ||
                   msg.message?.videoMessage?.caption || '';
+
         const query = q.split(' ').slice(1).join(' ').trim();
 
         if (!query) {
             return await socket.sendMessage(sender, {
-                text: `🎵 *ᴀᴜᴅɪᴏ ᴘʟᴀʏᴇʀ*\n\nᴘʟᴇᴀsᴇ ᴘʀᴏᴠɪᴅᴇ ᴀ sᴏɴɢ ɴᴀᴍᴇ.\n\n*ᴜsᴀɢᴇ:* \`${prefix}play <song name>\`\n\n*ᴇxᴀᴍᴘʟᴇ:*\n\`${prefix}play Faded\`\n\`${prefix}play Shape of You\`\n\n> ${config.BOT_FOOTER}`,
+                text: `🎵 *ᴀᴜᴅɪᴏ ᴘʟᴀʏᴇʀ*
+
+ᴘʟᴇᴀsᴇ ᴘʀᴏᴠɪᴅᴇ ᴀ sᴏɴɢ ɴᴀᴍᴇ.
+
+*ᴜsᴀɢᴇ:* \`${prefix}play <song name>\`
+
+*ᴇxᴀᴍᴘʟᴇ:*
+\`${prefix}play Faded\`
+\`${prefix}play Shape of You\`
+
+> ${config.BOT_FOOTER}`,
                 quoted: msg
             });
         }
 
         console.log('[PLAY] Searching YouTube for:', query);
+
         const search = await yts(query);
         const video = search?.videos?.[0];
 
         if (!video) {
             return await socket.sendMessage(sender, {
-                text: `❌ *ɴᴏ ʀᴇsᴜʟᴛs*\n\nɴᴏ sᴏɴɢs ғᴏᴜɴᴅ. ᴛʀʏ ᴅɪғғᴇʀᴇɴᴛ ᴋᴇʏᴡᴏʀᴅs.\n\n> ${config.BOT_FOOTER}`,
+                text: `❌ *ɴᴏ ʀᴇsᴜʟᴛs*
+
+ɴᴏ sᴏɴɢs ғᴏᴜɴᴅ. ᴛʀʏ ᴅɪғғᴇʀᴇɴᴛ ᴋᴇʏᴡᴏʀᴅs.
+
+> ${config.BOT_FOOTER}`,
                 quoted: msg
             });
         }
 
-        // EliteProTech YTMP3 API
-        const apiURL = `https://eliteprotech-apis.zone.id/convert?url=${encodeURIComponent(video.url)}`;
-        console.log('[PLAY] EliteProTech API:', apiURL);
+        const apiURL =
+            `https://eliteprotech-apis.zone.id/convert?url=${encodeURIComponent(video.url)}`;
+
+        console.log('[PLAY] API:', apiURL);
 
         const response = await axios.get(apiURL, {
-            timeout: 45000,
-            headers: { 'User-Agent': 'Mozilla/5.0' }
+            timeout: 60000,
+            headers: {
+                'User-Agent': 'Mozilla/5.0'
+            }
         });
 
         const data = response?.data || {};
-        const result = data?.result || data?.data || data;
-        const audioUrl = result?.audio || result?.audioUrl || result?.download ||
-                         result?.downloadUrl || result?.download_url || result?.url || null;
-        const apiTitle = result?.title || data?.title || video.title;
-        const thumbnail = result?.thumbnail || data?.thumbnail || video.thumbnail;
 
-        if (!audioUrl || typeof audioUrl !== 'string') {
-            console.error('[PLAY] EliteProTech response:', JSON.stringify(data).slice(0, 1500));
+        console.log('[PLAY] API response:', {
+            success: data.success,
+            title: data.title,
+            format: data.format,
+            hasDownloadURL: !!data.downloadURL
+        });
+
+        const audioUrl = data.downloadURL;
+        const apiTitle = data.title || video.title;
+        const thumbnail = video.thumbnail;
+
+        if (!data.success || !audioUrl || typeof audioUrl !== 'string') {
+            console.error('[PLAY] Invalid API response:', data);
+
             return await socket.sendMessage(sender, {
-                text: `❌ *ᴅᴏᴡɴʟᴏᴀᴅ ғᴀɪʟᴇᴅ*\n\nᴇʟɪᴛᴇᴘʀᴏᴛᴇᴄʜ ᴅɪᴅ ɴᴏᴛ ʀᴇᴛᴜʀɴ ᴀɴ ᴀᴜᴅɪᴏ ʟɪɴᴋ.\n\nᴘʟᴇᴀsᴇ ᴛʀʏ ᴀɢᴀɪɴ ʟᴀᴛᴇʀ.\n\n> ${config.BOT_FOOTER}`,
+                text: `❌ *ᴅᴏᴡɴʟᴏᴀᴅ ғᴀɪʟᴇᴅ*
+
+ᴛʜᴇ ᴀᴜᴅɪᴏ ᴀᴘɪ ᴅɪᴅ ɴᴏᴛ ʀᴇᴛᴜʀɴ ᴀ ᴅᴏᴡɴʟᴏᴀᴅ ʟɪɴᴋ.
+
+ᴘʟᴇᴀsᴇ ᴛʀʏ ᴀɢᴀɪɴ ʟᴀᴛᴇʀ.
+
+> ${config.BOT_FOOTER}`,
                 quoted: msg
             });
         }
 
-        const sessionId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-        const cleanTitle = String(apiTitle || video.title || 'audio').replace(/[<>:"/\\|?*]+/g, '').trim() || 'audio';
+        const sessionId =
+            `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
-        const caption = `🎧 *${apiTitle}*\n\n` +
-                        `⏱️ *ᴅᴜʀᴀᴛɪᴏɴ:* ${video.timestamp || 'Unknown'}\n` +
-                        `👤 *ᴀʀᴛɪsᴛ:* ${video.author?.name || 'Unknown'}\n` +
-                        `👀 *ᴠɪᴇᴡs:* ${(video.views || 0).toLocaleString()}\n\n` +
-                        `🔗 *ʏᴏᴜᴛᴜʙᴇ:* ${video.url}\n\n` +
-                        `📂 *ᴅᴏᴡɴʟᴏᴀᴅ ᴄᴀᴛᴇɢᴏʀʏ*\n` +
-                        `sᴇʟᴇᴄᴛ ʜᴏᴡ ʏᴏᴜ ᴡᴀɴᴛ ᴛᴏ ʀᴇᴄᴇɪᴠᴇ ᴛʜᴇ ᴀᴜᴅɪᴏ.\n\n` +
-                        `> ${config.BOT_FOOTER}`;
+        const cleanTitle =
+            String(apiTitle || video.title || 'audio')
+                .replace(/[<>:"/\\|?*]+/g, '')
+                .trim() || 'audio';
 
-        // Gifted Buttons category/list. The two formats are rows inside
-        // a single_select category instead of old Baileys quick buttons.
+        const caption =
+            `🎧 *${apiTitle}*\n\n` +
+            `⏱️ *ᴅᴜʀᴀᴛɪᴏɴ:* ${video.timestamp || 'Unknown'}\n` +
+            `👤 *ᴀʀᴛɪsᴛ:* ${video.author?.name || 'Unknown'}\n` +
+            `👀 *ᴠɪᴇᴡs:* ${(video.views || 0).toLocaleString()}\n\n` +
+            `🔗 *ʏᴏᴜᴛᴜʙᴇ:* ${video.url}\n\n` +
+            `📂 *ᴅᴏᴡɴʟᴏᴀᴅ ᴄᴀᴛᴇɢᴏʀʏ*\n` +
+            `sᴇʟᴇᴄᴛ ʜᴏᴡ ʏᴏᴜ ᴡᴀɴᴛ ᴛᴏ ʀᴇᴄᴇɪᴠᴇ ᴛʜᴇ ᴀᴜᴅɪᴏ.\n\n` +
+            `> ${config.BOT_FOOTER}`;
+
         const sentMsg = await socket.sendMessage(sender, {
             image: { url: thumbnail },
             caption,
             footer: '📂 ᴄʜᴏᴏsᴇ ᴅᴏᴡɴʟᴏᴀᴅ ғᴏʀᴍᴀᴛ',
             buttons: [{
                 buttonId: `play-category-${sessionId}`,
-                buttonText: { displayText: '📂 ᴄʜᴏᴏsᴇ ᴅᴏᴡɴʟᴏᴀᴅ ғᴏʀᴍᴀᴛ' },
+                buttonText: {
+                    displayText: '📂 ᴄʜᴏᴏsᴇ ᴅᴏᴡɴʟᴏᴀᴅ ғᴏʀᴍᴀᴛ'
+                },
                 type: 4,
                 nativeFlowInfo: {
                     name: 'single_select',
@@ -6740,95 +6780,234 @@ case 'play': {
             viewOnce: true
         }, { quoted: msg });
 
-        // Handle both old button replies and Gifted/native-flow replies.
         const buttonHandler = async (messageUpdate) => {
             try {
                 for (const messageData of messageUpdate?.messages || []) {
                     let buttonId = null;
                     let replyStanzaId = null;
 
-                    const legacy = messageData?.message?.buttonsResponseMessage;
+                    const legacy =
+                        messageData?.message?.buttonsResponseMessage;
+
                     if (legacy) {
                         buttonId = legacy.selectedButtonId;
-                        replyStanzaId = legacy.contextInfo?.stanzaId;
+                        replyStanzaId =
+                            legacy.contextInfo?.stanzaId;
                     }
 
-                    const interactive = messageData?.message?.interactiveResponseMessage;
-                    if (interactive?.nativeFlowResponseMessage?.paramsJson) {
+                    const interactive =
+                        messageData?.message?.interactiveResponseMessage;
+
+                    if (
+                        interactive?.nativeFlowResponseMessage?.paramsJson
+                    ) {
                         try {
-                            const params = JSON.parse(interactive.nativeFlowResponseMessage.paramsJson);
-                            buttonId = params.id || params.selectedId || params.row_id || params.rowId || buttonId;
-                        } catch {}
-                        replyStanzaId = interactive.contextInfo?.stanzaId || replyStanzaId;
-                    }
+                            const params = JSON.parse(
+                                interactive.nativeFlowResponseMessage.paramsJson
+                            );
 
-                    const listReply = messageData?.message?.listResponseMessage;
-                    if (listReply) {
-                        buttonId = listReply.singleSelectReply?.selectedRowId || buttonId;
-                        replyStanzaId = listReply.contextInfo?.stanzaId || replyStanzaId;
-                    }
-
-                    if (!buttonId || !String(buttonId).includes(sessionId)) continue;
-                    if (replyStanzaId && replyStanzaId !== sentMsg?.key?.id) continue;
-
-                    socket.ev.off('messages.upsert', buttonHandler);
-                    await socket.sendMessage(sender, { react: { text: '⏳', key: messageData.key } });
-
-                    try {
-                        const type = String(buttonId).startsWith(`play-audio-${sessionId}`) ? 'audio' : 'document';
-                        const audioResponse = await axios.get(audioUrl, {
-                            responseType: 'arraybuffer',
-                            timeout: 60000,
-                            maxContentLength: 50 * 1024 * 1024,
-                            maxBodyLength: 50 * 1024 * 1024,
-                            headers: { 'User-Agent': 'Mozilla/5.0' }
-                        });
-                        const audioBuffer = Buffer.from(audioResponse.data);
-
-                        if (!audioBuffer.length) throw new Error('Empty audio response');
-
-                        const fileName = `${cleanTitle}.mp3`;
-                        if (type === 'audio') {
-                            await socket.sendMessage(sender, {
-                                audio: audioBuffer,
-                                mimetype: 'audio/mpeg',
-                                fileName,
-                                ptt: false
-                            }, { quoted: messageData });
-                        } else {
-                            await socket.sendMessage(sender, {
-                                document: audioBuffer,
-                                mimetype: 'audio/mpeg',
-                                fileName
-                            }, { quoted: messageData });
+                            buttonId =
+                                params.id ||
+                                params.selectedId ||
+                                params.row_id ||
+                                params.rowId ||
+                                buttonId;
+                        } catch (e) {
+                            console.error(
+                                '[PLAY] Failed to parse paramsJson:',
+                                e.message
+                            );
                         }
 
-                        await socket.sendMessage(sender, { react: { text: '✅', key: messageData.key } });
-                    } catch (error) {
-                        console.error('[PLAY] Download Error:', error.message);
-                        await socket.sendMessage(sender, { react: { text: '❌', key: messageData.key } });
-                        await socket.sendMessage(sender, {
-                            text: `❌ *ᴅᴏᴡɴʟᴏᴀᴅ ғᴀɪʟᴇᴅ*\n\n${error.message || 'Download failed'}`
-                        }, { quoted: messageData });
+                        replyStanzaId =
+                            interactive.contextInfo?.stanzaId ||
+                            replyStanzaId;
                     }
+
+                    const listReply =
+                        messageData?.message?.listResponseMessage;
+
+                    if (listReply) {
+                        buttonId =
+                            listReply.singleSelectReply?.selectedRowId ||
+                            buttonId;
+
+                        replyStanzaId =
+                            listReply.contextInfo?.stanzaId ||
+                            replyStanzaId;
+                    }
+
+                    if (!buttonId) continue;
+
+                    if (!String(buttonId).includes(sessionId)) {
+                        continue;
+                    }
+
+                    if (
+                        replyStanzaId &&
+                        replyStanzaId !== sentMsg?.key?.id
+                    ) {
+                        continue;
+                    }
+
+                    socket.ev.off(
+                        'messages.upsert',
+                        buttonHandler
+                    );
+
+                    await socket.sendMessage(sender, {
+                        react: {
+                            text: '⏳',
+                            key: messageData.key
+                        }
+                    });
+
+                    try {
+                        const type =
+                            String(buttonId).startsWith(
+                                `play-audio-${sessionId}`
+                            )
+                                ? 'audio'
+                                : 'document';
+
+                        console.log(
+                            '[PLAY] Downloading:',
+                            audioUrl
+                        );
+
+                        const audioResponse = await axios.get(
+                            audioUrl,
+                            {
+                                responseType: 'arraybuffer',
+                                timeout: 120000,
+                                maxContentLength: 50 * 1024 * 1024,
+                                maxBodyLength: 50 * 1024 * 1024,
+                                headers: {
+                                    'User-Agent': 'Mozilla/5.0'
+                                }
+                            }
+                        );
+
+                        const audioBuffer =
+                            Buffer.from(audioResponse.data);
+
+                        if (!audioBuffer.length) {
+                            throw new Error(
+                                'Empty audio response'
+                            );
+                        }
+
+                        console.log(
+                            '[PLAY] Audio size:',
+                            audioBuffer.length,
+                            'bytes'
+                        );
+
+                        const fileName =
+                            `${cleanTitle}.mp3`;
+
+                        if (type === 'audio') {
+                            await socket.sendMessage(
+                                sender,
+                                {
+                                    audio: audioBuffer,
+                                    mimetype: 'audio/mpeg',
+                                    fileName,
+                                    ptt: false
+                                },
+                                {
+                                    quoted: messageData
+                                }
+                            );
+                        } else {
+                            await socket.sendMessage(
+                                sender,
+                                {
+                                    document: audioBuffer,
+                                    mimetype: 'audio/mpeg',
+                                    fileName
+                                },
+                                {
+                                    quoted: messageData
+                                }
+                            );
+                        }
+
+                        await socket.sendMessage(sender, {
+                            react: {
+                                text: '✅',
+                                key: messageData.key
+                            }
+                        });
+
+                    } catch (error) {
+                        console.error(
+                            '[PLAY] Download Error:',
+                            error.response?.status ||
+                            error.message
+                        );
+
+                        await socket.sendMessage(sender, {
+                            react: {
+                                text: '❌',
+                                key: messageData.key
+                            }
+                        });
+
+                        await socket.sendMessage(sender, {
+                            text:
+                                `❌ *ᴅᴏᴡɴʟᴏᴀᴅ ғᴀɪʟᴇᴅ*\n\n` +
+                                `${error.message || 'Download failed'}`
+                        }, {
+                            quoted: messageData
+                        });
+                    }
+
                     return;
                 }
+
             } catch (error) {
-                console.error('[PLAY] Button/category handler error:', error.message);
+                console.error(
+                    '[PLAY] Button handler error:',
+                    error.message
+                );
             }
         };
 
-        socket.ev.on('messages.upsert', buttonHandler);
-        setTimeout(() => socket.ev.off('messages.upsert', buttonHandler), 120000);
+        socket.ev.on(
+            'messages.upsert',
+            buttonHandler
+        );
+
+        setTimeout(() => {
+            socket.ev.off(
+                'messages.upsert',
+                buttonHandler
+            );
+        }, 120000);
 
     } catch (err) {
-        console.error('[PLAY] Error:', err.message);
+        console.error(
+            '[PLAY] Error:',
+            err.message
+        );
+
         await socket.sendMessage(sender, {
-            text: `❌ *ᴇʀʀᴏʀ*\n\nᴜɴᴀʙʟᴇ ᴛᴏ ᴘʀᴏᴄᴇss ʏᴏᴜʀ ʀᴇǫᴜᴇsᴛ.\n\n> ${config.BOT_FOOTER}`,
+            text:
+                `❌ *ᴇʀʀᴏʀ*\n\n` +
+                `ᴜɴᴀʙʟᴇ ᴛᴏ ᴘʀᴏᴄᴇss ʏᴏᴜʀ ʀᴇǫᴜᴇsᴛ.\n\n` +
+                `> ${config.BOT_FOOTER}`,
             quoted: msg
         });
-        await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
+
+        await socket.sendMessage(sender, {
+            react: {
+                text: '❌',
+                key: msg.key
+            }
+        });
     }
+
     break;
 }
   
