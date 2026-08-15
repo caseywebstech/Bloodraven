@@ -47,9 +47,6 @@ process.on('uncaughtException', (err) => {
 });
 const DEFAULT_CONFIG = {
     selfMode: false,
-    antidelete: true,
-    ANTIDELETE_SEND_TO_CHAT: true,
-    ANTIDELETE_SEND_TO_OWNER: true,
     AUTO_VIEW_STATUS: 'true',
     AUTO_LIKE_STATUS: 'true',
     AUTO_RECORDING: 'false',
@@ -106,7 +103,6 @@ function createBotContext(number) {
         chatbotHistory: new Map(),
         autoReadPM: false,
         autoReactEnabled: false,
-        messageStore: new Map(),
         antilinkWarnings: {}
     };
     botContexts.set(sanitized, ctx);
@@ -194,9 +190,6 @@ const antilinkDataProxy = new Proxy({}, {
 });
 let antilinkData = antilinkDataProxy;
 
-function getMessageStore() {
-    return getBotContext()?.messageStore || new Map();
-}
 
 // Keep legacy global feature flags isolated per connection.
 Object.defineProperties(global, {
@@ -282,7 +275,6 @@ function saveAnticallSettings(s) {
 
 
 
-const CONFIG_PATH = path.join(__dirname, 'antidelete.json');
 const TEMP_MEDIA_DIR = path.join(__dirname, 'tmp');
 
 if (!fs.existsSync(TEMP_MEDIA_DIR)) {
@@ -831,433 +823,6 @@ const cleanTempFolderIfLarge = () => {
 };
 
 setInterval(cleanTempFolderIfLarge, 60 * 1000);
-
-function getAntideletePath() {
-    return botSettingsPath('antidelete.json');
-}
-function loadAntideleteConfig() {
-    const defaults = { enabled: true, destination: 'dm' };
-    try {
-        const file = getAntideletePath();
-        if (!fs.existsSync(file)) return { ...defaults };
-        const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
-        const destination = ['chat', 'dm', 'both'].includes(saved?.destination)
-            ? saved.destination
-            : 'dm';
-        return { ...defaults, ...(saved || {}), destination };
-    } catch {
-        return { ...defaults };
-    }
-}
-function saveAntideleteConfig(configData) {
-    try {
-        fs.writeFileSync(getAntideletePath(), JSON.stringify(configData, null, 2));
-        return true;
-    } catch (err) {
-        console.error('Config save error:', err);
-        return false;
-    }
-}
-
-async function downloadMessageBuffer(messageContent, type) {
-    const stream = await downloadContentFromMessage(messageContent, type);
-    const chunks = [];
-    for await (const chunk of stream) chunks.push(chunk);
-    return Buffer.concat(chunks);
-}
-
-function getMessagePayload(message) {
-    if (!message?.message) return null;
-    let payload = message.message;
-    payload = payload.ephemeralMessage?.message || payload;
-    payload = payload.viewOnceMessageV2?.message || payload.viewOnceMessage?.message || payload;
-    payload = payload.viewOnceMessageV2Extension?.message || payload;
-    return payload;
-}
-
-async function storeMessage(sock, message) {
-    try {
-        const antideleteConfig = loadAntideleteConfig();
-        if (!antideleteConfig.enabled || !message?.key?.id || !message.message) return;
-        if (message.key.remoteJid === 'status@broadcast') return;
-
-        const messageId = message.key.id;
-        const payload = getMessagePayload(message);
-        if (!payload) return;
-
-        const sender = message.key.participant || message.key.remoteJid;
-        const chat = message.key.remoteJid;
-        let content = '';
-        let mediaType = '';
-        let mediaMime = '';
-        let mediaPath = '';
-
-        if (payload.conversation) content = payload.conversation;
-        else if (payload.extendedTextMessage?.text) content = payload.extendedTextMessage.text;
-        else if (payload.imageMessage) {
-            mediaType = 'image';
-            content = payload.imageMessage.caption || '';
-            mediaMime = payload.imageMessage.mimetype || 'image/jpeg';
-        } else if (payload.videoMessage) {
-            mediaType = 'video';
-            content = payload.videoMessage.caption || '';
-            mediaMime = payload.videoMessage.mimetype || 'video/mp4';
-        } else if (payload.audioMessage) {
-            mediaType = 'audio';
-            mediaMime = payload.audioMessage.mimetype || 'audio/mpeg';
-        } else if (payload.stickerMessage) {
-            mediaType = 'sticker';
-            mediaMime = payload.stickerMessage.mimetype || 'image/webp';
-        } else if (payload.documentMessage) {
-            mediaType = 'document';
-            content = payload.documentMessage.caption || payload.documentMessage.fileName || '';
-            mediaMime = payload.documentMessage.mimetype || 'application/octet-stream';
-        } else if (payload.contactMessage) content = payload.contactMessage.vcard || '';
-        else if (payload.locationMessage) content = `📍 Location: ${payload.locationMessage.degreesLatitude}, ${payload.locationMessage.degreesLongitude}`;
-        else if (payload.pollCreationMessage) content = `📊 Poll: ${payload.pollCreationMessage.name || 'Poll'}\n${(payload.pollCreationMessage.options || []).map(o => o.optionName).join(', ')}`;
-        else return;
-
-        // Store the message immediately. Media is downloaded after the cache entry
-        // exists so a very fast delete/revoke cannot beat the cache registration.
-        const record = {
-            content,
-            mediaType,
-            mediaPath: '',
-            mediaMime,
-            sender,
-            chat,
-            group: chat?.endsWith('@g.us') ? chat : null,
-            timestamp: Date.now()
-        };
-        getMessageStore().set(messageId, record);
-
-        // Download media in the background. Text/deleted-message detection does not
-        // have to wait for a potentially slow media CDN download.
-        if (mediaType) {
-            try {
-                const ext = mediaType === 'image' ? 'jpg' : mediaType === 'video' ? 'mp4' :
-                    mediaType === 'audio' ? (mediaMime.includes('ogg') ? 'ogg' : 'mp3') :
-                    mediaType === 'sticker' ? 'webp' :
-                    ((payload.documentMessage?.fileName || 'file.bin').split('.').pop() || 'bin');
-                const target = path.join(TEMP_MEDIA_DIR, `${messageId}.${ext}`);
-                const source = payload[`${mediaType}Message`];
-                const downloadType = mediaType;
-                await writeFile(target, await downloadMessageBuffer(source, downloadType));
-                const current = getMessageStore().get(messageId);
-                if (current) current.mediaPath = target;
-                else { try { fs.unlinkSync(target); } catch {} }
-            } catch (mediaErr) {
-                console.warn('[AntiDelete] Media cache failed:', mediaErr.message);
-            }
-        }
-
-        while (getMessageStore().size > 2000) {
-            const oldest = getMessageStore().keys().next().value;
-            const old = getMessageStore().get(oldest);
-            if (old?.mediaPath && fs.existsSync(old.mediaPath)) {
-                try { fs.unlinkSync(old.mediaPath); } catch {}
-            }
-            getMessageStore().delete(oldest);
-        }
-    } catch (err) {
-        console.error('[AntiDelete] Store error:', err.message);
-    }
-}
-function cleanupMessageStore() {
-    const cutoff = Date.now() - (24 * 60 * 60 * 1000);
-    for (const [id, item] of getMessageStore().entries()) {
-        if (!item.timestamp || item.timestamp < cutoff) {
-            if (item.mediaPath && fs.existsSync(item.mediaPath)) {
-                try { fs.unlinkSync(item.mediaPath); } catch {}
-            }
-            getMessageStore().delete(id);
-        }
-    }
-}
-setInterval(cleanupMessageStore, 30 * 60 * 1000);
-
-function setupAntiDeleteHandlers(sock) {
-    // Anti-delete is DM-only. Every socket has its own cache and its own
-    // destination number, so multiple connected bots never share deleted messages.
-    const ctx = socketContextForAntiDelete(sock);
-
-    if (!ctx) {
-        console.warn('[AntiDelete] No bot context found for socket.');
-        return;
-    }
-
-    const store = ctx.messageStore;
-    const ownerJid = () => {
-        const n = String(ctx.number || sock?.user?.id?.split(':')[0] || '')
-            .replace(/[^0-9]/g, '');
-        return n ? `${n}@s.whatsapp.net` : null;
-    };
-
-    const processRevocation = async (revocation) => {
-        try {
-            const antideleteConfig = loadAntideleteConfig();
-            if (!antideleteConfig.enabled) return;
-
-            const protocolKey = revocation?.key;
-            if (!protocolKey?.id) return;
-            if (protocolKey.remoteJid === 'status@broadcast') return;
-
-            const original = store.get(protocolKey.id);
-            if (!original) {
-                console.warn(`[AntiDelete] Original message not found in cache: ${protocolKey.id}`);
-                return;
-            }
-
-            // Ignore deletions made by this bot itself.
-            if (protocolKey.fromMe) return;
-
-            const deletedBy = protocolKey.participant || revocation.participant || original.chat;
-            const sender = original.sender || original.chat;
-            const owner = ownerJid();
-
-            if (!owner) {
-                console.warn('[AntiDelete] Could not determine this bot account DM.');
-                return;
-            }
-
-            const groupName = original.group
-                ? ((await sock.groupMetadata(original.group).catch(() => null))?.subject || '')
-                : '';
-
-            const senderName = String(sender || '').split('@')[0];
-            const deleterName = String(deletedBy || '').split('@')[0];
-            const time = moment().tz('Africa/Nairobi').format('DD/MM/YYYY hh:mm:ss A');
-
-            let report =
-                `🛡️ *ANTI-DELETE*\n\n` +
-                `🗑️ *Deleted by:* @${deleterName}\n` +
-                `👤 *Sender:* @${senderName}\n` +
-                `🕒 *Time:* ${time}\n` +
-                `💬 *Original chat:* ${original.chat || 'Unknown'}\n`;
-
-            if (groupName) report += `👥 *Group:* ${groupName}\n`;
-            if (original.content) report += `\n💬 *Message:*\n${original.content}`;
-
-            // ALWAYS send to this connected bot's own DM.
-            await sock.sendMessage(owner, {
-                text: report,
-                mentions: [deletedBy, sender].filter(Boolean)
-            });
-
-            // Restore cached media in the same DM.
-            if (original.mediaPath && fs.existsSync(original.mediaPath)) {
-                const caption = `🗑️ *Deleted ${original.mediaType}*\nFrom: @${senderName}`;
-                const mentions = sender ? [sender] : [];
-
-                try {
-                    if (original.mediaType === 'image') {
-                        await sock.sendMessage(owner, {
-                            image: { url: original.mediaPath },
-                            caption,
-                            mentions
-                        });
-                    } else if (original.mediaType === 'video') {
-                        await sock.sendMessage(owner, {
-                            video: { url: original.mediaPath },
-                            caption,
-                            mentions
-                        });
-                    } else if (original.mediaType === 'audio') {
-                        await sock.sendMessage(owner, {
-                            audio: { url: original.mediaPath },
-                            mimetype: original.mediaMime || 'audio/mpeg',
-                            ptt: false
-                        });
-                    } else if (original.mediaType === 'sticker') {
-                        await sock.sendMessage(owner, {
-                            sticker: { url: original.mediaPath }
-                        });
-                    } else if (original.mediaType === 'document') {
-                        await sock.sendMessage(owner, {
-                            document: { url: original.mediaPath },
-                            mimetype: original.mediaMime || 'application/octet-stream',
-                            fileName: path.basename(original.mediaPath),
-                            caption,
-                            mentions
-                        });
-                    }
-                } finally {
-                    try { fs.unlinkSync(original.mediaPath); } catch {}
-                }
-            }
-
-            store.delete(protocolKey.id);
-            console.log(`[AntiDelete] Recovered ${protocolKey.id} -> ${owner}`);
-        } catch (err) {
-            console.error('[AntiDelete] Revocation error:', err.message);
-        }
-    };
-
-    // Cache incoming messages immediately, before any media download.
-    // Use this socket's context directly rather than relying on global/ambient state.
-    sock.ev.on('messages.upsert', async ({ messages }) => {
-        for (const message of messages || []) {
-            if (!message?.message) continue;
-            if (message.key?.remoteJid === 'status@broadcast') continue;
-            if (message.key?.fromMe) continue;
-
-            storeMessageForContext(sock, message, store).catch(err => {
-                console.warn('[AntiDelete] Cache error:', err.message);
-            });
-        }
-    });
-
-    const handleUpdate = async (item) => {
-        const protocol = item?.update?.message?.protocolMessage;
-        if (!protocol || protocol.type !== 0 || !protocol.key?.id) return;
-
-        const key = {
-            ...protocol.key,
-            remoteJid: protocol.key.remoteJid || item?.key?.remoteJid,
-            participant: protocol.key.participant || item?.key?.participant
-        };
-
-        console.log(`[AntiDelete] Delete event received: ${key.id}`);
-        await processRevocation({
-            key,
-            participant: item?.key?.participant
-        });
-    };
-
-    sock.ev.on('messages.update', async (updates) => {
-        for (const item of updates || []) {
-            await handleUpdate(item);
-        }
-    });
-
-    // Some Baileys versions deliver revoke protocol messages through upsert.
-    sock.ev.on('messages.upsert', async ({ messages }) => {
-        for (const message of messages || []) {
-            const protocol = message?.message?.protocolMessage;
-            if (!protocol || protocol.type !== 0 || !protocol.key?.id) continue;
-
-            const key = {
-                ...protocol.key,
-                remoteJid: protocol.key.remoteJid || message?.key?.remoteJid,
-                participant: protocol.key.participant || message?.key?.participant
-            };
-
-            console.log(`[AntiDelete] Revoke protocol received: ${key.id}`);
-            await processRevocation({
-                key,
-                participant: message?.key?.participant
-            });
-        }
-    });
-
-    console.log(`🛡️ Anti-Delete DM handler registered for ${ownerJid() || 'unknown account'}.`);
-}
-
-// Direct socket/context helpers prevent anti-delete from losing the bot context
-// when multiple WhatsApp sockets are active at the same time.
-function socketContextForAntiDelete(sock) {
-    return sock?.__botContext || getContextForSocket(sock) || null;
-}
-
-async function storeMessageForContext(sock, message, store) {
-    try {
-        const antideleteConfig = loadAntideleteConfig();
-        if (!antideleteConfig.enabled || !message?.key?.id || !message.message) return;
-
-        const messageId = message.key.id;
-        const payload = getMessagePayload(message);
-        if (!payload) return;
-
-        const sender = message.key.participant || message.key.remoteJid;
-        const chat = message.key.remoteJid;
-
-        let content = '';
-        let mediaType = '';
-        let mediaMime = '';
-
-        if (payload.conversation) content = payload.conversation;
-        else if (payload.extendedTextMessage?.text) content = payload.extendedTextMessage.text;
-        else if (payload.imageMessage) {
-            mediaType = 'image';
-            content = payload.imageMessage.caption || '';
-            mediaMime = payload.imageMessage.mimetype || 'image/jpeg';
-        } else if (payload.videoMessage) {
-            mediaType = 'video';
-            content = payload.videoMessage.caption || '';
-            mediaMime = payload.videoMessage.mimetype || 'video/mp4';
-        } else if (payload.audioMessage) {
-            mediaType = 'audio';
-            mediaMime = payload.audioMessage.mimetype || 'audio/mpeg';
-        } else if (payload.stickerMessage) {
-            mediaType = 'sticker';
-            mediaMime = payload.stickerMessage.mimetype || 'image/webp';
-        } else if (payload.documentMessage) {
-            mediaType = 'document';
-            content = payload.documentMessage.caption || payload.documentMessage.fileName || '';
-            mediaMime = payload.documentMessage.mimetype || 'application/octet-stream';
-        } else if (payload.contactMessage) content = payload.contactMessage.vcard || '';
-        else if (payload.locationMessage) {
-            content = `📍 Location: ${payload.locationMessage.degreesLatitude}, ${payload.locationMessage.degreesLongitude}`;
-        } else if (payload.pollCreationMessage) {
-            content = `📊 Poll: ${payload.pollCreationMessage.name || 'Poll'}\n` +
-                (payload.pollCreationMessage.options || []).map(o => o.optionName).join(', ');
-        } else {
-            return;
-        }
-
-        // Register the cache entry BEFORE downloading media.
-        store.set(messageId, {
-            content,
-            mediaType,
-            mediaPath: '',
-            mediaMime,
-            sender,
-            chat,
-            group: chat?.endsWith('@g.us') ? chat : null,
-            timestamp: Date.now()
-        });
-
-        if (mediaType) {
-            try {
-                const ext =
-                    mediaType === 'image' ? 'jpg' :
-                    mediaType === 'video' ? 'mp4' :
-                    mediaType === 'audio' ? (mediaMime.includes('ogg') ? 'ogg' : 'mp3') :
-                    mediaType === 'sticker' ? 'webp' :
-                    ((payload.documentMessage?.fileName || 'file.bin').split('.').pop() || 'bin');
-
-                const target = path.join(TEMP_MEDIA_DIR, `${messageId}.${ext}`);
-                const source = payload[`${mediaType}Message`];
-
-                await writeFile(target, await downloadMessageBuffer(source, mediaType));
-
-                const current = store.get(messageId);
-                if (current) {
-                    current.mediaPath = target;
-                } else {
-                    try { fs.unlinkSync(target); } catch {}
-                }
-            } catch (mediaErr) {
-                console.warn('[AntiDelete] Media cache failed:', mediaErr.message);
-            }
-        }
-
-        while (store.size > 2000) {
-            const oldest = store.keys().next().value;
-            const old = store.get(oldest);
-
-            if (old?.mediaPath && fs.existsSync(old.mediaPath)) {
-                try { fs.unlinkSync(old.mediaPath); } catch {}
-            }
-
-            store.delete(oldest);
-        }
-
-        console.log(`[AntiDelete] Cached message ${messageId}`);
-    } catch (err) {
-        console.error('[AntiDelete] Store error:', err.message);
-    }
-}
 
 function hexToArgb(hex) {
     const h = hex.replace('#', '');
@@ -1920,7 +1485,7 @@ function setupCommandHandlers(socket, number) {
             }
         };
         
-if (config.selfMode && !isOwner && command !== 'mode' && command !== 'antidelete') {
+if (config.selfMode && !isOwner && command !== 'mode') {
     try {
         const ctaMsg = generateWAMessageFromContent(sender, {
             viewOnceMessage: { message: { interactiveMessage: {
@@ -2258,89 +1823,6 @@ case 'autorea': {
     }
     break;
 }        
-                // ============ ANTIDELETE COMMAND ============
-// Case: antidelete / antidel - Toggle anti-delete messages
-case 'antidelete':
-case 'antidel': {
-    try {
-        if (!isOwner) {
-            await socket.sendMessage(sender, {
-                text: '❌ *ᴏᴡɴᴇʀ ᴏɴʟʏ*',
-                quoted: msg
-            });
-            break;
-        }
-
-        const antideleteConfig = loadAntideleteConfig();
-        const action = (args[0] || '').toLowerCase();
-
-        // Anti-delete is intentionally DM-only.
-        antideleteConfig.destination = 'dm';
-
-        if (action === 'on' || action === 'dm') {
-            antideleteConfig.enabled = true;
-            antideleteConfig.destination = 'dm';
-            saveAntideleteConfig(antideleteConfig);
-
-            await socket.sendMessage(sender, {
-                text: `🛡️ *ᴀɴᴛɪ-ᴅᴇʟᴇᴛᴇ ᴏɴ*
-
-` +
-                      `📨 Deleted messages will be sent to this bot's DM.
-
-` +
-                      `> ${config.BOT_FOOTER}`,
-                quoted: msg
-            });
-        }
-        else if (action === 'off') {
-            antideleteConfig.enabled = false;
-            antideleteConfig.destination = 'dm';
-            saveAntideleteConfig(antideleteConfig);
-
-            await socket.sendMessage(sender, {
-                text: `🛡️ *ᴀɴᴛɪ-ᴅᴇʟᴇᴛᴇ ᴏғғ*
-
-` +
-                      `ᴅᴇʟᴇᴛᴇᴅ ᴍᴇssᴀɢᴇs ᴡɪʟʟ ɴᴏᴛ ʙᴇ ʀᴇᴄᴏᴠᴇʀᴇᴅ.
-
-` +
-                      `> ${config.BOT_FOOTER}`,
-                quoted: msg
-            });
-        }
-        else {
-            const status = antideleteConfig.enabled ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ';
-            await socket.sendMessage(sender, {
-                text: `🛡️ *ᴀɴᴛɪ-ᴅᴇʟᴇᴛᴇ*
-
-` +
-                      `📌 *sᴛᴀᴛᴜs:* ${status}
-` +
-                      `📨 *ᴅᴇʟɪᴠᴇʀʏ:* ʙᴏᴛ ᴏᴡɴᴇʀ ᴅᴍ
-
-` +
-                      `*ᴜsᴀɢᴇ:*
-` +
-                      `• \`${prefix}antidelete on\` — enable
-` +
-                      `• \`${prefix}antidelete off\` — disable
-
-` +
-                      `> ${config.BOT_FOOTER}`,
-                quoted: msg
-            });
-        }
-    } catch (error) {
-        console.error('Antidelete error:', error);
-        await socket.sendMessage(sender, {
-            text: '❌ *ᴇʀʀᴏʀ*\n\n' + error.message,
-            quoted: msg
-        });
-    }
-    break;
-}
-
 case 'autoread':
 case 'autoreadpm':
 case 'readall': {
@@ -2376,7 +1858,6 @@ case 'botsettings': {
 
         await socket.sendMessage(sender, { react: { text: '⚙️', key: msg.key } });
 
-        const antideleteConfig = loadAntideleteConfig();
         const usedMemory = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
         const totalMemory = Math.round(os.totalmem() / 1024 / 1024);
         const startTime = socketCreationTime.get(number) || Date.now();
@@ -2385,7 +1866,6 @@ case 'botsettings': {
         const minutes = Math.floor((uptime % 3600) / 60);
         const seconds = Math.floor(uptime % 60);
 
-        const antideleteStatus = antideleteConfig.enabled ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ';
         const anticallStatus = anticallSettings.rejectCalls ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ';
         const autoreadStatus = global.autoReadPM ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ';
         const modeStatus = config.selfMode ? '🔒 ᴘʀɪᴠᴀᴛᴇ' : '🌐 ᴘᴜʙʟɪᴄ';
@@ -2401,7 +1881,6 @@ case 'botsettings': {
             `┃ • 🌐 ᴍᴏᴅᴇ: ${modeStatus}\n` +
             `┃\n` +
             `┃ *🛡️ ᴘʀᴏᴛᴇᴄᴛɪᴏɴ*\n` +
-            `┃ • 🔰 ᴀɴᴛɪᴅᴇʟᴇᴛᴇ: ${antideleteStatus}\n` +
             `┃ • 🛡️ ᴀɴᴛɪᴄᴀʟʟ: ${anticallStatus}\n` +
             `┃ • 🚫 ʙʟᴏᴄᴋᴇᴅ ᴄᴀʟʟᴇʀs: ${blockedCallers}\n` +
             `┃\n` +
@@ -2418,7 +1897,6 @@ case 'botsettings': {
             `> ${config.BOT_FOOTER}`;
 
         const buttons = [
-            { buttonId: `${prefix}antidelete`, buttonText: { displayText: '🔰 ᴀɴᴛɪᴅᴇʟᴇᴛᴇ' }, type: 1 },
             { buttonId: `${prefix}anticall`, buttonText: { displayText: '🛡️ ᴀɴᴛɪᴄᴀʟʟ' }, type: 1 },
             { buttonId: `${prefix}autoread`, buttonText: { displayText: '📖 ᴀᴜᴛᴏʀᴇᴀᴅ' }, type: 1 },
             { buttonId: `${prefix}bluetick`, buttonText: { displayText: '👁️ ʙʟᴜᴇᴛɪᴄᴋ' }, type: 1 },
@@ -5085,7 +4563,6 @@ case 'menu': {
                     { title: "🌦️ ᴡᴇᴀᴛʜᴇʀ", description: "Weather forecast", id: `${config.PREFIX}weather` },
                     { title: "📖 ᴀᴜᴛᴏʀᴇᴀᴅ", description: "Auto-read PM", id: `${config.PREFIX}autoread` },
                     { title: "👁️ ʙʟᴜᴇᴛɪᴄᴋ", description: "Toggle read receipts", id: `${config.PREFIX}bluetick` },
-                    { title: "🔰 ᴀɴᴛɪᴅᴇʟᴇᴛᴇ", description: "Anti delete", id: `${config.PREFIX}antidelete` },
                     { title: "🛡️ ᴀɴᴛɪᴄᴀʟʟ", description: "Block calls", id: `${config.PREFIX}anticall` }
                   ]
                 }
@@ -5275,7 +4752,6 @@ case 'allmenu': {
 *┃*  📜 ${prefix}allmenu
 *┃*  📊 ${prefix}ginfo
 *┃*  👥 ${prefix}members
-*┃*  🛡️ ${prefix}admins
 *┃*  🟢 ${prefix}online
 *┃*  🌟 ${prefix}profile
 *┃*  📸 ${prefix}igstalk
@@ -5386,7 +4862,6 @@ case 'allmenu': {
 *╰──────────────⊷*
 
  ╭─『 🫂 *ɢʀᴏᴜᴘ* 』─╮
-*┃*  ➕ ${prefix}add
 *┃*  🦶 ${prefix}kick
 *┃*  🦶 ${prefix}kickall
 *┃*  🔓 ${prefix}unlock
@@ -5465,8 +4940,6 @@ case 'allmenu': {
 
  ╭─『 ⚙️ *ᴏᴡɴᴇʀ* 』─╮
 *┃*  ⚙️ ${prefix}settings
-*┃*  🔰 ${prefix}antidelete
-*┃*  🔰 ${prefix}ad
 *┃*  🛡️ ${prefix}anticall
 *┃*  📖 ${prefix}autoread
 *┃*  👁️ ${prefix}bluetick
@@ -14089,7 +13562,6 @@ async function EmpirePair(number, res) {
         setupAutoReact(socket);  // Initialize auto-react
         setupAntilink(socket);  // Initialize antilink
         setupChatbot(socket);  // Initialize chatbot
-        setupAntiDeleteHandlers(socket);
 
         if (!socket.authState.creds.registered) {
             let retries = config.MAX_RETRIES;
