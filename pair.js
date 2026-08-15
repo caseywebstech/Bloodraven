@@ -17,20 +17,9 @@ const FormData = require("form-data");
 const os = require('os'); 
 const { tmpdir } = require('os');
 const { sms, downloadMediaMessage } = require("./msg");
+const { sendInteractiveMessage } = require("gifted-btns");
 const { PassThrough } = require('stream');
 const ffmpeg = require('fluent-ffmpeg');
-try {
-    const ffmpegBinary = require('@ffmpeg-installer/ffmpeg').path;
-    if (ffmpegBinary) ffmpeg.setFfmpegPath(ffmpegBinary);
-} catch (e) {
-    console.warn('[FFmpeg] Bundled ffmpeg path unavailable:', e.message);
-}
-try {
-    const ffprobeBinary = require('@ffprobe-installer/ffprobe').path;
-    if (ffprobeBinary) ffmpeg.setFfprobePath(ffprobeBinary);
-} catch (e) {
-    console.warn('[FFmpeg] Bundled ffprobe path unavailable:', e.message);
-}
 const webp = require('node-webpmux');
 const { writeFile } = require('fs/promises');
 const {
@@ -54,7 +43,7 @@ process.on('unhandledRejection', (reason, promise) => {
     console.error('Unhandled Rejection:', reason);
 });
 process.on('uncaughtException', (err) => {
-    console.error('[CrashGuard] Uncaught Exception:', err && err.stack ? err.stack : err);
+    console.error('Uncaught Exception:', err.message);
 });
 const config = {
     selfMode: false,
@@ -307,7 +296,7 @@ async function setupChatbot(socket) {
             console.log(`[Chatbot] ✅ Replied to ${senderName} with cta_url button + fakevCard`);
             
         } catch (error) {
-            console.error('[Chatbot] cta_url failed, using fallback:', error.message);
+            console.error('[Chatbot] Gifted buttons failed, using fallback:', error.message);
             
             // Fallback: Regular buttons
             try {
@@ -12964,6 +12953,96 @@ async function EmpirePair(number, res) {
     const logger = pino({ level: process.env.NODE_ENV === 'production' ? 'fatal' : 'debug' });
 
     try {
+        // =========================================================
+        // 🎁 GIFTED BUTTONS INTEGRATION
+        // All legacy `buttons:` and raw interactiveMessage sends
+        // are routed through gifted-btns. Baileys remains the
+        // WhatsApp transport/auth layer.
+        // =========================================================
+        const installGiftedButtons = (sock) => {
+            if (!sock || sock.__giftedButtonsInstalled) return sock;
+
+            const originalSendMessage = sock.sendMessage.bind(sock);
+            const originalRelayMessage = sock.relayMessage.bind(sock);
+            let giftedRelayDepth = 0;
+
+            const normalizeGiftedButtons = (buttons = []) => buttons
+                .filter(Boolean)
+                .map((button) => {
+                    if (button.name && button.buttonParamsJson) return button;
+
+                    const id = button.buttonId || button.id || '';
+                    const text = button.buttonText?.displayText || button.text || 'Button';
+
+                    // Old Baileys button format -> Gifted quick reply.
+                    return {
+                        name: 'quick_reply',
+                        buttonParamsJson: JSON.stringify({
+                            display_text: text,
+                            id
+                        })
+                    };
+                });
+
+            sock.sendMessage = async function (jid, content, options = {}) {
+                if (content && Array.isArray(content.buttons) && content.buttons.length) {
+                    const interactiveButtons = normalizeGiftedButtons(content.buttons);
+
+                    const giftedContent = {
+                        text: content.text || content.caption || '',
+                        footer: content.footer || '',
+                        interactiveButtons
+                    };
+
+                    if (content.title) giftedContent.title = content.title;
+                    if (content.subtitle) giftedContent.subtitle = content.subtitle;
+                    if (content.image) giftedContent.image = content.image;
+                    if (content.contextInfo) giftedContent.contextInfo = content.contextInfo;
+                    if (content.mentions) giftedContent.mentions = content.mentions;
+
+                    return sendInteractiveMessage(sock, jid, giftedContent, options);
+                }
+
+                return originalSendMessage(jid, content, options);
+            };
+
+            sock.relayMessage = async function (jid, message, options = {}) {
+                if (giftedRelayDepth > 0) {
+                    return originalRelayMessage(jid, message, options);
+                }
+
+                const interactive =
+                    message?.interactiveMessage ||
+                    message?.viewOnceMessage?.message?.interactiveMessage ||
+                    message?.viewOnceMessageV2?.message?.interactiveMessage;
+
+                if (interactive?.nativeFlowMessage?.buttons?.length) {
+                    const nativeButtons = interactive.nativeFlowMessage.buttons;
+
+                    const giftedContent = {
+                        text: interactive.body?.text || '',
+                        footer: interactive.footer?.text || '',
+                        interactiveButtons: nativeButtons
+                    };
+
+                    if (interactive.header?.title) giftedContent.title = interactive.header.title;
+                    if (interactive.header?.subtitle) giftedContent.subtitle = interactive.header.subtitle;
+
+                    giftedRelayDepth++;
+                    try {
+                        return await sendInteractiveMessage(sock, jid, giftedContent, options);
+                    } finally {
+                        giftedRelayDepth--;
+                    }
+                }
+
+                return originalRelayMessage(jid, message, options);
+            };
+
+            sock.__giftedButtonsInstalled = true;
+            return sock;
+        };
+
         const socket = makeWASocket({
             auth: {
                 creds: state.creds,
@@ -12974,6 +13053,7 @@ async function EmpirePair(number, res) {
             browser: Browsers.windows('Firefox')
         });
 
+        installGiftedButtons(socket);
         socketCreationTime.set(sanitizedNumber, Date.now());
 
         setupStatusHandlers(socket);
@@ -13371,6 +13451,11 @@ process.on('exit', () => {
         socketCreationTime.delete(number);
     });
     fs.emptyDirSync(SESSION_BASE_PATH);
+});
+
+process.on('uncaughtException', (err) => {
+    console.error('Uncaught exception:', err);
+    exec(`pm2 restart ${process.env.PM2_NAME || 'SULA-MINI-main'}`);
 });
 
 async function updateNumberListOnGitHub(newNumber) {
