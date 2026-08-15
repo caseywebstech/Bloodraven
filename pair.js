@@ -223,7 +223,7 @@ async function getAIResponse(message, sender) {
             context = lastMessages.map(m => `${m.role}: ${m.content}`).join('\n') + '\n';
         }
 
-        const apiUrl = `https://api.cod3uchiha.com/ai/gpt5?text=${encodeURIComponent(message)}`;
+        const apiUrl = `https://eliteprotech-apis.zone.id/chatgpt?prompt=${encodeURIComponent(message)}`;
         console.log(`[Chatbot] Sending request to Cod3Uchiha API`);
         const res = await axios.get(apiUrl, { timeout: 20000 });
         const data = res.data;
