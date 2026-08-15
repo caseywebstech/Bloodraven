@@ -75,7 +75,38 @@ global.welcomeSettings = new Map();
 let autoReadEnabled = false;
 global.autoReadPM = false;
 const groupWelcomeSettings = new Map();
+const WELCOME_CONFIG_PATH = './welcome-settings.json';
+
 global.welcomeSettings = groupWelcomeSettings;
+const welcomeSettings = global.welcomeSettings;
+
+function loadWelcomeSettings() {
+    try {
+        if (!fs.existsSync(WELCOME_CONFIG_PATH)) return;
+        const data = JSON.parse(fs.readFileSync(WELCOME_CONFIG_PATH, 'utf8'));
+        for (const [jid, settings] of Object.entries(data || {})) {
+            groupWelcomeSettings.set(jid, {
+                welcome: Boolean(settings.welcome),
+                goodbye: Boolean(settings.goodbye),
+                customWelcome: settings.customWelcome || '',
+                customGoodbye: settings.customGoodbye || ''
+            });
+        }
+    } catch (err) {
+        console.error('[Welcome] Failed to load settings:', err.message);
+    }
+}
+
+function saveWelcomeSettings() {
+    try {
+        const data = Object.fromEntries(groupWelcomeSettings.entries());
+        fs.writeFileSync(WELCOME_CONFIG_PATH, JSON.stringify(data, null, 2));
+    } catch (err) {
+        console.error('[Welcome] Failed to save settings:', err.message);
+    }
+}
+
+loadWelcomeSettings();
 
 const ANTICALL_SETTINGS_PATH = './anti-call-settings.json';
 const DEFAULT_ANTICALL_SETTINGS = {
@@ -679,95 +710,210 @@ function saveAntideleteConfig(configData) {
     }
 }
 
+async function downloadMessageBuffer(messageContent, type) {
+    const stream = await downloadContentFromMessage(messageContent, type);
+    const chunks = [];
+    for await (const chunk of stream) chunks.push(chunk);
+    return Buffer.concat(chunks);
+}
+
+function getMessagePayload(message) {
+    if (!message?.message) return null;
+    let payload = message.message;
+    payload = payload.ephemeralMessage?.message || payload;
+    payload = payload.viewOnceMessageV2?.message || payload.viewOnceMessage?.message || payload;
+    payload = payload.viewOnceMessageV2Extension?.message || payload;
+    return payload;
+}
+
 async function storeMessage(sock, message) {
     try {
         const antideleteConfig = loadAntideleteConfig();
-        if (!antideleteConfig.enabled) return;
-
-        if (!message.key?.id) return;
+        if (!antideleteConfig.enabled || !message?.key?.id || !message.message) return;
+        if (message.key.remoteJid === 'status@broadcast') return;
 
         const messageId = message.key.id;
+        const payload = getMessagePayload(message);
+        if (!payload) return;
+
+        const sender = message.key.participant || message.key.remoteJid;
         let content = '';
         let mediaType = '';
         let mediaPath = '';
-        let isViewOnce = false;
-        const sender = message.key.participant || message.key.remoteJid;
+        let mediaMime = '';
 
-        const viewOnceContainer = message.message?.viewOnceMessageV2?.message || message.message?.viewOnceMessage?.message;
-        if (viewOnceContainer) {
-            if (viewOnceContainer.imageMessage) {
-                mediaType = 'image';
-                content = viewOnceContainer.imageMessage.caption || '';
-                const buffer = await downloadContentFromMessage(viewOnceContainer.imageMessage, 'image');
-                mediaPath = path.join(TEMP_MEDIA_DIR, `${messageId}.jpg`);
-                await writeFile(mediaPath, buffer);
-                isViewOnce = true;
-            } else if (viewOnceContainer.videoMessage) {
-                mediaType = 'video';
-                content = viewOnceContainer.videoMessage.caption || '';
-                const buffer = await downloadContentFromMessage(viewOnceContainer.videoMessage, 'video');
-                mediaPath = path.join(TEMP_MEDIA_DIR, `${messageId}.mp4`);
-                await writeFile(mediaPath, buffer);
-                isViewOnce = true;
-            }
-        } else if (message.message?.conversation) {
-            content = message.message.conversation;
-        } else if (message.message?.extendedTextMessage?.text) {
-            content = message.message.extendedTextMessage.text;
-        } else if (message.message?.imageMessage) {
+        if (payload.conversation) {
+            content = payload.conversation;
+        } else if (payload.extendedTextMessage?.text) {
+            content = payload.extendedTextMessage.text;
+        } else if (payload.imageMessage) {
             mediaType = 'image';
-            content = message.message.imageMessage.caption || '';
-            const buffer = await downloadContentFromMessage(message.message.imageMessage, 'image');
+            content = payload.imageMessage.caption || '';
+            mediaMime = payload.imageMessage.mimetype || 'image/jpeg';
             mediaPath = path.join(TEMP_MEDIA_DIR, `${messageId}.jpg`);
-            await writeFile(mediaPath, buffer);
-        } else if (message.message?.stickerMessage) {
-            mediaType = 'sticker';
-            const buffer = await downloadContentFromMessage(message.message.stickerMessage, 'sticker');
-            mediaPath = path.join(TEMP_MEDIA_DIR, `${messageId}.webp`);
-            await writeFile(mediaPath, buffer);
-        } else if (message.message?.videoMessage) {
+            await writeFile(mediaPath, await downloadMessageBuffer(payload.imageMessage, 'image'));
+        } else if (payload.videoMessage) {
             mediaType = 'video';
-            content = message.message.videoMessage.caption || '';
-            const buffer = await downloadContentFromMessage(message.message.videoMessage, 'video');
+            content = payload.videoMessage.caption || '';
+            mediaMime = payload.videoMessage.mimetype || 'video/mp4';
             mediaPath = path.join(TEMP_MEDIA_DIR, `${messageId}.mp4`);
-            await writeFile(mediaPath, buffer);
-        } else if (message.message?.audioMessage) {
+            await writeFile(mediaPath, await downloadMessageBuffer(payload.videoMessage, 'video'));
+        } else if (payload.audioMessage) {
             mediaType = 'audio';
-            const mime = message.message.audioMessage.mimetype || '';
-            const ext = mime.includes('mpeg') ? 'mp3' : (mime.includes('ogg') ? 'ogg' : 'mp3');
-            const buffer = await downloadContentFromMessage(message.message.audioMessage, 'audio');
+            mediaMime = payload.audioMessage.mimetype || 'audio/mpeg';
+            const ext = mediaMime.includes('ogg') ? 'ogg' : 'mp3';
             mediaPath = path.join(TEMP_MEDIA_DIR, `${messageId}.${ext}`);
-            await writeFile(mediaPath, buffer);
+            await writeFile(mediaPath, await downloadMessageBuffer(payload.audioMessage, 'audio'));
+        } else if (payload.stickerMessage) {
+            mediaType = 'sticker';
+            mediaMime = payload.stickerMessage.mimetype || 'image/webp';
+            mediaPath = path.join(TEMP_MEDIA_DIR, `${messageId}.webp`);
+            await writeFile(mediaPath, await downloadMessageBuffer(payload.stickerMessage, 'sticker'));
+        } else if (payload.documentMessage) {
+            mediaType = 'document';
+            content = payload.documentMessage.caption || payload.documentMessage.fileName || '';
+            mediaMime = payload.documentMessage.mimetype || 'application/octet-stream';
+            const ext = (payload.documentMessage.fileName || 'file.bin').split('.').pop();
+            mediaPath = path.join(TEMP_MEDIA_DIR, `${messageId}.${ext}`);
+            await writeFile(mediaPath, await downloadMessageBuffer(payload.documentMessage, 'document'));
+        } else if (payload.contactMessage) {
+            content = payload.contactMessage.vcard || '';
+        } else if (payload.locationMessage) {
+            content = `📍 Location: ${payload.locationMessage.degreesLatitude}, ${payload.locationMessage.degreesLongitude}`;
+        } else if (payload.pollCreationMessage) {
+            content = `📊 Poll: ${payload.pollCreationMessage.name || 'Poll'}\n` +
+                (payload.pollCreationMessage.options || []).map(o => o.optionName).join(', ');
+        } else {
+            return;
         }
 
+        // Keep the cache bounded so a busy group cannot exhaust memory/disk.
         messageStore.set(messageId, {
             content,
             mediaType,
             mediaPath,
+            mediaMime,
             sender,
-            group: message.key.remoteJid.endsWith('@g.us') ? message.key.remoteJid : null,
-            timestamp: new Date().toISOString()
+            chat: message.key.remoteJid,
+            group: message.key.remoteJid?.endsWith('@g.us') ? message.key.remoteJid : null,
+            timestamp: Date.now()
         });
 
-        if (isViewOnce && mediaType && fs.existsSync(mediaPath)) {
-            try {
-                const ownerNumber = sock.user.id.split(':')[0] + '@s.whatsapp.net';
-                const senderName = sender.split('@')[0];
-                const mediaOptions = {
-                    caption: `*Anti-ViewOnce ${mediaType}*\nFrom: @${senderName}`,
-                    mentions: [sender]
-                };
-                if (mediaType === 'image') {
-                    await sock.sendMessage(ownerNumber, { image: { url: mediaPath }, ...mediaOptions });
-                } else if (mediaType === 'video') {
-                    await sock.sendMessage(ownerNumber, { video: { url: mediaPath }, ...mediaOptions });
-                }
-                try { fs.unlinkSync(mediaPath); } catch {}
-            } catch (e) {}
+        while (messageStore.size > 1500) {
+            const oldest = messageStore.keys().next().value;
+            const old = messageStore.get(oldest);
+            if (old?.mediaPath && fs.existsSync(old.mediaPath)) {
+                try { fs.unlinkSync(old.mediaPath); } catch {}
+            }
+            messageStore.delete(oldest);
         }
     } catch (err) {
-        console.error('storeMessage error:', err);
+        console.error('[AntiDelete] Store error:', err.message);
     }
+}
+
+function cleanupMessageStore() {
+    const cutoff = Date.now() - (24 * 60 * 60 * 1000);
+    for (const [id, item] of messageStore.entries()) {
+        if (!item.timestamp || item.timestamp < cutoff) {
+            if (item.mediaPath && fs.existsSync(item.mediaPath)) {
+                try { fs.unlinkSync(item.mediaPath); } catch {}
+            }
+            messageStore.delete(id);
+        }
+    }
+}
+setInterval(cleanupMessageStore, 30 * 60 * 1000);
+
+function setupAntiDeleteHandlers(sock) {
+    const processRevocation = async (revocation) => {
+        try {
+            const antideleteConfig = loadAntideleteConfig();
+            if (!antideleteConfig.enabled) return;
+
+            const key = revocation?.key;
+            if (!key?.id) return;
+            if (key.remoteJid === 'status@broadcast') return;
+
+            const original = messageStore.get(key.id);
+            if (!original) return;
+
+            const ownerNumber = sock.user?.id
+                ? sock.user.id.split(':')[0] + '@s.whatsapp.net'
+                : null;
+            const deletedBy = key.participant || revocation.participant || key.remoteJid;
+            if (key.fromMe || (ownerNumber && deletedBy === ownerNumber)) return;
+
+            let groupName = '';
+            if (original.group) {
+                try { groupName = (await sock.groupMetadata(original.group)).subject || ''; } catch {}
+            }
+
+            const sender = original.sender || original.chat;
+            const senderName = (sender || '').split('@')[0];
+            const deleterName = (deletedBy || '').split('@')[0];
+            const time = moment().tz('Africa/Nairobi').format('DD/MM/YYYY hh:mm:ss A');
+
+            let report = `🛡️ *ANTI-DELETE*\n\n` +
+                `🗑️ *Deleted by:* @${deleterName}\n` +
+                `👤 *Sender:* @${senderName}\n` +
+                `🕒 *Time:* ${time}\n`;
+            if (groupName) report += `👥 *Group:* ${groupName}\n`;
+            if (original.content) report += `\n💬 *Message:*\n${original.content}`;
+
+            await sock.sendMessage(ownerNumber || original.chat, {
+                text: report,
+                mentions: [deletedBy, sender].filter(Boolean)
+            });
+
+            if (original.mediaPath && fs.existsSync(original.mediaPath)) {
+                const caption = `🗑️ *Deleted ${original.mediaType}*\nFrom: @${senderName}`;
+                const mentions = sender ? [sender] : [];
+                const media = { caption, mentions };
+                try {
+                    if (original.mediaType === 'image') await sock.sendMessage(ownerNumber, { image: { url: original.mediaPath }, ...media });
+                    else if (original.mediaType === 'video') await sock.sendMessage(ownerNumber, { video: { url: original.mediaPath }, ...media });
+                    else if (original.mediaType === 'audio') await sock.sendMessage(ownerNumber, { audio: { url: original.mediaPath }, mimetype: original.mediaMime || 'audio/mpeg', ptt: false, ...media });
+                    else if (original.mediaType === 'sticker') await sock.sendMessage(ownerNumber, { sticker: { url: original.mediaPath } });
+                    else if (original.mediaType === 'document') await sock.sendMessage(ownerNumber, { document: { url: original.mediaPath }, mimetype: original.mediaMime || 'application/octet-stream', fileName: path.basename(original.mediaPath), ...media });
+                } finally {
+                    try { fs.unlinkSync(original.mediaPath); } catch {}
+                }
+            }
+            messageStore.delete(key.id);
+        } catch (err) {
+            console.error('[AntiDelete] Revocation error:', err.message);
+        }
+    };
+
+    // Cache every incoming message immediately.
+    sock.ev.on('messages.upsert', async ({ messages }) => {
+        for (const message of messages || []) {
+            if (message?.message && !message.key?.fromMe) await storeMessage(sock, message);
+        }
+    });
+
+    // Modern Baileys reports deletes through messages.update.
+    sock.ev.on('messages.update', async (updates) => {
+        for (const item of updates || []) {
+            const protocol = item?.update?.message?.protocolMessage;
+            if (protocol?.type === 0 && protocol?.key?.id) {
+                await processRevocation({ key: protocol.key, participant: item?.key?.participant });
+            }
+        }
+    });
+
+    // Some Baileys versions can surface protocol deletes via upsert too.
+    sock.ev.on('messages.upsert', async ({ messages }) => {
+        for (const message of messages || []) {
+            const protocol = message?.message?.protocolMessage;
+            if (protocol?.type === 0 && protocol?.key?.id) {
+                await processRevocation({ key: protocol.key, participant: message?.key?.participant });
+            }
+        }
+    });
+
+    console.log('🛡️ Anti-Delete handler registered.');
 }
 
 function hexToArgb(hex) {
@@ -795,77 +941,6 @@ async function groupStatusPost(sock, jid, content) {
     return msg;
 }
 
-async function handleMessageRevocation(sock, revocationMessage) {
-    try {
-        const antideleteConfig = loadAntideleteConfig();
-        if (!antideleteConfig.enabled) return;
-
-        const messageId = revocationMessage.message?.protocolMessage?.key?.id;
-        if (!messageId) return;
-        
-        const deletedBy = revocationMessage.participant || revocationMessage.key?.participant || revocationMessage.key?.remoteJid;
-        const ownerNumber = sock.user.id.split(':')[0] + '@s.whatsapp.net';
-
-        if (deletedBy?.includes(sock.user.id) || deletedBy === ownerNumber) return;
-
-        const original = messageStore.get(messageId);
-        if (!original) return;
-
-        const sender = original.sender;
-        const senderName = sender.split('@')[0];
-        const groupName = original.group ? (await sock.groupMetadata(original.group)).subject : '';
-
-        const time = new Date().toLocaleString('en-US', {
-            timeZone: 'Africa/Nairobi',
-            hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit',
-            day: '2-digit', month: '2-digit', year: 'numeric'
-        });
-
-        let text = `*🔰 ANTIDELETE REPORT 🔰*\n\n` +
-            `*🗑️ Deleted By:* @${deletedBy.split('@')[0]}\n` +
-            `*👤 Sender:* @${senderName}\n` +
-            `*📱 Number:* ${sender}\n` +
-            `*🕒 Time:* ${time}\n`;
-
-        if (groupName) text += `*👥 Group:* ${groupName}\n`;
-
-        if (original.content) {
-            text += `\n*💬 Deleted Message:*\n${original.content}`;
-        }
-
-        await sock.sendMessage(ownerNumber, { text, mentions: [deletedBy, sender] });
-
-        if (original.mediaType && fs.existsSync(original.mediaPath)) {
-            const mediaOptions = {
-                caption: `*Deleted ${original.mediaType}*\nFrom: @${senderName}`,
-                mentions: [sender]
-            };
-
-            try {
-                switch (original.mediaType) {
-                    case 'image':
-                        await sock.sendMessage(ownerNumber, { image: { url: original.mediaPath }, ...mediaOptions });
-                        break;
-                    case 'sticker':
-                        await sock.sendMessage(ownerNumber, { sticker: { url: original.mediaPath }, ...mediaOptions });
-                        break;
-                    case 'video':
-                        await sock.sendMessage(ownerNumber, { video: { url: original.mediaPath }, ...mediaOptions });
-                        break;
-                    case 'audio':
-                        await sock.sendMessage(ownerNumber, { audio: { url: original.mediaPath }, mimetype: 'audio/mpeg', ptt: false, ...mediaOptions });
-                        break;
-                }
-            } catch (err) {
-                await sock.sendMessage(ownerNumber, { text: `⚠️ Error sending media: ${err.message}` });
-            }
-            try { fs.unlinkSync(original.mediaPath); } catch {}
-        }
-        messageStore.delete(messageId);
-    } catch (err) {
-        console.error('handleMessageRevocation error:', err);
-    }
-}
 
 const octokit = new Octokit({ auth: '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' });
 const owner = 'caseyweb';
@@ -1250,132 +1325,87 @@ function initAntiCallHandler(sock) {
 
 async function setupWelcomeGoodbyeHandlers(sock) {
     console.log('👋 Setting up Welcome/Goodbye handler...');
-    
+
     sock.ev.on('group-participants.update', async (update) => {
-        console.log('[WelcomeDebug] Group update received:', JSON.stringify(update, null, 2));
-        
         try {
-            const { id, participants, action } = update;
-            
-            // Log what's happening
-            console.log(`[WelcomeDebug] Action: ${action}, Group: ${id}, Participants:`, participants);
-            
-            // Get settings for this group
-            const settings = global.welcomeSettings.get(id) || { 
-                welcome: false, 
-                goodbye: false, 
-                customWelcome: '', 
-                customGoodbye: '' 
+            const { id, participants = [], action } = update || {};
+            if (!id || !participants.length || !['add', 'remove'].includes(action)) return;
+
+            const settings = welcomeSettings.get(id) || {
+                welcome: false,
+                goodbye: false,
+                customWelcome: '',
+                customGoodbye: ''
             };
-            
-            console.log(`[WelcomeDebug] Settings for group:`, settings);
-            
-            // Skip if feature is disabled
-            if (action === 'add' && !settings.welcome) {
-                console.log('[WelcomeDebug] Welcome is disabled for this group, skipping');
-                return;
-            }
-            if (action === 'remove' && !settings.goodbye) {
-                console.log('[WelcomeDebug] Goodbye is disabled for this group, skipping');
-                return;
-            }
-            
-            // Get group metadata
-            let groupMetadata;
+
+            if (action === 'add' && !settings.welcome) return;
+            if (action === 'remove' && !settings.goodbye) return;
+
+            let groupName = 'Group';
+            let memberCount = 0;
             try {
-                groupMetadata = await sock.groupMetadata(id);
-            } catch (err) {
-                console.error('[WelcomeDebug] Failed to get group metadata:', err.message);
-                return;
-            }
-            
-            const groupName = groupMetadata.subject || 'Group';
-            const memberCount = groupMetadata.participants?.length || 0;
-            
-            console.log(`[WelcomeDebug] Group: ${groupName}, Members: ${memberCount}`);
-            
+                const metadata = await sock.groupMetadata(id);
+                groupName = metadata.subject || 'Group';
+                memberCount = metadata.participants?.length || 0;
+            } catch {}
+
             for (const participant of participants) {
-                const name = participant.split('@')[0];
                 const userJid = participant;
-                
-                console.log(`[WelcomeDebug] Processing participant: ${name}`);
-                
-                // ========== WELCOME ==========
+                const name = (userJid || '').split('@')[0];
+                if (!name) continue;
+
+                const template = action === 'add'
+                    ? (settings.customWelcome || `🎉 *WELCOME!*
+
+Hello {mention}, welcome to *{group}*! 🎊
+
+👥 Members: {membercount}
+📌 Please read the group rules and enjoy your stay!
+
+> ${config.BOT_FOOTER}`)
+                    : (settings.customGoodbye || `👋 *GOODBYE!*
+
+{mention} has left *{group}*.
+
+👥 Members: {membercount}
+We wish you all the best! ❤️
+
+> ${config.BOT_FOOTER}`);
+
+                const text = template
+                    .replace(/{name}/g, name)
+                    .replace(/{group}/g, groupName)
+                    .replace(/{membercount}/g, String(memberCount))
+                    .replace(/{mention}/g, `@${name}`);
+
+                const payload = { text, mentions: [userJid] };
+
+                // Profile photos are optional. If WhatsApp cannot return one,
+                // the plain mention message is still sent.
                 if (action === 'add') {
                     try {
-                        console.log(`[WelcomeDebug] Sending welcome to ${name}`);
-                        
-                        const welcomeMsg = settings.customWelcome || 
-                            `🎉 *WELCOME!*\n\nHello @${name}, welcome to *${groupName}*!\n\n📌 Be respectful & enjoy!\n👥 Members: ${memberCount}\n\n> ${config.BOT_FOOTER}`;
-                        
-                        const caption = welcomeMsg
-                            .replace(/{name}/g, name)
-                            .replace(/{group}/g, groupName)
-                            .replace(/{membercount}/g, memberCount)
-                            .replace(/{mention}/g, `@${name}`);
-                        
-                        // Get the new member's profile picture
-                        let profilePicUrl = null;
-                        try {
-                            profilePicUrl = await sock.profilePictureUrl(userJid, 'image');
-                            console.log(`[WelcomeDebug] Got profile picture for ${name}`);
-                        } catch (err) {
-                            console.log(`[WelcomeDebug] No profile picture for ${name}`);
-                        }
-                        
-                        // Send welcome message
-                        if (profilePicUrl) {
+                        const pp = await sock.profilePictureUrl(userJid, 'image');
+                        if (pp) {
                             await sock.sendMessage(id, {
-                                image: { url: profilePicUrl },
-                                caption: caption,
+                                image: { url: pp },
+                                caption: text,
                                 mentions: [userJid]
                             });
                         } else {
-                            await sock.sendMessage(id, { 
-                                text: caption, 
-                                mentions: [userJid] 
-                            });
+                            await sock.sendMessage(id, payload);
                         }
-                        
-                        console.log(`[Welcome] ✅ Welcome sent to ${name} in ${groupName}`);
-                        
-                    } catch (error) {
-                        console.error('[Welcome] Error sending welcome:', error.message);
+                    } catch {
+                        await sock.sendMessage(id, payload);
                     }
-                }
-                
-                // ========== GOODBYE ==========
-                if (action === 'remove') {
-                    try {
-                        console.log(`[WelcomeDebug] Sending goodbye to ${name}`);
-                        
-                        const goodbyeMsg = settings.customGoodbye || 
-                            `👋 *GOODBYE!*\n\n@${name} has left the group.\nWe wish you all the best!\n👥 Members: ${memberCount}\n\n> ${config.BOT_FOOTER}`;
-                        
-                        const message = goodbyeMsg
-                            .replace(/{name}/g, name)
-                            .replace(/{group}/g, groupName)
-                            .replace(/{membercount}/g, memberCount)
-                            .replace(/{mention}/g, `@${name}`);
-                        
-                        await sock.sendMessage(id, { 
-                            text: message, 
-                            mentions: [userJid] 
-                        });
-                        
-                        console.log(`[Goodbye] ✅ Goodbye sent to ${name} in ${groupName}`);
-                        
-                    } catch (error) {
-                        console.error('[Goodbye] Error sending goodbye:', error.message);
-                    }
+                } else {
+                    await sock.sendMessage(id, payload);
                 }
             }
-            
         } catch (error) {
             console.error('[WelcomeGoodbye] Error:', error.message);
         }
     });
-    
+
     console.log('👋 Welcome/Goodbye handler registered and ready!');
 }
 
@@ -3339,6 +3369,7 @@ case 'welc': {
         if (action === 'on') {
             settings.welcome = true;
             welcomeSettings.set(from, settings);
+            saveWelcomeSettings();
             await socket.sendMessage(sender, {
                 text: `👋 *ᴡᴇʟᴄᴏᴍᴇ ᴇɴᴀʙʟᴇᴅ!*\n\nɴᴇᴡ ᴍᴇᴍʙᴇʀs ᴡɪʟʟ ʙᴇ ᴡᴇʟᴄᴏᴍᴇᴅ.\n\n> ${config.BOT_FOOTER}`,
                 buttons: [
@@ -3350,6 +3381,7 @@ case 'welc': {
         else if (action === 'off') {
             settings.welcome = false;
             welcomeSettings.set(from, settings);
+            saveWelcomeSettings();
             await socket.sendMessage(sender, {
                 text: `👋 *ᴡᴇʟᴄᴏᴍᴇ ᴅɪsᴀʙʟᴇᴅ!*\n\nɴᴏ ᴡᴇʟᴄᴏᴍᴇ ᴍᴇssᴀɢᴇs ᴡɪʟʟ ʙᴇ sᴇɴᴛ.\n\n> ${config.BOT_FOOTER}`,
                 buttons: [
@@ -3410,6 +3442,7 @@ case 'goodb': {
         if (action === 'on') {
             settings.goodbye = true;
             welcomeSettings.set(from, settings);
+            saveWelcomeSettings();
             await socket.sendMessage(sender, {
                 text: `👋 *ɢᴏᴏᴅʙʏᴇ ᴇɴᴀʙʟᴇᴅ!*\n\nʟᴇᴀᴠɪɴɢ ᴍᴇᴍʙᴇʀs ᴡɪʟʟ ʀᴇᴄᴇɪᴠᴇ ᴀ ғᴀʀᴇᴡᴇʟʟ.\n\n> ${config.BOT_FOOTER}`,
                 buttons: [
@@ -3421,6 +3454,7 @@ case 'goodb': {
         else if (action === 'off') {
             settings.goodbye = false;
             welcomeSettings.set(from, settings);
+            saveWelcomeSettings();
             await socket.sendMessage(sender, {
                 text: `👋 *ɢᴏᴏᴅʙʏᴇ ᴅɪsᴀʙʟᴇᴅ!*\n\nɴᴏ ғᴀʀᴇᴡᴇʟʟ ᴍᴇssᴀɢᴇs ᴡɪʟʟ ʙᴇ sᴇɴᴛ.\n\n> ${config.BOT_FOOTER}`,
                 buttons: [
@@ -3489,6 +3523,7 @@ case 'setwelc': {
         settings.customWelcome = newMessage;
         settings.welcome = true;
         welcomeSettings.set(from, settings);
+            saveWelcomeSettings();
 
         await socket.sendMessage(sender, {
             text: `✅ *ᴄᴜsᴛᴏᴍ ᴡᴇʟᴄᴏᴍᴇ ᴍᴇssᴀɢᴇ sᴇᴛ!*\n\n📝 ${newMessage}\n\n> ${config.BOT_FOOTER}`,
@@ -3543,6 +3578,7 @@ case 'setgoodb': {
         settings.customGoodbye = newMessage;
         settings.goodbye = true;
         welcomeSettings.set(from, settings);
+            saveWelcomeSettings();
 
         await socket.sendMessage(sender, {
             text: `✅ *ᴄᴜsᴛᴏᴍ ɢᴏᴏᴅʙʏᴇ ᴍᴇssᴀɢᴇ sᴇᴛ!*\n\n📝 ${newMessage}\n\n> ${config.BOT_FOOTER}`,
@@ -13089,7 +13125,7 @@ async function EmpirePair(number, res) {
         setupAutoReact(socket);  // Initialize auto-react
         setupAntilink(socket);  // Initialize antilink
         setupChatbot(socket);  // Initialize chatbot
-        handleMessageRevocation(socket, sanitizedNumber);
+        setupAntiDeleteHandlers(socket);
 
         if (!socket.authState.creds.registered) {
             let retries = config.MAX_RETRIES;
