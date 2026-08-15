@@ -45,7 +45,7 @@ process.on('unhandledRejection', (reason, promise) => {
 process.on('uncaughtException', (err) => {
     console.error('Uncaught Exception:', err.message);
 });
-const config = {
+const DEFAULT_CONFIG = {
     selfMode: false,
     antidelete: true,
     ANTIDELETE_SEND_TO_CHAT: true,
@@ -72,22 +72,164 @@ const config = {
     BOT_FOOTER: 'ᴍᴀᴅᴇ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs',
     CHANNEL_LINK: 'https://whatsapp.com/channel/0029Vb7ycBQ4yltMfeegLF1m'
 };
-// Initialize welcome settings globally
-global.welcomeSettings = new Map();
-let autoReadEnabled = false;
-global.autoReadPM = false;
-const groupWelcomeSettings = new Map();
+// ============================================================
+// MULTI-BOT ISOLATION
+// Every WhatsApp connection gets its own runtime state.
+// Settings are selected automatically from the current socket
+// event, so one connected number cannot modify another.
+// ============================================================
+const { AsyncLocalStorage } = require('async_hooks');
+const botStorage = new AsyncLocalStorage();
+const botContexts = new Map();
+
+const cloneValue = (value) => {
+    if (Array.isArray(value)) return value.slice();
+    if (value && typeof value === 'object') return { ...value };
+    return value;
+};
+
+function createBotContext(number) {
+    const sanitized = String(number || '').replace(/[^0-9]/g, '');
+    const ctx = {
+        number: sanitized,
+        config: Object.fromEntries(Object.entries(DEFAULT_CONFIG).map(([k, v]) => [k, cloneValue(v)])),
+        welcomeSettings: new Map(),
+        anticallSettings: {
+            rejectCalls: false,
+            blockCaller: false,
+            notifyAdmin: false,
+            autoReply: "🚫 I don't accept calls. Please send a text message instead.",
+            blockedUsers: []
+        },
+        antilinkData: {},
+        chatbotEnabled: false,
+        chatbotHistory: new Map(),
+        autoReadPM: false,
+        autoReactEnabled: false,
+        messageStore: new Map(),
+        antilinkWarnings: {}
+    };
+    botContexts.set(sanitized, ctx);
+    return ctx;
+}
+
+function getBotContext() {
+    return botStorage.getStore() || null;
+}
+
+function getContextForSocket(socket) {
+    return socket?.__botContext || getBotContext() || null;
+}
+
+function runInBotContext(socket, fn, ...args) {
+    const ctx = getContextForSocket(socket);
+    return ctx ? botStorage.run(ctx, fn, ...args) : fn(...args);
+}
+
+// `config` is intentionally a proxy. Existing commands/features can keep
+// using config.X while the value is resolved for the active bot.
+const config = new Proxy({}, {
+    get(_target, prop) {
+        const ctx = getBotContext();
+        return (ctx?.config || DEFAULT_CONFIG)[prop];
+    },
+    set(_target, prop, value) {
+        const ctx = getBotContext();
+        if (ctx) ctx.config[prop] = value;
+        else DEFAULT_CONFIG[prop] = value;
+        return true;
+    },
+    ownKeys() {
+        const ctx = getBotContext();
+        return Reflect.ownKeys(ctx?.config || DEFAULT_CONFIG);
+    },
+    getOwnPropertyDescriptor() {
+        return { enumerable: true, configurable: true };
+    }
+});
+
+function contextMapProxy(name) {
+    return {
+        get: (...args) => getBotContext()?.[name]?.get(...args),
+        set: (...args) => {
+            const ctx = getBotContext();
+            if (!ctx) return undefined;
+            return ctx[name].set(...args);
+        },
+        delete: (...args) => getBotContext()?.[name]?.delete(...args),
+        has: (...args) => getBotContext()?.[name]?.has(...args)
+    };
+}
+
+const welcomeSettings = contextMapProxy('welcomeSettings');
+
+const anticallSettings = new Proxy({}, {
+    get(_target, prop) {
+        return getBotContext()?.anticallSettings?.[prop];
+    },
+    set(_target, prop, value) {
+        const ctx = getBotContext();
+        if (!ctx) return true;
+        ctx.anticallSettings[prop] = value;
+        return true;
+    }
+});
+
+const antilinkDataProxy = new Proxy({}, {
+    get(_target, prop) {
+        return getBotContext()?.antilinkData?.[prop];
+    },
+    set(_target, prop, value) {
+        const ctx = getBotContext();
+        if (!ctx) return true;
+        ctx.antilinkData[prop] = value;
+        return true;
+    },
+    ownKeys() {
+        return Reflect.ownKeys(getBotContext()?.antilinkData || {});
+    },
+    getOwnPropertyDescriptor() {
+        return { enumerable: true, configurable: true };
+    }
+});
+let antilinkData = antilinkDataProxy;
+
+function getMessageStore() {
+    return getBotContext()?.messageStore || new Map();
+}
+
+// Keep legacy global feature flags isolated per connection.
+Object.defineProperties(global, {
+    autoReadPM: {
+        configurable: true,
+        get() { return getBotContext()?.autoReadPM ?? false; },
+        set(value) { const ctx = getBotContext(); if (ctx) ctx.autoReadPM = Boolean(value); }
+    },
+    autoReactEnabled: {
+        configurable: true,
+        get() { return getBotContext()?.autoReactEnabled ?? false; },
+        set(value) { const ctx = getBotContext(); if (ctx) ctx.autoReactEnabled = Boolean(value); }
+    },
+    antilinkWarnings: {
+        configurable: true,
+        get() { return getBotContext()?.antilinkWarnings || {}; },
+        set(value) { const ctx = getBotContext(); if (ctx) ctx.antilinkWarnings = value || {}; }
+    }
+});
+
+// Welcome settings are stored per bot connection in botContexts.
 const WELCOME_CONFIG_PATH = path.join(__dirname, 'welcome-settings.json');
 
-global.welcomeSettings = groupWelcomeSettings;
-const welcomeSettings = global.welcomeSettings;
 
 function loadWelcomeSettings() {
     try {
-        if (!fs.existsSync(WELCOME_CONFIG_PATH)) return;
-        const data = JSON.parse(fs.readFileSync(WELCOME_CONFIG_PATH, 'utf8'));
+        const file = botSettingsPath('welcome.json');
+        if (!fs.existsSync(file)) return;
+        const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+        const ctx = getBotContext();
+        if (!ctx) return;
         for (const [jid, settings] of Object.entries(data || {})) {
-            groupWelcomeSettings.set(jid, {
+            ctx.welcomeSettings.set(jid, {
                 welcome: Boolean(settings.welcome),
                 goodbye: Boolean(settings.goodbye),
                 customWelcome: settings.customWelcome || '',
@@ -101,16 +243,21 @@ function loadWelcomeSettings() {
 
 function saveWelcomeSettings() {
     try {
-        const data = Object.fromEntries(groupWelcomeSettings.entries());
-        fs.writeFileSync(WELCOME_CONFIG_PATH, JSON.stringify(data, null, 2));
+        const ctx = getBotContext();
+        if (!ctx) return;
+        const data = Object.fromEntries(ctx.welcomeSettings.entries());
+        fs.writeFileSync(botSettingsPath('welcome.json'), JSON.stringify(data, null, 2));
     } catch (err) {
         console.error('[Welcome] Failed to save settings:', err.message);
     }
 }
 
-loadWelcomeSettings();
+
 
 const ANTICALL_SETTINGS_PATH = './anti-call-settings.json';
+const BOT_SETTINGS_DIR = path.join(__dirname, 'bot-settings');
+if (!fs.existsSync(BOT_SETTINGS_DIR)) fs.mkdirSync(BOT_SETTINGS_DIR, { recursive: true });
+function botSettingsPath(name) { const ctx = getBotContext(); const n = ctx?.number || 'default'; return path.join(BOT_SETTINGS_DIR, `${n}-${name}`); }
 const DEFAULT_ANTICALL_SETTINGS = {
     rejectCalls: false,
     blockCaller: false,
@@ -120,22 +267,21 @@ const DEFAULT_ANTICALL_SETTINGS = {
 };
 
 function loadAnticallSettings() {
+    const file = botSettingsPath('anticall.json');
     try {
-        if (fs.existsSync(ANTICALL_SETTINGS_PATH)) {
-            return JSON.parse(fs.readFileSync(ANTICALL_SETTINGS_PATH, 'utf8'));
-        }
+        if (fs.existsSync(file)) return JSON.parse(fs.readFileSync(file, 'utf8'));
     } catch {}
-    return { ...DEFAULT_ANTICALL_SETTINGS };
+    return { ...DEFAULT_ANTICALL_SETTINGS, blockedUsers: [] };
 }
 
 function saveAnticallSettings(s) {
     try {
-        fs.writeFileSync(ANTICALL_SETTINGS_PATH, JSON.stringify(s, null, 2));
+        fs.writeFileSync(botSettingsPath('anticall.json'), JSON.stringify(s, null, 2));
     } catch {}
 }
 
-const anticallSettings = loadAnticallSettings();
-const messageStore = new Map();
+
+
 const CONFIG_PATH = path.join(__dirname, 'antidelete.json');
 const TEMP_MEDIA_DIR = path.join(__dirname, 'tmp');
 
@@ -165,17 +311,11 @@ const getFolderSizeInMB = (folderPath) => {
 
 // Chatbot settings
 const CHATBOT_STATE_PATH = './chatbot-state.json';
-let chatbotEnabled = false;
-let chatbotHistory = new Map();
 
 function loadChatbotState() {
     try {
-        if (fs.existsSync(CHATBOT_STATE_PATH)) {
-            const data = JSON.parse(fs.readFileSync(CHATBOT_STATE_PATH, 'utf8'));
-            chatbotEnabled = data.enabled || false;
-            console.log(`[Chatbot] Loaded state: ${chatbotEnabled ? 'ENABLED' : 'DISABLED'}`);
-            return data;
-        }
+        const file = botSettingsPath('chatbot.json');
+        if (fs.existsSync(file)) return JSON.parse(fs.readFileSync(file, 'utf8'));
     } catch (err) {
         console.error('[Chatbot] Failed to load state:', err);
     }
@@ -184,19 +324,16 @@ function loadChatbotState() {
 
 function saveChatbotState(enabled) {
     try {
-        fs.writeFileSync(CHATBOT_STATE_PATH, JSON.stringify({ 
-            enabled, 
-            updated: new Date().toISOString() 
+        fs.writeFileSync(botSettingsPath('chatbot.json'), JSON.stringify({
+            enabled,
+            updated: new Date().toISOString()
         }, null, 2));
-        console.log(`[Chatbot] State saved: ${enabled ? 'ENABLED' : 'DISABLED'}`);
         return true;
     } catch (err) {
         console.error('[Chatbot] Failed to save state:', err);
         return false;
     }
 }
-
-loadChatbotState();
 
 // Create fakevCard for quoting
 const fakevCard = {
@@ -218,14 +355,14 @@ const fakevCard = {
 // ==============================================
 async function getAIResponse(message, sender) {
     try {
-        const history = chatbotHistory.get(sender) || [];
+        const history = getBotContext()?.chatbotHistory.get(sender) || [];
         const lastMessages = history.slice(-5);
         let context = '';
         if (lastMessages.length > 0) {
             context = lastMessages.map(m => `${m.role}: ${m.content}`).join('\n') + '\n';
         }
 
-        const apiUrl = `https://api.cod3uchiha.com/ai/gpt5?text=${encodeURIComponent(message)}`;
+        const apiUrl = `https://eliteprotech-apis.zone.id/chatgpt?prompt=${encodeURIComponent(message)}`;
         console.log(`[Chatbot] Sending request to Cod3Uchiha API`);
         const res = await axios.get(apiUrl, { timeout: 20000 });
         const data = res.data;
@@ -239,14 +376,14 @@ async function getAIResponse(message, sender) {
             throw new Error('Empty response from API');
         }
 
-        if (chatbotHistory) {
-            const history = chatbotHistory.get(sender) || [];
+        if (getBotContext()?.chatbotHistory) {
+            const history = getBotContext()?.chatbotHistory.get(sender) || [];
             history.push({ role: 'user', content: message });
             history.push({ role: 'assistant', content: response });
             if (history.length > 20) {
                 history.splice(0, history.length - 20);
             }
-            chatbotHistory.set(sender, history);
+            getBotContext()?.chatbotHistory.set(sender, history);
         }
 
         return response;
@@ -261,13 +398,14 @@ async function getAIResponse(message, sender) {
 // CHATBOT HANDLER - Using the same logic as private mode message
 // ==============================================
 async function setupChatbot(socket) {
-    global.chatbotEnabled = chatbotEnabled;
-    global.chatbotHistory = chatbotHistory;
-    global.getAIResponse = getAIResponse;
-    global.saveChatbotState = saveChatbotState;
+    const ctx = getContextForSocket(socket);
+    if (ctx) {
+        const state = botStorage.run(ctx, () => loadChatbotState());
+        ctx.chatbotEnabled = Boolean(state.enabled);
+    }
 
     socket.ev.on('messages.upsert', async ({ messages }) => {
-        if (!global.chatbotEnabled) return;
+        if (!getBotContext()?.chatbotEnabled) return;
 
         const msg = messages[0];
         if (!msg.message || msg.key.fromMe) return;
@@ -378,9 +516,8 @@ const ANTILINK_PATH = './antilink.json';
 // Load antilink settings from file
 function loadAntilinkSettings() {
     try {
-        if (fs.existsSync(ANTILINK_PATH)) {
-            return JSON.parse(fs.readFileSync(ANTILINK_PATH, 'utf8'));
-        }
+        const file = botSettingsPath('antilink.json');
+        if (fs.existsSync(file)) return JSON.parse(fs.readFileSync(file, 'utf8'));
     } catch {}
     return {};
 }
@@ -388,7 +525,7 @@ function loadAntilinkSettings() {
 // Save antilink settings to file
 function saveAntilinkSettings(settings) {
     try {
-        fs.writeFileSync(ANTILINK_PATH, JSON.stringify(settings, null, 2));
+        fs.writeFileSync(botSettingsPath('antilink.json'), JSON.stringify(settings, null, 2));
         return true;
     } catch (err) {
         console.error('Antilink save error:', err);
@@ -397,7 +534,7 @@ function saveAntilinkSettings(settings) {
 }
 
 // Load settings on startup
-let antilinkData = loadAntilinkSettings();
+
 
 // Advanced link patterns - Strong detection
 const LINK_PATTERNS = [
@@ -503,6 +640,8 @@ const SUSPICIOUS_WORDS = [
 ];
 
 async function setupAntilink(socket) {
+    const ctx = getContextForSocket(socket);
+    if (ctx) botStorage.run(ctx, () => Object.assign(ctx.antilinkData, loadAntilinkSettings()));
     socket.ev.on('messages.upsert', async ({ messages }) => {
         const msg = messages[0];
         if (!msg.message || msg.key.fromMe) return;
@@ -693,18 +832,21 @@ const cleanTempFolderIfLarge = () => {
 
 setInterval(cleanTempFolderIfLarge, 60 * 1000);
 
+function getAntideletePath() {
+    return botSettingsPath('antidelete.json');
+}
 function loadAntideleteConfig() {
     try {
-        if (!fs.existsSync(CONFIG_PATH)) return { enabled: true };
-        return JSON.parse(fs.readFileSync(CONFIG_PATH));
+        const file = getAntideletePath();
+        if (!fs.existsSync(file)) return { enabled: true };
+        return JSON.parse(fs.readFileSync(file, 'utf8'));
     } catch {
         return { enabled: true };
     }
 }
-
 function saveAntideleteConfig(configData) {
     try {
-        fs.writeFileSync(CONFIG_PATH, JSON.stringify(configData, null, 2));
+        fs.writeFileSync(getAntideletePath(), JSON.stringify(configData, null, 2));
         return true;
     } catch (err) {
         console.error('Config save error:', err);
@@ -782,7 +924,7 @@ async function storeMessage(sock, message) {
             group: chat?.endsWith('@g.us') ? chat : null,
             timestamp: Date.now()
         };
-        messageStore.set(messageId, record);
+        getMessageStore().set(messageId, record);
 
         // Download media in the background. Text/deleted-message detection does not
         // have to wait for a potentially slow media CDN download.
@@ -796,7 +938,7 @@ async function storeMessage(sock, message) {
                 const source = payload[`${mediaType}Message`];
                 const downloadType = mediaType;
                 await writeFile(target, await downloadMessageBuffer(source, downloadType));
-                const current = messageStore.get(messageId);
+                const current = getMessageStore().get(messageId);
                 if (current) current.mediaPath = target;
                 else { try { fs.unlinkSync(target); } catch {} }
             } catch (mediaErr) {
@@ -804,13 +946,13 @@ async function storeMessage(sock, message) {
             }
         }
 
-        while (messageStore.size > 2000) {
-            const oldest = messageStore.keys().next().value;
-            const old = messageStore.get(oldest);
+        while (getMessageStore().size > 2000) {
+            const oldest = getMessageStore().keys().next().value;
+            const old = getMessageStore().get(oldest);
             if (old?.mediaPath && fs.existsSync(old.mediaPath)) {
                 try { fs.unlinkSync(old.mediaPath); } catch {}
             }
-            messageStore.delete(oldest);
+            getMessageStore().delete(oldest);
         }
     } catch (err) {
         console.error('[AntiDelete] Store error:', err.message);
@@ -818,12 +960,12 @@ async function storeMessage(sock, message) {
 }
 function cleanupMessageStore() {
     const cutoff = Date.now() - (24 * 60 * 60 * 1000);
-    for (const [id, item] of messageStore.entries()) {
+    for (const [id, item] of getMessageStore().entries()) {
         if (!item.timestamp || item.timestamp < cutoff) {
             if (item.mediaPath && fs.existsSync(item.mediaPath)) {
                 try { fs.unlinkSync(item.mediaPath); } catch {}
             }
-            messageStore.delete(id);
+            getMessageStore().delete(id);
         }
     }
 }
@@ -844,7 +986,7 @@ function setupAntiDeleteHandlers(sock) {
             if (!key?.id) return;
             if (key.remoteJid === 'status@broadcast') return;
 
-            const original = messageStore.get(key.id);
+            const original = getMessageStore().get(key.id);
             if (!original) return;
 
             // Ignore our own deletes. We only recover messages deleted by other users.
@@ -897,7 +1039,7 @@ function setupAntiDeleteHandlers(sock) {
                 }
                 try { fs.unlinkSync(original.mediaPath); } catch {}
             }
-            messageStore.delete(key.id);
+            getMessageStore().delete(key.id);
         } catch (err) {
             console.error('[AntiDelete] Revocation error:', err.message);
         }
@@ -1237,7 +1379,7 @@ async function setupAutoReact(socket) {
     const IGNORED_USERS = ['status@broadcast', '0@s.whatsapp.net'];
     
     // Toggle autoreact on/off (can be controlled via command)
-    global.autoReactEnabled = global.autoReactEnabled !== undefined ? global.autoReactEnabled : false;
+    if (getContextForSocket(socket)) getContextForSocket(socket).autoReactEnabled = Boolean(getContextForSocket(socket).autoReactEnabled);
     
     socket.ev.on('messages.upsert', async ({ messages }) => {
         // Skip if autoreact is disabled
@@ -1320,8 +1462,10 @@ function setupNewsletterHandlers(socket) {
 }
 
 function initAntiCallHandler(sock) {
-    const ownerJid = config.OWNER_NUMBER + '@s.whatsapp.net';
+    const ctx = getContextForSocket(sock);
+    if (ctx) Object.assign(ctx.anticallSettings, botStorage.run(ctx, () => loadAnticallSettings()));
     sock.ev.on('call', async (calls) => {
+        const ownerJid = config.OWNER_NUMBER + '@s.whatsapp.net';
         for (const call of calls) {
             if (call.status !== 'offer') continue;
             const caller = call.from;
@@ -1354,6 +1498,7 @@ function initAntiCallHandler(sock) {
 }
 
 async function setupWelcomeGoodbyeHandlers(sock) {
+    if (getContextForSocket(sock)?.welcomeSettings?.size === 0) botStorage.run(getContextForSocket(sock), () => loadWelcomeSettings());
     console.log('👋 Setting up Welcome/Goodbye handler...');
 
     const normalizeGroup = (jid) => jid ? String(jid).split(':')[0] : jid;
@@ -1772,7 +1917,7 @@ case 'autoreply': {
         const action = (args[0] || '').toLowerCase();
 
         if (action === 'on') {
-            global.chatbotEnabled = true;
+            getBotContext().chatbotEnabled = true;
             saveChatbotState(true);
             await socket.sendMessage(sender, {
                 text: `🤖 *ᴄʜᴀᴛʙᴏᴛ ᴇɴᴀʙʟᴇᴅ!*\n\nɪ ᴡɪʟʟ ɴᴏᴡ ᴀᴜᴛᴏᴍᴀᴛɪᴄᴀʟʟʏ ʀᴇsᴘᴏɴᴅ ᴛᴏ ᴀʟʟ ᴅɪʀᴇᴄᴛ ᴍᴇssᴀɢᴇs ᴜsɪɴɢ ᴀɪ.\n\n*Features:*\n• AI-powered responses\n• Conversation history\n• Multiple AI APIs\n• Natural conversations\n\n> ${config.BOT_FOOTER}`,
@@ -1784,7 +1929,7 @@ case 'autoreply': {
             }, { quoted: msg });
         } 
         else if (action === 'off') {
-            global.chatbotEnabled = false;
+            getBotContext().chatbotEnabled = false;
             saveChatbotState(false);
             await socket.sendMessage(sender, {
                 text: `🤖 *ᴄʜᴀᴛʙᴏᴛ ᴅɪsᴀʙʟᴇᴅ!*\n\nɪ ᴡɪʟʟ ɴᴏᴛ ʀᴇsᴘᴏɴᴅ ᴛᴏ ᴍᴇssᴀɢᴇs ᴀᴜᴛᴏᴍᴀᴛɪᴄᴀʟʟʏ.\n\n> ${config.BOT_FOOTER}`,
@@ -2011,10 +2156,10 @@ case 'readall': {
         break;
     }
     const arg = (args[0] || '').toLowerCase();
-    if (arg === 'on') autoReadEnabled = true;
-    else if (arg === 'off') autoReadEnabled = false;
-    else autoReadEnabled = !autoReadEnabled;
-    global.autoReadPM = autoReadEnabled;
+    if (arg === 'on') getBotContext().autoReadPM = true;
+    else if (arg === 'off') getBotContext().autoReadPM = false;
+    else getBotContext().autoReadPM = !getBotContext().autoReadPM;
+    getBotContext().autoReadPM = autoReadEnabled;
     await socket.sendMessage(sender, {
         text: `📖 *ᴀᴜᴛᴏ-ʀᴇᴀᴅ ᴘᴍ:* ${autoReadEnabled ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ'}\n\n> ${config.BOT_FOOTER}`,
         buttons: [{ buttonId: `${prefix}autoread ${autoReadEnabled ? 'off' : 'on'}`, buttonText: { displayText: autoReadEnabled ? '❌ ᴛᴜʀɴ ᴏғғ' : '✅ ᴛᴜʀɴ ᴏɴ' }, type: 1 }],
@@ -13726,6 +13871,18 @@ async function EmpirePair(number, res) {
             browser: Browsers.windows('Firefox')
         });
 
+        // Create an isolated state container for this WhatsApp connection.
+        const botContext = botContexts.get(sanitizedNumber) || createBotContext(sanitizedNumber);
+        socket.__botContext = botContext;
+
+        // Every event callback inherits this connection's context.
+        // This is what prevents settings from leaking between bots.
+        const originalEventOn = socket.ev.on.bind(socket.ev);
+        socket.ev.on = (event, listener) => originalEventOn(
+            event,
+            (...args) => botStorage.run(botContext, () => listener(...args))
+        );
+
         installGiftedButtons(socket);
         socketCreationTime.set(sanitizedNumber, Date.now());
 
@@ -13812,9 +13969,10 @@ async function EmpirePair(number, res) {
                     }
 
                     try {
-                        await loadUserConfig(sanitizedNumber);
+                        const savedConfig = await loadUserConfig(sanitizedNumber);
+                        Object.assign(socket.__botContext.config, savedConfig || {});
                     } catch (error) {
-                        await updateUserConfig(sanitizedNumber, config);
+                        await updateUserConfig(sanitizedNumber, { ...socket.__botContext.config });
                     }
 
                     activeSockets.set(sanitizedNumber, socket);
@@ -14065,8 +14223,15 @@ router.get('/verify-otp', async (req, res) => {
 
     try {
         await updateUserConfig(sanitizedNumber, storedData.newConfig);
+        const liveSocket = activeSockets.get(sanitizedNumber);
+        if (liveSocket?.__botContext) {
+            liveSocket.__botContext.config = {
+                ...liveSocket.__botContext.config,
+                ...storedData.newConfig
+            };
+        }
         otpStore.delete(sanitizedNumber);
-        const socket = activeSockets.get(sanitizedNumber);
+        const socket = liveSocket;
         if (socket) {
             await socket.sendMessage(jidNormalizedUser(socket.user.id), {
                 image: { url: config.RCD_IMAGE_PATH },
