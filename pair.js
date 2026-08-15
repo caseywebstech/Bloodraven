@@ -7011,6 +7011,379 @@ case 'play': {
     break;
 }
   
+case 'video': {
+    try {
+        await socket.sendMessage(sender, {
+            react: { text: '🎬', key: msg.key }
+        });
+
+        const yts = require('yt-search');
+
+        const q = msg.message?.conversation ||
+                  msg.message?.extendedTextMessage?.text ||
+                  msg.message?.imageMessage?.caption ||
+                  msg.message?.videoMessage?.caption || '';
+
+        const query = q.split(' ').slice(1).join(' ').trim();
+
+        if (!query) {
+            return await socket.sendMessage(sender, {
+                text: `🎬 *ᴠɪᴅᴇᴏ ᴘʟᴀʏᴇʀ*
+
+ᴘʟᴇᴀsᴇ ᴘʀᴏᴠɪᴅᴇ ᴀ ᴠɪᴅᴇᴏ ɴᴀᴍᴇ.
+
+*ᴜsᴀɢᴇ:* \`${prefix}video <video name>\`
+
+*ᴇxᴀᴍᴘʟᴇ:*
+\`${prefix}video Funny Cats\`
+\`${prefix}video Music Video\`
+
+> ${config.BOT_FOOTER}`,
+                quoted: msg
+            });
+        }
+
+        console.log('[VIDEO] Searching YouTube for:', query);
+
+        const search = await yts(query);
+        const video = search?.videos?.[0];
+
+        if (!video) {
+            return await socket.sendMessage(sender, {
+                text: `❌ *ɴᴏ ʀᴇsᴜʟᴛs*
+
+ɴᴏ ᴠɪᴅᴇᴏs ғᴏᴜɴᴅ. ᴛʀʏ ᴅɪғғᴇʀᴇɴᴛ ᴋᴇʏᴡᴏʀᴅs.
+
+> ${config.BOT_FOOTER}`,
+                quoted: msg
+            });
+        }
+
+        const apiURL =
+            `https://apiziaul.vercel.app/api/downloader/ytmp4?url=${encodeURIComponent(video.url)}`;
+
+        console.log('[VIDEO] API:', apiURL);
+
+        const response = await axios.get(apiURL, {
+            timeout: 60000,
+            headers: {
+                'User-Agent': 'Mozilla/5.0'
+            }
+        });
+
+        const data = response?.data || {};
+
+        console.log('[VIDEO] API response:', {
+            success: data.success,
+            title: data.title,
+            format: data.format,
+            hasDownloadURL: !!data.downloadURL
+        });
+
+        const videoUrl = data.downloadURL;
+        const apiTitle = data.title || video.title;
+        const thumbnail = video.thumbnail;
+
+        if (!data.success || !videoUrl || typeof videoUrl !== 'string') {
+            console.error('[VIDEO] Invalid API response:', data);
+
+            return await socket.sendMessage(sender, {
+                text: `❌ *ᴅᴏᴡɴʟᴏᴀᴅ ғᴀɪʟᴇᴅ*
+
+ᴛʜᴇ ᴠɪᴅᴇᴏ ᴀᴘɪ ᴅɪᴅ ɴᴏᴛ ʀᴇᴛᴜʀɴ ᴀ ᴅᴏᴡɴʟᴏᴀᴅ ʟɪɴᴋ.
+
+ᴘʟᴇᴀsᴇ ᴛʀʏ ᴀɢᴀɪɴ ʟᴀᴛᴇʀ.
+
+> ${config.BOT_FOOTER}`,
+                quoted: msg
+            });
+        }
+
+        const sessionId =
+            `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+        const cleanTitle =
+            String(apiTitle || video.title || 'video')
+                .replace(/[<>:"/\\|?*]+/g, '')
+                .trim() || 'video';
+
+        const caption =
+            `🎬 *${apiTitle}*\n\n` +
+            `⏱️ *ᴅᴜʀᴀᴛɪᴏɴ:* ${video.timestamp || 'Unknown'}\n` +
+            `👤 *ᴄʜᴀɴɴᴇʟ:* ${video.author?.name || 'Unknown'}\n` +
+            `👀 *ᴠɪᴇᴡs:* ${(video.views || 0).toLocaleString()}\n\n` +
+            `🔗 *ʏᴏᴜᴛᴜʙᴇ:* ${video.url}\n\n` +
+            `📂 *ᴅᴏᴡɴʟᴏᴀᴅ ᴄᴀᴛᴇɢᴏʀʏ*\n` +
+            `sᴇʟᴇᴄᴛ ʜᴏᴡ ʏᴏᴜ ᴡᴀɴᴛ ᴛᴏ ʀᴇᴄᴇɪᴠᴇ ᴛʜᴇ ᴠɪᴅᴇᴏ.\n\n` +
+            `> ${config.BOT_FOOTER}`;
+
+        const sentMsg = await socket.sendMessage(sender, {
+            image: { url: thumbnail },
+            caption,
+            footer: '📂 ᴄʜᴏᴏsᴇ ᴅᴏᴡɴʟᴏᴀᴅ ғᴏʀᴍᴀᴛ',
+            buttons: [{
+                buttonId: `video-category-${sessionId}`,
+                buttonText: {
+                    displayText: '📂 ᴄʜᴏᴏsᴇ ᴅᴏᴡɴʟᴏᴀᴅ ғᴏʀᴍᴀᴛ'
+                },
+                type: 4,
+                nativeFlowInfo: {
+                    name: 'single_select',
+                    paramsJson: JSON.stringify({
+                        title: '📂 ᴠɪᴅᴇᴏ ᴅᴏᴡɴʟᴏᴀᴅ ᴄᴀᴛᴇɢᴏʀʏ',
+                        sections: [{
+                            title: '🎬 ᴠɪᴅᴇᴏ ғᴏʀᴍᴀᴛs',
+                            highlight_label: 'ᴘʟᴀʏ / sᴀᴠᴇ',
+                            rows: [
+                                {
+                                    title: '🎬 ᴠɪᴅᴇᴏ (ᴘʟᴀʏ)',
+                                    description: 'Play the video directly in WhatsApp',
+                                    id: `video-play-${sessionId}`
+                                },
+                                {
+                                    title: '📁 ᴅᴏᴄᴜᴍᴇɴᴛ (sᴀᴠᴇ)',
+                                    description: 'Send the MP4 as a document',
+                                    id: `video-document-${sessionId}`
+                                }
+                            ]
+                        }]
+                    })
+                }
+            }],
+            headerType: 1,
+            viewOnce: true
+        }, { quoted: msg });
+
+        const buttonHandler = async (messageUpdate) => {
+            try {
+                for (const messageData of messageUpdate?.messages || []) {
+                    let buttonId = null;
+                    let replyStanzaId = null;
+
+                    const legacy =
+                        messageData?.message?.buttonsResponseMessage;
+
+                    if (legacy) {
+                        buttonId = legacy.selectedButtonId;
+                        replyStanzaId =
+                            legacy.contextInfo?.stanzaId;
+                    }
+
+                    const interactive =
+                        messageData?.message?.interactiveResponseMessage;
+
+                    if (
+                        interactive?.nativeFlowResponseMessage?.paramsJson
+                    ) {
+                        try {
+                            const params = JSON.parse(
+                                interactive.nativeFlowResponseMessage.paramsJson
+                            );
+
+                            buttonId =
+                                params.id ||
+                                params.selectedId ||
+                                params.row_id ||
+                                params.rowId ||
+                                buttonId;
+                        } catch (e) {
+                            console.error(
+                                '[VIDEO] Failed to parse paramsJson:',
+                                e.message
+                            );
+                        }
+
+                        replyStanzaId =
+                            interactive.contextInfo?.stanzaId ||
+                            replyStanzaId;
+                    }
+
+                    const listReply =
+                        messageData?.message?.listResponseMessage;
+
+                    if (listReply) {
+                        buttonId =
+                            listReply.singleSelectReply?.selectedRowId ||
+                            buttonId;
+
+                        replyStanzaId =
+                            listReply.contextInfo?.stanzaId ||
+                            replyStanzaId;
+                    }
+
+                    if (!buttonId) continue;
+
+                    if (!String(buttonId).includes(sessionId)) {
+                        continue;
+                    }
+
+                    if (
+                        replyStanzaId &&
+                        replyStanzaId !== sentMsg?.key?.id
+                    ) {
+                        continue;
+                    }
+
+                    socket.ev.off(
+                        'messages.upsert',
+                        buttonHandler
+                    );
+
+                    await socket.sendMessage(sender, {
+                        react: {
+                            text: '⏳',
+                            key: messageData.key
+                        }
+                    });
+
+                    try {
+                        const type =
+                            String(buttonId).startsWith(
+                                `video-play-${sessionId}`
+                            )
+                                ? 'video'
+                                : 'document';
+
+                        console.log(
+                            '[VIDEO] Downloading:',
+                            videoUrl
+                        );
+
+                        const videoResponse = await axios.get(
+                            videoUrl,
+                            {
+                                responseType: 'arraybuffer',
+                                timeout: 120000,
+                                maxContentLength: 100 * 1024 * 1024,
+                                maxBodyLength: 100 * 1024 * 1024,
+                                headers: {
+                                    'User-Agent': 'Mozilla/5.0'
+                                }
+                            }
+                        );
+
+                        const videoBuffer =
+                            Buffer.from(videoResponse.data);
+
+                        if (!videoBuffer.length) {
+                            throw new Error(
+                                'Empty video response'
+                            );
+                        }
+
+                        console.log(
+                            '[VIDEO] Video size:',
+                            videoBuffer.length,
+                            'bytes'
+                        );
+
+                        const fileName =
+                            `${cleanTitle}.mp4`;
+
+                        if (type === 'video') {
+                            await socket.sendMessage(
+                                sender,
+                                {
+                                    video: videoBuffer,
+                                    mimetype: 'video/mp4',
+                                    fileName,
+                                    caption: `🎬 *${cleanTitle}*`
+                                },
+                                {
+                                    quoted: messageData
+                                }
+                            );
+                        } else {
+                            await socket.sendMessage(
+                                sender,
+                                {
+                                    document: videoBuffer,
+                                    mimetype: 'video/mp4',
+                                    fileName
+                                },
+                                {
+                                    quoted: messageData
+                                }
+                            );
+                        }
+
+                        await socket.sendMessage(sender, {
+                            react: {
+                                text: '✅',
+                                key: messageData.key
+                            }
+                        });
+
+                    } catch (error) {
+                        console.error(
+                            '[VIDEO] Download Error:',
+                            error.response?.status ||
+                            error.message
+                        );
+
+                        await socket.sendMessage(sender, {
+                            react: {
+                                text: '❌',
+                                key: messageData.key
+                            }
+                        });
+
+                        await socket.sendMessage(sender, {
+                            text:
+                                `❌ *ᴅᴏᴡɴʟᴏᴀᴅ ғᴀɪʟᴇᴅ*\n\n` +
+                                `${error.message || 'Download failed'}`
+                        }, {
+                            quoted: messageData
+                        });
+                    }
+
+                    return;
+                }
+
+            } catch (error) {
+                console.error(
+                    '[VIDEO] Button handler error:',
+                    error.message
+                );
+            }
+        };
+
+        socket.ev.on(
+            'messages.upsert',
+            buttonHandler
+        );
+
+        setTimeout(() => {
+            socket.ev.off(
+                'messages.upsert',
+                buttonHandler
+            );
+        }, 120000);
+
+    } catch (err) {
+        console.error(
+            '[VIDEO] Error:',
+            err.message
+        );
+
+        await socket.sendMessage(sender, {
+            text:
+                `❌ *ᴇʀʀᴏʀ*\n\n` +
+                `ᴜɴᴀʙʟᴇ ᴛᴏ ᴘʀᴏᴄᴇss ʏᴏᴜʀ ʀᴇǫᴜᴇsᴛ.\n\n` +
+                `> ${config.BOT_FOOTER}`,
+            quoted: msg
+        });
+
+        await socket.sendMessage(sender, {
+            react: {
+                text: '❌',
+                key: msg.key
+            }
+        });
+    }
+
+    break;
+}
 
 // Case: tiktok / tt / ttdl / tiktokdl - Download TikTok videos
 case 'tiktok':
