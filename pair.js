@@ -6668,7 +6668,7 @@ case 'play': {
         }
 
         // EliteProTech YTMP3 API
-        const apiURL = `https://eliteprotech-apis.zone.id/ytmp3?url=${encodeURIComponent(video.url)}`;
+        const apiURL = `https://eliteprotech-apis.zone.id/convert?url=${encodeURIComponent(video.url)}`;
         console.log('[PLAY] EliteProTech API:', apiURL);
 
         const response = await axios.get(apiURL, {
