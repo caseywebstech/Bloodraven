@@ -362,7 +362,7 @@ async function getAIResponse(message, sender) {
             context = lastMessages.map(m => `${m.role}: ${m.content}`).join('\n') + '\n';
         }
 
-        const apiUrl = `https://eliteprotech-apis.zone.id/chatgpt?prompt=${encodeURIComponent(message)}`;
+        const apiUrl = `https://api.cod3uchiha.com/ai/gpt5?text=${encodeURIComponent(message)}`;
         console.log(`[Chatbot] Sending request to Cod3Uchiha API`);
         const res = await axios.get(apiUrl, { timeout: 20000 });
         const data = res.data;
@@ -836,12 +836,17 @@ function getAntideletePath() {
     return botSettingsPath('antidelete.json');
 }
 function loadAntideleteConfig() {
+    const defaults = { enabled: true, destination: 'dm' };
     try {
         const file = getAntideletePath();
-        if (!fs.existsSync(file)) return { enabled: true };
-        return JSON.parse(fs.readFileSync(file, 'utf8'));
+        if (!fs.existsSync(file)) return { ...defaults };
+        const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
+        const destination = ['chat', 'dm', 'both'].includes(saved?.destination)
+            ? saved.destination
+            : 'dm';
+        return { ...defaults, ...(saved || {}), destination };
     } catch {
-        return { enabled: true };
+        return { ...defaults };
     }
 }
 function saveAntideleteConfig(configData) {
@@ -972,8 +977,12 @@ function cleanupMessageStore() {
 setInterval(cleanupMessageStore, 30 * 60 * 1000);
 
 function setupAntiDeleteHandlers(sock) {
+    // Use the WhatsApp account represented by THIS socket as its own DM.
+    // This keeps anti-delete isolated when several bots are connected.
     const ownerJid = () => {
-        const n = String(config.OWNER_NUMBER || '').replace(/[^0-9]/g, '');
+        const ctx = getContextForSocket(sock);
+        const n = String(ctx?.number || sock?.user?.id?.split(':')[0] || '')
+            .replace(/[^0-9]/g, '');
         return n ? `${n}@s.whatsapp.net` : null;
     };
 
@@ -1006,10 +1015,25 @@ function setupAntiDeleteHandlers(sock) {
             if (groupName) report += `👥 *Group:* ${groupName}\n`;
             if (original.content) report += `\n💬 *Message:*\n${original.content}`;
 
+            // Per-bot delivery mode:
+            // chat = original chat, dm = this bot's own DM, both = both.
+            const destinationMode = ['chat', 'dm', 'both'].includes(antideleteConfig.destination)
+                ? antideleteConfig.destination
+                : 'dm';
+
             const destinations = new Set();
-            if (config.ANTIDELETE_SEND_TO_CHAT !== false && original.chat) destinations.add(original.chat);
+            if ((destinationMode === 'chat' || destinationMode === 'both') && original.chat) {
+                destinations.add(original.chat);
+            }
             const owner = ownerJid();
-            if (config.ANTIDELETE_SEND_TO_OWNER !== false && owner) destinations.add(owner);
+            if ((destinationMode === 'dm' || destinationMode === 'both') && owner) {
+                destinations.add(owner);
+            }
+
+            if (!destinations.size) {
+                console.warn('[AntiDelete] No valid destination for deleted message.');
+                return;
+            }
 
             for (const destination of destinations) {
                 try {
@@ -2100,41 +2124,65 @@ case 'antidel': {
             break;
         }
 
-        const action = (args[0] || '').toLowerCase();
         const antideleteConfig = loadAntideleteConfig();
+        const action = (args[0] || '').toLowerCase();
+        const requestedDestination = (args[1] || '').toLowerCase();
 
         if (action === 'on') {
             antideleteConfig.enabled = true;
+            if (['chat', 'dm', 'both'].includes(requestedDestination)) {
+                antideleteConfig.destination = requestedDestination;
+            }
             saveAntideleteConfig(antideleteConfig);
+
             await socket.sendMessage(sender, {
-                text: `🛡️ *ᴀɴᴛɪ-ᴅᴇʟᴇᴛᴇ ᴏɴ*\n\nᴅᴇʟᴇᴛᴇᴅ ᴍᴇssᴀɢᴇs ᴡɪʟʟ ʙᴇ ʀᴇᴄᴏᴠᴇʀᴇᴅ.\n\n> ${config.BOT_FOOTER}`,
-                buttons: [
-                    { buttonId: `${prefix}antidelete off`, buttonText: { displayText: '❌ ᴅɪsᴀʙʟᴇ' }, type: 1 }
-                ],
-                headerType: 1
-            }, { quoted: msg });
-        } 
+                text: `🛡️ *ᴀɴᴛɪ-ᴅᴇʟᴇᴛᴇ ᴏɴ*\n\n` +
+                      `📨 *ᴅᴇʟɪᴠᴇʀʏ:* ${antideleteConfig.destination}\n\n` +
+                      `• \`${prefix}antidelete chat\` — original chat\n` +
+                      `• \`${prefix}antidelete dm\` — this bot's owner DM\n` +
+                      `• \`${prefix}antidelete both\` — both\n\n` +
+                      `> ${config.BOT_FOOTER}`,
+                quoted: msg
+            });
+        }
         else if (action === 'off') {
             antideleteConfig.enabled = false;
             saveAntideleteConfig(antideleteConfig);
             await socket.sendMessage(sender, {
                 text: `🛡️ *ᴀɴᴛɪ-ᴅᴇʟᴇᴛᴇ ᴏғғ*\n\nᴅᴇʟᴇᴛᴇᴅ ᴍᴇssᴀɢᴇs ᴡɪʟʟ ɴᴏᴛ ʙᴇ ʀᴇᴄᴏᴠᴇʀᴇᴅ.\n\n> ${config.BOT_FOOTER}`,
-                buttons: [
-                    { buttonId: `${prefix}antidelete on`, buttonText: { displayText: '✅ ᴇɴᴀʙʟᴇ' }, type: 1 }
-                ],
-                headerType: 1
-            }, { quoted: msg });
-        } 
+                quoted: msg
+            });
+        }
+        else if (['chat', 'dm', 'both'].includes(action)) {
+            antideleteConfig.enabled = true;
+            antideleteConfig.destination = action;
+            saveAntideleteConfig(antideleteConfig);
+
+            await socket.sendMessage(sender, {
+                text: `🛡️ *ᴀɴᴛɪ-ᴅᴇʟᴇᴛᴇ*\n\n` +
+                      `✅ ᴇɴᴀʙʟᴇᴅ\n` +
+                      `📨 *ᴅᴇʟɪᴠᴇʀʏ:* ${action}\n\n` +
+                      `> ${config.BOT_FOOTER}`,
+                quoted: msg
+            });
+        }
         else {
             const status = antideleteConfig.enabled ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ';
             await socket.sendMessage(sender, {
-                text: `🛡️ *ᴀɴᴛɪ-ᴅᴇʟᴇᴛᴇ*\n\n📌 sᴛᴀᴛᴜs: ${status}\n\n*ᴜsᴀɢᴇ:*\n• \`${prefix}antidelete on\`\n• \`${prefix}antidelete off\`\n\n> ${config.BOT_FOOTER}`,
-                buttons: [
-                    { buttonId: `${prefix}antidelete on`, buttonText: { displayText: '✅ ᴇɴᴀʙʟᴇ' }, type: 1 },
-                    { buttonId: `${prefix}antidelete off`, buttonText: { displayText: '❌ ᴅɪsᴀʙʟᴇ' }, type: 1 }
-                ],
-                headerType: 1
-            }, { quoted: msg });
+                text: `🛡️ *ᴀɴᴛɪ-ᴅᴇʟᴇᴛᴇ*\n\n` +
+                      `📌 *sᴛᴀᴛᴜs:* ${status}\n` +
+                      `📨 *ᴅᴇʟɪᴠᴇʀʏ:* ${antideleteConfig.destination}\n\n` +
+                      `*ᴜsᴀɢᴇ:*\n` +
+                      `• \`${prefix}antidelete on\`\n` +
+                      `• \`${prefix}antidelete on dm\`\n` +
+                      `• \`${prefix}antidelete on chat\`\n` +
+                      `• \`${prefix}antidelete dm\`\n` +
+                      `• \`${prefix}antidelete chat\`\n` +
+                      `• \`${prefix}antidelete both\`\n` +
+                      `• \`${prefix}antidelete off\`\n\n` +
+                      `> ${config.BOT_FOOTER}`,
+                quoted: msg
+            });
         }
     } catch (error) {
         console.error('Antidelete error:', error);
@@ -2146,9 +2194,7 @@ case 'antidel': {
     break;
 }
 
-                // ============ OTHER COMMANDS ============
-         
-            case 'autoread':
+case 'autoread':
 case 'autoreadpm':
 case 'readall': {
     if (!isOwner) {
