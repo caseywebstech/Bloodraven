@@ -12969,12 +12969,20 @@ async function EmpirePair(number, res) {
             const normalizeGiftedButtons = (buttons = []) => buttons
                 .filter(Boolean)
                 .map((button) => {
+                    // Already in Gifted/native-flow format.
                     if (button.name && button.buttonParamsJson) return button;
+
+                    // Legacy Baileys native-flow wrapper used by older menu code.
+                    if (button.nativeFlowInfo?.name) {
+                        return {
+                            name: button.nativeFlowInfo.name,
+                            buttonParamsJson: button.nativeFlowInfo.paramsJson || JSON.stringify({})
+                        };
+                    }
 
                     const id = button.buttonId || button.id || '';
                     const text = button.buttonText?.displayText || button.text || 'Button';
 
-                    // Old Baileys button format -> Gifted quick reply.
                     return {
                         name: 'quick_reply',
                         buttonParamsJson: JSON.stringify({
@@ -13000,7 +13008,22 @@ async function EmpirePair(number, res) {
                     if (content.contextInfo) giftedContent.contextInfo = content.contextInfo;
                     if (content.mentions) giftedContent.mentions = content.mentions;
 
-                    return sendInteractiveMessage(sock, jid, giftedContent, options);
+                    // Gifted interactive messages support an image header, not arbitrary
+                    // media payloads. Preserve video/audio/document/sticker messages by
+                    // sending the media first, then the Gifted button message.
+                    const unsupportedMedia = content.video || content.audio || content.document || content.sticker || content.location || content.contacts || content.poll;
+                    if (unsupportedMedia) {
+                        const mediaContent = { ...content };
+                        delete mediaContent.buttons;
+                        await originalSendMessage(jid, mediaContent, options);
+                    }
+
+                    giftedRelayDepth++;
+                    try {
+                        return await sendInteractiveMessage(sock, jid, giftedContent, options);
+                    } finally {
+                        giftedRelayDepth--;
+                    }
                 }
 
                 return originalSendMessage(jid, content, options);
