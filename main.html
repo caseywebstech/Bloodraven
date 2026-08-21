@@ -574,6 +574,34 @@
       opacity: 1;
     }
 
+
+
+    /* Google login gate */
+    .login-card { text-align:center; }
+    .google-btn {
+      width:100%; min-height:52px; border:0; border-radius:14px;
+      display:flex; align-items:center; justify-content:center; gap:11px;
+      background:#fff; color:#171717; font-weight:800; cursor:pointer;
+      text-decoration:none; box-shadow:0 12px 30px rgba(0,0,0,.28);
+      transition:transform .18s ease, box-shadow .18s ease;
+    }
+    .google-btn:hover { transform:translateY(-2px); box-shadow:0 16px 35px rgba(0,0,0,.35); }
+    .google-btn:active { transform:scale(.985); }
+    .google-g { width:28px; height:28px; border-radius:50%; display:grid; place-items:center; background:#f3f4f6; color:#4285f4; font-weight:900; }
+    .auth-note { margin-top:14px; padding:12px; border:1px solid rgba(255,255,255,.06); background:rgba(255,255,255,.025); border-radius:14px; text-align:left; color:#7f8797; font-size:.68rem; line-height:1.55; }
+    .auth-note strong { color:#d8dbe2; }
+    .auth-error { margin-top:12px; color:#f87171; font-size:.7rem; }
+    .user-strip { display:flex; align-items:center; gap:10px; padding:9px 11px; margin-bottom:15px; background:rgba(255,255,255,.03); border:1px solid var(--border); border-radius:14px; }
+    .user-strip img { width:36px; height:36px; border-radius:50%; object-fit:cover; }
+    .user-strip .user-meta { flex:1; min-width:0; text-align:left; }
+    .user-strip strong, .user-strip span { display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .user-strip strong { color:#fff; font-size:.72rem; }
+    .user-strip span { color:#687184; font-size:.61rem; margin-top:2px; }
+    .verified { color:#34d399; font-size:.8rem; }
+    .logout-btn { border:1px solid rgba(255,255,255,.07); background:rgba(255,255,255,.035); color:#94a3b8; width:34px; height:34px; border-radius:50%; cursor:pointer; }
+    .logout-btn:hover { color:#f87171; background:rgba(248,113,113,.08); }
+    .hidden { display:none !important; }
+
     @media (max-width:420px) {
       body {
         padding: 16px 10px;
@@ -636,7 +664,32 @@
     <p class="subtitle">⚡ SECURE DEVICE LINKING ⚡</p>
   </header>
 
-  <section class="card">
+  <section id="login-section" class="card login-card">
+    <div class="section-title">Sign in to continue</div>
+    <p class="section-subtitle">Google authentication is required before pairing a WhatsApp device.</p>
+
+    <a href="/auth/google" class="google-btn" id="google-login-btn" style="margin-top:18px;">
+      <span class="google-g">G</span>
+      <span>Continue with Google</span>
+    </a>
+
+    <div class="auth-note">
+      <strong>🔐 Secure pairing</strong><br>
+      Your Google login only unlocks the pairing page. Each WhatsApp socket keeps its own settings and session data.
+    </div>
+    <p id="auth-error" class="auth-error hidden"></p>
+  </section>
+
+  <section id="pairing-section" class="card hidden">
+    <div id="user-strip" class="user-strip hidden">
+      <img id="user-avatar" src="" alt="Google profile">
+      <div class="user-meta">
+        <strong id="user-name">Google User</strong>
+        <span id="user-email">Authenticated</span>
+      </div>
+      <span class="verified">●</span>
+      <button id="logout-btn" class="logout-btn" type="button" aria-label="Logout">↪</button>
+    </div>
 
     <!-- FORM -->
     <div id="form-section">
@@ -899,6 +952,46 @@
      TOAST
   ------------------------- */
 
+
+
+  // -------------------------
+  // GOOGLE AUTH GATE
+  // -------------------------
+  const loginSection = document.getElementById('login-section');
+  const pairingSection = document.getElementById('pairing-section');
+  const userStrip = document.getElementById('user-strip');
+  const userAvatar = document.getElementById('user-avatar');
+  const userName = document.getElementById('user-name');
+  const userEmail = document.getElementById('user-email');
+  const authError = document.getElementById('auth-error');
+  const logoutBtn = document.getElementById('logout-btn');
+
+  async function checkGoogleAuth() {
+    try {
+      const response = await fetch('/auth/me', { credentials: 'include', cache: 'no-store' });
+      if (!response.ok) throw new Error('not authenticated');
+      const user = await response.json();
+      if (!user.authenticated) throw new Error('not authenticated');
+
+      loginSection.classList.add('hidden');
+      pairingSection.classList.remove('hidden');
+      userStrip.classList.remove('hidden');
+      userName.textContent = user.name || 'Google User';
+      userEmail.textContent = user.email || '';
+      if (user.picture) userAvatar.src = user.picture;
+    } catch (error) {
+      pairingSection.classList.add('hidden');
+      loginSection.classList.remove('hidden');
+    }
+  }
+
+  logoutBtn?.addEventListener('click', async () => {
+    try { await fetch('/auth/logout', { method: 'POST', credentials: 'include' }); } catch {}
+    window.location.replace('/');
+  });
+
+  checkGoogleAuth();
+
   function showToast(message) {
     toast.textContent = message;
     toast.classList.add("show");
@@ -955,6 +1048,7 @@
           headers: {
             "Accept": "application/json"
           },
+          credentials: "include",
           cache: "no-store"
         }
       );
