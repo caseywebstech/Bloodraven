@@ -70,6 +70,33 @@ const config = {
     BOT_FOOTER: 'ᴍᴀᴅᴇ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs',
     CHANNEL_LINK: 'https://whatsapp.com/channel/0029Vb7ycBQ4yltMfeegLF1m'
 };
+
+// ============================================================
+// PER-SOCKET BOT STATE
+// Every WhatsApp connection gets an isolated state object.
+// Nothing in this object is shared with another connected number.
+// ============================================================
+function createBotState(number, savedConfig = {}) {
+    const botId = String(number || '').replace(/[^0-9]/g, '');
+    return {
+        number: botId,
+        config: { ...config, ...(savedConfig || {}) },
+        autoReadPM: false,
+        autoReactEnabled: false,
+        chatbotEnabled: false,
+        chatbotHistory: new Map(),
+        anticallSettings: JSON.parse(JSON.stringify(DEFAULT_ANTICALL_SETTINGS || {
+            rejectCalls: false, blockCaller: false, notifyAdmin: false,
+            autoReply: "🚫 I don't accept calls. Please send a text message instead.",
+            blockedUsers: []
+        })),
+        welcomeSettings: new Map(),
+        antilinkData: {},
+        antilinkWarnings: {},
+        antideleteConfig: { enabled: true },
+        messageStore: new Map()
+    };
+}
 // Initialize welcome settings globally
 global.welcomeSettings = new Map();
 let autoReadEnabled = false;
@@ -80,12 +107,16 @@ const WELCOME_CONFIG_PATH = './welcome-settings.json';
 global.welcomeSettings = groupWelcomeSettings;
 const welcomeSettings = global.welcomeSettings;
 
-function loadWelcomeSettings() {
+function loadWelcomeSettingsForBot(botNumber) {
+    const botId = String(botNumber || '').replace(/[^0-9]/g, '');
+    const map = new Map();
     try {
-        if (!fs.existsSync(WELCOME_CONFIG_PATH)) return;
-        const data = JSON.parse(fs.readFileSync(WELCOME_CONFIG_PATH, 'utf8'));
-        for (const [jid, settings] of Object.entries(data || {})) {
-            groupWelcomeSettings.set(jid, {
+        if (!fs.existsSync(WELCOME_CONFIG_PATH)) return map;
+        const data = JSON.parse(fs.readFileSync(WELCOME_CONFIG_PATH, 'utf8')) || {};
+        // New format: { "botNumber": { "groupJid": settings } }
+        const scoped = data[botId] || {};
+        for (const [jid, settings] of Object.entries(scoped)) {
+            map.set(jid, {
                 welcome: Boolean(settings.welcome),
                 goodbye: Boolean(settings.goodbye),
                 customWelcome: settings.customWelcome || '',
@@ -95,20 +126,28 @@ function loadWelcomeSettings() {
     } catch (err) {
         console.error('[Welcome] Failed to load settings:', err.message);
     }
+    return map;
 }
 
-function saveWelcomeSettings() {
+function saveWelcomeSettingsForBot(botNumber, settingsMap) {
+    const botId = String(botNumber || '').replace(/[^0-9]/g, '');
     try {
-        const data = Object.fromEntries(groupWelcomeSettings.entries());
+        let data = {};
+        if (fs.existsSync(WELCOME_CONFIG_PATH)) {
+            try { data = JSON.parse(fs.readFileSync(WELCOME_CONFIG_PATH, 'utf8')) || {}; } catch {}
+        }
+        data[botId] = Object.fromEntries(settingsMap.entries());
         fs.writeFileSync(WELCOME_CONFIG_PATH, JSON.stringify(data, null, 2));
     } catch (err) {
         console.error('[Welcome] Failed to save settings:', err.message);
     }
 }
 
-loadWelcomeSettings();
-
 const ANTICALL_SETTINGS_PATH = './anti-call-settings.json';
+function getAnticallPath(botNumber) {
+    const botId = String(botNumber || '').replace(/[^0-9]/g, '');
+    return path.join(SESSION_BASE_PATH || './session', `anticall_${botId}.json`);
+}
 const DEFAULT_ANTICALL_SETTINGS = {
     rejectCalls: false,
     blockCaller: false,
@@ -117,18 +156,21 @@ const DEFAULT_ANTICALL_SETTINGS = {
     blockedUsers: []
 };
 
-function loadAnticallSettings() {
+function loadAnticallSettings(botNumber) {
     try {
-        if (fs.existsSync(ANTICALL_SETTINGS_PATH)) {
-            return JSON.parse(fs.readFileSync(ANTICALL_SETTINGS_PATH, 'utf8'));
+        const file = botNumber ? getAnticallPath(botNumber) : ANTICALL_SETTINGS_PATH;
+        if (fs.existsSync(file)) {
+            return JSON.parse(fs.readFileSync(file, 'utf8'));
         }
     } catch {}
     return { ...DEFAULT_ANTICALL_SETTINGS };
 }
 
-function saveAnticallSettings(s) {
+function saveAnticallSettings(s, botNumber) {
     try {
-        fs.writeFileSync(ANTICALL_SETTINGS_PATH, JSON.stringify(s, null, 2));
+        const file = botNumber ? getAnticallPath(botNumber) : ANTICALL_SETTINGS_PATH;
+        fs.ensureDirSync(path.dirname(file));
+        fs.writeFileSync(file, JSON.stringify(s, null, 2));
     } catch {}
 }
 
@@ -259,13 +301,11 @@ async function getAIResponse(message, sender) {
 // CHATBOT HANDLER - Using the same logic as private mode message
 // ==============================================
 async function setupChatbot(socket) {
-    global.chatbotEnabled = chatbotEnabled;
-    global.chatbotHistory = chatbotHistory;
-    global.getAIResponse = getAIResponse;
-    global.saveChatbotState = saveChatbotState;
+    const state = socket.__botState;
+    const botConfig = state.config;
 
     socket.ev.on('messages.upsert', async ({ messages }) => {
-        if (!global.chatbotEnabled) return;
+        if (!state.chatbotEnabled) return;
 
         const msg = messages[0];
         if (!msg.message || msg.key.fromMe) return;
@@ -286,7 +326,7 @@ async function setupChatbot(socket) {
             messageText = msg.message.videoMessage?.caption || '';
         }
 
-        if (!messageText || messageText.startsWith(config.PREFIX)) return;
+        if (!messageText || messageText.startsWith(botConfig.PREFIX)) return;
 
         const sender = msg.key.participant || jid;
         const senderName = sender.split('@')[0];
@@ -313,7 +353,7 @@ async function setupChatbot(socket) {
                                         name: 'cta_url', 
                                         buttonParamsJson: JSON.stringify({ 
                                             display_text: '📢 Join Channel', 
-                                            url: config.CHANNEL_LINK 
+                                            url: botConfig.CHANNEL_LINK 
                                         }) 
                                     }
                                 ] 
@@ -335,7 +375,7 @@ async function setupChatbot(socket) {
                     text: response,
                     buttons: [
                         { 
-                            buttonId: config.CHANNEL_LINK, 
+                            buttonId: botConfig.CHANNEL_LINK, 
                             buttonText: { displayText: '📢 Join Channel' }, 
                             type: 1 
                         }
@@ -357,45 +397,44 @@ async function setupChatbot(socket) {
             } catch (fallbackError) {
                 console.error('[Chatbot] Fallback failed:', fallbackError.message);
                 await socket.sendMessage(sender, { 
-                    text: `${response}\n\n📢 Join Channel: ${config.CHANNEL_LINK}`
+                    text: `${response}\n\n📢 Join Channel: ${botConfig.CHANNEL_LINK}`
                 }, { quoted: fakevCard });
             }
         }
     });
 
-    console.log(`🤖 Chatbot handler registered. (Status: ${global.chatbotEnabled ? 'ENABLED' : 'DISABLED'})`);
+    console.log(`🤖 Chatbot handler registered. (Status: ${state.chatbotEnabled ? 'ENABLED' : 'DISABLED'})`);
 }
 // ==============================================
 // 🔗 STRONG ANTILINK - Advanced Link Protection
 // ==============================================
 
 // Antilink configuration
-const antilinkSettings = new Map();
-const ANTILINK_PATH = './antilink.json';
+// Antilink settings are persisted per connected bot number.
+function getAntilinkPath(botNumber) {
+    const botId = String(botNumber || '').replace(/[^0-9]/g, '');
+    return path.join(SESSION_BASE_PATH || './session', `antilink_${botId}.json`);
+}
 
-// Load antilink settings from file
-function loadAntilinkSettings() {
+function loadAntilinkSettings(botNumber) {
     try {
-        if (fs.existsSync(ANTILINK_PATH)) {
-            return JSON.parse(fs.readFileSync(ANTILINK_PATH, 'utf8'));
-        }
+        const file = getAntilinkPath(botNumber);
+        if (fs.existsSync(file)) return JSON.parse(fs.readFileSync(file, 'utf8'));
     } catch {}
     return {};
 }
 
-// Save antilink settings to file
-function saveAntilinkSettings(settings) {
+function saveAntilinkSettings(botNumber, settings) {
     try {
-        fs.writeFileSync(ANTILINK_PATH, JSON.stringify(settings, null, 2));
+        const file = getAntilinkPath(botNumber);
+        fs.ensureDirSync(path.dirname(file));
+        fs.writeFileSync(file, JSON.stringify(settings, null, 2));
         return true;
     } catch (err) {
         console.error('Antilink save error:', err);
         return false;
     }
 }
-
-// Load settings on startup
-let antilinkData = loadAntilinkSettings();
 
 // Advanced link patterns - Strong detection
 const LINK_PATTERNS = [
@@ -501,6 +540,10 @@ const SUSPICIOUS_WORDS = [
 ];
 
 async function setupAntilink(socket) {
+    const state = socket.__botState;
+    const botConfig = state.config;
+    const antilinkData = state.antilinkData;
+    const botNumber = state.number;
     socket.ev.on('messages.upsert', async ({ messages }) => {
         const msg = messages[0];
         if (!msg.message || msg.key.fromMe) return;
@@ -545,7 +588,7 @@ async function setupAntilink(socket) {
             const sender = msg.key.participant || msg.key.remoteJid;
             const participant = groupMetadata.participants.find(p => p.id === sender);
             const isAdmin = participant?.admin === 'admin' || participant?.admin === 'superadmin';
-            const isOwner = sender.split('@')[0] === config.OWNER_NUMBER;
+            const isOwner = sender.split('@')[0] === botConfig.OWNER_NUMBER;
 
             // Skip if sender is admin or owner
             if (isAdmin || isOwner) {
@@ -610,10 +653,10 @@ async function setupAntilink(socket) {
                 }
                 
                 if (groupSettings.strictMode) {
-                    warningText += `\n\n*🔒 Strict Mode Active:* This is your ${getWarningCount(sender, jid)} warning.`;
+                    warningText += `\n\n*🔒 Strict Mode Active:* This is your ${getWarningCount(sender, jid, state)} warning.`;
                 }
                 
-                warningText += `\n\n> ${config.BOT_FOOTER}`;
+                warningText += `\n\n> ${botConfig.BOT_FOOTER}`;
                 
                 const warnMsg = await socket.sendMessage(jid, {
                     text: warningText,
@@ -630,7 +673,7 @@ async function setupAntilink(socket) {
 
             // Auto-ban if strict mode and multiple violations
             if (groupSettings.strictMode && groupSettings.autoBan) {
-                const warningCount = getWarningCount(sender, jid);
+                const warningCount = getWarningCount(sender, jid, state);
                 if (warningCount >= 3) {
                     try {
                         await socket.groupParticipantsUpdate(jid, [sender], 'remove');
@@ -654,23 +697,23 @@ async function setupAntilink(socket) {
 }
 
 // Helper function to track warnings
-function getWarningCount(sender, jid) {
+function getWarningCount(sender, jid, state) {
     const key = `${jid}_${sender}`;
-    if (!global.antilinkWarnings) {
-        global.antilinkWarnings = {};
+    if (!state.antilinkWarnings) {
+        state.antilinkWarnings = {};
     }
-    if (!global.antilinkWarnings[key]) {
-        global.antilinkWarnings[key] = 0;
+    if (!state.antilinkWarnings[key]) {
+        state.antilinkWarnings[key] = 0;
     }
-    global.antilinkWarnings[key]++;
-    return global.antilinkWarnings[key];
+    state.antilinkWarnings[key]++;
+    return state.antilinkWarnings[key];
 }
 
 // Helper function to reset warnings
 function resetWarnings(sender, jid) {
     const key = `${jid}_${sender}`;
-    if (global.antilinkWarnings) {
-        delete global.antilinkWarnings[key];
+    if (state.antilinkWarnings) {
+        delete state.antilinkWarnings[key];
     }
 }
 const cleanTempFolderIfLarge = () => {
@@ -691,18 +734,22 @@ const cleanTempFolderIfLarge = () => {
 
 setInterval(cleanTempFolderIfLarge, 60 * 1000);
 
-function loadAntideleteConfig() {
-    try {
-        if (!fs.existsSync(CONFIG_PATH)) return { enabled: true };
-        return JSON.parse(fs.readFileSync(CONFIG_PATH));
-    } catch {
-        return { enabled: true };
-    }
+function getAntideletePath(botNumber) {
+    const botId = String(botNumber || '').replace(/[^0-9]/g, '');
+    return path.join(SESSION_BASE_PATH || './session', `antidelete_${botId}.json`);
 }
-
-function saveAntideleteConfig(configData) {
+function loadAntideleteConfig(botNumber) {
     try {
-        fs.writeFileSync(CONFIG_PATH, JSON.stringify(configData, null, 2));
+        const file = getAntideletePath(botNumber);
+        if (fs.existsSync(file)) return JSON.parse(fs.readFileSync(file, 'utf8'));
+    } catch {}
+    return { enabled: true };
+}
+function saveAntideleteConfig(botNumber, configData) {
+    try {
+        const file = getAntideletePath(botNumber);
+        fs.ensureDirSync(path.dirname(file));
+        fs.writeFileSync(file, JSON.stringify(configData, null, 2));
         return true;
     } catch (err) {
         console.error('Config save error:', err);
@@ -728,7 +775,8 @@ function getMessagePayload(message) {
 
 async function storeMessage(sock, message) {
     try {
-        const antideleteConfig = loadAntideleteConfig();
+        const antideleteConfig = sock.__botState?.antideleteConfig || { enabled: true };
+        const messageStore = sock.__botState?.messageStore || global.__legacyMessageStore;
         if (!antideleteConfig.enabled || !message?.key?.id || !message.message) return;
         if (message.key.remoteJid === 'status@broadcast') return;
 
@@ -826,9 +874,11 @@ function cleanupMessageStore() {
 setInterval(cleanupMessageStore, 30 * 60 * 1000);
 
 function setupAntiDeleteHandlers(sock) {
+    const state = sock.__botState;
+    const messageStore = state.messageStore;
     const processRevocation = async (revocation) => {
         try {
-            const antideleteConfig = loadAntideleteConfig();
+            const antideleteConfig = state.antideleteConfig;
             if (!antideleteConfig.enabled) return;
 
             const key = revocation?.key;
@@ -1200,6 +1250,8 @@ function generateWaveform(buffer, bars = 64) {
 // 🔥 AUTO-REACT FUNCTION - Reacts to messages automatically
 // ==============================================
 async function setupAutoReact(socket) {
+    const state = socket.__botState;
+    const botConfig = state.config;
     // Configuration - customize these emojis
     const REACT_EMOJIS = ['🔥', '❤️', '💫', '✨', '🌟', '🎀', '🌸', '💗', '😊', '👏', '🎉', '💯', '⭐', '🌈', '💎'];
     
@@ -1207,11 +1259,11 @@ async function setupAutoReact(socket) {
     const IGNORED_USERS = ['status@broadcast', '0@s.whatsapp.net'];
     
     // Toggle autoreact on/off (can be controlled via command)
-    global.autoReactEnabled = global.autoReactEnabled !== undefined ? global.autoReactEnabled : false;
+    state.autoReactEnabled = state.autoReactEnabled !== undefined ? state.autoReactEnabled : false;
     
     socket.ev.on('messages.upsert', async ({ messages }) => {
         // Skip if autoreact is disabled
-        if (!global.autoReactEnabled) return;
+        if (!state.autoReactEnabled) return;
         
         const msg = messages[0];
         if (!msg.message) return;
@@ -1222,7 +1274,7 @@ async function setupAutoReact(socket) {
         const jid = msg.key.remoteJid;
         
         // Skip status broadcasts and newsletters
-        if (jid === 'status@broadcast' || jid === config.NEWSLETTER_JID) return;
+        if (jid === 'status@broadcast' || jid === botConfig.NEWSLETTER_JID) return;
         if (IGNORED_USERS.includes(jid)) return;
         
         // Skip if message is from ignored users
@@ -1290,7 +1342,10 @@ function setupNewsletterHandlers(socket) {
 }
 
 function initAntiCallHandler(sock) {
-    const ownerJid = config.OWNER_NUMBER + '@s.whatsapp.net';
+    const state = sock.__botState;
+    const botConfig = state.config;
+    const anticallSettings = state.anticallSettings;
+    const ownerJid = botConfig.OWNER_NUMBER + '@s.whatsapp.net';
     sock.ev.on('call', async (calls) => {
         for (const call of calls) {
             if (call.status !== 'offer') continue;
@@ -1315,7 +1370,7 @@ function initAntiCallHandler(sock) {
             }
             if (anticallSettings.blockCaller && !anticallSettings.blockedUsers.includes(caller)) {
                 anticallSettings.blockedUsers.push(caller);
-                saveAnticallSettings(anticallSettings);
+                // Persisting is intentionally per-socket; do not mutate shared settings.
                 console.log(`🚫 Auto-blocked caller: ${caller}`);
             }
         }
@@ -1324,6 +1379,9 @@ function initAntiCallHandler(sock) {
 }
 
 async function setupWelcomeGoodbyeHandlers(sock) {
+    const state = sock.__botState;
+    const botConfig = state.config;
+    const welcomeSettings = state.welcomeSettings;
     console.log('👋 Setting up Welcome/Goodbye handler...');
 
     sock.ev.on('group-participants.update', async (update) => {
@@ -1410,15 +1468,16 @@ We wish you all the best! ❤️
 }
 
 async function setupStatusHandlers(socket) {
+    const botConfig = socket.__botState.config;
     socket.ev.on('messages.upsert', async ({ messages }) => {
         const message = messages[0];
-        if (!message?.key || message.key.remoteJid !== 'status@broadcast' || !message.key.participant || message.key.remoteJid === config.NEWSLETTER_JID) return;
+        if (!message?.key || message.key.remoteJid !== 'status@broadcast' || !message.key.participant || message.key.remoteJid === botConfig.NEWSLETTER_JID) return;
         try {
-            if (config.AUTO_TYPING === 'true' && message.key.remoteJid) {
+            if (botConfig.AUTO_TYPING === 'true' && message.key.remoteJid) {
     await socket.sendPresenceUpdate("composing", message.key.remoteJid);
 }
-            if (config.AUTO_VIEW_STATUS === 'true') {
-                let retries = config.MAX_RETRIES;
+            if (botConfig.AUTO_VIEW_STATUS === 'true') {
+                let retries = botConfig.MAX_RETRIES;
                 while (retries > 0) {
                     try {
                         await socket.readMessages([message.key]);
@@ -1427,13 +1486,13 @@ async function setupStatusHandlers(socket) {
                         retries--;
                         console.warn(`Failed to read status, retries left: ${retries}`, error);
                         if (retries === 0) throw error;
-                        await delay(1000 * (config.MAX_RETRIES - retries));
+                        await delay(1000 * (botConfig.MAX_RETRIES - retries));
                     }
                 }
             }
-            if (config.AUTO_LIKE_STATUS === 'true') {
-                const randomEmoji = config.AUTO_LIKE_EMOJI[Math.floor(Math.random() * config.AUTO_LIKE_EMOJI.length)];
-                let retries = config.MAX_RETRIES;
+            if (botConfig.AUTO_LIKE_STATUS === 'true') {
+                const randomEmoji = botConfig.AUTO_LIKE_EMOJI[Math.floor(Math.random() * botConfig.AUTO_LIKE_EMOJI.length)];
+                let retries = botConfig.MAX_RETRIES;
                 while (retries > 0) {
                     try {
                         await socket.sendMessage(
@@ -1447,7 +1506,7 @@ async function setupStatusHandlers(socket) {
                         retries--;
                         console.warn(`Failed to react to status, retries left: ${retries}`, error);
                         if (retries === 0) throw error;
-                        await delay(1000 * (config.MAX_RETRIES - retries));
+                        await delay(1000 * (botConfig.MAX_RETRIES - retries));
                     }
                 }
             }
@@ -1514,6 +1573,11 @@ async function oneViewmeg(socket, isOwner, msg, sender) {
 }
 
 function setupCommandHandlers(socket, number) {
+    const state = socket.__botState;
+    const botConfig = state.config;
+    const welcomeSettings = state.welcomeSettings;
+    const anticallSettings = state.anticallSettings;
+    const antilinkData = state.antilinkData;
     if (!socket.downloadAndSaveMediaMessage) {
         socket.downloadAndSaveMediaMessage = async (message, filename, attachExtension = true) => {
             let quoted = message.msg ? message.msg : message;
@@ -1533,7 +1597,7 @@ function setupCommandHandlers(socket, number) {
 
     socket.ev.on('messages.upsert', async ({ messages }) => {
         const msg = messages[0];
-        if (!msg.message || msg.key.remoteJid === 'status@broadcast' || msg.key.remoteJid === config.NEWSLETTER_JID) return;
+        if (!msg.message || msg.key.remoteJid === 'status@broadcast' || msg.key.remoteJid === botConfig.NEWSLETTER_JID) return;
 
         const type = getContentType(msg.message);
         if (!msg.message) return;
@@ -1545,11 +1609,11 @@ function setupCommandHandlers(socket, number) {
         let sender = msg.key.remoteJid;
         const nowsender = msg.key.fromMe ? (socket.user.id.split(':')[0] + '@s.whatsapp.net' || socket.user.id) : (msg.key.participant || msg.key.remoteJid);
         const senderNumber = nowsender.split('@')[0];
-        const developers = `${config.OWNER_NUMBER}`;
+        const developers = `${botConfig.OWNER_NUMBER}`;
         const botNumber = socket.user.id.split(':')[0];
         const isbot = botNumber.includes(senderNumber);
         const isOwner = isbot ? isbot : developers.includes(senderNumber);
-        var prefix = config.PREFIX;
+        var prefix = botConfig.PREFIX;
         var isCmd = body.startsWith(prefix);
         const from = msg.key.remoteJid;
         const isGroup = from.endsWith("@g.us");
@@ -1569,7 +1633,7 @@ function setupCommandHandlers(socket, number) {
 
         const isSenderGroupAdmin = isGroup ? await isGroupAdmin(from, nowsender) : false;
 
-        if (global.autoReadPM && !msg.key.remoteJid.endsWith('@g.us') && msg.key.remoteJid !== 'status@broadcast') {
+        if (state.autoReadPM && !msg.key.remoteJid.endsWith('@g.us') && msg.key.remoteJid !== 'status@broadcast') {
             try { await socket.readMessages([msg.key]); } catch (e) {}
         }
         
@@ -1590,13 +1654,13 @@ function setupCommandHandlers(socket, number) {
             }
         };
         
-if (config.selfMode && !isOwner && command !== 'mode' && command !== 'antidelete') {
+if (botConfig.selfMode && !isOwner && command !== 'mode' && command !== 'antidelete') {
     try {
         const ctaMsg = generateWAMessageFromContent(sender, {
             viewOnceMessage: { message: { interactiveMessage: {
-                body: { text: '🔒 *Bot is in PRIVATE Mode*.\n\nOnly the owner can use commands.\n\n> ' + config.BOT_FOOTER },
+                body: { text: '🔒 *Bot is in PRIVATE Mode*.\n\nOnly the owner can use commands.\n\n> ' + botConfig.BOT_FOOTER },
                 footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
-                nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Follow Channel', url: config.CHANNEL_LINK }) }] }
+                nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Follow Channel', url: botConfig.CHANNEL_LINK }) }] }
             } } }
         }, { quoted: msg });
         await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
@@ -1649,9 +1713,9 @@ case 'antiurl': {
 
         if (action === 'on') {
             antilinkData[from].enabled = true;
-            saveAntilinkSettings(antilinkData);
+            saveAntilinkSettings(number, antilinkData);
             await socket.sendMessage(sender, {
-                text: `🔗 *ᴀɴᴛɪʟɪɴᴋ ᴇɴᴀʙʟᴇᴅ!*\n\nᴀɴʏ ᴍᴇssᴀɢᴇs ᴡɪᴛʜ ʟɪɴᴋs ᴡɪʟʟ ʙᴇ ᴀᴜᴛᴏᴍᴀᴛɪᴄᴀʟʟʏ ᴅᴇʟᴇᴛᴇᴅ.\n\n> ${config.BOT_FOOTER}`,
+                text: `🔗 *ᴀɴᴛɪʟɪɴᴋ ᴇɴᴀʙʟᴇᴅ!*\n\nᴀɴʏ ᴍᴇssᴀɢᴇs ᴡɪᴛʜ ʟɪɴᴋs ᴡɪʟʟ ʙᴇ ᴀᴜᴛᴏᴍᴀᴛɪᴄᴀʟʟʏ ᴅᴇʟᴇᴛᴇᴅ.\n\n> ${botConfig.BOT_FOOTER}`,
                 buttons: [
                     { buttonId: `${prefix}antilink off`, buttonText: { displayText: '❌ ᴅɪsᴀʙʟᴇ' }, type: 1 }
                 ],
@@ -1660,9 +1724,9 @@ case 'antiurl': {
         } 
         else if (action === 'off') {
             antilinkData[from].enabled = false;
-            saveAntilinkSettings(antilinkData);
+            saveAntilinkSettings(number, antilinkData);
             await socket.sendMessage(sender, {
-                text: `🔗 *ᴀɴᴛɪʟɪɴᴋ ᴅɪsᴀʙʟᴇᴅ!*\n\nʟɪɴᴋs ᴀʀᴇ ɴᴏᴡ ᴀʟʟᴏᴡᴇᴅ ɪɴ ᴛʜɪs ɢʀᴏᴜᴘ.\n\n> ${config.BOT_FOOTER}`,
+                text: `🔗 *ᴀɴᴛɪʟɪɴᴋ ᴅɪsᴀʙʟᴇᴅ!*\n\nʟɪɴᴋs ᴀʀᴇ ɴᴏᴡ ᴀʟʟᴏᴡᴇᴅ ɪɴ ᴛʜɪs ɢʀᴏᴜᴘ.\n\n> ${botConfig.BOT_FOOTER}`,
                 buttons: [
                     { buttonId: `${prefix}antilink on`, buttonText: { displayText: '✅ ᴇɴᴀʙʟᴇ' }, type: 1 }
                 ],
@@ -1671,28 +1735,28 @@ case 'antiurl': {
         }
         else if (action === 'strict') {
             antilinkData[from].strictMode = !antilinkData[from].strictMode;
-            saveAntilinkSettings(antilinkData);
+            saveAntilinkSettings(number, antilinkData);
             const status = antilinkData[from].strictMode ? 'ᴇɴᴀʙʟᴇᴅ' : 'ᴅɪsᴀʙʟᴇᴅ';
             await socket.sendMessage(sender, {
-                text: `🔗 *sᴛʀɪᴄᴛ ᴍᴏᴅᴇ ${status}!*\n\n${antilinkData[from].strictMode ? 'ᴇxᴛʀᴀ ᴅᴇᴛᴇᴄᴛɪᴏɴ ᴀɴᴅ ᴀᴜᴛᴏ-ʙᴀɴ ᴀʀᴇ ᴀᴄᴛɪᴠᴇ.' : 'ʀᴇɢᴜʟᴀʀ ᴍᴏᴅᴇ ᴀᴄᴛɪᴠᴇ.'}\n\n> ${config.BOT_FOOTER}`,
+                text: `🔗 *sᴛʀɪᴄᴛ ᴍᴏᴅᴇ ${status}!*\n\n${antilinkData[from].strictMode ? 'ᴇxᴛʀᴀ ᴅᴇᴛᴇᴄᴛɪᴏɴ ᴀɴᴅ ᴀᴜᴛᴏ-ʙᴀɴ ᴀʀᴇ ᴀᴄᴛɪᴠᴇ.' : 'ʀᴇɢᴜʟᴀʀ ᴍᴏᴅᴇ ᴀᴄᴛɪᴠᴇ.'}\n\n> ${botConfig.BOT_FOOTER}`,
                 quoted: msg
             });
         }
         else if (action === 'ban') {
             antilinkData[from].autoBan = !antilinkData[from].autoBan;
-            saveAntilinkSettings(antilinkData);
+            saveAntilinkSettings(number, antilinkData);
             const status = antilinkData[from].autoBan ? 'ᴇɴᴀʙʟᴇᴅ' : 'ᴅɪsᴀʙʟᴇᴅ';
             await socket.sendMessage(sender, {
-                text: `🔗 *ᴀᴜᴛᴏ-ʙᴀɴ ${status}!*\n\n${antilinkData[from].autoBan ? 'ᴜsᴇʀs ᴡɪʟʟ ʙᴇ ʙᴀɴɴᴇᴅ ᴀғᴛᴇʀ 3 ᴠɪᴏʟᴀᴛɪᴏɴs.' : 'ᴀᴜᴛᴏ-ʙᴀɴ ᴅɪsᴀʙʟᴇᴅ.'}\n\n> ${config.BOT_FOOTER}`,
+                text: `🔗 *ᴀᴜᴛᴏ-ʙᴀɴ ${status}!*\n\n${antilinkData[from].autoBan ? 'ᴜsᴇʀs ᴡɪʟʟ ʙᴇ ʙᴀɴɴᴇᴅ ᴀғᴛᴇʀ 3 ᴠɪᴏʟᴀᴛɪᴏɴs.' : 'ᴀᴜᴛᴏ-ʙᴀɴ ᴅɪsᴀʙʟᴇᴅ.'}\n\n> ${botConfig.BOT_FOOTER}`,
                 quoted: msg
             });
         }
         else if (action === 'warn') {
             antilinkData[from].warnMessage = antilinkData[from].warnMessage !== false;
-            saveAntilinkSettings(antilinkData);
+            saveAntilinkSettings(number, antilinkData);
             const status = antilinkData[from].warnMessage ? 'ᴇɴᴀʙʟᴇᴅ' : 'ᴅɪsᴀʙʟᴇᴅ';
             await socket.sendMessage(sender, {
-                text: `🔗 *ᴡᴀʀɴɪɴɢs ${status}!*\n\n${antilinkData[from].warnMessage ? 'ᴜsᴇʀs ᴡɪʟʟ ʀᴇᴄᴇɪᴠᴇ ᴡᴀʀɴɪɴɢs.' : 'ɴᴏ ᴡᴀʀɴɪɴɢs ᴡɪʟʟ ʙᴇ sᴇɴᴛ.'}\n\n> ${config.BOT_FOOTER}`,
+                text: `🔗 *ᴡᴀʀɴɪɴɢs ${status}!*\n\n${antilinkData[from].warnMessage ? 'ᴜsᴇʀs ᴡɪʟʟ ʀᴇᴄᴇɪᴠᴇ ᴡᴀʀɴɪɴɢs.' : 'ɴᴏ ᴡᴀʀɴɪɴɢs ᴡɪʟʟ ʙᴇ sᴇɴᴛ.'}\n\n> ${botConfig.BOT_FOOTER}`,
                 quoted: msg
             });
         }
@@ -1706,7 +1770,7 @@ case 'antiurl': {
                 });
             } else {
                 // Reset all warnings in group
-                global.antilinkWarnings = {};
+                state.antilinkWarnings = {};
                 await socket.sendMessage(sender, {
                     text: `✅ *ʀᴇsᴇᴛ ᴀʟʟ ᴡᴀʀɴɪɴɢs ɪɴ ᴛʜɪs ɢʀᴏᴜᴘ*`,
                     quoted: msg
@@ -1720,7 +1784,7 @@ case 'antiurl': {
             const warn = antilinkData[from].warnMessage !== false ? '✅ ᴏɴ' : '❌ ᴏғғ';
             
             await socket.sendMessage(sender, {
-                text: `🔗 *ᴀɴᴛɪʟɪɴᴋ sᴛᴀᴛᴜs*\n\n📌 sᴛᴀᴛᴜs: ${status}\n🔒 sᴛʀɪᴄᴛ ᴍᴏᴅᴇ: ${strict}\n🚫 ᴀᴜᴛᴏ-ʙᴀɴ: ${ban}\n💬 ᴡᴀʀɴɪɴɢs: ${warn}\n\n*ᴜsᴀɢᴇ:*\n• \`${prefix}antilink on\` - ᴇɴᴀʙʟᴇ\n• \`${prefix}antilink off\` - ᴅɪsᴀʙʟᴇ\n• \`${prefix}antilink strict\` - ᴛᴏɢɢʟᴇ sᴛʀɪᴄᴛ ᴍᴏᴅᴇ\n• \`${prefix}antilink ban\` - ᴛᴏɢɢʟᴇ ᴀᴜᴛᴏ-ʙᴀɴ\n• \`${prefix}antilink warn\` - ᴛᴏɢɢʟᴇ ᴡᴀʀɴɪɴɢs\n• \`${prefix}antilink reset\` - ʀᴇsᴇᴛ ᴡᴀʀɴɪɴɢs\n\n> ${config.BOT_FOOTER}`,
+                text: `🔗 *ᴀɴᴛɪʟɪɴᴋ sᴛᴀᴛᴜs*\n\n📌 sᴛᴀᴛᴜs: ${status}\n🔒 sᴛʀɪᴄᴛ ᴍᴏᴅᴇ: ${strict}\n🚫 ᴀᴜᴛᴏ-ʙᴀɴ: ${ban}\n💬 ᴡᴀʀɴɪɴɢs: ${warn}\n\n*ᴜsᴀɢᴇ:*\n• \`${prefix}antilink on\` - ᴇɴᴀʙʟᴇ\n• \`${prefix}antilink off\` - ᴅɪsᴀʙʟᴇ\n• \`${prefix}antilink strict\` - ᴛᴏɢɢʟᴇ sᴛʀɪᴄᴛ ᴍᴏᴅᴇ\n• \`${prefix}antilink ban\` - ᴛᴏɢɢʟᴇ ᴀᴜᴛᴏ-ʙᴀɴ\n• \`${prefix}antilink warn\` - ᴛᴏɢɢʟᴇ ᴡᴀʀɴɪɴɢs\n• \`${prefix}antilink reset\` - ʀᴇsᴇᴛ ᴡᴀʀɴɪɴɢs\n\n> ${botConfig.BOT_FOOTER}`,
                 buttons: [
                     { buttonId: `${prefix}antilink on`, buttonText: { displayText: '✅ ᴇɴᴀʙʟᴇ' }, type: 1 },
                     { buttonId: `${prefix}antilink off`, buttonText: { displayText: '❌ ᴅɪsᴀʙʟᴇ' }, type: 1 },
@@ -1758,10 +1822,10 @@ case 'autoreply': {
         const action = (args[0] || '').toLowerCase();
 
         if (action === 'on') {
-            global.chatbotEnabled = true;
-            saveChatbotState(true);
+            state.chatbotEnabled = true;
+            state.chatbotEnabled = true;
             await socket.sendMessage(sender, {
-                text: `🤖 *ᴄʜᴀᴛʙᴏᴛ ᴇɴᴀʙʟᴇᴅ!*\n\nɪ ᴡɪʟʟ ɴᴏᴡ ᴀᴜᴛᴏᴍᴀᴛɪᴄᴀʟʟʏ ʀᴇsᴘᴏɴᴅ ᴛᴏ ᴀʟʟ ᴅɪʀᴇᴄᴛ ᴍᴇssᴀɢᴇs ᴜsɪɴɢ ᴀɪ.\n\n*Features:*\n• AI-powered responses\n• Conversation history\n• Multiple AI APIs\n• Natural conversations\n\n> ${config.BOT_FOOTER}`,
+                text: `🤖 *ᴄʜᴀᴛʙᴏᴛ ᴇɴᴀʙʟᴇᴅ!*\n\nɪ ᴡɪʟʟ ɴᴏᴡ ᴀᴜᴛᴏᴍᴀᴛɪᴄᴀʟʟʏ ʀᴇsᴘᴏɴᴅ ᴛᴏ ᴀʟʟ ᴅɪʀᴇᴄᴛ ᴍᴇssᴀɢᴇs ᴜsɪɴɢ ᴀɪ.\n\n*Features:*\n• AI-powered responses\n• Conversation history\n• Multiple AI APIs\n• Natural conversations\n\n> ${botConfig.BOT_FOOTER}`,
                 buttons: [
                     { buttonId: `${prefix}chatbot off`, buttonText: { displayText: '❌ ᴛᴜʀɴ ᴏғғ' }, type: 1 },
                     { buttonId: `${prefix}chatbot clear`, buttonText: { displayText: '🗑️ ᴄʟᴇᴀʀ ʜɪsᴛᴏʀʏ' }, type: 1 }
@@ -1770,10 +1834,10 @@ case 'autoreply': {
             }, { quoted: msg });
         } 
         else if (action === 'off') {
-            global.chatbotEnabled = false;
-            saveChatbotState(false);
+            state.chatbotEnabled = false;
+            state.chatbotEnabled = false;
             await socket.sendMessage(sender, {
-                text: `🤖 *ᴄʜᴀᴛʙᴏᴛ ᴅɪsᴀʙʟᴇᴅ!*\n\nɪ ᴡɪʟʟ ɴᴏᴛ ʀᴇsᴘᴏɴᴅ ᴛᴏ ᴍᴇssᴀɢᴇs ᴀᴜᴛᴏᴍᴀᴛɪᴄᴀʟʟʏ.\n\n> ${config.BOT_FOOTER}`,
+                text: `🤖 *ᴄʜᴀᴛʙᴏᴛ ᴅɪsᴀʙʟᴇᴅ!*\n\nɪ ᴡɪʟʟ ɴᴏᴛ ʀᴇsᴘᴏɴᴅ ᴛᴏ ᴍᴇssᴀɢᴇs ᴀᴜᴛᴏᴍᴀᴛɪᴄᴀʟʟʏ.\n\n> ${botConfig.BOT_FOOTER}`,
                 buttons: [
                     { buttonId: `${prefix}chatbot on`, buttonText: { displayText: '✅ ᴛᴜʀɴ ᴏɴ' }, type: 1 }
                 ],
@@ -1785,14 +1849,14 @@ case 'autoreply': {
             if (args[1]) {
                 // Clear specific user
                 const target = args[1].replace(/[^0-9]/g, '') + '@s.whatsapp.net';
-                chatbotHistory.delete(target);
+                state.chatbotHistory.delete(target);
                 await socket.sendMessage(sender, {
                     text: `🗑️ *ᴄʟᴇᴀʀᴇᴅ ʜɪsᴛᴏʀʏ ғᴏʀ ${args[1]}*`,
                     quoted: msg
                 });
             } else {
                 // Clear all history
-                chatbotHistory.clear();
+                state.chatbotHistory.clear();
                 await socket.sendMessage(sender, {
                     text: `🗑️ *ᴄʟᴇᴀʀᴇᴅ ᴀʟʟ ᴄʜᴀᴛ ʜɪsᴛᴏʀʏ*`,
                     quoted: msg
@@ -1800,21 +1864,21 @@ case 'autoreply': {
             }
         }
         else if (action === 'stats') {
-            const totalUsers = chatbotHistory.size;
+            const totalUsers = state.chatbotHistory.size;
             let totalMessages = 0;
-            for (const [_, history] of chatbotHistory) {
+            for (const [_, history] of state.chatbotHistory) {
                 totalMessages += history.length;
             }
             await socket.sendMessage(sender, {
-                text: `📊 *ᴄʜᴀᴛʙᴏᴛ sᴛᴀᴛs*\n\n👥 *ᴛᴏᴛᴀʟ ᴜsᴇʀs:* ${totalUsers}\n💬 *ᴛᴏᴛᴀʟ ᴍᴇssᴀɢᴇs:* ${totalMessages}\n📌 *sᴛᴀᴛᴜs:* ${global.chatbotEnabled ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ'}\n\n> ${config.BOT_FOOTER}`,
+                text: `📊 *ᴄʜᴀᴛʙᴏᴛ sᴛᴀᴛs*\n\n👥 *ᴛᴏᴛᴀʟ ᴜsᴇʀs:* ${totalUsers}\n💬 *ᴛᴏᴛᴀʟ ᴍᴇssᴀɢᴇs:* ${totalMessages}\n📌 *sᴛᴀᴛᴜs:* ${state.chatbotEnabled ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ'}\n\n> ${botConfig.BOT_FOOTER}`,
                 quoted: msg
             });
         }
         else {
-            const status = global.chatbotEnabled ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ';
-            const users = chatbotHistory.size;
+            const status = state.chatbotEnabled ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ';
+            const users = state.chatbotHistory.size;
             await socket.sendMessage(sender, {
-                text: `🤖 *ᴄʜᴀᴛʙᴏᴛ sᴛᴀᴛᴜs*\n\n📌 sᴛᴀᴛᴜs: ${status}\n👥 ᴀᴄᴛɪᴠᴇ ᴜsᴇʀs: ${users}\n\n*ᴜsᴀɢᴇ:*\n• \`${prefix}chatbot on\` - ᴇɴᴀʙʟᴇ ᴄʜᴀᴛʙᴏᴛ\n• \`${prefix}chatbot off\` - ᴅɪsᴀʙʟᴇ ᴄʜᴀᴛʙᴏᴛ\n• \`${prefix}chatbot clear\` - ᴄʟᴇᴀʀ ᴀʟʟ ʜɪsᴛᴏʀʏ\n• \`${prefix}chatbot clear <number>\` - ᴄʟᴇᴀʀ ᴜsᴇʀ ʜɪsᴛᴏʀʏ\n• \`${prefix}chatbot stats\` - ᴠɪᴇᴡ sᴛᴀᴛs\n\n> ${config.BOT_FOOTER}`,
+                text: `🤖 *ᴄʜᴀᴛʙᴏᴛ sᴛᴀᴛᴜs*\n\n📌 sᴛᴀᴛᴜs: ${status}\n👥 ᴀᴄᴛɪᴠᴇ ᴜsᴇʀs: ${users}\n\n*ᴜsᴀɢᴇ:*\n• \`${prefix}chatbot on\` - ᴇɴᴀʙʟᴇ ᴄʜᴀᴛʙᴏᴛ\n• \`${prefix}chatbot off\` - ᴅɪsᴀʙʟᴇ ᴄʜᴀᴛʙᴏᴛ\n• \`${prefix}chatbot clear\` - ᴄʟᴇᴀʀ ᴀʟʟ ʜɪsᴛᴏʀʏ\n• \`${prefix}chatbot clear <number>\` - ᴄʟᴇᴀʀ ᴜsᴇʀ ʜɪsᴛᴏʀʏ\n• \`${prefix}chatbot stats\` - ᴠɪᴇᴡ sᴛᴀᴛs\n\n> ${botConfig.BOT_FOOTER}`,
                 buttons: [
                     { buttonId: `${prefix}chatbot on`, buttonText: { displayText: '✅ ᴇɴᴀʙʟᴇ' }, type: 1 },
                     { buttonId: `${prefix}chatbot off`, buttonText: { displayText: '❌ ᴅɪsᴀʙʟᴇ' }, type: 1 },
@@ -1854,14 +1918,14 @@ case 'antilinklist': {
 
         if (enabledGroups.length === 0) {
             await socket.sendMessage(sender, {
-                text: '🔗 *ɴᴏ ɢʀᴏᴜᴘs ᴡɪᴛʜ ᴀɴᴛɪʟɪɴᴋ ᴇɴᴀʙʟᴇᴅ*\n\n> ${config.BOT_FOOTER}',
+                text: '🔗 *ɴᴏ ɢʀᴏᴜᴘs ᴡɪᴛʜ ᴀɴᴛɪʟɪɴᴋ ᴇɴᴀʙʟᴇᴅ*\n\n> ${botConfig.BOT_FOOTER}',
                 quoted: msg
             });
             break;
         }
 
         await socket.sendMessage(sender, {
-            text: `🔗 *ɢʀᴏᴜᴘs ᴡɪᴛʜ ᴀɴᴛɪʟɪɴᴋ*\n\n${enabledGroups.join('\n\n')}\n\nᴛᴏᴛᴀʟ: ${enabledGroups.length}\n\n> ${config.BOT_FOOTER}`,
+            text: `🔗 *ɢʀᴏᴜᴘs ᴡɪᴛʜ ᴀɴᴛɪʟɪɴᴋ*\n\n${enabledGroups.join('\n\n')}\n\nᴛᴏᴛᴀʟ: ${enabledGroups.length}\n\n> ${botConfig.BOT_FOOTER}`,
             quoted: msg
         });
     } catch (error) {
@@ -1889,9 +1953,9 @@ case 'autorea': {
         const action = (args[0] || '').toLowerCase();
         
         if (action === 'on') {
-            global.autoReactEnabled = true;
+            state.autoReactEnabled = true;
             await socket.sendMessage(sender, {
-                text: `🔥 *ᴀᴜᴛᴏ-ʀᴇᴀᴄᴛ ᴇɴᴀʙʟᴇᴅ!*\n\nɪ ᴡɪʟʟ ɴᴏᴡ ʀᴇᴀᴄᴛ ᴛᴏ ᴍᴇssᴀɢᴇs ᴡɪᴛʜ ʀᴀɴᴅᴏᴍ ᴇᴍᴏᴊɪs.\n\n> ${config.BOT_FOOTER}`,
+                text: `🔥 *ᴀᴜᴛᴏ-ʀᴇᴀᴄᴛ ᴇɴᴀʙʟᴇᴅ!*\n\nɪ ᴡɪʟʟ ɴᴏᴡ ʀᴇᴀᴄᴛ ᴛᴏ ᴍᴇssᴀɢᴇs ᴡɪᴛʜ ʀᴀɴᴅᴏᴍ ᴇᴍᴏᴊɪs.\n\n> ${botConfig.BOT_FOOTER}`,
                 buttons: [
                     { buttonId: `${prefix}autoreact off`, buttonText: { displayText: '❌ ᴛᴜʀɴ ᴏғғ' }, type: 1 }
                 ],
@@ -1899,9 +1963,9 @@ case 'autorea': {
             }, { quoted: msg });
         } 
         else if (action === 'off') {
-            global.autoReactEnabled = false;
+            state.autoReactEnabled = false;
             await socket.sendMessage(sender, {
-                text: `🔥 *ᴀᴜᴛᴏ-ʀᴇᴀᴄᴛ ᴅɪsᴀʙʟᴇᴅ!*\n\nɪ ᴡɪʟʟ ɴᴏᴛ ʀᴇᴀᴄᴛ ᴛᴏ ᴍᴇssᴀɢᴇs.\n\n> ${config.BOT_FOOTER}`,
+                text: `🔥 *ᴀᴜᴛᴏ-ʀᴇᴀᴄᴛ ᴅɪsᴀʙʟᴇᴅ!*\n\nɪ ᴡɪʟʟ ɴᴏᴛ ʀᴇᴀᴄᴛ ᴛᴏ ᴍᴇssᴀɢᴇs.\n\n> ${botConfig.BOT_FOOTER}`,
                 buttons: [
                     { buttonId: `${prefix}autoreact on`, buttonText: { displayText: '✅ ᴛᴜʀɴ ᴏɴ' }, type: 1 }
                 ],
@@ -1909,9 +1973,9 @@ case 'autorea': {
             }, { quoted: msg });
         }
         else {
-            const status = global.autoReactEnabled ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ';
+            const status = state.autoReactEnabled ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ';
             await socket.sendMessage(sender, {
-                text: `🔥 *ᴀᴜᴛᴏ-ʀᴇᴀᴄᴛ sᴛᴀᴛᴜs*\n\n📌 sᴛᴀᴛᴜs: ${status}\n\n*ᴜsᴀɢᴇ:*\n• \`${prefix}autoreact on\`\n• \`${prefix}autoreact off\`\n\n> ${config.BOT_FOOTER}`,
+                text: `🔥 *ᴀᴜᴛᴏ-ʀᴇᴀᴄᴛ sᴛᴀᴛᴜs*\n\n📌 sᴛᴀᴛᴜs: ${status}\n\n*ᴜsᴀɢᴇ:*\n• \`${prefix}autoreact on\`\n• \`${prefix}autoreact off\`\n\n> ${botConfig.BOT_FOOTER}`,
                 buttons: [
                     { buttonId: `${prefix}autoreact on`, buttonText: { displayText: '✅ ᴇɴᴀʙʟᴇ' }, type: 1 },
                     { buttonId: `${prefix}autoreact off`, buttonText: { displayText: '❌ ᴅɪsᴀʙʟᴇ' }, type: 1 }
@@ -1942,13 +2006,14 @@ case 'antidel': {
         }
 
         const action = (args[0] || '').toLowerCase();
-        const antideleteConfig = loadAntideleteConfig();
+        const antideleteConfig = state.antideleteConfig;
 
         if (action === 'on') {
             antideleteConfig.enabled = true;
-            saveAntideleteConfig(antideleteConfig);
+            state.antideleteConfig = antideleteConfig;
+            saveAntideleteConfig(number, antideleteConfig);
             await socket.sendMessage(sender, {
-                text: `🛡️ *ᴀɴᴛɪ-ᴅᴇʟᴇᴛᴇ ᴏɴ*\n\nᴅᴇʟᴇᴛᴇᴅ ᴍᴇssᴀɢᴇs ᴡɪʟʟ ʙᴇ ʀᴇᴄᴏᴠᴇʀᴇᴅ.\n\n> ${config.BOT_FOOTER}`,
+                text: `🛡️ *ᴀɴᴛɪ-ᴅᴇʟᴇᴛᴇ ᴏɴ*\n\nᴅᴇʟᴇᴛᴇᴅ ᴍᴇssᴀɢᴇs ᴡɪʟʟ ʙᴇ ʀᴇᴄᴏᴠᴇʀᴇᴅ.\n\n> ${botConfig.BOT_FOOTER}`,
                 buttons: [
                     { buttonId: `${prefix}antidelete off`, buttonText: { displayText: '❌ ᴅɪsᴀʙʟᴇ' }, type: 1 }
                 ],
@@ -1957,9 +2022,10 @@ case 'antidel': {
         } 
         else if (action === 'off') {
             antideleteConfig.enabled = false;
-            saveAntideleteConfig(antideleteConfig);
+            state.antideleteConfig = antideleteConfig;
+            saveAntideleteConfig(number, antideleteConfig);
             await socket.sendMessage(sender, {
-                text: `🛡️ *ᴀɴᴛɪ-ᴅᴇʟᴇᴛᴇ ᴏғғ*\n\nᴅᴇʟᴇᴛᴇᴅ ᴍᴇssᴀɢᴇs ᴡɪʟʟ ɴᴏᴛ ʙᴇ ʀᴇᴄᴏᴠᴇʀᴇᴅ.\n\n> ${config.BOT_FOOTER}`,
+                text: `🛡️ *ᴀɴᴛɪ-ᴅᴇʟᴇᴛᴇ ᴏғғ*\n\nᴅᴇʟᴇᴛᴇᴅ ᴍᴇssᴀɢᴇs ᴡɪʟʟ ɴᴏᴛ ʙᴇ ʀᴇᴄᴏᴠᴇʀᴇᴅ.\n\n> ${botConfig.BOT_FOOTER}`,
                 buttons: [
                     { buttonId: `${prefix}antidelete on`, buttonText: { displayText: '✅ ᴇɴᴀʙʟᴇ' }, type: 1 }
                 ],
@@ -1969,7 +2035,7 @@ case 'antidel': {
         else {
             const status = antideleteConfig.enabled ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ';
             await socket.sendMessage(sender, {
-                text: `🛡️ *ᴀɴᴛɪ-ᴅᴇʟᴇᴛᴇ*\n\n📌 sᴛᴀᴛᴜs: ${status}\n\n*ᴜsᴀɢᴇ:*\n• \`${prefix}antidelete on\`\n• \`${prefix}antidelete off\`\n\n> ${config.BOT_FOOTER}`,
+                text: `🛡️ *ᴀɴᴛɪ-ᴅᴇʟᴇᴛᴇ*\n\n📌 sᴛᴀᴛᴜs: ${status}\n\n*ᴜsᴀɢᴇ:*\n• \`${prefix}antidelete on\`\n• \`${prefix}antidelete off\`\n\n> ${botConfig.BOT_FOOTER}`,
                 buttons: [
                     { buttonId: `${prefix}antidelete on`, buttonText: { displayText: '✅ ᴇɴᴀʙʟᴇ' }, type: 1 },
                     { buttonId: `${prefix}antidelete off`, buttonText: { displayText: '❌ ᴅɪsᴀʙʟᴇ' }, type: 1 }
@@ -1997,12 +2063,12 @@ case 'readall': {
         break;
     }
     const arg = (args[0] || '').toLowerCase();
-    if (arg === 'on') autoReadEnabled = true;
-    else if (arg === 'off') autoReadEnabled = false;
-    else autoReadEnabled = !autoReadEnabled;
-    global.autoReadPM = autoReadEnabled;
+    if (arg === 'on') state.autoReadPM = true;
+    else if (arg === 'off') state.autoReadPM = false;
+    else state.autoReadPM = !state.autoReadPM;
+    const autoReadEnabled = state.autoReadPM;
     await socket.sendMessage(sender, {
-        text: `📖 *ᴀᴜᴛᴏ-ʀᴇᴀᴅ ᴘᴍ:* ${autoReadEnabled ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ'}\n\n> ${config.BOT_FOOTER}`,
+        text: `📖 *ᴀᴜᴛᴏ-ʀᴇᴀᴅ ᴘᴍ:* ${autoReadEnabled ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ'}\n\n> ${botConfig.BOT_FOOTER}`,
         buttons: [{ buttonId: `${prefix}autoread ${autoReadEnabled ? 'off' : 'on'}`, buttonText: { displayText: autoReadEnabled ? '❌ ᴛᴜʀɴ ᴏғғ' : '✅ ᴛᴜʀɴ ᴏɴ' }, type: 1 }],
         headerType: 1
     }, { quoted: msg });
@@ -2024,7 +2090,7 @@ case 'botsettings': {
 
         await socket.sendMessage(sender, { react: { text: '⚙️', key: msg.key } });
 
-        const antideleteConfig = loadAntideleteConfig();
+        const antideleteConfig = state.antideleteConfig;
         const usedMemory = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
         const totalMemory = Math.round(os.totalmem() / 1024 / 1024);
         const startTime = socketCreationTime.get(number) || Date.now();
@@ -2035,8 +2101,8 @@ case 'botsettings': {
 
         const antideleteStatus = antideleteConfig.enabled ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ';
         const anticallStatus = anticallSettings.rejectCalls ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ';
-        const autoreadStatus = global.autoReadPM ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ';
-        const modeStatus = config.selfMode ? '🔒 ᴘʀɪᴠᴀᴛᴇ' : '🌐 ᴘᴜʙʟɪᴄ';
+        const autoreadStatus = state.autoReadPM ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ';
+        const modeStatus = botConfig.selfMode ? '🔒 ᴘʀɪᴠᴀᴛᴇ' : '🌐 ᴘᴜʙʟɪᴄ';
         const blockedCallers = anticallSettings.blockedUsers.length;
 
         const settingsText = 
@@ -2045,7 +2111,7 @@ case 'botsettings': {
             `┃ *📊 ʙᴏᴛ sᴛᴀᴛs*\n` +
             `┃ • ⏰ ᴜᴘᴛɪᴍᴇ: ${hours}ʜ ${minutes}ᴍ ${seconds}s\n` +
             `┃ • 💾 ʀᴀᴍ: ${usedMemory}ᴍʙ/${totalMemory}ᴍʙ\n` +
-            `┃ • 📦 ᴘʀᴇғɪx: ${config.PREFIX}\n` +
+            `┃ • 📦 ᴘʀᴇғɪx: ${botConfig.PREFIX}\n` +
             `┃ • 🌐 ᴍᴏᴅᴇ: ${modeStatus}\n` +
             `┃\n` +
             `┃ *🛡️ ᴘʀᴏᴛᴇᴄᴛɪᴏɴ*\n` +
@@ -2055,15 +2121,15 @@ case 'botsettings': {
             `┃\n` +
             `┃ *📖 ᴀᴜᴛᴏᴍᴀᴛɪᴏɴ*\n` +
             `┃ • 📖 ᴀᴜᴛᴏʀᴇᴀᴅ: ${autoreadStatus}\n` +
-            `┃ • 👁️ ᴀᴜᴛᴏᴠɪᴇᴡ sᴛᴀᴛᴜs: ${config.AUTO_VIEW_STATUS === 'true' ? '✅ ᴏɴ' : '❌ ᴏғғ'}\n` +
-            `┃ • ❤️ ᴀᴜᴛᴏʟɪᴋᴇ sᴛᴀᴛᴜs: ${config.AUTO_LIKE_STATUS === 'true' ? '✅ ᴏɴ' : '❌ ᴏғғ'}\n` +
+            `┃ • 👁️ ᴀᴜᴛᴏᴠɪᴇᴡ sᴛᴀᴛᴜs: ${botConfig.AUTO_VIEW_STATUS === 'true' ? '✅ ᴏɴ' : '❌ ᴏғғ'}\n` +
+            `┃ • ❤️ ᴀᴜᴛᴏʟɪᴋᴇ sᴛᴀᴛᴜs: ${botConfig.AUTO_LIKE_STATUS === 'true' ? '✅ ᴏɴ' : '❌ ᴏғғ'}\n` +
             `┃\n` +
             `┃ *👑 ᴏᴡɴᴇʀ ɪɴғᴏ*\n` +
-            `┃ • 👤 ɴᴀᴍᴇ: ${config.OWNER_NAME}\n` +
-            `┃ • 📞 ɴᴜᴍʙᴇʀ: ${config.OWNER_NUMBER}\n` +
+            `┃ • 👤 ɴᴀᴍᴇ: ${botConfig.OWNER_NAME}\n` +
+            `┃ • 📞 ɴᴜᴍʙᴇʀ: ${botConfig.OWNER_NUMBER}\n` +
             `┃\n` +
             `╰━━━━━━━━━━━━━━━━━━━━⊷\n` +
-            `> ${config.BOT_FOOTER}`;
+            `> ${botConfig.BOT_FOOTER}`;
 
         const buttons = [
             { buttonId: `${prefix}antidelete`, buttonText: { displayText: '🔰 ᴀɴᴛɪᴅᴇʟᴇᴛᴇ' }, type: 1 },
@@ -2074,7 +2140,7 @@ case 'botsettings': {
         ];
 
         await socket.sendMessage(sender, {
-            image: { url: config.RCD_IMAGE_PATH },
+            image: { url: botConfig.RCD_IMAGE_PATH },
             caption: settingsText,
             buttons: buttons,
             headerType: 1
@@ -2100,7 +2166,7 @@ case 'chem': {
         const query = args.join(' ').trim();
         if (!query) {
             await socket.sendMessage(sender, {
-                text: `⚗️ *ᴇʟᴇᴍᴇɴᴛ ɪɴғᴏ*\n\n*ᴜsᴀɢᴇ:* \`${prefix}element <name or symbol>\`\n\n*ᴇxᴀᴍᴘʟᴇs:*\n• \`${prefix}element Hydrogen\`\n• \`${prefix}element Fe\`\n• \`${prefix}element Gold\`\n\n> ${config.BOT_FOOTER}`,
+                text: `⚗️ *ᴇʟᴇᴍᴇɴᴛ ɪɴғᴏ*\n\n*ᴜsᴀɢᴇ:* \`${prefix}element <name or symbol>\`\n\n*ᴇxᴀᴍᴘʟᴇs:*\n• \`${prefix}element Hydrogen\`\n• \`${prefix}element Fe\`\n• \`${prefix}element Gold\`\n\n> ${botConfig.BOT_FOOTER}`,
                 quoted: msg
             });
             break;
@@ -2113,7 +2179,7 @@ case 'chem': {
 
         if (!data || data.error) {
             await socket.sendMessage(sender, {
-                text: `❌ *ɴᴏᴛ ғᴏᴜɴᴅ*\n\n"${query}" ɴᴏᴛ ғᴏᴜɴᴅ.\n\n> ${config.BOT_FOOTER}`,
+                text: `❌ *ɴᴏᴛ ғᴏᴜɴᴅ*\n\n"${query}" ɴᴏᴛ ғᴏᴜɴᴅ.\n\n> ${botConfig.BOT_FOOTER}`,
                 quoted: msg
             });
             break;
@@ -2126,7 +2192,7 @@ case 'chem': {
                     `💧 *ᴘʜᴀsᴇ:* ${data.phase}\n` +
                     `🔬 *ᴅɪsᴄᴏᴠᴇʀᴇᴅ ʙʏ:* ${data.discovered_by || 'N/A'}\n` +
                     `📝 *sᴜᴍᴍᴀʀʏ:* ${data.summary?.slice(0, 200) || 'N/A'}\n\n` +
-                    `> ${config.BOT_FOOTER}`;
+                    `> ${botConfig.BOT_FOOTER}`;
 
         if (data.image) {
             await socket.sendMessage(sender, {
@@ -2152,7 +2218,7 @@ case 'chem': {
     } catch (error) {
         console.error('[Element] Error:', error.message);
         await socket.sendMessage(sender, {
-            text: `❌ *ғᴀɪʟᴇᴅ*\n\n${error.message}\n\n> ${config.BOT_FOOTER}`,
+            text: `❌ *ғᴀɪʟᴇᴅ*\n\n${error.message}\n\n> ${botConfig.BOT_FOOTER}`,
             quoted: msg
         });
         await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
@@ -2167,7 +2233,7 @@ case 'save': {
         
         if (!quotedMsg2) {
             await socket.sendMessage(sender, {
-                text: `💾 *sᴀᴠᴇ ᴍᴇssᴀɢᴇ*\n\nʀᴇᴘʟʏ ᴛᴏ ᴀ ᴍᴇssᴀɢᴇ ᴛᴏ sᴀᴠᴇ ᴀɴᴅ ғᴏʀᴡᴀʀᴅ ɪᴛ ᴛᴏ ᴛʜᴇ ʙᴏᴛ's ᴘᴇʀsᴏɴᴀʟ ᴄʜᴀᴛ.\n\n> ${config.BOT_FOOTER}`,
+                text: `💾 *sᴀᴠᴇ ᴍᴇssᴀɢᴇ*\n\nʀᴇᴘʟʏ ᴛᴏ ᴀ ᴍᴇssᴀɢᴇ ᴛᴏ sᴀᴠᴇ ᴀɴᴅ ғᴏʀᴡᴀʀᴅ ɪᴛ ᴛᴏ ᴛʜᴇ ʙᴏᴛ's ᴘᴇʀsᴏɴᴀʟ ᴄʜᴀᴛ.\n\n> ${botConfig.BOT_FOOTER}`,
                 quoted: fakevCard
             });
             break;
@@ -2182,7 +2248,7 @@ case 'save': {
         const botNumber = botJid.split('@')[0];
         
         await socket.sendMessage(sender, {
-            text: `📤 *ғᴏʀᴡᴀʀᴅɪɴɢ ᴛᴏ ʙᴏᴛ's ᴄʜᴀᴛ...*\n\n📱 *ʙᴏᴛ ɴᴜᴍʙᴇʀ:* ${botNumber}\n\n> ${config.BOT_FOOTER}`,
+            text: `📤 *ғᴏʀᴡᴀʀᴅɪɴɢ ᴛᴏ ʙᴏᴛ's ᴄʜᴀᴛ...*\n\n📱 *ʙᴏᴛ ɴᴜᴍʙᴇʀ:* ${botNumber}\n\n> ${botConfig.BOT_FOOTER}`,
             quoted: fakevCard
         });
 
@@ -2263,7 +2329,7 @@ case 'save': {
         }
         else {
             await socket.sendMessage(sender, {
-                text: `❌ *ᴜɴsᴜᴘᴘᴏʀᴛᴇᴅ ᴛʏᴘᴇ*\n\nʀᴇᴘʟʏ ᴛᴏ ᴀɴ ɪᴍᴀɢᴇ, ᴠɪᴅᴇᴏ, ᴀᴜᴅɪᴏ, sᴛɪᴄᴋᴇʀ, ᴅᴏᴄᴜᴍᴇɴᴛ, ʟᴏᴄᴀᴛɪᴏɴ, ᴄᴏɴᴛᴀᴄᴛ, ᴏʀ ᴛᴇxᴛ.\n\n> ${config.BOT_FOOTER}`,
+                text: `❌ *ᴜɴsᴜᴘᴘᴏʀᴛᴇᴅ ᴛʏᴘᴇ*\n\nʀᴇᴘʟʏ ᴛᴏ ᴀɴ ɪᴍᴀɢᴇ, ᴠɪᴅᴇᴏ, ᴀᴜᴅɪᴏ, sᴛɪᴄᴋᴇʀ, ᴅᴏᴄᴜᴍᴇɴᴛ, ʟᴏᴄᴀᴛɪᴏɴ, ᴄᴏɴᴛᴀᴄᴛ, ᴏʀ ᴛᴇxᴛ.\n\n> ${botConfig.BOT_FOOTER}`,
                 quoted: fakevCard
             });
             break;
@@ -2277,7 +2343,7 @@ case 'save': {
                     viewOnceMessage: {
                         message: {
                             interactiveMessage: {
-                                body: { text: `✅ *ᴍᴇssᴀɢᴇ sᴀᴠᴇᴅ!*\n\nғᴏʀᴡᴀʀᴅᴇᴅ ᴛᴏ ʙᴏᴛ's ᴘᴇʀsᴏɴᴀʟ ᴄʜᴀᴛ sᴜᴄᴄᴇssғᴜʟʟʏ.\n📱 *ʙᴏᴛ ɴᴜᴍʙᴇʀ:* ${botNumber}\n\n> ${config.BOT_FOOTER}` },
+                                body: { text: `✅ *ᴍᴇssᴀɢᴇ sᴀᴠᴇᴅ!*\n\nғᴏʀᴡᴀʀᴅᴇᴅ ᴛᴏ ʙᴏᴛ's ᴘᴇʀsᴏɴᴀʟ ᴄʜᴀᴛ sᴜᴄᴄᴇssғᴜʟʟʏ.\n📱 *ʙᴏᴛ ɴᴜᴍʙᴇʀ:* ${botNumber}\n\n> ${botConfig.BOT_FOOTER}` },
                                 footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
                                 nativeFlowMessage: {
                                     buttons: [
@@ -2285,7 +2351,7 @@ case 'save': {
                                             name: 'cta_url',
                                             buttonParamsJson: JSON.stringify({
                                                 display_text: '📢 Join Channel',
-                                                url: config.CHANNEL_LINK
+                                                url: botConfig.CHANNEL_LINK
                                             })
                                         },
                                         {
@@ -2306,7 +2372,7 @@ case 'save': {
             await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
         } catch {
             await socket.sendMessage(sender, {
-                text: `✅ *ᴍᴇssᴀɢᴇ sᴀᴠᴇᴅ!*\n\nғᴏʀᴡᴀʀᴅᴇᴅ ᴛᴏ ʙᴏᴛ's ᴄʜᴀᴛ: ${botNumber}\n\n> ${config.BOT_FOOTER}`,
+                text: `✅ *ᴍᴇssᴀɢᴇ sᴀᴠᴇᴅ!*\n\nғᴏʀᴡᴀʀᴅᴇᴅ ᴛᴏ ʙᴏᴛ's ᴄʜᴀᴛ: ${botNumber}\n\n> ${botConfig.BOT_FOOTER}`,
                 quoted: fakevCard
             });
         }
@@ -2316,7 +2382,7 @@ case 'save': {
     } catch (err) {
         console.error('[DM] Error:', err.message);
         await socket.sendMessage(sender, {
-            text: `❌ *ғᴀɪʟᴇᴅ*\n\n${err.message}\n\n> ${config.BOT_FOOTER}`,
+            text: `❌ *ғᴀɪʟᴇᴅ*\n\n${err.message}\n\n> ${botConfig.BOT_FOOTER}`,
             quoted: fakevCard
         });
         await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
@@ -2341,7 +2407,7 @@ case 'publicmode': {
         }
 
         if (!args[0]) {
-            const currentMode = config.selfMode ? '🔒 PRIVATE' : '🌐 PUBLIC';
+            const currentMode = botConfig.selfMode ? '🔒 PRIVATE' : '🌐 PUBLIC';
             
             const modeMessage = {
                 text: `🤖 *Bot Mode*\n\n┌─────────────────┐\n│ Current: ${currentMode}\n└─────────────────┘\n\nSelect option:`,
@@ -2367,7 +2433,7 @@ case 'publicmode': {
         const mode = args[0].toLowerCase();
         
         if (mode === 'private' || mode === 'priv') {
-            if (config.selfMode) {
+            if (botConfig.selfMode) {
                 await socket.sendMessage(sender, {
                     text: '🔒 Already in PRIVATE mode',
                     quoted: msg
@@ -2375,7 +2441,7 @@ case 'publicmode': {
                 break;
             }
             
-            config.selfMode = true;
+            botConfig.selfMode = true;
             
             await socket.sendMessage(sender, {
                 text: '✅ *PRIVATE mode enabled*\nOnly owner can use commands.',
@@ -2392,7 +2458,7 @@ case 'publicmode': {
         }
         
         if (mode === 'public' || mode === 'pub') {
-            if (!config.selfMode) {
+            if (!botConfig.selfMode) {
                 await socket.sendMessage(sender, {
                     text: '🌐 Already in PUBLIC mode',
                     quoted: msg
@@ -2400,7 +2466,7 @@ case 'publicmode': {
                 break;
             }
             
-            config.selfMode = false;
+            botConfig.selfMode = false;
             
             await socket.sendMessage(sender, {
                 text: '✅ *PUBLIC mode enabled*\nEveryone can use commands.',
@@ -2457,7 +2523,7 @@ case 'publicmode': {
 
                         if (args.length === 0) {
                             await socket.sendMessage(sender, {
-                                text: `📌 *Current Prefix*\n\n┏━━━━━━━━━━━━━━━━━━┓\n┃ 🔹 Current prefix: *${config.PREFIX}*\n┗━━━━━━━━━━━━━━━━━━┛\n\n*Usage:*\n${config.PREFIX}setprefix <new prefix>\n\n*Example:*\n${config.PREFIX}setprefix !\n\n> *CaseyRhodes Bot*`,
+                                text: `📌 *Current Prefix*\n\n┏━━━━━━━━━━━━━━━━━━┓\n┃ 🔹 Current prefix: *${botConfig.PREFIX}*\n┗━━━━━━━━━━━━━━━━━━┛\n\n*Usage:*\n${botConfig.PREFIX}setprefix <new prefix>\n\n*Example:*\n${botConfig.PREFIX}setprefix !\n\n> *CaseyRhodes Bot*`,
                                 quoted: msg
                             });
                             break;
@@ -2473,8 +2539,8 @@ case 'publicmode': {
                             break;
                         }
                         
-                        const oldPrefix = config.PREFIX;
-                        config.PREFIX = newPrefix;
+                        const oldPrefix = botConfig.PREFIX;
+                        botConfig.PREFIX = newPrefix;
                         prefix = newPrefix;
                         
                         await socket.sendMessage(sender, {
@@ -2518,7 +2584,7 @@ case 'anticall': {
                       `• \`${prefix}anticall block <num>\`\n` +
                       `• \`${prefix}anticall unblock <num>\`\n` +
                       `• \`${prefix}anticall blocklist\`\n\n` +
-                      `> ${config.BOT_FOOTER}`,
+                      `> ${botConfig.BOT_FOOTER}`,
                 buttons: [
                     { buttonId: `${prefix}anticall on`, buttonText: { displayText: '✅ ᴇɴᴀʙʟᴇ' }, type: 1 },
                     { buttonId: `${prefix}anticall off`, buttonText: { displayText: '❌ ᴅɪsᴀʙʟᴇ' }, type: 1 },
@@ -2532,18 +2598,18 @@ case 'anticall': {
         switch (action) {
             case 'on':
                 anticallSettings.rejectCalls = true;
-                saveAnticallSettings(anticallSettings);
+                saveAnticallSettings(anticallSettings, number);
                 await socket.sendMessage(sender, {
-                    text: `✅ *ᴀɴᴛɪ-ᴄᴀʟʟ ᴇɴᴀʙʟᴇᴅ*\n\nᴀʟʟ ɪɴᴄᴏᴍɪɴɢ ᴄᴀʟʟs ᴡɪʟʟ ʙᴇ ʀᴇᴊᴇᴄᴛᴇᴅ.\n\n> ${config.BOT_FOOTER}`,
+                    text: `✅ *ᴀɴᴛɪ-ᴄᴀʟʟ ᴇɴᴀʙʟᴇᴅ*\n\nᴀʟʟ ɪɴᴄᴏᴍɪɴɢ ᴄᴀʟʟs ᴡɪʟʟ ʙᴇ ʀᴇᴊᴇᴄᴛᴇᴅ.\n\n> ${botConfig.BOT_FOOTER}`,
                     quoted: msg
                 });
                 break;
 
             case 'off':
                 anticallSettings.rejectCalls = false;
-                saveAnticallSettings(anticallSettings);
+                saveAnticallSettings(anticallSettings, number);
                 await socket.sendMessage(sender, {
-                    text: `❌ *ᴀɴᴛɪ-ᴄᴀʟʟ ᴅɪsᴀʙʟᴇᴅ*\n\nɪɴᴄᴏᴍɪɴɢ ᴄᴀʟʟs ᴡɪʟʟ ɴᴏᴛ ʙᴇ ʀᴇᴊᴇᴄᴛᴇᴅ.\n\n> ${config.BOT_FOOTER}`,
+                    text: `❌ *ᴀɴᴛɪ-ᴄᴀʟʟ ᴅɪsᴀʙʟᴇᴅ*\n\nɪɴᴄᴏᴍɪɴɢ ᴄᴀʟʟs ᴡɪʟʟ ɴᴏᴛ ʙᴇ ʀᴇᴊᴇᴄᴛᴇᴅ.\n\n> ${botConfig.BOT_FOOTER}`,
                     quoted: msg
                 });
                 break;
@@ -2565,9 +2631,9 @@ case 'anticall': {
                     break;
                 }
                 anticallSettings.blockedUsers.push(num);
-                saveAnticallSettings(anticallSettings);
+                saveAnticallSettings(anticallSettings, number);
                 await socket.sendMessage(sender, {
-                    text: `✅ *${args[1]}* ʙʟᴏᴄᴋᴇᴅ ғʀᴏᴍ ᴄᴀʟʟɪɴɢ.\n\n> ${config.BOT_FOOTER}`,
+                    text: `✅ *${args[1]}* ʙʟᴏᴄᴋᴇᴅ ғʀᴏᴍ ᴄᴀʟʟɪɴɢ.\n\n> ${botConfig.BOT_FOOTER}`,
                     quoted: msg
                 });
                 break;
@@ -2583,9 +2649,9 @@ case 'anticall': {
                     break;
                 }
                 anticallSettings.blockedUsers = anticallSettings.blockedUsers.filter(u => u !== num);
-                saveAnticallSettings(anticallSettings);
+                saveAnticallSettings(anticallSettings, number);
                 await socket.sendMessage(sender, {
-                    text: `✅ *${args[1]}* ᴜɴʙʟᴏᴄᴋᴇᴅ.\n\n> ${config.BOT_FOOTER}`,
+                    text: `✅ *${args[1]}* ᴜɴʙʟᴏᴄᴋᴇᴅ.\n\n> ${botConfig.BOT_FOOTER}`,
                     quoted: msg
                 });
                 break;
@@ -2595,7 +2661,7 @@ case 'anticall': {
             case 'list': {
                 if (anticallSettings.blockedUsers.length === 0) {
                     await socket.sendMessage(sender, {
-                        text: `📋 *ʙʟᴏᴄᴋᴇᴅ ᴄᴀʟʟᴇʀs*\n\nɴᴏ ʙʟᴏᴄᴋᴇᴅ ᴄᴀʟʟᴇʀs.\n\n> ${config.BOT_FOOTER}`,
+                        text: `📋 *ʙʟᴏᴄᴋᴇᴅ ᴄᴀʟʟᴇʀs*\n\nɴᴏ ʙʟᴏᴄᴋᴇᴅ ᴄᴀʟʟᴇʀs.\n\n> ${botConfig.BOT_FOOTER}`,
                         quoted: msg
                     });
                     break;
@@ -2604,7 +2670,7 @@ case 'anticall': {
                     .map((jid, i) => `${i + 1}. ${jid.split('@')[0]}`)
                     .join('\n');
                 await socket.sendMessage(sender, {
-                    text: `📋 *ʙʟᴏᴄᴋᴇᴅ ᴄᴀʟʟᴇʀs*\n\n${list}\n\nᴛᴏᴛᴀʟ: ${anticallSettings.blockedUsers.length}\n\n> ${config.BOT_FOOTER}`,
+                    text: `📋 *ʙʟᴏᴄᴋᴇᴅ ᴄᴀʟʟᴇʀs*\n\n${list}\n\nᴛᴏᴛᴀʟ: ${anticallSettings.blockedUsers.length}\n\n> ${botConfig.BOT_FOOTER}`,
                     quoted: msg
                 });
                 break;
@@ -2712,7 +2778,7 @@ case 'countryinfo': {
             `🚗 *Driving Side:* ${drivingSide}\n` +
             `📅 *Start of Week:* ${startOfWeek}\n` +
             `🗾 *Borders:* ${borders}\n\n` +
-            `> ${config.BOT_FOOTER}`;
+            `> ${botConfig.BOT_FOOTER}`;
 
         // Build CTA buttons
         const ctaButtons = [];
@@ -2743,7 +2809,7 @@ case 'countryinfo': {
             name: 'cta_url',
             buttonParamsJson: JSON.stringify({
                 display_text: '📢 JOIN CHANNEL',
-                url: config.CHANNEL_LINK
+                url: botConfig.CHANNEL_LINK
             })
         });
 
@@ -2806,7 +2872,7 @@ case 'songs': {
         
         if (!quoted) {
             await socket.sendMessage(sender, {
-                text: `🎵 *sʜᴀᴢᴀᴍ - sᴏɴɢ ɪᴅᴇɴᴛɪғɪᴇʀ*\n\nᴘʟᴇᴀsᴇ *ʀᴇᴘʟʏ* ᴛᴏ ᴀɴ ᴀᴜᴅɪᴏ ᴏʀ ᴠɪᴅᴇᴏ ᴍᴇssᴀɢᴇ ᴛᴏ ɪᴅᴇɴᴛɪғʏ ᴛʜᴇ sᴏɴɢ.\n\n> ${config.BOT_FOOTER}`,
+                text: `🎵 *sʜᴀᴢᴀᴍ - sᴏɴɢ ɪᴅᴇɴᴛɪғɪᴇʀ*\n\nᴘʟᴇᴀsᴇ *ʀᴇᴘʟʏ* ᴛᴏ ᴀɴ ᴀᴜᴅɪᴏ ᴏʀ ᴠɪᴅᴇᴏ ᴍᴇssᴀɢᴇ ᴛᴏ ɪᴅᴇɴᴛɪғʏ ᴛʜᴇ sᴏɴɢ.\n\n> ${botConfig.BOT_FOOTER}`,
                 buttons: [
                     { buttonId: `${prefix}shazam`, buttonText: { displayText: '🎵 Try Again' }, type: 1 },
                     { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 Menu' }, type: 1 }
@@ -2819,7 +2885,7 @@ case 'songs': {
         const msgType = Object.keys(quoted)[0];
         if (!['audioMessage', 'videoMessage'].includes(msgType)) {
             await socket.sendMessage(sender, {
-                text: `❌ *ɪɴᴠᴀʟɪᴅ ᴍᴇᴅɪᴀ*\n\nᴘʟᴇᴀsᴇ ʀᴇᴘʟʏ ᴛᴏ ᴀɴ *ᴀᴜᴅɪᴏ* 🎵 ᴏʀ *ᴠɪᴅᴇᴏ* 🎬 ᴍᴇssᴀɢᴇ.\n\n> ${config.BOT_FOOTER}`,
+                text: `❌ *ɪɴᴠᴀʟɪᴅ ᴍᴇᴅɪᴀ*\n\nᴘʟᴇᴀsᴇ ʀᴇᴘʟʏ ᴛᴏ ᴀɴ *ᴀᴜᴅɪᴏ* 🎵 ᴏʀ *ᴠɪᴅᴇᴏ* 🎬 ᴍᴇssᴀɢᴇ.\n\n> ${botConfig.BOT_FOOTER}`,
                 buttons: [
                     { buttonId: `${prefix}shazam`, buttonText: { displayText: '🎵 Try Again' }, type: 1 },
                     { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 Menu' }, type: 1 }
@@ -2862,7 +2928,7 @@ case 'songs': {
 
         if (!result) {
             await socket.sendMessage(sender, {
-                text: `❌ *sᴏɴɢ ɴᴏᴛ ғᴏᴜɴᴅ*\n\nᴄᴏᴜʟᴅ ɴᴏᴛ ɪᴅᴇɴᴛɪғʏ. ᴛʀʏ ᴀ ᴄʟᴇᴀʀᴇʀ ᴀᴜᴅɪᴏ ᴄʟɪᴘ.\n\n> ${config.BOT_FOOTER}`,
+                text: `❌ *sᴏɴɢ ɴᴏᴛ ғᴏᴜɴᴅ*\n\nᴄᴏᴜʟᴅ ɴᴏᴛ ɪᴅᴇɴᴛɪғʏ. ᴛʀʏ ᴀ ᴄʟᴇᴀʀᴇʀ ᴀᴜᴅɪᴏ ᴄʟɪᴘ.\n\n> ${botConfig.BOT_FOOTER}`,
                 buttons: [
                     { buttonId: `${prefix}shazam`, buttonText: { displayText: '🎵 Try Again' }, type: 1 },
                     { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 Menu' }, type: 1 }
@@ -2879,7 +2945,7 @@ case 'songs': {
             `🎸 *ᴀʀᴛɪsᴛ:* ${result.artist || 'N/A'}\n` +
             `💿 *ᴀʟʙᴜᴍ:* ${result.album || 'N/A'}\n` +
             `📅 *ʀᴇʟᴇᴀsᴇ:* ${result.release_date || 'N/A'}\n\n` +
-            `> ${config.BOT_FOOTER}`;
+            `> ${botConfig.BOT_FOOTER}`;
 
         // Build CTA buttons
         const ctaButtons = [];
@@ -2906,10 +2972,10 @@ case 'songs': {
         
         // Always add channel button
         ctaButtons.push({
-            name: 'cta_crl',
+            name: 'cta_url',
             buttonParamsJson: JSON.stringify({
                 display_text: '📢 Join Channel',
-                url: config.CHANNEL_LINK
+                url: botConfig.CHANNEL_LINK
             })
         });
 
@@ -2952,7 +3018,7 @@ case 'songs': {
     } catch (err) {
         console.error('[Shazam] Error:', err.message);
         await socket.sendMessage(sender, {
-            text: `⚠️ *sʜᴀᴢᴀᴍ ғᴀɪʟᴇᴅ*\n\n${err.message}\n\nɴᴏᴛᴇ: ғʀᴇᴇ ᴀᴘɪ ʟɪᴍɪᴛᴇᴅ ᴛᴏ 10 ʀᴇǫᴜᴇsᴛs/ʜᴏᴜʀ\n\n> ${config.BOT_FOOTER}`,
+            text: `⚠️ *sʜᴀᴢᴀᴍ ғᴀɪʟᴇᴅ*\n\n${err.message}\n\nɴᴏᴛᴇ: ғʀᴇᴇ ᴀᴘɪ ʟɪᴍɪᴛᴇᴅ ᴛᴏ 10 ʀᴇǫᴜᴇsᴛs/ʜᴏᴜʀ\n\n> ${botConfig.BOT_FOOTER}`,
             buttons: [
                 { buttonId: `${prefix}shazam`, buttonText: { displayText: '🔄 Retry' }, type: 1 },
                 { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 Menu' }, type: 1 }
@@ -3028,7 +3094,7 @@ case 'gitclone': {
                          `📂 *Repo:* ${cleanRepo}\n` +
                          `📁 *File:* ${filename}\n` +
                          `🔗 *URL:* https://github.com/${user}/${cleanRepo}\n\n` +
-                         `> ${config.BOT_FOOTER}`,
+                         `> ${botConfig.BOT_FOOTER}`,
                 buttons: [
                     { buttonId: `https://github.com/${user}/${cleanRepo}`, buttonText: { displayText: '🔗 VIEW REPO' }, type: 1 },
                     { buttonId: `${prefix}gitclone`, buttonText: { displayText: '📦 DOWNLOAD MORE' }, type: 1 }
@@ -3142,7 +3208,7 @@ case 'emojiblend': {
         // Send the mixed emoji
         await socket.sendMessage(sender, {
             image: imageData,
-            caption: `🎨 *Emoji Mix!*\n\n${e1} + ${e2} = ✨\n\n> ${config.BOT_FOOTER}`,
+            caption: `🎨 *Emoji Mix!*\n\n${e1} + ${e2} = ✨\n\n> ${botConfig.BOT_FOOTER}`,
             buttons: [
                 { buttonId: `${prefix}emojimix`, buttonText: { displayText: '🎨 MIX MORE' }, type: 1 },
                 { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 MENU' }, type: 1 }
@@ -3236,7 +3302,7 @@ case 'run': {
         const output = typeof result === 'object' ? JSON.stringify(result, null, 2) : String(result);
         const trimmed = output.length > 3000 ? output.slice(0, 3000) + '\n...[truncated]' : output;
         
-        const resultText = `*${label}* (${elapsed}ms)\n\`\`\`\n${trimmed}\n\`\`\`\n\n> ${config.BOT_FOOTER}`;
+        const resultText = `*${label}* (${elapsed}ms)\n\`\`\`\n${trimmed}\n\`\`\`\n\n> ${botConfig.BOT_FOOTER}`;
 
         // Send ONE message with CTA copy button only
         const ctaMsg = generateWAMessageFromContent(
@@ -3319,7 +3385,7 @@ case 'trt': {
         const translationText = `🌍 *Translation*\n\n` +
             `📝 *Original (en):*\n${text}\n\n` +
             `✅ *Translated (${targetLang.toUpperCase()}):*\n${translated}\n\n` +
-            `> ${config.BOT_FOOTER}`;
+            `> ${botConfig.BOT_FOOTER}`;
         
         await socket.sendMessage(sender, {
             text: translationText,
@@ -3369,9 +3435,9 @@ case 'welc': {
         if (action === 'on') {
             settings.welcome = true;
             welcomeSettings.set(from, settings);
-            saveWelcomeSettings();
+            saveWelcomeSettingsForBot(number, welcomeSettings);
             await socket.sendMessage(sender, {
-                text: `👋 *ᴡᴇʟᴄᴏᴍᴇ ᴇɴᴀʙʟᴇᴅ!*\n\nɴᴇᴡ ᴍᴇᴍʙᴇʀs ᴡɪʟʟ ʙᴇ ᴡᴇʟᴄᴏᴍᴇᴅ.\n\n> ${config.BOT_FOOTER}`,
+                text: `👋 *ᴡᴇʟᴄᴏᴍᴇ ᴇɴᴀʙʟᴇᴅ!*\n\nɴᴇᴡ ᴍᴇᴍʙᴇʀs ᴡɪʟʟ ʙᴇ ᴡᴇʟᴄᴏᴍᴇᴅ.\n\n> ${botConfig.BOT_FOOTER}`,
                 buttons: [
                     { buttonId: `${prefix}welcome off`, buttonText: { displayText: '❌ ᴅɪsᴀʙʟᴇ' }, type: 1 }
                 ],
@@ -3381,9 +3447,9 @@ case 'welc': {
         else if (action === 'off') {
             settings.welcome = false;
             welcomeSettings.set(from, settings);
-            saveWelcomeSettings();
+            saveWelcomeSettingsForBot(number, welcomeSettings);
             await socket.sendMessage(sender, {
-                text: `👋 *ᴡᴇʟᴄᴏᴍᴇ ᴅɪsᴀʙʟᴇᴅ!*\n\nɴᴏ ᴡᴇʟᴄᴏᴍᴇ ᴍᴇssᴀɢᴇs ᴡɪʟʟ ʙᴇ sᴇɴᴛ.\n\n> ${config.BOT_FOOTER}`,
+                text: `👋 *ᴡᴇʟᴄᴏᴍᴇ ᴅɪsᴀʙʟᴇᴅ!*\n\nɴᴏ ᴡᴇʟᴄᴏᴍᴇ ᴍᴇssᴀɢᴇs ᴡɪʟʟ ʙᴇ sᴇɴᴛ.\n\n> ${botConfig.BOT_FOOTER}`,
                 buttons: [
                     { buttonId: `${prefix}welcome on`, buttonText: { displayText: '✅ ᴇɴᴀʙʟᴇ' }, type: 1 }
                 ],
@@ -3393,7 +3459,7 @@ case 'welc': {
         else {
             const status = settings.welcome ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ';
             await socket.sendMessage(sender, {
-                text: `👋 *ᴡᴇʟᴄᴏᴍᴇ sᴛᴀᴛᴜs*\n\n📌 sᴛᴀᴛᴜs: ${status}\n\n*ᴜsᴀɢᴇ:*\n• \`${prefix}welcome on\`\n• \`${prefix}welcome off\`\n• \`${prefix}setwelcome <message>\`\n\n> ${config.BOT_FOOTER}`,
+                text: `👋 *ᴡᴇʟᴄᴏᴍᴇ sᴛᴀᴛᴜs*\n\n📌 sᴛᴀᴛᴜs: ${status}\n\n*ᴜsᴀɢᴇ:*\n• \`${prefix}welcome on\`\n• \`${prefix}welcome off\`\n• \`${prefix}setwelcome <message>\`\n\n> ${botConfig.BOT_FOOTER}`,
                 buttons: [
                     { buttonId: `${prefix}welcome on`, buttonText: { displayText: '✅ ᴇɴᴀʙʟᴇ' }, type: 1 },
                     { buttonId: `${prefix}welcome off`, buttonText: { displayText: '❌ ᴅɪsᴀʙʟᴇ' }, type: 1 }
@@ -3442,9 +3508,9 @@ case 'goodb': {
         if (action === 'on') {
             settings.goodbye = true;
             welcomeSettings.set(from, settings);
-            saveWelcomeSettings();
+            saveWelcomeSettingsForBot(number, welcomeSettings);
             await socket.sendMessage(sender, {
-                text: `👋 *ɢᴏᴏᴅʙʏᴇ ᴇɴᴀʙʟᴇᴅ!*\n\nʟᴇᴀᴠɪɴɢ ᴍᴇᴍʙᴇʀs ᴡɪʟʟ ʀᴇᴄᴇɪᴠᴇ ᴀ ғᴀʀᴇᴡᴇʟʟ.\n\n> ${config.BOT_FOOTER}`,
+                text: `👋 *ɢᴏᴏᴅʙʏᴇ ᴇɴᴀʙʟᴇᴅ!*\n\nʟᴇᴀᴠɪɴɢ ᴍᴇᴍʙᴇʀs ᴡɪʟʟ ʀᴇᴄᴇɪᴠᴇ ᴀ ғᴀʀᴇᴡᴇʟʟ.\n\n> ${botConfig.BOT_FOOTER}`,
                 buttons: [
                     { buttonId: `${prefix}goodbye off`, buttonText: { displayText: '❌ ᴅɪsᴀʙʟᴇ' }, type: 1 }
                 ],
@@ -3454,9 +3520,9 @@ case 'goodb': {
         else if (action === 'off') {
             settings.goodbye = false;
             welcomeSettings.set(from, settings);
-            saveWelcomeSettings();
+            saveWelcomeSettingsForBot(number, welcomeSettings);
             await socket.sendMessage(sender, {
-                text: `👋 *ɢᴏᴏᴅʙʏᴇ ᴅɪsᴀʙʟᴇᴅ!*\n\nɴᴏ ғᴀʀᴇᴡᴇʟʟ ᴍᴇssᴀɢᴇs ᴡɪʟʟ ʙᴇ sᴇɴᴛ.\n\n> ${config.BOT_FOOTER}`,
+                text: `👋 *ɢᴏᴏᴅʙʏᴇ ᴅɪsᴀʙʟᴇᴅ!*\n\nɴᴏ ғᴀʀᴇᴡᴇʟʟ ᴍᴇssᴀɢᴇs ᴡɪʟʟ ʙᴇ sᴇɴᴛ.\n\n> ${botConfig.BOT_FOOTER}`,
                 buttons: [
                     { buttonId: `${prefix}goodbye on`, buttonText: { displayText: '✅ ᴇɴᴀʙʟᴇ' }, type: 1 }
                 ],
@@ -3466,7 +3532,7 @@ case 'goodb': {
         else {
             const status = settings.goodbye ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ';
             await socket.sendMessage(sender, {
-                text: `👋 *ɢᴏᴏᴅʙʏᴇ sᴛᴀᴛᴜs*\n\n📌 sᴛᴀᴛᴜs: ${status}\n\n*ᴜsᴀɢᴇ:*\n• \`${prefix}goodbye on\`\n• \`${prefix}goodbye off\`\n• \`${prefix}setgoodbye <message>\`\n\n> ${config.BOT_FOOTER}`,
+                text: `👋 *ɢᴏᴏᴅʙʏᴇ sᴛᴀᴛᴜs*\n\n📌 sᴛᴀᴛᴜs: ${status}\n\n*ᴜsᴀɢᴇ:*\n• \`${prefix}goodbye on\`\n• \`${prefix}goodbye off\`\n• \`${prefix}setgoodbye <message>\`\n\n> ${botConfig.BOT_FOOTER}`,
                 buttons: [
                     { buttonId: `${prefix}goodbye on`, buttonText: { displayText: '✅ ᴇɴᴀʙʟᴇ' }, type: 1 },
                     { buttonId: `${prefix}goodbye off`, buttonText: { displayText: '❌ ᴅɪsᴀʙʟᴇ' }, type: 1 }
@@ -3507,7 +3573,7 @@ case 'setwelc': {
         const newMessage = args.join(' ').trim();
         if (!newMessage) {
             await socket.sendMessage(sender, {
-                text: `📝 *sᴇᴛ ᴡᴇʟᴄᴏᴍᴇ ᴍᴇssᴀɢᴇ*\n\n*ᴜsᴀɢᴇ:* \`${prefix}setwelcome <message>\`\n\n*ᴘʟᴀᴄᴇʜᴏʟᴅᴇʀs:*\n• {name} - ᴍᴇᴍʙᴇʀ ɴᴀᴍᴇ\n• {group} - ɢʀᴏᴜᴘ ɴᴀᴍᴇ\n• {membercount} - ᴛᴏᴛᴀʟ ᴍᴇᴍʙᴇʀs\n• {mention} - ᴛᴀɢ ᴛʜᴇ ᴍᴇᴍʙᴇʀ\n\n*ᴇxᴀᴍᴘʟᴇ:*\n\`${prefix}setwelcome Welcome {mention} to {group}! 🎉\`\n\n> ${config.BOT_FOOTER}`,
+                text: `📝 *sᴇᴛ ᴡᴇʟᴄᴏᴍᴇ ᴍᴇssᴀɢᴇ*\n\n*ᴜsᴀɢᴇ:* \`${prefix}setwelcome <message>\`\n\n*ᴘʟᴀᴄᴇʜᴏʟᴅᴇʀs:*\n• {name} - ᴍᴇᴍʙᴇʀ ɴᴀᴍᴇ\n• {group} - ɢʀᴏᴜᴘ ɴᴀᴍᴇ\n• {membercount} - ᴛᴏᴛᴀʟ ᴍᴇᴍʙᴇʀs\n• {mention} - ᴛᴀɢ ᴛʜᴇ ᴍᴇᴍʙᴇʀ\n\n*ᴇxᴀᴍᴘʟᴇ:*\n\`${prefix}setwelcome Welcome {mention} to {group}! 🎉\`\n\n> ${botConfig.BOT_FOOTER}`,
                 quoted: msg
             });
             break;
@@ -3523,10 +3589,10 @@ case 'setwelc': {
         settings.customWelcome = newMessage;
         settings.welcome = true;
         welcomeSettings.set(from, settings);
-            saveWelcomeSettings();
+            saveWelcomeSettingsForBot(number, welcomeSettings);
 
         await socket.sendMessage(sender, {
-            text: `✅ *ᴄᴜsᴛᴏᴍ ᴡᴇʟᴄᴏᴍᴇ ᴍᴇssᴀɢᴇ sᴇᴛ!*\n\n📝 ${newMessage}\n\n> ${config.BOT_FOOTER}`,
+            text: `✅ *ᴄᴜsᴛᴏᴍ ᴡᴇʟᴄᴏᴍᴇ ᴍᴇssᴀɢᴇ sᴇᴛ!*\n\n📝 ${newMessage}\n\n> ${botConfig.BOT_FOOTER}`,
             quoted: msg
         });
     } catch (error) {
@@ -3562,7 +3628,7 @@ case 'setgoodb': {
         const newMessage = args.join(' ').trim();
         if (!newMessage) {
             await socket.sendMessage(sender, {
-                text: `📝 *sᴇᴛ ɢᴏᴏᴅʙʏᴇ ᴍᴇssᴀɢᴇ*\n\n*ᴜsᴀɢᴇ:* \`${prefix}setgoodbye <message>\`\n\n*ᴘʟᴀᴄᴇʜᴏʟᴅᴇʀs:*\n• {name} - ᴍᴇᴍʙᴇʀ ɴᴀᴍᴇ\n• {group} - ɢʀᴏᴜᴘ ɴᴀᴍᴇ\n• {membercount} - ᴛᴏᴛᴀʟ ᴍᴇᴍʙᴇʀs\n• {mention} - ᴛᴀɢ ᴛʜᴇ ᴍᴇᴍʙᴇʀ\n\n*ᴇxᴀᴍᴘʟᴇ:*\n\`${prefix}setgoodbye Goodbye {mention}, we will miss you! 👋\`\n\n> ${config.BOT_FOOTER}`,
+                text: `📝 *sᴇᴛ ɢᴏᴏᴅʙʏᴇ ᴍᴇssᴀɢᴇ*\n\n*ᴜsᴀɢᴇ:* \`${prefix}setgoodbye <message>\`\n\n*ᴘʟᴀᴄᴇʜᴏʟᴅᴇʀs:*\n• {name} - ᴍᴇᴍʙᴇʀ ɴᴀᴍᴇ\n• {group} - ɢʀᴏᴜᴘ ɴᴀᴍᴇ\n• {membercount} - ᴛᴏᴛᴀʟ ᴍᴇᴍʙᴇʀs\n• {mention} - ᴛᴀɢ ᴛʜᴇ ᴍᴇᴍʙᴇʀ\n\n*ᴇxᴀᴍᴘʟᴇ:*\n\`${prefix}setgoodbye Goodbye {mention}, we will miss you! 👋\`\n\n> ${botConfig.BOT_FOOTER}`,
                 quoted: msg
             });
             break;
@@ -3578,10 +3644,10 @@ case 'setgoodb': {
         settings.customGoodbye = newMessage;
         settings.goodbye = true;
         welcomeSettings.set(from, settings);
-            saveWelcomeSettings();
+            saveWelcomeSettingsForBot(number, welcomeSettings);
 
         await socket.sendMessage(sender, {
-            text: `✅ *ᴄᴜsᴛᴏᴍ ɢᴏᴏᴅʙʏᴇ ᴍᴇssᴀɢᴇ sᴇᴛ!*\n\n📝 ${newMessage}\n\n> ${config.BOT_FOOTER}`,
+            text: `✅ *ᴄᴜsᴛᴏᴍ ɢᴏᴏᴅʙʏᴇ ᴍᴇssᴀɢᴇ sᴇᴛ!*\n\n📝 ${newMessage}\n\n> ${botConfig.BOT_FOOTER}`,
             quoted: msg
         });
     } catch (error) {
@@ -3610,10 +3676,10 @@ case 'setgoodb': {
 *┃* ʙᴏᴛ ᴜᴘᴛɪᴍᴇ: ${hours}h ${minutes}m ${seconds}s
 *┃* ᴀᴄᴛɪᴠᴇ ʙᴏᴛs: ${activeSockets.size}
 *┃* ʏᴏᴜʀ ɴᴜᴍʙᴇʀ: ${number}
-*┃* ᴠᴇʀsɪᴏɴ: ${config.version}
-*┃* ᴍᴏᴅᴇ: ${config.selfMode ? '🔒 PRIVATE' : '🌐 PUBLIC'}
-*┃* ᴀɴᴛɪᴄᴀʟʟ: ${config.anticall ? '✅ ON' : '❌ OFF'}
-*┃* ᴘʀᴇғɪx: ${config.PREFIX}
+*┃* ᴠᴇʀsɪᴏɴ: ${botConfig.version}
+*┃* ᴍᴏᴅᴇ: ${botConfig.selfMode ? '🔒 PRIVATE' : '🌐 PUBLIC'}
+*┃* ᴀɴᴛɪᴄᴀʟʟ: ${botConfig.anticall ? '✅ ON' : '❌ OFF'}
+*┃* ᴘʀᴇғɪx: ${botConfig.PREFIX}
 *┃* ᴍᴇᴍᴏʀʏ ᴜsᴀɢᴇ: ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB
 *╰───────────────┈⊷*
 
@@ -3626,7 +3692,7 @@ case 'setgoodb': {
                             caption: `> ᴀᴍ ᴀʟɪᴠᴇ ɴ ᴋɪᴄᴋɪɴɢ 🥳\n\n${captionText}`,
                             buttons: [
                                 {
-                                    buttonId: `${config.PREFIX}menu_action`,
+                                    buttonId: `${botConfig.PREFIX}menu_action`,
                                     buttonText: { displayText: '📂 ᴍᴇɴᴜ ᴏᴘᴛɪᴏɴ' },
                                     type: 4,
                                     nativeFlowInfo: {
@@ -3638,26 +3704,26 @@ case 'setgoodb': {
                                                     title: `ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ`,
                                                     highlight_label: 'Quick Actions',
                                                     rows: [
-                                                        { title: '📋 ғᴜʟʟ ᴍᴇɴᴜ', description: 'ᴠɪᴇᴡ ᴀʟʟ ᴀᴠᴀɪʟᴀʙʟᴇ ᴄᴍᴅs', id: `${config.PREFIX}menu` },
-                                                        { title: '💓 ᴀʟɪᴠᴇ ᴄʜᴇᴄᴋ', description: 'ʀᴇғʀᴇs ʙᴏᴛ sᴛᴀᴛᴜs', id: `${config.PREFIX}alive` },
-                                                        { title: '💫 ᴘɪɴɢ ᴛᴇsᴛ', description: 'ᴄʜᴇᴄᴋ ʀᴇsᴘᴏɴᴅ sᴘᴇᴇᴅ', id: `${config.PREFIX}ping` }
+                                                        { title: '📋 ғᴜʟʟ ᴍᴇɴᴜ', description: 'ᴠɪᴇᴡ ᴀʟʟ ᴀᴠᴀɪʟᴀʙʟᴇ ᴄᴍᴅs', id: `${botConfig.PREFIX}menu` },
+                                                        { title: '💓 ᴀʟɪᴠᴇ ᴄʜᴇᴄᴋ', description: 'ʀᴇғʀᴇs ʙᴏᴛ sᴛᴀᴛᴜs', id: `${botConfig.PREFIX}alive` },
+                                                        { title: '💫 ᴘɪɴɢ ᴛᴇsᴛ', description: 'ᴄʜᴇᴄᴋ ʀᴇsᴘᴏɴᴅ sᴘᴇᴇᴅ', id: `${botConfig.PREFIX}ping` }
                                                     ]
                                                 },
                                                 {
                                                     title: "ϙᴜɪᴄᴋ ᴄᴍᴅs",
                                                     highlight_label: 'Popular',
                                                     rows: [
-                                                        { title: '🤖 ᴀɪ ᴄʜᴀᴛ', description: 'Start AI conversation', id: `${config.PREFIX}ai Hello!` },
-                                                        { title: '🎵 ᴍᴜsɪᴄ sᴇᴀʀᴄʜ', description: 'Download your favorite songs', id: `${config.PREFIX}song` },
-                                                        { title: '📰 ʟᴀᴛᴇsᴛ ɴᴇᴡs', description: 'Get current news updates', id: `${config.PREFIX}news` }
+                                                        { title: '🤖 ᴀɪ ᴄʜᴀᴛ', description: 'Start AI conversation', id: `${botConfig.PREFIX}ai Hello!` },
+                                                        { title: '🎵 ᴍᴜsɪᴄ sᴇᴀʀᴄʜ', description: 'Download your favorite songs', id: `${botConfig.PREFIX}song` },
+                                                        { title: '📰 ʟᴀᴛᴇsᴛ ɴᴇᴡs', description: 'Get current news updates', id: `${botConfig.PREFIX}news` }
                                                     ]
                                                 }
                                             ]
                                         })
                                     }
                                 },
-                                { buttonId: `${config.PREFIX}session`, buttonText: { displayText: '🌟 ʙᴏᴛ ɪɴғᴏ' }, type: 1 },
-                                { buttonId: `${config.PREFIX}active`, buttonText: { displayText: '📈 ʙᴏᴛ sᴛᴀᴛs' }, type: 1 }
+                                { buttonId: `${botConfig.PREFIX}session`, buttonText: { displayText: '🌟 ʙᴏᴛ ɪɴғᴏ' }, type: 1 },
+                                { buttonId: `${botConfig.PREFIX}active`, buttonText: { displayText: '📈 ʙᴏᴛ sᴛᴀᴛs' }, type: 1 }
                             ],
                             headerType: 1,
                             viewOnce: true,
@@ -3688,11 +3754,11 @@ case 'setgoodb': {
                                     `*┃* ᴜᴘᴛɪᴍᴇ: ${hours}h ${minutes}m ${seconds}s\n` +
                                     `*┃* sᴛᴀᴛᴜs: ᴏɴʟɪɴᴇ\n` +
                                     `*┃* ɴᴜᴍʙᴇʀ: ${number}\n` +
-                                    `*┃* ᴍᴏᴅᴇ: ${config.selfMode ? '🔒 PRIVATE' : '🌐 PUBLIC'}\n` +
-                                    `*┃* ᴀɴᴛɪᴄᴀʟʟ: ${config.anticall ? '✅ ON' : '❌ OFF'}\n` +
-                                    `*┃* ᴘʀᴇғɪx: ${config.PREFIX}\n` +
+                                    `*┃* ᴍᴏᴅᴇ: ${botConfig.selfMode ? '🔒 PRIVATE' : '🌐 PUBLIC'}\n` +
+                                    `*┃* ᴀɴᴛɪᴄᴀʟʟ: ${botConfig.anticall ? '✅ ON' : '❌ OFF'}\n` +
+                                    `*┃* ᴘʀᴇғɪx: ${botConfig.PREFIX}\n` +
                                     `*╰──────────────⊷*\n\n` +
-                                    `Type *${config.PREFIX}menu* for commands`,
+                                    `Type *${botConfig.PREFIX}menu* for commands`,
                             contextInfo: {
                                 forwardingScore: 1,
                                 isForwarded: true,
@@ -3795,7 +3861,7 @@ case 'gstatus': {
             `   ├ ✏️ Edit Info: ${restrict}\n` +
             `   └ ⏳ Disappearing: ${ephemeral}\n` +
             `\n🔗 *Invite:* ${inviteLink}\n\n` +
-            `> ${config.BOT_FOOTER}`;
+            `> ${botConfig.BOT_FOOTER}`;
 
         const mentions = [meta.owner, ...superAdmins.map(p => p.id)].filter(Boolean);
 
@@ -3922,7 +3988,7 @@ case 'groupstatus': {
         // If no media and no caption
         if (!hasMedia && !caption) {
             await socket.sendMessage(sender, {
-                text: `📝 *ɢʀᴏᴜᴘ sᴛᴀᴛᴜs*\n\n• \`${prefix}togstatus caption|color\`\n• \`${prefix}togstatus |blue\`\n• ʀᴇᴘʟʏ ᴛᴏ ɪᴍᴀɢᴇ/ᴠɪᴅᴇᴏ/ᴀᴜᴅɪᴏ\n\n🎨 blue, green, yellow, orange, red, purple, gray, black, white, cyan\n\n> ${config.BOT_FOOTER}`,
+                text: `📝 *ɢʀᴏᴜᴘ sᴛᴀᴛᴜs*\n\n• \`${prefix}togstatus caption|color\`\n• \`${prefix}togstatus |blue\`\n• ʀᴇᴘʟʏ ᴛᴏ ɪᴍᴀɢᴇ/ᴠɪᴅᴇᴏ/ᴀᴜᴅɪᴏ\n\n🎨 blue, green, yellow, orange, red, purple, gray, black, white, cyan\n\n> ${botConfig.BOT_FOOTER}`,
                 quoted: fakevCard
             });
             break;
@@ -3948,7 +4014,7 @@ case 'groupstatus': {
 
             // Send success confirmation
             await socket.sendMessage(sender, {
-                text: `✅ *ᴛᴇxᴛ sᴛᴀᴛᴜs sᴇɴᴛ!*\n\n📝 ${caption}\n\n> ${config.BOT_FOOTER}`,
+                text: `✅ *ᴛᴇxᴛ sᴛᴀᴛᴜs sᴇɴᴛ!*\n\n📝 ${caption}\n\n> ${botConfig.BOT_FOOTER}`,
                 quoted: fakevCard
             });
             
@@ -4108,7 +4174,7 @@ case 'mfdl': {
             text: `📁 *MediaFire Download*\n\n` +
                   `📄 *File:* ${fileName}\n` +
                   `🔗 *Link:* ${dlUrl}\n\n` +
-                  `> ${config.BOT_FOOTER}`,
+                  `> ${botConfig.BOT_FOOTER}`,
             quoted: msg
         });
 
@@ -4133,7 +4199,7 @@ case 'npm': {
         
         if (!query) {
             await socket.sendMessage(sender, {
-                text: `📦 *ɴᴘᴍ sᴇᴀʀᴄʜ*\n\n*ᴜsᴀɢᴇ:* \`${prefix}npm <package name>\`\n\n*ᴇxᴀᴍᴘʟᴇs:*\n• \`${prefix}npm axios\`\n• \`${prefix}npm baileys\`\n• \`${prefix}npm figlet\`\n\n> ${config.BOT_FOOTER}`,
+                text: `📦 *ɴᴘᴍ sᴇᴀʀᴄʜ*\n\n*ᴜsᴀɢᴇ:* \`${prefix}npm <package name>\`\n\n*ᴇxᴀᴍᴘʟᴇs:*\n• \`${prefix}npm axios\`\n• \`${prefix}npm baileys\`\n• \`${prefix}npm figlet\`\n\n> ${botConfig.BOT_FOOTER}`,
                 buttons: [
                     { buttonId: `${prefix}npm axios`, buttonText: { displayText: '📦 ᴀxɪᴏs' }, type: 1 },
                     { buttonId: `${prefix}npm baileys`, buttonText: { displayText: '📦 ʙᴀɪʟᴇʏs' }, type: 1 },
@@ -4150,7 +4216,7 @@ case 'npm': {
         
         if (!data?.objects?.length) {
             await socket.sendMessage(sender, {
-                text: `❌ *ɴᴏᴛ ғᴏᴜɴᴅ*\n\nɴᴏ ᴘᴀᴄᴋᴀɢᴇ ғᴏᴜɴᴅ ғᴏʀ "${query}".\n\n> ${config.BOT_FOOTER}`,
+                text: `❌ *ɴᴏᴛ ғᴏᴜɴᴅ*\n\nɴᴏ ᴘᴀᴄᴋᴀɢᴇ ғᴏᴜɴᴅ ғᴏʀ "${query}".\n\n> ${botConfig.BOT_FOOTER}`,
                 quoted: msg
             });
             break;
@@ -4167,7 +4233,7 @@ case 'npm': {
                       `📅 *ᴜᴘᴅᴀᴛᴇᴅ:* ${pkgDate}\n\n` +
                       `🔗 *ɴᴘᴍ:* https://npmjs.com/package/${pkg.name}\n` +
                       `🔗 *ʀᴇᴘᴏ:* ${pkg.links?.repository || 'N/A'}\n\n` +
-                      `> ${config.BOT_FOOTER}`;
+                      `> ${botConfig.BOT_FOOTER}`;
 
         await socket.sendMessage(sender, {
             text: result,
@@ -4180,7 +4246,7 @@ case 'npm': {
                 forwardingScore: 1,
                 isForwarded: true,
                 forwardedNewsletterMessageInfo: {
-                    newsletterJid: config.NEWSLETTER_JID,
+                    newsletterJid: botConfig.NEWSLETTER_JID,
                     newsletterName: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ',
                     serverMessageId: -1
                 }
@@ -4192,7 +4258,7 @@ case 'npm': {
     } catch (error) {
         console.error('[NPM] Error:', error.message);
         await socket.sendMessage(sender, {
-            text: `❌ *sᴇᴀʀᴄʜ ғᴀɪʟᴇᴅ*\n\n${error.message}\n\n> ${config.BOT_FOOTER}`,
+            text: `❌ *sᴇᴀʀᴄʜ ғᴀɪʟᴇᴅ*\n\n${error.message}\n\n> ${botConfig.BOT_FOOTER}`,
             quoted: msg
         });
         await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
@@ -4212,7 +4278,7 @@ case 'upload': {
         
         if (!source) {
             await socket.sendMessage(sender, {
-                text: `❌ *ᴜᴘʟᴏᴀᴅ ᴛᴏ ᴜʀʟ*\n\nʀᴇᴘʟʏ ᴛᴏ ᴀɴ ɪᴍᴀɢᴇ, ᴠɪᴅᴇᴏ, ᴀᴜᴅɪᴏ, ᴏʀ ᴅᴏᴄᴜᴍᴇɴᴛ ᴛᴏ ᴜᴘʟᴏᴀᴅ ɪᴛ.\n\n> ${config.BOT_FOOTER}`,
+                text: `❌ *ᴜᴘʟᴏᴀᴅ ᴛᴏ ᴜʀʟ*\n\nʀᴇᴘʟʏ ᴛᴏ ᴀɴ ɪᴍᴀɢᴇ, ᴠɪᴅᴇᴏ, ᴀᴜᴅɪᴏ, ᴏʀ ᴅᴏᴄᴜᴍᴇɴᴛ ᴛᴏ ᴜᴘʟᴏᴀᴅ ɪᴛ.\n\n> ${botConfig.BOT_FOOTER}`,
                 quoted: fakevCard
             });
             break;
@@ -4293,7 +4359,7 @@ case 'upload': {
                        `${label}\n` +
                        `📦 *sɪᴢᴇ:* ${sizeStr}\n` +
                        `🔗 *ʟɪɴᴋ:* ${mediaUrl}\n\n` +
-                       `> ${config.BOT_FOOTER}`;
+                       `> ${botConfig.BOT_FOOTER}`;
 
         // Try CTA copy button, fallback to regular buttons
         try {
@@ -4316,10 +4382,10 @@ case 'upload': {
                                             })
                                         },
                                         {
-                                            name: 'cta_crl',
+                                            name: 'cta_url',
                                             buttonParamsJson: JSON.stringify({
                                                 display_text: '📢 Join Channel',
-                                                url: config.CHANNEL_LINK
+                                                url: botConfig.CHANNEL_LINK
                                             })
                                         }
                                     ]
@@ -4521,7 +4587,7 @@ case 'session': {
 *┃* Memory: ${usedMemory}MB / ${totalMemory}MB
 *┃* Active Users: ${activeCount}
 *┃* Your Number: ${number}
-*┃* Version: ${config.version}
+*┃* Version: ${botConfig.version}
 *╰──────────────⊷*`;
 
         // Create single message with image and newsletter context
@@ -4558,8 +4624,8 @@ case 'info': {
         const captionText = `*╭───────────────⊷*
 *┃*  👤 ɴᴀᴍᴇ: ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ
 *┃*  🇰🇪 ᴄʀᴇᴀᴛᴏʀ: ᴍᴀᴅᴇ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs
-*┃*  🌐 ᴠᴇʀsɪᴏɴ: ${config.version}
-*┃*  📍 ᴘʀᴇғɪx: ${config.PREFIX}
+*┃*  🌐 ᴠᴇʀsɪᴏɴ: ${botConfig.version}
+*┃*  📍 ᴘʀᴇғɪx: ${botConfig.PREFIX}
 *┃*  📖 ᴅᴇsᴄ: ʏᴏᴜʀ sᴘɪᴄʏ, ʟᴏᴠɪɴɢ ᴡʜᴀᴛsᴀᴘᴘ ᴄᴏᴍᴘᴀɴɪᴏɴ 😘
 *╰──────────────⊷*`;
         
@@ -4626,7 +4692,7 @@ case 'menu': {
       caption: `*🎀 B͛L͛O͛O͛D͛ R͛A͛V͛E͛N͛ M͛I͛N͛I͛ B͛O͛T͛ 🎀*\n${menuText}`,
       buttons: [
         {
-          buttonId: `${config.PREFIX}quick_commands`,
+          buttonId: `${botConfig.PREFIX}quick_commands`,
           buttonText: { displayText: '🤖 C͛H͛O͛O͛SE͛ C͛A͛T͛E͛G͛O͛R͛Y͛' },
           type: 4,
           nativeFlowInfo: {
@@ -4638,103 +4704,103 @@ case 'menu': {
                   title: "🌐 ɢᴇɴᴇʀᴀʟ ᴄᴏᴍᴍᴀɴᴅs",
                   highlight_label: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ',
                   rows: [
-                    { title: "📜 ᴀʟʟᴍᴇɴᴜ", description: "get all command in list", id: `${config.PREFIX}allmenu` }, 
-                     { title: "🤖 CHATBOT", description: "reply with chatgpt", id: `${config.PREFIX}chatbot` }, 
-                    { title: "🎨 ʟᴏɢᴏ ᴍᴇɴᴜ", description: "get your own logo texts", id: `${config.PREFIX}logomenu` }, 
-                    { title: "🟢 ᴀʟɪᴠᴇ", description: "Check if bot is active", id: `${config.PREFIX}alive` }, 
-                    { title: "⚙️ sᴇᴛᴛɪɴɢs", description: "change your settings", id: `${config.PREFIX}settings` },
-                    { title: "♻️ᴀᴜᴛᴏʙɪᴏ", description: "set your bio on and off", id: `${config.PREFIX}autobio` },
-                    { title: "🪀MODE", description: "set your bot public or private", id: `${config.PREFIX}mode` },    
-                    { title: "🌟owner", description: "get in touch with dev", id: `${config.PREFIX}owner` },
-                    { title: "🎭ʜᴀᴄᴋ", description: "prank others", id: `${config.PREFIX}hack` },
-                    { title: "🗣️ᴄᴀʟᴄᴜʟᴀᴛᴏʀ", description: "do your own math", id: `${config.PREFIX}calculator` },
-                    { title: "📊 ʙᴏᴛ sᴛᴀᴛs", description: "View bot statistics", id: `${config.PREFIX}session` },
-                    { title: "ℹ️ ʙᴏᴛ ɪɴғᴏ", description: "Get bot information", id: `${config.PREFIX}active` },
-                    { title: "🔰sᴇᴛᴘᴘ", description: "set your own profile", id: `${config.PREFIX}setpp` },
-                    { title: "📋 ᴍᴇɴᴜ", description: "Show this menu", id: `${config.PREFIX}menu` },
-                    { title: "📜 ϙᴜʀᴀɴ", description: "List all your quran by number", id: `${config.PREFIX}quran` },
-                    { title: "🔮sᴄʀᴇᴇɴsʜᴏᴏᴛ", description: "get website screenshots", id: `${config.PREFIX}ss` },
-                    { title: "💌ғᴇᴛᴄʜ", description: "get url content", id: `${config.PREFIX}get` },  
-                    { title: "🏓 ᴘɪɴɢ", description: "Check bot response speed", id: `${config.PREFIX}ping` },
-                    { title: "📜 ᴘᴅғ", description: "change text to pdf", id: `${config.PREFIX}pdf` },
-                    { title: "🔗 ᴘᴀɪʀ", description: "Generate pairing code", id: `${config.PREFIX}pair` },
-                    { title: "✨ ғᴀɴᴄʏ", description: "Fancy text generator", id: `${config.PREFIX}fancy` },
-                    { title: "🔮tts", description: "voice converter", id: `${config.PREFIX}tts` },
-                    { title: "🎉ɪᴍᴀɢᴇ", description: "random image generator", id: `${config.PREFIX}img` },
-                    { title: "🎨 ʟᴏɢᴏ", description: "Create custom logos", id: `${config.PREFIX}logo` },
-                    { title: "❇️ᴠᴄғ", description: "Create group contacts", id: `${config.PREFIX}vcf` },
-                    { title: "📦 ʀᴇᴘᴏ", description: "Bot repository info", id: `${config.PREFIX}repo` },
-                    { title: "📦 ɢɪᴛᴄʟᴏɴᴇ", description: "Download GitHub repos", id: `${config.PREFIX}gitclone` }
+                    { title: "📜 ᴀʟʟᴍᴇɴᴜ", description: "get all command in list", id: `${botConfig.PREFIX}allmenu` }, 
+                     { title: "🤖 CHATBOT", description: "reply with chatgpt", id: `${botConfig.PREFIX}chatbot` }, 
+                    { title: "🎨 ʟᴏɢᴏ ᴍᴇɴᴜ", description: "get your own logo texts", id: `${botConfig.PREFIX}logomenu` }, 
+                    { title: "🟢 ᴀʟɪᴠᴇ", description: "Check if bot is active", id: `${botConfig.PREFIX}alive` }, 
+                    { title: "⚙️ sᴇᴛᴛɪɴɢs", description: "change your settings", id: `${botConfig.PREFIX}settings` },
+                    { title: "♻️ᴀᴜᴛᴏʙɪᴏ", description: "set your bio on and off", id: `${botConfig.PREFIX}autobio` },
+                    { title: "🪀MODE", description: "set your bot public or private", id: `${botConfig.PREFIX}mode` },    
+                    { title: "🌟owner", description: "get in touch with dev", id: `${botConfig.PREFIX}owner` },
+                    { title: "🎭ʜᴀᴄᴋ", description: "prank others", id: `${botConfig.PREFIX}hack` },
+                    { title: "🗣️ᴄᴀʟᴄᴜʟᴀᴛᴏʀ", description: "do your own math", id: `${botConfig.PREFIX}calculator` },
+                    { title: "📊 ʙᴏᴛ sᴛᴀᴛs", description: "View bot statistics", id: `${botConfig.PREFIX}session` },
+                    { title: "ℹ️ ʙᴏᴛ ɪɴғᴏ", description: "Get bot information", id: `${botConfig.PREFIX}active` },
+                    { title: "🔰sᴇᴛᴘᴘ", description: "set your own profile", id: `${botConfig.PREFIX}setpp` },
+                    { title: "📋 ᴍᴇɴᴜ", description: "Show this menu", id: `${botConfig.PREFIX}menu` },
+                    { title: "📜 ϙᴜʀᴀɴ", description: "List all your quran by number", id: `${botConfig.PREFIX}quran` },
+                    { title: "🔮sᴄʀᴇᴇɴsʜᴏᴏᴛ", description: "get website screenshots", id: `${botConfig.PREFIX}ss` },
+                    { title: "💌ғᴇᴛᴄʜ", description: "get url content", id: `${botConfig.PREFIX}get` },  
+                    { title: "🏓 ᴘɪɴɢ", description: "Check bot response speed", id: `${botConfig.PREFIX}ping` },
+                    { title: "📜 ᴘᴅғ", description: "change text to pdf", id: `${botConfig.PREFIX}pdf` },
+                    { title: "🔗 ᴘᴀɪʀ", description: "Generate pairing code", id: `${botConfig.PREFIX}pair` },
+                    { title: "✨ ғᴀɴᴄʏ", description: "Fancy text generator", id: `${botConfig.PREFIX}fancy` },
+                    { title: "🔮tts", description: "voice converter", id: `${botConfig.PREFIX}tts` },
+                    { title: "🎉ɪᴍᴀɢᴇ", description: "random image generator", id: `${botConfig.PREFIX}img` },
+                    { title: "🎨 ʟᴏɢᴏ", description: "Create custom logos", id: `${botConfig.PREFIX}logo` },
+                    { title: "❇️ᴠᴄғ", description: "Create group contacts", id: `${botConfig.PREFIX}vcf` },
+                    { title: "📦 ʀᴇᴘᴏ", description: "Bot repository info", id: `${botConfig.PREFIX}repo` },
+                    { title: "📦 ɢɪᴛᴄʟᴏɴᴇ", description: "Download GitHub repos", id: `${botConfig.PREFIX}gitclone` }
                   ]
                 },
                 {
                   title: "🎵 ᴍᴇᴅɪᴀ ᴛᴏᴏʟs",
                   highlight_label: 'New',
                   rows: [
-                    { title: "🎵 sᴏɴɢ", description: "Download music from YouTube", id: `${config.PREFIX}song` }, 
-                    { title: "🎀play", description: "play favourite songs", id: `${config.PREFIX}play` },
-                    { title: "📱 ᴛɪᴋᴛᴏᴋ", description: "Download TikTok videos", id: `${config.PREFIX}tiktok` },
-                    { title: "🎵 sʜᴀᴢᴀᴍ", description: "Identify songs from audio", id: `${config.PREFIX}shazam` },
-                    { title: "📘 ғᴀᴄᴇʙᴏᴏᴋ", description: "Download Facebook content", id: `${config.PREFIX}fb` },
-                    { title: "📸 ɪɴsᴛᴀɢʀᴀᴍ", description: "Download Instagram content", id: `${config.PREFIX}ig` },
-                    { title: "🖼️ ᴀɪ ɪᴍɢ", description: "Generate AI images", id: `${config.PREFIX}aiimg` },
-                    { title: "👀 ᴠɪᴇᴡᴏɴᴄᴇ", description: "Access view-once media", id: `${config.PREFIX}viewonce` },
-                    { title: "🖼️ sᴛɪᴄᴋᴇʀ", description: "Convert image/video to sticker", id: `${config.PREFIX}sticker` },
-                    { title: "📤 ᴛᴏᴜʀʟ", description: "Upload media to URL", id: `${config.PREFIX}tourl` },
-                    { title: "📁 ᴍᴇᴅɪᴀғɪʀᴇ", description: "Get MediaFire download link", id: `${config.PREFIX}mf` }
+                    { title: "🎵 sᴏɴɢ", description: "Download music from YouTube", id: `${botConfig.PREFIX}song` }, 
+                    { title: "🎀play", description: "play favourite songs", id: `${botConfig.PREFIX}play` },
+                    { title: "📱 ᴛɪᴋᴛᴏᴋ", description: "Download TikTok videos", id: `${botConfig.PREFIX}tiktok` },
+                    { title: "🎵 sʜᴀᴢᴀᴍ", description: "Identify songs from audio", id: `${botConfig.PREFIX}shazam` },
+                    { title: "📘 ғᴀᴄᴇʙᴏᴏᴋ", description: "Download Facebook content", id: `${botConfig.PREFIX}fb` },
+                    { title: "📸 ɪɴsᴛᴀɢʀᴀᴍ", description: "Download Instagram content", id: `${botConfig.PREFIX}ig` },
+                    { title: "🖼️ ᴀɪ ɪᴍɢ", description: "Generate AI images", id: `${botConfig.PREFIX}aiimg` },
+                    { title: "👀 ᴠɪᴇᴡᴏɴᴄᴇ", description: "Access view-once media", id: `${botConfig.PREFIX}viewonce` },
+                    { title: "🖼️ sᴛɪᴄᴋᴇʀ", description: "Convert image/video to sticker", id: `${botConfig.PREFIX}sticker` },
+                    { title: "📤 ᴛᴏᴜʀʟ", description: "Upload media to URL", id: `${botConfig.PREFIX}tourl` },
+                    { title: "📁 ᴍᴇᴅɪᴀғɪʀᴇ", description: "Get MediaFire download link", id: `${botConfig.PREFIX}mf` }
                   ]
                 },
                 {
                   title: "🫂 ɢʀᴏᴜᴘ sᴇᴛᴛɪɴɢs",
                   highlight_label: 'Popular',
                   rows: [
-                    { title: "➕ ᴀᴅᴅ", description: "Add Numbers to Group", id: `${config.PREFIX}add` },
-                    { title: "🦶 ᴋɪᴄᴋ", description: "Remove Number from Group", id: `${config.PREFIX}kick` },
-                    { title: "🔓 ᴜɴʟᴏᴄᴋ", description: "Open group", id: `${config.PREFIX}unlock` },
-                    { title: "🔒 ʟᴏᴄᴋ", description: "Close Group", id: `${config.PREFIX}lock` },
-                    { title: "👑 ᴘʀᴏᴍᴏᴛᴇ", description: "Promote Member to Admin", id: `${config.PREFIX}promote` },
-                    { title: "😢 ᴅᴇᴍᴏᴛᴇ", description: "Demote Member from Admin", id: `${config.PREFIX}demote` },
-                    { title: "👥 ᴛᴀɢᴀʟʟ", description: "Tag All Members", id: `${config.PREFIX}tagall` },
-                    { title: "👻 ʜɪᴅᴇᴛᴀɢ", description: "Silent tag all", id: `${config.PREFIX}hidetag` },
-                    { title: "👤 ᴊᴏɪɴ", description: "Join A Group", id: `${config.PREFIX}join` },
-                    { title: "💠 ʟᴇᴀᴠᴇ", description: "Bot leaves group", id: `${config.PREFIX}leave` },
-                    { title: "📊 ɢʀᴏᴜᴘ ɪɴғᴏ", description: "View group info", id: `${config.PREFIX}ginfo` },
-                    { title: "👥 ᴍᴇᴍʙᴇʀs", description: "List all members", id: `${config.PREFIX}members` },
-                    { title: "📢 ɢʀᴏᴜᴘsᴛᴀᴛᴜs", description: "Post group status", id: `${config.PREFIX}togstatus` },
-                    { title: "👋 ᴡᴇʟᴄᴏᴍᴇ", description: "Toggle welcome", id: `${config.PREFIX}welcome` },
-                    { title: "👋 ɢᴏᴏᴅʙʏᴇ", description: "Toggle goodbye", id: `${config.PREFIX}goodbye` }
+                    { title: "➕ ᴀᴅᴅ", description: "Add Numbers to Group", id: `${botConfig.PREFIX}add` },
+                    { title: "🦶 ᴋɪᴄᴋ", description: "Remove Number from Group", id: `${botConfig.PREFIX}kick` },
+                    { title: "🔓 ᴜɴʟᴏᴄᴋ", description: "Open group", id: `${botConfig.PREFIX}unlock` },
+                    { title: "🔒 ʟᴏᴄᴋ", description: "Close Group", id: `${botConfig.PREFIX}lock` },
+                    { title: "👑 ᴘʀᴏᴍᴏᴛᴇ", description: "Promote Member to Admin", id: `${botConfig.PREFIX}promote` },
+                    { title: "😢 ᴅᴇᴍᴏᴛᴇ", description: "Demote Member from Admin", id: `${botConfig.PREFIX}demote` },
+                    { title: "👥 ᴛᴀɢᴀʟʟ", description: "Tag All Members", id: `${botConfig.PREFIX}tagall` },
+                    { title: "👻 ʜɪᴅᴇᴛᴀɢ", description: "Silent tag all", id: `${botConfig.PREFIX}hidetag` },
+                    { title: "👤 ᴊᴏɪɴ", description: "Join A Group", id: `${botConfig.PREFIX}join` },
+                    { title: "💠 ʟᴇᴀᴠᴇ", description: "Bot leaves group", id: `${botConfig.PREFIX}leave` },
+                    { title: "📊 ɢʀᴏᴜᴘ ɪɴғᴏ", description: "View group info", id: `${botConfig.PREFIX}ginfo` },
+                    { title: "👥 ᴍᴇᴍʙᴇʀs", description: "List all members", id: `${botConfig.PREFIX}members` },
+                    { title: "📢 ɢʀᴏᴜᴘsᴛᴀᴛᴜs", description: "Post group status", id: `${botConfig.PREFIX}togstatus` },
+                    { title: "👋 ᴡᴇʟᴄᴏᴍᴇ", description: "Toggle welcome", id: `${botConfig.PREFIX}welcome` },
+                    { title: "👋 ɢᴏᴏᴅʙʏᴇ", description: "Toggle goodbye", id: `${botConfig.PREFIX}goodbye` }
                   ]
                 },
                 {
                   title: "📰 ɴᴇᴡs & ɪɴғᴏ",
                   rows: [
-                    { title: "📰 ɴᴇᴡs", description: "Get latest news", id: `${config.PREFIX}news` },
-                    { title: "🚀 ɴᴀsᴀ", description: "NASA updates", id: `${config.PREFIX}nasa` },
-                    { title: "🌍 ᴄᴏᴜɴᴛʀʏ", description: "Country details", id: `${config.PREFIX}country` },
-                    { title: "🕐 ᴛɪᴍᴇ", description: "Check world time", id: `${config.PREFIX}time` },
-                    { title: "🌍 ᴛʀᴀɴsʟᴀᴛᴇ", description: "Translate text", id: `${config.PREFIX}translate` }
+                    { title: "📰 ɴᴇᴡs", description: "Get latest news", id: `${botConfig.PREFIX}news` },
+                    { title: "🚀 ɴᴀsᴀ", description: "NASA updates", id: `${botConfig.PREFIX}nasa` },
+                    { title: "🌍 ᴄᴏᴜɴᴛʀʏ", description: "Country details", id: `${botConfig.PREFIX}country` },
+                    { title: "🕐 ᴛɪᴍᴇ", description: "Check world time", id: `${botConfig.PREFIX}time` },
+                    { title: "🌍 ᴛʀᴀɴsʟᴀᴛᴇ", description: "Translate text", id: `${botConfig.PREFIX}translate` }
                   ]
                 },
                 {
                   title: "🖤 ғᴜɴ",
                   rows: [
-                    { title: "😂 ᴊᴏᴋᴇ", description: "Random joke", id: `${config.PREFIX}joke` },
-                    { title: "😂 ᴍᴇᴍᴇ", description: "Random meme", id: `${config.PREFIX}meme` },
-                    { title: "🐈 ᴄᴀᴛ", description: "Cute cat pic", id: `${config.PREFIX}cat` },
-                    { title: "💡 ғᴀᴄᴛ", description: "Random fact", id: `${config.PREFIX}fact` },
-                    { title: "🎨 ᴇᴍᴏᴊɪ ᴍɪx", description: "Mix emojis", id: `${config.PREFIX}emojimix` }
+                    { title: "😂 ᴊᴏᴋᴇ", description: "Random joke", id: `${botConfig.PREFIX}joke` },
+                    { title: "😂 ᴍᴇᴍᴇ", description: "Random meme", id: `${botConfig.PREFIX}meme` },
+                    { title: "🐈 ᴄᴀᴛ", description: "Cute cat pic", id: `${botConfig.PREFIX}cat` },
+                    { title: "💡 ғᴀᴄᴛ", description: "Random fact", id: `${botConfig.PREFIX}fact` },
+                    { title: "🎨 ᴇᴍᴏᴊɪ ᴍɪx", description: "Mix emojis", id: `${botConfig.PREFIX}emojimix` }
                   ]
                 },
                 {
                   title: "🔧 ᴛᴏᴏʟs",
                   rows: [
-                    { title: "🤖 ᴀɪ", description: "Chat with AI", id: `${config.PREFIX}ai` },
-                    { title: "🎵 ʟʏʀɪᴄs", description: "Get song lyrics", id: `${config.PREFIX}lyrics` },
-                    { title: "🌦️ ᴡᴇᴀᴛʜᴇʀ", description: "Weather forecast", id: `${config.PREFIX}weather` },
-                    { title: "📖 ᴀᴜᴛᴏʀᴇᴀᴅ", description: "Auto-read PM", id: `${config.PREFIX}autoread` },
-                    { title: "👁️ ʙʟᴜᴇᴛɪᴄᴋ", description: "Toggle read receipts", id: `${config.PREFIX}bluetick` },
-                    { title: "🔰 ᴀɴᴛɪᴅᴇʟᴇᴛᴇ", description: "Anti delete", id: `${config.PREFIX}antidelete` },
-                    { title: "🛡️ ᴀɴᴛɪᴄᴀʟʟ", description: "Block calls", id: `${config.PREFIX}anticall` }
+                    { title: "🤖 ᴀɪ", description: "Chat with AI", id: `${botConfig.PREFIX}ai` },
+                    { title: "🎵 ʟʏʀɪᴄs", description: "Get song lyrics", id: `${botConfig.PREFIX}lyrics` },
+                    { title: "🌦️ ᴡᴇᴀᴛʜᴇʀ", description: "Weather forecast", id: `${botConfig.PREFIX}weather` },
+                    { title: "📖 ᴀᴜᴛᴏʀᴇᴀᴅ", description: "Auto-read PM", id: `${botConfig.PREFIX}autoread` },
+                    { title: "👁️ ʙʟᴜᴇᴛɪᴄᴋ", description: "Toggle read receipts", id: `${botConfig.PREFIX}bluetick` },
+                    { title: "🔰 ᴀɴᴛɪᴅᴇʟᴇᴛᴇ", description: "Anti delete", id: `${botConfig.PREFIX}antidelete` },
+                    { title: "🛡️ ᴀɴᴛɪᴄᴀʟʟ", description: "Block calls", id: `${botConfig.PREFIX}anticall` }
                   ]
                 }
               ]
@@ -4754,7 +4820,7 @@ case 'menu': {
     console.error('Menu command error:', error);
     await socket.sendMessage(from, {
       image: { url: "https://i.ibb.co/fGSVG8vJ/caseyweb.jpg" },
-      caption: `*⚡ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ*\n\n${config.PREFIX}allmenu ᴛᴏ ᴠɪᴇᴡ ᴀʟʟ ᴄᴍᴅs\n\n> ${config.BOT_FOOTER}`
+      caption: `*⚡ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ*\n\n${botConfig.PREFIX}allmenu ᴛᴏ ᴠɪᴇᴡ ᴀʟʟ ᴄᴍᴅs\n\n> ${botConfig.BOT_FOOTER}`
     }, { quoted: fakevCard });
     await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
   }
@@ -4793,7 +4859,7 @@ case 'funfact': {
         }
 
         await socket.sendMessage(sender, {
-            text: `💡 *ʀᴀɴᴅᴏᴍ ғᴀᴄᴛ*\n\n${fact}\n\n> ${config.BOT_FOOTER}`,
+            text: `💡 *ʀᴀɴᴅᴏᴍ ғᴀᴄᴛ*\n\n${fact}\n\n> ${botConfig.BOT_FOOTER}`,
             buttons: [
                 { buttonId: `${prefix}fact`, buttonText: { displayText: '💡 ᴀɴᴏᴛʜᴇʀ ғᴀᴄᴛ' }, type: 1 },
                 { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 ᴍᴇɴᴜ' }, type: 1 }
@@ -4852,12 +4918,12 @@ case 'statussave': {
             buffer = Buffer.concat([buffer, chunk]);
         }
 
-        const caption = msgContent.caption || `📥 *sᴛᴀᴛᴜs sᴀᴠᴇᴅ ʙʏ ${config.OWNER_NAME}*`;
+        const caption = msgContent.caption || `📥 *sᴛᴀᴛᴜs sᴀᴠᴇᴅ ʙʏ ${botConfig.OWNER_NAME}*`;
 
         // Send the saved status back
         await socket.sendMessage(sender, {
             [mediaType]: buffer,
-            caption: `${caption}\n\n> ${config.BOT_FOOTER}`,
+            caption: `${caption}\n\n> ${botConfig.BOT_FOOTER}`,
             buttons: [
                 { buttonId: `${prefix}save`, buttonText: { displayText: '💾 sᴀᴠᴇ ᴍᴏʀᴇ' }, type: 1 },
                 { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 ᴍᴇɴᴜ' }, type: 1 }
@@ -4866,8 +4932,8 @@ case 'statussave': {
             contextInfo: {
                 externalAdReply: {
                     title: 'sᴛᴀᴛᴜs sᴀᴠᴇᴅ ✅',
-                    body: `${config.OWNER_NAME} · sᴛᴀᴛᴜs ᴅᴏᴡɴʟᴏᴀᴅᴇʀ`,
-                    thumbnailUrl: config.RCD_IMAGE_PATH,
+                    body: `${botConfig.OWNER_NAME} · sᴛᴀᴛᴜs ᴅᴏᴡɴʟᴏᴀᴅᴇʀ`,
+                    thumbnailUrl: botConfig.RCD_IMAGE_PATH,
                     mediaType: 1,
                     renderLargerThumbnail: true
                 }
@@ -4909,11 +4975,11 @@ case 'allmenu': {
 *🎀 𝐂𝐀𝐒𝐄𝐘𝐑𝐇𝐎𝐃𝐄𝐒 𝐌𝐈𝐍𝐈 𝐁𝐎𝐓 🎀*
 *╭───────────────⊷*
 *┃*  🤖 *ʙᴏᴛ*: ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ 
-*┃*  📍 *ᴘʀᴇғɪx*: ${config.PREFIX}
+*┃*  📍 *ᴘʀᴇғɪx*: ${botConfig.PREFIX}
 *┃*  ⏰ *ᴜᴘᴛɪᴍᴇ*: ${hours}h ${minutes}m ${seconds}s
 *┃*  💾 *ᴍᴇᴍᴏʀʏ*: ${usedMemory}MB/${totalMemory}MB
 *┃*  🔮 *ᴄᴏᴍᴍᴀɴᴅs*: ${count}
-*┃*  🇰🇪 *ᴏᴡɴᴇʀ*: ${config.OWNER_NAME}
+*┃*  🇰🇪 *ᴏᴡɴᴇʀ*: ${botConfig.OWNER_NAME}
 *╰────────────────⊷*
 
  ╭─『 🌐 *ɢᴇɴᴇʀᴀʟ* 』─╮
@@ -5221,7 +5287,7 @@ case 'block': {
         
         await socket.sendMessage(sender, { react: { text: '🚫', key: msg.key } });
         await socket.updateBlockStatus(targetJid, 'block');
-        await socket.sendMessage(sender, { text: `🚫 *ʙʟᴏᴄᴋᴇᴅ*\n\n@${targetJid.split('@')[0]}\n\n> ${config.BOT_FOOTER}`, mentions: [targetJid], quoted: msg });
+        await socket.sendMessage(sender, { text: `🚫 *ʙʟᴏᴄᴋᴇᴅ*\n\n@${targetJid.split('@')[0]}\n\n> ${botConfig.BOT_FOOTER}`, mentions: [targetJid], quoted: msg });
         await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
     } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: msg }); }
     break;
@@ -5241,7 +5307,7 @@ case 'setbio': {
             tag: 'iq', attrs: { to: S_WHATSAPP_NET, type: 'set', xmlns: 'status' },
             content: [{ tag: 'status', attrs: {}, content: Buffer.from(bio, 'utf-8') }]
         });
-        await socket.sendMessage(sender, { text: `✅ *ʙɪᴏ sᴇᴛ!*\n\n${bio}\n\n> ${config.BOT_FOOTER}`, quoted: msg });
+        await socket.sendMessage(sender, { text: `✅ *ʙɪᴏ sᴇᴛ!*\n\n${bio}\n\n> ${botConfig.BOT_FOOTER}`, quoted: msg });
         await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
     } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: msg }); }
     break;
@@ -5257,13 +5323,13 @@ case 'whois': {
         
         await socket.sendMessage(sender, { react: { text: '🔍', key: msg.key } });
         
-        let pp; try { pp = await socket.profilePictureUrl(targetJid, 'image'); } catch { pp = config.RCD_IMAGE_PATH; }
+        let pp; try { pp = await socket.profilePictureUrl(targetJid, 'image'); } catch { pp = botConfig.RCD_IMAGE_PATH; }
         let about = 'No status';
         try { const s = await socket.fetchStatus(targetJid); if (s?.status) about = s.status; } catch {}
         
         await socket.sendMessage(sender, {
             image: { url: pp },
-            caption: `👤 *ᴡʜᴏɪs*\n\n📞 *ɴᴜᴍʙᴇʀ:* +${number}\n💬 *sᴛᴀᴛᴜs:* ${about}\n🌐 *ᴊɪᴅ:* ${targetJid}\n\n> ${config.BOT_FOOTER}`,
+            caption: `👤 *ᴡʜᴏɪs*\n\n📞 *ɴᴜᴍʙᴇʀ:* +${number}\n💬 *sᴛᴀᴛᴜs:* ${about}\n🌐 *ᴊɪᴅ:* ${targetJid}\n\n> ${botConfig.BOT_FOOTER}`,
             mentions: [targetJid],
             quoted: msg
         });
@@ -5282,7 +5348,7 @@ case 'mygroups': {
         if (!groups.length) { await socket.sendMessage(sender, { text: '❌ *ɴᴏ ɢʀᴏᴜᴘs*', quoted: msg }); break; }
         
         const text = groups.map((g, i) => `${i + 1}. ${g.subject} (${g.participants.length} members)`).join('\n');
-        await socket.sendMessage(sender, { text: `📋 *ᴍʏ ɢʀᴏᴜᴘs (${groups.length})*\n\n${text}\n\n> ${config.BOT_FOOTER}`, quoted: msg });
+        await socket.sendMessage(sender, { text: `📋 *ᴍʏ ɢʀᴏᴜᴘs (${groups.length})*\n\n${text}\n\n> ${botConfig.BOT_FOOTER}`, quoted: msg });
         await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
     } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: msg }); }
     break;
@@ -5442,7 +5508,7 @@ case 'vote': {
         
         if (!input) {
             await socket.sendMessage(sender, {
-                text: `📊 *ᴄʀᴇᴀᴛᴇ ᴘᴏʟʟ*\n\n*ᴜsᴀɢᴇ:*\n\`${prefix}poll Question | Option1 | Option2 | ...\`\n\n*ᴇxᴀᴍᴘʟᴇ:*\n\`${prefix}poll Favourite color? | Red | Blue | Green\`\n\`${prefix}poll Best food? | Pizza | Burger | Sushi | Pasta\`\n\n> ${config.BOT_FOOTER}`,
+                text: `📊 *ᴄʀᴇᴀᴛᴇ ᴘᴏʟʟ*\n\n*ᴜsᴀɢᴇ:*\n\`${prefix}poll Question | Option1 | Option2 | ...\`\n\n*ᴇxᴀᴍᴘʟᴇ:*\n\`${prefix}poll Favourite color? | Red | Blue | Green\`\n\`${prefix}poll Best food? | Pizza | Burger | Sushi | Pasta\`\n\n> ${botConfig.BOT_FOOTER}`,
                 buttons: [
                     { buttonId: `${prefix}poll Best food? | Pizza | Burger | Sushi`, buttonText: { displayText: '🍕 ғᴏᴏᴅ ᴘᴏʟʟ' }, type: 1 },
                     { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 ᴍᴇɴᴜ' }, type: 1 }
@@ -5484,7 +5550,7 @@ case 'vote': {
         });
 
         await socket.sendMessage(sender, {
-            text: `✅ *ᴘᴏʟʟ ᴄʀᴇᴀᴛᴇᴅ!*\n\n📊 *ϙᴜᴇsᴛɪᴏɴ:* ${question}\n📋 *ᴏᴘᴛɪᴏɴs:* ${options.length}\n\n> ${config.BOT_FOOTER}`,
+            text: `✅ *ᴘᴏʟʟ ᴄʀᴇᴀᴛᴇᴅ!*\n\n📊 *ϙᴜᴇsᴛɪᴏɴ:* ${question}\n📋 *ᴏᴘᴛɪᴏɴs:* ${options.length}\n\n> ${botConfig.BOT_FOOTER}`,
             quoted: msg
         });
 
@@ -5528,7 +5594,7 @@ case 'ping': {
             `💾 *ʀᴀᴍ:* ${usedMemory}ᴍʙ / ${totalMemory}ᴍʙ\n` +
             `🖥 *ᴘʟᴀᴛғᴏʀᴍ:* ${platform}\n` +
             `📦 *ɴᴏᴅᴇ:* ${nodeVersion}\n\n` +
-            `> ${config.BOT_FOOTER}`;
+            `> ${botConfig.BOT_FOOTER}`;
 
         // Send CTA buttons (no fallback)
         const ctaMsg = generateWAMessageFromContent(
@@ -5571,7 +5637,7 @@ case 'ping': {
         console.error('[Ping] Error:', error.message);
         const start = performance.now();
         await socket.sendMessage(sender, {
-            text: `🏓 *ᴘᴏɴɢ!*\n\n⏱ *ʀᴇsᴘᴏɴsᴇ:* ${(performance.now() - start).toFixed(2)} ᴍs\n\n> ${config.BOT_FOOTER}`,
+            text: `🏓 *ᴘᴏɴɢ!*\n\n⏱ *ʀᴇsᴘᴏɴsᴇ:* ${(performance.now() - start).toFixed(2)} ᴍs\n\n> ${botConfig.BOT_FOOTER}`,
             quoted: fakevCard
         });
         await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
@@ -5588,7 +5654,7 @@ case 'instagramstalk': {
         
         if (!username) {
             await socket.sendMessage(sender, {
-                text: `📸 *ɪɴsᴛᴀɢʀᴀᴍ sᴛᴀʟᴋᴇʀ*\n\nɢᴇᴛ ᴅᴇᴛᴀɪʟᴇᴅ ɪɴsᴛᴀɢʀᴀᴍ ᴘʀᴏғɪʟᴇ ɪɴғᴏ.\n\n*ᴜsᴀɢᴇ:* \`${prefix}igstalk <username>\`\n\n*ᴇxᴀᴍᴘʟᴇs:*\n• \`${prefix}igstalk cristiano\`\n• \`${prefix}igstalk leomessi\`\n• \`${prefix}igstalk therock\`\n\n> ${config.BOT_FOOTER}`,
+                text: `📸 *ɪɴsᴛᴀɢʀᴀᴍ sᴛᴀʟᴋᴇʀ*\n\nɢᴇᴛ ᴅᴇᴛᴀɪʟᴇᴅ ɪɴsᴛᴀɢʀᴀᴍ ᴘʀᴏғɪʟᴇ ɪɴғᴏ.\n\n*ᴜsᴀɢᴇ:* \`${prefix}igstalk <username>\`\n\n*ᴇxᴀᴍᴘʟᴇs:*\n• \`${prefix}igstalk cristiano\`\n• \`${prefix}igstalk leomessi\`\n• \`${prefix}igstalk therock\`\n\n> ${botConfig.BOT_FOOTER}`,
                 buttons: [
                     { buttonId: `${prefix}igstalk cristiano`, buttonText: { displayText: '👤 ᴄʀɪsᴛɪᴀɴᴏ' }, type: 1 },
                     { buttonId: `${prefix}igstalk leomessi`, buttonText: { displayText: '👤 ᴍᴇssɪ' }, type: 1 },
@@ -5655,7 +5721,7 @@ case 'instagramstalk': {
             `• *ʙᴜsɪɴᴇss:* ${u.is_business_account ? '🏢 Yes' : '👤 No'}\n` +
             `${u.external_url ? `• *ʟɪɴᴋ:* ${u.external_url}\n` : ''}` +
             `\n• *ᴘʀᴏғɪʟᴇ:* https://www.instagram.com/${u.username}/\n\n` +
-            `> ${config.BOT_FOOTER}`;
+            `> ${botConfig.BOT_FOOTER}`;
 
         const picUrl = u.profile_pic_url_hd || u.profile_pic_url || null;
 
@@ -5720,7 +5786,7 @@ case 'pair': {
 
     if (!number) {
         return await socket.sendMessage(sender, {
-            text: `*📌 ᴘᴀɪʀɪɴɢ*\n\n*ᴜsᴀɢᴇ:* \`${prefix}pair 25410XXXXXX\`\n\n*ᴇxᴀᴍᴘʟᴇ:* \`${prefix}pair 254712345678\`\n\n> ${config.BOT_FOOTER}`,
+            text: `*📌 ᴘᴀɪʀɪɴɢ*\n\n*ᴜsᴀɢᴇ:* \`${prefix}pair 25410XXXXXX\`\n\n*ᴇxᴀᴍᴘʟᴇ:* \`${prefix}pair 254712345678\`\n\n> ${botConfig.BOT_FOOTER}`,
             quoted: fakevCard
         });
     }
@@ -5764,7 +5830,7 @@ case 'pair': {
                                       `📝 *ɪɴsᴛʀᴜᴄᴛɪᴏɴs:*\n` +
                                       `1. ᴛᴀᴘ ᴄᴏᴘʏ ʙᴜᴛᴛᴏɴ ʙᴇʟᴏᴡ\n` +
                                       `2. ᴘᴀsᴛᴇ ɪɴ ʟɪɴᴋᴇᴅ ᴅᴇᴠɪᴄᴇs\n\n` +
-                                      `> ${config.BOT_FOOTER}`
+                                      `> ${botConfig.BOT_FOOTER}`
                             },
                             footer: { text: 'ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
                             nativeFlowMessage: {
@@ -5780,7 +5846,7 @@ case 'pair': {
                                         name: 'cta_url',
                                         buttonParamsJson: JSON.stringify({
                                             display_text: '📢 Follow Channel',
-                                            url: config.CHANNEL_LINK
+                                            url: botConfig.CHANNEL_LINK
                                         })
                                     }
                                 ]
@@ -5798,7 +5864,7 @@ case 'pair': {
     } catch (err) {
         console.error("❌ Pair Command Error:", err);
         await socket.sendMessage(sender, {
-            text: `> *ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ - ᴘᴀɪʀɪɴɢ ✅*\n\n*🔑 ʏᴏᴜʀ ᴘᴀɪʀɪɴɢ ᴄᴏᴅᴇ:* ${pairingCode || 'N/A'}\n\n📝 ᴄᴏᴘʏ ᴛʜᴇ ᴄᴏᴅᴇ ᴀɴᴅ ᴘᴀsᴛᴇ ɪɴ ʟɪɴᴋᴇᴅ ᴅᴇᴠɪᴄᴇs\n\n> ${config.BOT_FOOTER}`,
+            text: `> *ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ - ᴘᴀɪʀɪɴɢ ✅*\n\n*🔑 ʏᴏᴜʀ ᴘᴀɪʀɪɴɢ ᴄᴏᴅᴇ:* ${pairingCode || 'N/A'}\n\n📝 ᴄᴏᴘʏ ᴛʜᴇ ᴄᴏᴅᴇ ᴀɴᴅ ᴘᴀsᴛᴇ ɪɴ ʟɪɴᴋᴇᴅ ᴅᴇᴠɪᴄᴇs\n\n> ${botConfig.BOT_FOOTER}`,
             buttons: [
                 { buttonId: `${prefix}pair`, buttonText: { displayText: '🔄 New Code' }, type: 1 }
             ],
@@ -5974,7 +6040,7 @@ case 'horo': {
         
         if (!sign || !SIGNS.includes(sign)) {
             await socket.sendMessage(sender, {
-                text: `🔮 *ʜᴏʀᴏsᴄᴏᴘᴇ*\n\nɢᴇᴛ ʏᴏᴜʀ ᴅᴀɪʟʏ ʜᴏʀᴏsᴄᴏᴘᴇ.\n\n*ᴜsᴀɢᴇ:* \`${prefix}horo <sign>\`\n\n*ᴢᴏᴅɪᴀᴄ sɪɢɴs:*\n${SIGNS.map(s => `${EMOJIS[s]} ${s}`).join(', ')}\n\n*ᴇxᴀᴍᴘʟᴇ:* \`${prefix}horo leo\`\n\n> ${config.BOT_FOOTER}`,
+                text: `🔮 *ʜᴏʀᴏsᴄᴏᴘᴇ*\n\nɢᴇᴛ ʏᴏᴜʀ ᴅᴀɪʟʏ ʜᴏʀᴏsᴄᴏᴘᴇ.\n\n*ᴜsᴀɢᴇ:* \`${prefix}horo <sign>\`\n\n*ᴢᴏᴅɪᴀᴄ sɪɢɴs:*\n${SIGNS.map(s => `${EMOJIS[s]} ${s}`).join(', ')}\n\n*ᴇxᴀᴍᴘʟᴇ:* \`${prefix}horo leo\`\n\n> ${botConfig.BOT_FOOTER}`,
                 buttons: [
                     { buttonId: `${prefix}horo leo`, buttonText: { displayText: '♌ ʟᴇᴏ' }, type: 1 },
                     { buttonId: `${prefix}horo gemini`, buttonText: { displayText: '♊ ɢᴇᴍɪɴɪ' }, type: 1 },
@@ -5999,7 +6065,7 @@ case 'horo': {
         const horoscopeText = h?.horoscope_data || 'No horoscope available today.';
 
         await socket.sendMessage(sender, {
-            text: `${EMOJIS[sign]} *${sign.charAt(0).toUpperCase() + sign.slice(1)} ᴅᴀɪʟʏ ʜᴏʀᴏsᴄᴏᴘᴇ*\n📅 ${date}\n\n${horoscopeText}\n\n> ${config.BOT_FOOTER}`,
+            text: `${EMOJIS[sign]} *${sign.charAt(0).toUpperCase() + sign.slice(1)} ᴅᴀɪʟʏ ʜᴏʀᴏsᴄᴏᴘᴇ*\n📅 ${date}\n\n${horoscopeText}\n\n> ${botConfig.BOT_FOOTER}`,
             buttons: [
                 { buttonId: `${prefix}horo`, buttonText: { displayText: '🔮 ᴀɴᴏᴛʜᴇʀ sɪɢɴ' }, type: 1 },
                 { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 ᴍᴇɴᴜ' }, type: 1 }
@@ -6176,9 +6242,9 @@ case 'dp': {
         try {
             const ctaMsg = generateWAMessageFromContent(sender, {
                 viewOnceMessage: { message: { interactiveMessage: {
-                    body: { text: '✅ *ᴘʀᴏғɪʟᴇ ᴘɪᴄᴛᴜʀᴇ sᴇᴛ!*\n\n> ' + config.BOT_FOOTER },
+                    body: { text: '✅ *ᴘʀᴏғɪʟᴇ ᴘɪᴄᴛᴜʀᴇ sᴇᴛ!*\n\n> ' + botConfig.BOT_FOOTER },
                     footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
-                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Join Channel', url: config.CHANNEL_LINK }) }] }
+                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Join Channel', url: botConfig.CHANNEL_LINK }) }] }
                 } } }
             }, { quoted: fakevCard });
             await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
@@ -6197,9 +6263,9 @@ case 'pin': {
         try {
             const ctaMsg = generateWAMessageFromContent(sender, {
                 viewOnceMessage: { message: { interactiveMessage: {
-                    body: { text: '📌 *ᴄʜᴀᴛ ᴘɪɴɴᴇᴅ!*\n\n> ' + config.BOT_FOOTER },
+                    body: { text: '📌 *ᴄʜᴀᴛ ᴘɪɴɴᴇᴅ!*\n\n> ' + botConfig.BOT_FOOTER },
                     footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
-                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Join Channel', url: config.CHANNEL_LINK }) }] }
+                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Join Channel', url: botConfig.CHANNEL_LINK }) }] }
                 } } }
             }, { quoted: fakevCard });
             await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
@@ -6217,9 +6283,9 @@ case 'unpin': {
         try {
             const ctaMsg = generateWAMessageFromContent(sender, {
                 viewOnceMessage: { message: { interactiveMessage: {
-                    body: { text: '📌 *ᴄʜᴀᴛ ᴜɴᴘɪɴɴᴇᴅ!*\n\n> ' + config.BOT_FOOTER },
+                    body: { text: '📌 *ᴄʜᴀᴛ ᴜɴᴘɪɴɴᴇᴅ!*\n\n> ' + botConfig.BOT_FOOTER },
                     footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
-                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Join Channel', url: config.CHANNEL_LINK }) }] }
+                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Join Channel', url: botConfig.CHANNEL_LINK }) }] }
                 } } }
             }, { quoted: fakevCard });
             await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
@@ -6237,9 +6303,9 @@ case 'archive': {
         try {
             const ctaMsg = generateWAMessageFromContent(sender, {
                 viewOnceMessage: { message: { interactiveMessage: {
-                    body: { text: '📁 *ᴄʜᴀᴛ ᴀʀᴄʜɪᴠᴇᴅ!*\n\n> ' + config.BOT_FOOTER },
+                    body: { text: '📁 *ᴄʜᴀᴛ ᴀʀᴄʜɪᴠᴇᴅ!*\n\n> ' + botConfig.BOT_FOOTER },
                     footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
-                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Join Channel', url: config.CHANNEL_LINK }) }] }
+                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Join Channel', url: botConfig.CHANNEL_LINK }) }] }
                 } } }
             }, { quoted: fakevCard });
             await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
@@ -6264,13 +6330,13 @@ case 'checkno': {
         try {
             const ctaMsg = generateWAMessageFromContent(sender, {
                 viewOnceMessage: { message: { interactiveMessage: {
-                    body: { text: `${responseText}\n\n> ${config.BOT_FOOTER}` },
+                    body: { text: `${responseText}\n\n> ${botConfig.BOT_FOOTER}` },
                     footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
-                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Join Channel', url: config.CHANNEL_LINK }) }] }
+                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Join Channel', url: botConfig.CHANNEL_LINK }) }] }
                 } } }
             }, { quoted: fakevCard });
             await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
-        } catch { await socket.sendMessage(sender, { text: `${responseText}\n\n> ${config.BOT_FOOTER}`, quoted: fakevCard }); }
+        } catch { await socket.sendMessage(sender, { text: `${responseText}\n\n> ${botConfig.BOT_FOOTER}`, quoted: fakevCard }); }
         await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
     } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: fakevCard }); }
     break;
@@ -6289,13 +6355,13 @@ case 'loc': {
         try {
             const ctaMsg = generateWAMessageFromContent(sender, {
                 viewOnceMessage: { message: { interactiveMessage: {
-                    body: { text: `📍 *ʟᴏᴄᴀᴛɪᴏɴ*\n\n${mapUrl}\n\n> ${config.BOT_FOOTER}` },
+                    body: { text: `📍 *ʟᴏᴄᴀᴛɪᴏɴ*\n\n${mapUrl}\n\n> ${botConfig.BOT_FOOTER}` },
                     footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
-                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Join Channel', url: config.CHANNEL_LINK }) }] }
+                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Join Channel', url: botConfig.CHANNEL_LINK }) }] }
                 } } }
             }, { quoted: fakevCard });
             await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
-        } catch { await socket.sendMessage(sender, { text: `📍 *ʟᴏᴄᴀᴛɪᴏɴ*\n\n${mapUrl}\n\n> ${config.BOT_FOOTER}`, quoted: fakevCard }); }
+        } catch { await socket.sendMessage(sender, { text: `📍 *ʟᴏᴄᴀᴛɪᴏɴ*\n\n${mapUrl}\n\n> ${botConfig.BOT_FOOTER}`, quoted: fakevCard }); }
         await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
     } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: fakevCard }); }
     break;
@@ -6309,9 +6375,9 @@ case 'removedp': {
         try {
             const ctaMsg = generateWAMessageFromContent(sender, {
                 viewOnceMessage: { message: { interactiveMessage: {
-                    body: { text: '✅ *ᴘʀᴏғɪʟᴇ ᴘɪᴄᴛᴜʀᴇ ʀᴇᴍᴏᴠᴇᴅ!*\n\n> ' + config.BOT_FOOTER },
+                    body: { text: '✅ *ᴘʀᴏғɪʟᴇ ᴘɪᴄᴛᴜʀᴇ ʀᴇᴍᴏᴠᴇᴅ!*\n\n> ' + botConfig.BOT_FOOTER },
                     footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
-                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Join Channel', url: config.CHANNEL_LINK }) }] }
+                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Join Channel', url: botConfig.CHANNEL_LINK }) }] }
                 } } }
             }, { quoted: fakevCard });
             await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
@@ -6339,9 +6405,9 @@ case 'card': {
         try {
             const ctaMsg = generateWAMessageFromContent(sender, {
                 viewOnceMessage: { message: { interactiveMessage: {
-                    body: { text: '✅ *ᴄᴏɴᴛᴀᴄᴛ sᴀᴠᴇᴅ!*\n\n> ' + config.BOT_FOOTER },
+                    body: { text: '✅ *ᴄᴏɴᴛᴀᴄᴛ sᴀᴠᴇᴅ!*\n\n> ' + botConfig.BOT_FOOTER },
                     footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
-                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Join Channel', url: config.CHANNEL_LINK }) }] }
+                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Join Channel', url: botConfig.CHANNEL_LINK }) }] }
                 } } }
             }, { quoted: fakevCard });
             await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
@@ -6359,7 +6425,7 @@ case 'getapk': {
         
         if (!query) {
             await socket.sendMessage(sender, {
-                text: `📱 *APK Dᴏᴡɴʟᴏᴀᴅᴇʀ*\n\nDᴏᴡɴʟᴏᴀᴅ APK ғɪʟᴇs ғʀᴏᴍ Aᴘᴛᴏɪᴅᴇ.\n\n*Usᴀɢᴇ:* \`${prefix}apk <app name>\`\n\n*Exᴀᴍᴘʟᴇs:*\n• \`${prefix}apk whatsapp\`\n• \`${prefix}apk instagram\`\n• \`${prefix}apk spotify\`\n\n> ${config.BOT_FOOTER}`,
+                text: `📱 *APK Dᴏᴡɴʟᴏᴀᴅᴇʀ*\n\nDᴏᴡɴʟᴏᴀᴅ APK ғɪʟᴇs ғʀᴏᴍ Aᴘᴛᴏɪᴅᴇ.\n\n*Usᴀɢᴇ:* \`${prefix}apk <app name>\`\n\n*Exᴀᴍᴘʟᴇs:*\n• \`${prefix}apk whatsapp\`\n• \`${prefix}apk instagram\`\n• \`${prefix}apk spotify\`\n\n> ${botConfig.BOT_FOOTER}`,
                 buttons: [
                     { buttonId: `${prefix}apk whatsapp`, buttonText: { displayText: '📱 WhatsApp' }, type: 1 },
                     { buttonId: `${prefix}apk instagram`, buttonText: { displayText: '📷 Instagram' }, type: 1 },
@@ -6389,7 +6455,7 @@ case 'getapk': {
             if (!data?.datalist?.list?.length) {
                 try { await socket.sendMessage(sender, { delete: searchMsg.key }); } catch {}
                 await socket.sendMessage(sender, {
-                    text: `❌ *Aᴘᴘ Nᴏᴛ Fᴏᴜɴᴅ*\n\nNᴏ ᴀᴘᴘ ғᴏᴜɴᴅ ғᴏʀ "${query}".\n\n*Sᴜɢɢᴇsᴛɪᴏɴs:*\n• Cʜᴇᴄᴋ ᴛʜᴇ sᴘᴇʟʟɪɴɢ\n• Tʀʏ ᴀ ᴅɪғғᴇʀᴇɴᴛ ᴀᴘᴘ ɴᴀᴍᴇ\n• Usᴇ ᴛʜᴇ ғᴜʟʟ ᴀᴘᴘ ɴᴀᴍᴇ\n\n> ${config.BOT_FOOTER}`,
+                    text: `❌ *Aᴘᴘ Nᴏᴛ Fᴏᴜɴᴅ*\n\nNᴏ ᴀᴘᴘ ғᴏᴜɴᴅ ғᴏʀ "${query}".\n\n*Sᴜɢɢᴇsᴛɪᴏɴs:*\n• Cʜᴇᴄᴋ ᴛʜᴇ sᴘᴇʟʟɪɴɢ\n• Tʀʏ ᴀ ᴅɪғғᴇʀᴇɴᴛ ᴀᴘᴘ ɴᴀᴍᴇ\n• Usᴇ ᴛʜᴇ ғᴜʟʟ ᴀᴘᴘ ɴᴀᴍᴇ\n\n> ${botConfig.BOT_FOOTER}`,
                     buttons: [
                         { buttonId: `${prefix}apk`, buttonText: { displayText: '🔍 Tʀʏ Aɢᴀɪɴ' }, type: 1 },
                         { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 Mᴇɴᴜ' }, type: 1 }
@@ -6414,7 +6480,7 @@ case 'getapk': {
             if (!apkUrl) {
                 try { await socket.sendMessage(sender, { delete: searchMsg.key }); } catch {}
                 await socket.sendMessage(sender, {
-                    text: `❌ *Dᴏᴡɴʟᴏᴀᴅ Lɪɴᴋ Nᴏᴛ Aᴠᴀɪʟᴀʙʟᴇ*\n\nTʜᴇ APK ᴅᴏᴡɴʟᴏᴀᴅ ʟɪɴᴋ ғᴏʀ "${appName}" ɪs ɴᴏᴛ ᴀᴠᴀɪʟᴀʙʟᴇ.\n\n> ${config.BOT_FOOTER}`,
+                    text: `❌ *Dᴏᴡɴʟᴏᴀᴅ Lɪɴᴋ Nᴏᴛ Aᴠᴀɪʟᴀʙʟᴇ*\n\nTʜᴇ APK ᴅᴏᴡɴʟᴏᴀᴅ ʟɪɴᴋ ғᴏʀ "${appName}" ɪs ɴᴏᴛ ᴀᴠᴀɪʟᴀʙʟᴇ.\n\n> ${botConfig.BOT_FOOTER}`,
                     buttons: [
                         { buttonId: `${prefix}apk`, buttonText: { displayText: '🔍 Sᴇᴀʀᴄʜ Aɢᴀɪɴ' }, type: 1 },
                         { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 Mᴇɴᴜ' }, type: 1 }
@@ -6437,7 +6503,7 @@ case 'getapk': {
                 `• 💾 Sɪᴢᴇ: ${appSize}\n` +
                 `• 📥 Dᴏᴡɴʟᴏᴀᴅs: ${appDownloads}\n` +
                 `• ⭐ Rᴀᴛɪɴɢ: ${appRating}\n\n` +
-                `> ${config.BOT_FOOTER}`;
+                `> ${botConfig.BOT_FOOTER}`;
 
             // Send APK file
             await socket.sendMessage(sender, {
@@ -6448,14 +6514,14 @@ case 'getapk': {
             }, { quoted: fakevCard });
 
             // Send success message with CTA buttons
-            const successText = `✅ *APK Sᴇɴᴛ Sᴜᴄᴄᴇssғᴜʟʟʏ!*\n\n📱 *Aᴘᴘ:* ${appName}\n💾 *Sɪᴢᴇ:* ${appSize}\n\n> ${config.BOT_FOOTER}`;
+            const successText = `✅ *APK Sᴇɴᴛ Sᴜᴄᴄᴇssғᴜʟʟʏ!*\n\n📱 *Aᴘᴘ:* ${appName}\n💾 *Sɪᴢᴇ:* ${appSize}\n\n> ${botConfig.BOT_FOOTER}`;
 
             const ctaButtons = [
                 {
                     name: 'cta_url',
                     buttonParamsJson: JSON.stringify({
                         display_text: '📢 Jᴏɪɴ Cʜᴀɴɴᴇʟ',
-                        url: config.CHANNEL_LINK
+                        url: botConfig.CHANNEL_LINK
                     })
                 },
                 {
@@ -6504,7 +6570,7 @@ case 'getapk': {
     } catch (error) {
         console.error('[APK] Error:', error.message);
         await socket.sendMessage(sender, {
-            text: `❌ *APK Dᴏᴡɴʟᴏᴀᴅ Fᴀɪʟᴇᴅ*\n\n${error.message}\n\n> ${config.BOT_FOOTER}`,
+            text: `❌ *APK Dᴏᴡɴʟᴏᴀᴅ Fᴀɪʟᴇᴅ*\n\n${error.message}\n\n> ${botConfig.BOT_FOOTER}`,
             buttons: [
                 { buttonId: `${prefix}apk`, buttonText: { displayText: '🔄 Rᴇᴛʀʏ' }, type: 1 },
                 { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 Mᴇɴᴜ' }, type: 1 }
@@ -6526,7 +6592,7 @@ case 'songlyrics': {
         
         if (!query) {
             await socket.sendMessage(sender, {
-                text: `🎵 *sᴏɴɢ ʟʏʀɪᴄs*\n\n*ᴜsᴀɢᴇ:* \`${prefix}lyrics <song name>\`\n\n*ᴇxᴀᴍᴘʟᴇs:*\n• \`${prefix}lyrics Shape of You\`\n• \`${prefix}lyrics Blinding Lights\`\n\n> ${config.BOT_FOOTER}`,
+                text: `🎵 *sᴏɴɢ ʟʏʀɪᴄs*\n\n*ᴜsᴀɢᴇ:* \`${prefix}lyrics <song name>\`\n\n*ᴇxᴀᴍᴘʟᴇs:*\n• \`${prefix}lyrics Shape of You\`\n• \`${prefix}lyrics Blinding Lights\`\n\n> ${botConfig.BOT_FOOTER}`,
                 buttons: [
                     { buttonId: `${prefix}lyrics Shape of You`, buttonText: { displayText: '🎵 Shape of You' }, type: 1 },
                     { buttonId: `${prefix}lyrics Blinding Lights`, buttonText: { displayText: '🎵 Blinding Lights' }, type: 1 },
@@ -6544,7 +6610,7 @@ case 'songlyrics': {
 
         if (data.error || !data.message) {
             await socket.sendMessage(sender, {
-                text: `❌ *ɴᴏᴛ ғᴏᴜɴᴅ*\n\nɴᴏ ʟʏʀɪᴄs ғᴏᴜɴᴅ ғᴏʀ "${query}".\n\n> ${config.BOT_FOOTER}`,
+                text: `❌ *ɴᴏᴛ ғᴏᴜɴᴅ*\n\nɴᴏ ʟʏʀɪᴄs ғᴏᴜɴᴅ ғᴏʀ "${query}".\n\n> ${botConfig.BOT_FOOTER}`,
                 buttons: [
                     { buttonId: `${prefix}lyrics`, buttonText: { displayText: '🎵 Try Again' }, type: 1 }
                 ],
@@ -6557,7 +6623,7 @@ case 'songlyrics': {
         const lyrics = song.lyrics ? song.lyrics.slice(0, 3000) : 'No lyrics available';
         const fullLyrics = song.lyrics || '';
 
-        const caption = `🎵 *${song.title}*\n👤 *${song.artist}*\n\n${lyrics}${lyrics.length >= 3000 ? '...' : ''}\n\n🔗 ${song.url || 'N/A'}\n\n> ${config.BOT_FOOTER}`;
+        const caption = `🎵 *${song.title}*\n👤 *${song.artist}*\n\n${lyrics}${lyrics.length >= 3000 ? '...' : ''}\n\n🔗 ${song.url || 'N/A'}\n\n> ${botConfig.BOT_FOOTER}`;
 
         // ONE message with CTA buttons (no image)
         try {
@@ -6582,7 +6648,7 @@ case 'songlyrics': {
                                             name: 'cta_url',
                                             buttonParamsJson: JSON.stringify({
                                                 display_text: '📢 Join Channel',
-                                                url: config.CHANNEL_LINK
+                                                url: botConfig.CHANNEL_LINK
                                             })
                                         },
                                         {
@@ -6616,7 +6682,7 @@ case 'songlyrics': {
     } catch (err) {
         console.error('[Lyrics] Error:', err.message);
         await socket.sendMessage(sender, {
-            text: `❌ *ғᴀɪʟᴇᴅ*\n\n${err.message}\n\n> ${config.BOT_FOOTER}`,
+            text: `❌ *ғᴀɪʟᴇᴅ*\n\n${err.message}\n\n> ${botConfig.BOT_FOOTER}`,
             quoted: fakevCard
         });
         await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
@@ -6640,7 +6706,7 @@ case 'play': {
 
         if (!query) {
             return await socket.sendMessage(sender, {
-                text: `🎵 *ᴀᴜᴅɪᴏ ᴘʟᴀʏᴇʀ*\n\nᴘʟᴇᴀsᴇ ᴘʀᴏᴠɪᴅᴇ ᴀ sᴏɴɢ ɴᴀᴍᴇ.\n\n*ᴜsᴀɢᴇ:* \`${prefix}play <song name>\`\n\n*ᴇxᴀᴍᴘʟᴇ:*\n\`${prefix}play Faded\`\n\`${prefix}play Shape of You\`\n\n> ${config.BOT_FOOTER}`,
+                text: `🎵 *ᴀᴜᴅɪᴏ ᴘʟᴀʏᴇʀ*\n\nᴘʟᴇᴀsᴇ ᴘʀᴏᴠɪᴅᴇ ᴀ sᴏɴɢ ɴᴀᴍᴇ.\n\n*ᴜsᴀɢᴇ:* \`${prefix}play <song name>\`\n\n*ᴇxᴀᴍᴘʟᴇ:*\n\`${prefix}play Faded\`\n\`${prefix}play Shape of You\`\n\n> ${botConfig.BOT_FOOTER}`,
                 quoted: msg
             });
         }
@@ -6651,7 +6717,7 @@ case 'play': {
 
         if (!video) {
             return await socket.sendMessage(sender, {
-                text: `❌ *ɴᴏ ʀᴇsᴜʟᴛs*\n\nɴᴏ sᴏɴɢs ғᴏᴜɴᴅ. ᴛʀʏ ᴅɪғғᴇʀᴇɴᴛ ᴋᴇʏᴡᴏʀᴅs.\n\n> ${config.BOT_FOOTER}`,
+                text: `❌ *ɴᴏ ʀᴇsᴜʟᴛs*\n\nɴᴏ sᴏɴɢs ғᴏᴜɴᴅ. ᴛʀʏ ᴅɪғғᴇʀᴇɴᴛ ᴋᴇʏᴡᴏʀᴅs.\n\n> ${botConfig.BOT_FOOTER}`,
                 quoted: msg
             });
         }
@@ -6664,7 +6730,7 @@ case 'play': {
 
         if (!response.data || !response.data.status || !response.data.audio) {
             return await socket.sendMessage(sender, {
-                text: `❌ *ᴅᴏᴡɴʟᴏᴀᴅ ғᴀɪʟᴇᴅ*\n\nᴄᴏᴜʟᴅ ɴᴏᴛ ʀᴇᴛʀɪᴇᴠᴇ ᴀᴜᴅɪᴏ. ᴛʀʏ ᴀɢᴀɪɴ ʟᴀᴛᴇʀ.\n\n> ${config.BOT_FOOTER}`,
+                text: `❌ *ᴅᴏᴡɴʟᴏᴀᴅ ғᴀɪʟᴇᴅ*\n\nᴄᴏᴜʟᴅ ɴᴏᴛ ʀᴇᴛʀɪᴇᴠᴇ ᴀᴜᴅɪᴏ. ᴛʀʏ ᴀɢᴀɪɴ ʟᴀᴛᴇʀ.\n\n> ${botConfig.BOT_FOOTER}`,
                 quoted: msg
             });
         }
@@ -6679,7 +6745,7 @@ case 'play': {
                        `👀 *ᴠɪᴇᴡs:* ${video.views.toLocaleString()}\n\n` +
                        `🔗 *ʏᴏᴜᴛᴜʙᴇ:* ${video.url}\n\n` +
                        `sᴇʟᴇᴄᴛ ᴅᴏᴡɴʟᴏᴀᴅ ғᴏʀᴍᴀᴛ:\n\n` +
-                       `> ${config.BOT_FOOTER}`;
+                       `> ${botConfig.BOT_FOOTER}`;
 
         const sentMsg = await socket.sendMessage(sender, {
             image: { url: response.data.thumbnail || video.thumbnail },
@@ -6762,7 +6828,7 @@ case 'play': {
     } catch (err) {
         console.error('[PLAY] Error:', err.message);
         await socket.sendMessage(sender, {
-            text: `❌ *ᴇʀʀᴏʀ*\n\nᴜɴᴀʙʟᴇ ᴛᴏ ᴘʀᴏᴄᴇss ʏᴏᴜʀ ʀᴇǫᴜᴇsᴛ.\n\n> ${config.BOT_FOOTER}`,
+            text: `❌ *ᴇʀʀᴏʀ*\n\nᴜɴᴀʙʟᴇ ᴛᴏ ᴘʀᴏᴄᴇss ʏᴏᴜʀ ʀᴇǫᴜᴇsᴛ.\n\n> ${botConfig.BOT_FOOTER}`,
             quoted: msg
         });
         await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
@@ -6785,7 +6851,7 @@ case 'tiktokdl': {
         // Check if URL is provided
         if (!args[0]) {
             await socket.sendMessage(sender, {
-                text: `📱 *ᴛɪᴋᴛᴏᴋ ᴠɪᴅᴇᴏ ᴅᴏᴡɴʟᴏᴀᴅᴇʀ*\n\nᴅᴏᴡɴʟᴏᴀᴅ ᴛɪᴋᴛᴏᴋ ᴠɪᴅᴇᴏs ᴡɪᴛʜᴏᴜᴛ ᴡᴀᴛᴇʀᴍᴀʀᴋ.\n\n*ᴜsᴀɢᴇ:*\n\`${prefix}tiktok <ᴛɪᴋᴛᴏᴋ ʟɪɴᴋ>\`\n\n*ᴇxᴀᴍᴘʟᴇs:*\n• \`${prefix}tiktok https://www.tiktok.com/@user/video/xxx\`\n• \`${prefix}tt https://vm.tiktok.com/xxx\`\n• \`${prefix}ttdl https://vt.tiktok.com/xxx\`\n\n> ${config.BOT_FOOTER}`,
+                text: `📱 *ᴛɪᴋᴛᴏᴋ ᴠɪᴅᴇᴏ ᴅᴏᴡɴʟᴏᴀᴅᴇʀ*\n\nᴅᴏᴡɴʟᴏᴀᴅ ᴛɪᴋᴛᴏᴋ ᴠɪᴅᴇᴏs ᴡɪᴛʜᴏᴜᴛ ᴡᴀᴛᴇʀᴍᴀʀᴋ.\n\n*ᴜsᴀɢᴇ:*\n\`${prefix}tiktok <ᴛɪᴋᴛᴏᴋ ʟɪɴᴋ>\`\n\n*ᴇxᴀᴍᴘʟᴇs:*\n• \`${prefix}tiktok https://www.tiktok.com/@user/video/xxx\`\n• \`${prefix}tt https://vm.tiktok.com/xxx\`\n• \`${prefix}ttdl https://vt.tiktok.com/xxx\`\n\n> ${botConfig.BOT_FOOTER}`,
                 buttons: [
                     { 
                         buttonId: `${prefix}tiktok https://www.tiktok.com/@tiktok/video/123456789`, 
@@ -6882,8 +6948,8 @@ case 'tiktokdl': {
                        `🔄 *sʜᴀʀᴇs:* ${formatNumber(shares)}\n` +
                        `🎵 *sᴏᴜɴᴅ:* ${music.substring(0, 40)}${music.length > 40 ? '...' : ''}\n` +
                        `💧 *ᴡᴀᴛᴇʀᴍᴀʀᴋ:* ${isWatermarked ? '✅ ʏᴇs' : '❌ ɴᴏ'}\n\n` +
-                       `📥 *ᴅᴏᴡɴʟᴏᴀᴅᴇᴅ ʙʏ* ${config.OWNER_NAME}\n\n` +
-                       `> ${config.BOT_FOOTER}`;
+                       `📥 *ᴅᴏᴡɴʟᴏᴀᴅᴇᴅ ʙʏ* ${botConfig.OWNER_NAME}\n\n` +
+                       `> ${botConfig.BOT_FOOTER}`;
 
         // Helper function to format numbers
         function formatNumber(num) {
@@ -6976,7 +7042,7 @@ case 'tiktokdl': {
 
         // Send error message
         await socket.sendMessage(sender, {
-            text: `❌ *ᴅᴏᴡɴʟᴏᴀᴅ ғᴀɪʟᴇᴅ*\n\n${error.message || 'Unknown error occurred'}\n\n*ᴛʀʏ ᴀɢᴀɪɴ ᴏʀ ᴜsᴇ ᴀ ᴅɪғғᴇʀᴇɴᴛ ʟɪɴᴋ.*\n\n> ${config.BOT_FOOTER}`,
+            text: `❌ *ᴅᴏᴡɴʟᴏᴀᴅ ғᴀɪʟᴇᴅ*\n\n${error.message || 'Unknown error occurred'}\n\n*ᴛʀʏ ᴀɢᴀɪɴ ᴏʀ ᴜsᴇ ᴀ ᴅɪғғᴇʀᴇɴᴛ ʟɪɴᴋ.*\n\n> ${botConfig.BOT_FOOTER}`,
             buttons: [
                 { 
                     buttonId: `${prefix}tiktok`, 
@@ -7013,7 +7079,7 @@ case 'id': {
 
         if (!channelLink) {
             return await socket.sendMessage(sender, {
-                text: `📡 *ᴄʜᴀɴɴᴇʟ ɪɴғᴏ*\n\n*ᴜsᴀɢᴇ:* \`${prefix}newsletter <channel link>\`\n\n*ᴇxᴀᴍᴘʟᴇ:*\n\`${prefix}newsletter https://whatsapp.com/channel/xxxxxxxxxx\`\n\n> ${config.BOT_FOOTER}`
+                text: `📡 *ᴄʜᴀɴɴᴇʟ ɪɴғᴏ*\n\n*ᴜsᴀɢᴇ:* \`${prefix}newsletter <channel link>\`\n\n*ᴇxᴀᴍᴘʟᴇ:*\n\`${prefix}newsletter https://whatsapp.com/channel/xxxxxxxxxx\`\n\n> ${botConfig.BOT_FOOTER}`
             }, { quoted: fakevCard });
         }
 
@@ -7022,7 +7088,7 @@ case 'id': {
         const match = channelLink.match(/whatsapp\.com\/channel\/([\w-]+)/);
         if (!match) {
             return await socket.sendMessage(sender, {
-                text: `⚠️ *ɪɴᴠᴀʟɪᴅ ᴄʜᴀɴɴᴇʟ ʟɪɴᴋ!*\n\nᴍᴀᴋᴇ sᴜʀᴇ ɪᴛ ʟᴏᴏᴋs ʟɪᴋᴇ:\nhttps://whatsapp.com/channel/xxxxxxxxx\n\n> ${config.BOT_FOOTER}`
+                text: `⚠️ *ɪɴᴠᴀʟɪᴅ ᴄʜᴀɴɴᴇʟ ʟɪɴᴋ!*\n\nᴍᴀᴋᴇ sᴜʀᴇ ɪᴛ ʟᴏᴏᴋs ʟɪᴋᴇ:\nhttps://whatsapp.com/channel/xxxxxxxxx\n\n> ${botConfig.BOT_FOOTER}`
             }, { quoted: fakevCard });
         }
 
@@ -7034,13 +7100,13 @@ case 'id': {
         } catch (error) {
             console.error('Newsletter metadata error:', error);
             return await socket.sendMessage(sender, {
-                text: `🚫 *ғᴀɪʟᴇᴅ ᴛᴏ ғᴇᴛᴄʜ ᴄʜᴀɴɴᴇʟ ɪɴғᴏ.*\n\nᴅᴏᴜʙʟᴇ-ᴄʜᴇᴄᴋ ᴛʜᴇ ʟɪɴᴋ ᴀɴᴅ ᴛʀʏ ᴀɢᴀɪɴ.\n\n> ${config.BOT_FOOTER}`
+                text: `🚫 *ғᴀɪʟᴇᴅ ᴛᴏ ғᴇᴛᴄʜ ᴄʜᴀɴɴᴇʟ ɪɴғᴏ.*\n\nᴅᴏᴜʙʟᴇ-ᴄʜᴇᴄᴋ ᴛʜᴇ ʟɪɴᴋ ᴀɴᴅ ᴛʀʏ ᴀɢᴀɪɴ.\n\n> ${botConfig.BOT_FOOTER}`
             }, { quoted: fakevCard });
         }
 
         if (!metadata?.id) {
             return await socket.sendMessage(sender, {
-                text: `❌ *ᴄʜᴀɴɴᴇʟ ɴᴏᴛ ғᴏᴜɴᴅ ᴏʀ ɪɴᴀᴄᴄᴇssɪʙʟᴇ.*\n\n> ${config.BOT_FOOTER}`
+                text: `❌ *ᴄʜᴀɴɴᴇʟ ɴᴏᴛ ғᴏᴜɴᴅ ᴏʀ ɪɴᴀᴄᴄᴇssɪʙʟᴇ.*\n\n> ${botConfig.BOT_FOOTER}`
             }, { quoted: fakevCard });
         }
 
@@ -7081,7 +7147,7 @@ case 'id': {
                                             name: 'cta_url',
                                             buttonParamsJson: JSON.stringify({
                                                 display_text: '📢 Join Our Channel',
-                                                url: config.CHANNEL_LINK
+                                                url: botConfig.CHANNEL_LINK
                                             })
                                         }
                                     ]
@@ -7108,7 +7174,7 @@ case 'id': {
         console.error("Newsletter Error:", error);
         await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
         await socket.sendMessage(sender, {
-            text: `⚠️ *ᴀɴ ᴜɴᴇxᴘᴇᴄᴛᴇᴅ ᴇʀʀᴏʀ ᴏᴄᴄᴜʀʀᴇᴅ.*\n\n> ${config.BOT_FOOTER}`
+            text: `⚠️ *ᴀɴ ᴜɴᴇxᴘᴇᴄᴛᴇᴅ ᴇʀʀᴏʀ ᴏᴄᴄᴜʀʀᴇᴅ.*\n\n> ${botConfig.BOT_FOOTER}`
         }, { quoted: fakevCard });
     }
     break;
@@ -7124,9 +7190,9 @@ case 'star': {
         try {
             const ctaMsg = generateWAMessageFromContent(sender, {
                 viewOnceMessage: { message: { interactiveMessage: {
-                    body: { text: '⭐ *ᴍᴇssᴀɢᴇ sᴛᴀʀʀᴇᴅ!*\n\n> ' + config.BOT_FOOTER },
+                    body: { text: '⭐ *ᴍᴇssᴀɢᴇ sᴛᴀʀʀᴇᴅ!*\n\n> ' + botConfig.BOT_FOOTER },
                     footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
-                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Follow Channel', url: config.CHANNEL_LINK }) }] }
+                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Follow Channel', url: botConfig.CHANNEL_LINK }) }] }
                 } } }
             }, { quoted: fakevCard });
             await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
@@ -7146,9 +7212,9 @@ case 'unstar': {
         try {
             const ctaMsg = generateWAMessageFromContent(sender, {
                 viewOnceMessage: { message: { interactiveMessage: {
-                    body: { text: '⭐ *ᴍᴇssᴀɢᴇ ᴜɴsᴛᴀʀʀᴇᴅ!*\n\n> ' + config.BOT_FOOTER },
+                    body: { text: '⭐ *ᴍᴇssᴀɢᴇ ᴜɴsᴛᴀʀʀᴇᴅ!*\n\n> ' + botConfig.BOT_FOOTER },
                     footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
-                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Follow Channel', url: config.CHANNEL_LINK }) }] }
+                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Follow Channel', url: botConfig.CHANNEL_LINK }) }] }
                 } } }
             }, { quoted: fakevCard });
             await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
@@ -7170,9 +7236,9 @@ case 'mydp': {
         try {
             const ctaMsg = generateWAMessageFromContent(sender, {
                 viewOnceMessage: { message: { interactiveMessage: {
-                    body: { text: `✅ *ᴘʀᴏғɪʟᴇ ᴘɪᴄᴛᴜʀᴇ ᴘʀɪᴠᴀᴄʏ sᴇᴛ ᴛᴏ:* ${choice}*\n\n> ` + config.BOT_FOOTER },
+                    body: { text: `✅ *ᴘʀᴏғɪʟᴇ ᴘɪᴄᴛᴜʀᴇ ᴘʀɪᴠᴀᴄʏ sᴇᴛ ᴛᴏ:* ${choice}*\n\n> ` + botConfig.BOT_FOOTER },
                     footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
-                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Follow Channel', url: config.CHANNEL_LINK }) }] }
+                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Follow Channel', url: botConfig.CHANNEL_LINK }) }] }
                 } } }
             }, { quoted: fakevCard });
             await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
@@ -7194,9 +7260,9 @@ case 'mystatus': {
         try {
             const ctaMsg = generateWAMessageFromContent(sender, {
                 viewOnceMessage: { message: { interactiveMessage: {
-                    body: { text: `✅ *sᴛᴀᴛᴜs ᴘʀɪᴠᴀᴄʏ sᴇᴛ ᴛᴏ:* ${choice}*\n\n> ` + config.BOT_FOOTER },
+                    body: { text: `✅ *sᴛᴀᴛᴜs ᴘʀɪᴠᴀᴄʏ sᴇᴛ ᴛᴏ:* ${choice}*\n\n> ` + botConfig.BOT_FOOTER },
                     footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
-                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Follow Channel', url: config.CHANNEL_LINK }) }] }
+                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Follow Channel', url: botConfig.CHANNEL_LINK }) }] }
                 } } }
             }, { quoted: fakevCard });
             await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
@@ -7218,9 +7284,9 @@ case 'groupadd': {
         try {
             const ctaMsg = generateWAMessageFromContent(sender, {
                 viewOnceMessage: { message: { interactiveMessage: {
-                    body: { text: `✅ *ɢʀᴏᴜᴘ ᴀᴅᴅ ᴘʀɪᴠᴀᴄʏ sᴇᴛ ᴛᴏ:* ${choice}*\n\n> ` + config.BOT_FOOTER },
+                    body: { text: `✅ *ɢʀᴏᴜᴘ ᴀᴅᴅ ᴘʀɪᴠᴀᴄʏ sᴇᴛ ᴛᴏ:* ${choice}*\n\n> ` + botConfig.BOT_FOOTER },
                     footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
-                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Follow Channel', url: config.CHANNEL_LINK }) }] }
+                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Follow Channel', url: botConfig.CHANNEL_LINK }) }] }
                 } } }
             }, { quoted: fakevCard });
             await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
@@ -7242,9 +7308,9 @@ case 'lastseen': {
         try {
             const ctaMsg = generateWAMessageFromContent(sender, {
                 viewOnceMessage: { message: { interactiveMessage: {
-                    body: { text: `✅ *ʟᴀsᴛ sᴇᴇɴ ᴘʀɪᴠᴀᴄʏ sᴇᴛ ᴛᴏ:* ${choice}*\n\n> ` + config.BOT_FOOTER },
+                    body: { text: `✅ *ʟᴀsᴛ sᴇᴇɴ ᴘʀɪᴠᴀᴄʏ sᴇᴛ ᴛᴏ:* ${choice}*\n\n> ` + botConfig.BOT_FOOTER },
                     footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
-                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Follow Channel', url: config.CHANNEL_LINK }) }] }
+                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Follow Channel', url: botConfig.CHANNEL_LINK }) }] }
                 } } }
             }, { quoted: fakevCard });
             await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
@@ -7266,9 +7332,9 @@ case 'myonline': {
         try {
             const ctaMsg = generateWAMessageFromContent(sender, {
                 viewOnceMessage: { message: { interactiveMessage: {
-                    body: { text: `✅ *ᴏɴʟɪɴᴇ ᴘʀɪᴠᴀᴄʏ sᴇᴛ ᴛᴏ:* ${choice}*\n\n> ` + config.BOT_FOOTER },
+                    body: { text: `✅ *ᴏɴʟɪɴᴇ ᴘʀɪᴠᴀᴄʏ sᴇᴛ ᴛᴏ:* ${choice}*\n\n> ` + botConfig.BOT_FOOTER },
                     footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
-                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Follow Channel', url: config.CHANNEL_LINK }) }] }
+                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Follow Channel', url: botConfig.CHANNEL_LINK }) }] }
                 } } }
             }, { quoted: fakevCard });
             await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
@@ -7288,9 +7354,9 @@ case 'bizp': {
         try {
             const ctaMsg = generateWAMessageFromContent(sender, {
                 viewOnceMessage: { message: { interactiveMessage: {
-                    body: { text: `${text}\n\n> ${config.BOT_FOOTER}` },
+                    body: { text: `${text}\n\n> ${botConfig.BOT_FOOTER}` },
                     footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
-                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Follow Channel', url: config.CHANNEL_LINK }) }] }
+                    nativeFlowMessage: { buttons: [{ name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 Follow Channel', url: botConfig.CHANNEL_LINK }) }] }
                 } } }
             }, { quoted: fakevCard });
             await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
@@ -7407,7 +7473,7 @@ case 'search': {
     await socket.sendMessage(sender, { react: { text: '🔍', key: msg.key } });
     
     // Get search query from message
-    const args = body.slice(config.PREFIX.length).trim().split(' ');
+    const args = body.slice(botConfig.PREFIX.length).trim().split(' ');
     args.shift(); // Remove the command itself
     const query = args.join(' ');
     
@@ -7482,7 +7548,7 @@ case 'pin': {
         if (!query) {
             await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
             return socket.sendMessage(from, {
-                text: `🖼️ *Please provide search keywords*\n\n*Example:* ${config.PREFIX}img hacker setup`
+                text: `🖼️ *Please provide search keywords*\n\n*Example:* ${botConfig.PREFIX}img hacker setup`
             }, { quoted: fakevCard });
         }
 
@@ -7537,7 +7603,7 @@ case 'pin': {
         
         // Add Previous button (disabled for first image)
         navigationButtons.push({
-            buttonId: `${config.PREFIX}img_nav ${sessionId} prev`,
+            buttonId: `${botConfig.PREFIX}img_nav ${sessionId} prev`,
             buttonText: { displayText: '⬅️ PREV' },
             type: 1
         });
@@ -7545,7 +7611,7 @@ case 'pin': {
         // Add Next button if there are more images
         if (images.length > 1) {
             navigationButtons.push({
-                buttonId: `${config.PREFIX}img_nav ${sessionId} next`,
+                buttonId: `${botConfig.PREFIX}img_nav ${sessionId} next`,
                 buttonText: { displayText: 'NEXT ➡️' },
                 type: 1
             });
@@ -7553,14 +7619,14 @@ case 'pin': {
         
         // Add Search Again button
         navigationButtons.push({
-            buttonId: `${config.PREFIX}img ${query}`,
+            buttonId: `${botConfig.PREFIX}img ${query}`,
             buttonText: { displayText: '🔍 SEARCH AGAIN' },
             type: 1
         });
         
         // Add Menu button
         navigationButtons.push({
-            buttonId: `${config.PREFIX}menu`,
+            buttonId: `${botConfig.PREFIX}menu`,
             buttonText: { displayText: '📋 MAIN MENU' },
             type: 1
         });
@@ -7595,7 +7661,7 @@ case 'pin': {
             text: `❌ *Failed to fetch images*\n\n` +
                   `• Error: ${error.message || 'API connection failed'}\n` +
                   `• Try again with different keywords\n` +
-                  `• Or try: ${config.PREFIX}img wallpaper`
+                  `• Or try: ${botConfig.PREFIX}img wallpaper`
         }, { quoted: fakevCard });
     }
     break;
@@ -7610,7 +7676,7 @@ case 'img_nav': {
         
         if (!sessionId || !direction || !global.imageSessions || !global.imageSessions[sessionId]) {
             return socket.sendMessage(from, {
-                text: '❌ *Session expired*\nPlease search again using: ' + config.PREFIX + 'img [query]'
+                text: '❌ *Session expired*\nPlease search again using: ' + botConfig.PREFIX + 'img [query]'
             }, { quoted: fakevCard });
         }
         
@@ -7640,28 +7706,28 @@ case 'img_nav': {
         
         // Add Previous button (disabled if at first)
         navigationButtons.push({
-            buttonId: `${config.PREFIX}img_nav ${sessionId} prev`,
+            buttonId: `${botConfig.PREFIX}img_nav ${sessionId} prev`,
             buttonText: { displayText: '⬅️ PREV' },
             type: 1
         });
         
         // Add Next button (disabled if at last)
         navigationButtons.push({
-            buttonId: `${config.PREFIX}img_nav ${sessionId} next`,
+            buttonId: `${botConfig.PREFIX}img_nav ${sessionId} next`,
             buttonText: { displayText: 'NEXT ➡️' },
             type: 1
         });
         
         // Add Search Again button
         navigationButtons.push({
-            buttonId: `${config.PREFIX}img ${session.query}`,
+            buttonId: `${botConfig.PREFIX}img ${session.query}`,
             buttonText: { displayText: '🔍 SEARCH AGAIN' },
             type: 1
         });
         
         // Add Menu button
         navigationButtons.push({
-            buttonId: `${config.PREFIX}menu`,
+            buttonId: `${botConfig.PREFIX}menu`,
             buttonText: { displayText: '📋 MAIN MENU' },
             type: 1
         });
@@ -9092,7 +9158,7 @@ case 'tourl2': {
         if (!mediaMsg) {
             await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
             return socket.sendMessage(from, {
-                text: `⚠️ Reply to image/video/audio with *${config.PREFIX}tourl*`
+                text: `⚠️ Reply to image/video/audio with *${botConfig.PREFIX}tourl*`
             }, { quoted: fakevCard });
         }
 
@@ -9175,7 +9241,7 @@ case 'quran': {
         if (!query) {
             await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
             return socket.sendMessage(from, {
-                text: `☪️ *Example:* ${config.PREFIX}quran 2:255\n\n👉 *Format:* Surah:Ayah (e.g., 2:255 for Ayatul Kursi)`
+                text: `☪️ *Example:* ${botConfig.PREFIX}quran 2:255\n\n👉 *Format:* Surah:Ayah (e.g., 2:255 for Ayatul Kursi)`
             }, { quoted: fakevCard });
         }
 
@@ -9206,7 +9272,7 @@ case 'quran': {
                   `📍 *Juz:* ${verse.juz}\n\n` +
                   `✨ *Verse:*\n"${verse.text}"\n\n` +
                   `━━━━━━━━━━━━━━━━\n` +
-                  `> ${config.BOT_FOOTER}`;
+                  `> ${botConfig.BOT_FOOTER}`;
 
         // ONE message with verse + CTA buttons
         try {
@@ -9228,10 +9294,10 @@ case 'quran': {
                                             })
                                         },
                                         {
-                                            name: 'cta_crl',
+                                            name: 'cta_url',
                                             buttonParamsJson: JSON.stringify({
                                                 display_text: '📢 Join Channel',
-                                                url: config.CHANNEL_LINK
+                                                url: botConfig.CHANNEL_LINK
                                             })
                                         }
                                     ]
@@ -9267,7 +9333,7 @@ case 'quran': {
                   `• Please check Surah and Ayah numbers\n` +
                   `• Make sure format is correct (e.g., 2:255)\n` +
                   `• Try again with a valid verse\n\n` +
-                  `*Example:* ${config.PREFIX}quran 1:1`
+                  `*Example:* ${botConfig.PREFIX}quran 1:1`
         }, { quoted: fakevCard });
     }
     break;
@@ -9321,7 +9387,7 @@ case 'bible': {
                                                 name: 'cta_url',
                                                 buttonParamsJson: JSON.stringify({
                                                     display_text: '📢 Join Channel',
-                                                    url: config.CHANNEL_LINK
+                                                    url: botConfig.CHANNEL_LINK
                                                 })
                                             },
                                             {
@@ -9408,7 +9474,7 @@ case 'praise': {
             : pick;
 
         await socket.sendMessage(sender, {
-            text: `💐 *ᴄᴏᴍᴘʟɪᴍᴇɴᴛ*\n\n${target}\n\n> ${config.BOT_FOOTER}`,
+            text: `💐 *ᴄᴏᴍᴘʟɪᴍᴇɴᴛ*\n\n${target}\n\n> ${botConfig.BOT_FOOTER}`,
             buttons: [
                 { buttonId: `${prefix}comp`, buttonText: { displayText: '💐 ᴀɴᴏᴛʜᴇʀ' }, type: 1 },
                 { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 ᴍᴇɴᴜ' }, type: 1 }
@@ -9539,7 +9605,7 @@ case 'timezone': {
         
         if (!input) {
             await socket.sendMessage(sender, {
-                text: `🕐 *ᴡᴏʀʟᴅ ᴄʟᴏᴄᴋ*\n\nɢᴇᴛ ᴛʜᴇ ᴄᴜʀʀᴇɴᴛ ᴛɪᴍᴇ ɪɴ ᴀɴʏ ᴄɪᴛʏ.\n\n*ᴜsᴀɢᴇ:* \`${prefix}time <city>\`\n\n*ᴇxᴀᴍᴘʟᴇs:*\n• \`${prefix}time Nairobi\`\n• \`${prefix}time London\`\n• \`${prefix}time Tokyo\`\n• \`${prefix}time New York\`\n\n> ${config.BOT_FOOTER}`,
+                text: `🕐 *ᴡᴏʀʟᴅ ᴄʟᴏᴄᴋ*\n\nɢᴇᴛ ᴛʜᴇ ᴄᴜʀʀᴇɴᴛ ᴛɪᴍᴇ ɪɴ ᴀɴʏ ᴄɪᴛʏ.\n\n*ᴜsᴀɢᴇ:* \`${prefix}time <city>\`\n\n*ᴇxᴀᴍᴘʟᴇs:*\n• \`${prefix}time Nairobi\`\n• \`${prefix}time London\`\n• \`${prefix}time Tokyo\`\n• \`${prefix}time New York\`\n\n> ${botConfig.BOT_FOOTER}`,
                 buttons: [
                     { buttonId: `${prefix}time Nairobi`, buttonText: { displayText: '🇰🇪 ɴᴀɪʀᴏʙɪ' }, type: 1 },
                     { buttonId: `${prefix}time London`, buttonText: { displayText: '🇬🇧 ʟᴏɴᴅᴏɴ' }, type: 1 },
@@ -9562,7 +9628,7 @@ case 'timezone': {
         });
 
         await socket.sendMessage(sender, {
-            text: `🕐 *ᴛɪᴍᴇ ɪɴ ${place.toUpperCase()}*\n\n${now}\n🌍 ᴛɪᴍᴇᴢᴏɴᴇ: \`${tz}\`\n\n> ${config.BOT_FOOTER}`,
+            text: `🕐 *ᴛɪᴍᴇ ɪɴ ${place.toUpperCase()}*\n\n${now}\n🌍 ᴛɪᴍᴇᴢᴏɴᴇ: \`${tz}\`\n\n> ${botConfig.BOT_FOOTER}`,
             buttons: [
                 { buttonId: `${prefix}time`, buttonText: { displayText: '🕐 ᴄʜᴇᴄᴋ ᴀɢᴀɪɴ' }, type: 1 },
                 { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 ᴍᴇɴᴜ' }, type: 1 }
@@ -9592,7 +9658,7 @@ case 'math': {
     try {
         if (!args.length) {
             await socket.sendMessage(sender, {
-                text: `🧮 *ᴄᴀʟᴄᴜʟᴀᴛᴏʀ*\n\nᴇᴠᴀʟᴜᴀᴛᴇ ᴀ ᴍᴀᴛʜ ᴇxᴘʀᴇssɪᴏɴ.\n\n*ᴜsᴀɢᴇ:* \`${prefix}calc <expression>\`\n\n*ᴇxᴀᴍᴘʟᴇs:*\n• \`${prefix}calc 25 * 4\`\n• \`${prefix}calc (100 + 50) / 3\`\n• \`${prefix}calc 2 ** 10\`\n• \`${prefix}calc Math.sqrt(144)\`\n\n> ${config.BOT_FOOTER}`,
+                text: `🧮 *ᴄᴀʟᴄᴜʟᴀᴛᴏʀ*\n\nᴇᴠᴀʟᴜᴀᴛᴇ ᴀ ᴍᴀᴛʜ ᴇxᴘʀᴇssɪᴏɴ.\n\n*ᴜsᴀɢᴇ:* \`${prefix}calc <expression>\`\n\n*ᴇxᴀᴍᴘʟᴇs:*\n• \`${prefix}calc 25 * 4\`\n• \`${prefix}calc (100 + 50) / 3\`\n• \`${prefix}calc 2 ** 10\`\n• \`${prefix}calc Math.sqrt(144)\`\n\n> ${botConfig.BOT_FOOTER}`,
                 buttons: [
                     { buttonId: `${prefix}calc 25 * 4`, buttonText: { displayText: '25 × 4' }, type: 1 },
                     { buttonId: `${prefix}calc Math.sqrt(144)`, buttonText: { displayText: '√144' }, type: 1 },
@@ -9625,7 +9691,7 @@ case 'math': {
         }
 
         await socket.sendMessage(sender, {
-            text: `🧮 *ᴄᴀʟᴄᴜʟᴀᴛᴏʀ*\n\n📥 *ɪɴᴘᴜᴛ:* \`${args.join(' ')}\`\n📤 *ʀᴇsᴜʟᴛ:* \`${result.toLocaleString()}\`\n\n> ${config.BOT_FOOTER}`,
+            text: `🧮 *ᴄᴀʟᴄᴜʟᴀᴛᴏʀ*\n\n📥 *ɪɴᴘᴜᴛ:* \`${args.join(' ')}\`\n📤 *ʀᴇsᴜʟᴛ:* \`${result.toLocaleString()}\`\n\n> ${botConfig.BOT_FOOTER}`,
             buttons: [
                 { buttonId: `${prefix}calc`, buttonText: { displayText: '🧮 ᴄᴀʟᴄᴜʟᴀᴛᴇ ᴀɢᴀɪɴ' }, type: 1 }
             ],
@@ -9637,7 +9703,7 @@ case 'math': {
     } catch (error) {
         console.error('[Calc] Error:', error.message);
         await socket.sendMessage(sender, {
-            text: `❌ *ɪɴᴠᴀʟɪᴅ ᴇxᴘʀᴇssɪᴏɴ*\n\n\`${args.join(' ')}\`\n\n> ${config.BOT_FOOTER}`,
+            text: `❌ *ɪɴᴠᴀʟɪᴅ ᴇxᴘʀᴇssɪᴏɴ*\n\n\`${args.join(' ')}\`\n\n> ${botConfig.BOT_FOOTER}`,
             quoted: msg
         });
         await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
@@ -9666,7 +9732,7 @@ case 'jid': {
                     viewOnceMessage: {
                         message: {
                             interactiveMessage: {
-                                body: { text: `📍 *JID*\n\n\`\`\`${jidToCopy}\`\`\`\n\n> ${config.BOT_FOOTER}` },
+                                body: { text: `📍 *JID*\n\n\`\`\`${jidToCopy}\`\`\`\n\n> ${botConfig.BOT_FOOTER}` },
                                 footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
                                 nativeFlowMessage: {
                                     buttons: [
@@ -9681,7 +9747,7 @@ case 'jid': {
                                             name: 'cta_url',
                                             buttonParamsJson: JSON.stringify({
                                                 display_text: '📢 Join Channel',
-                                                url: config.CHANNEL_LINK
+                                                url: botConfig.CHANNEL_LINK
                                             })
                                         },
                                         {
@@ -10354,7 +10420,7 @@ case 'fbdl': {
         
         if (!url) {
             await socket.sendMessage(sender, {
-                text: `📘 *ғᴀᴄᴇʙᴏᴏᴋ ᴅᴏᴡɴʟᴏᴀᴅᴇʀ*\n\nᴅᴏᴡɴʟᴏᴀᴅ ғᴀᴄᴇʙᴏᴏᴋ ᴠɪᴅᴇᴏs.\n\n*ᴜsᴀɢᴇ:* \`${prefix}fb <url>\`\n\n*ᴇxᴀᴍᴘʟᴇ:*\n\`${prefix}fb https://www.facebook.com/...\`\n\n> ${config.BOT_FOOTER}`,
+                text: `📘 *ғᴀᴄᴇʙᴏᴏᴋ ᴅᴏᴡɴʟᴏᴀᴅᴇʀ*\n\nᴅᴏᴡɴʟᴏᴀᴅ ғᴀᴄᴇʙᴏᴏᴋ ᴠɪᴅᴇᴏs.\n\n*ᴜsᴀɢᴇ:* \`${prefix}fb <url>\`\n\n*ᴇxᴀᴍᴘʟᴇ:*\n\`${prefix}fb https://www.facebook.com/...\`\n\n> ${botConfig.BOT_FOOTER}`,
                 quoted: msg
             });
             break;
@@ -10392,7 +10458,7 @@ case 'fbdl': {
 
         await socket.sendMessage(sender, {
             video: { url: videoUrl },
-            caption: `📘 *ғᴀᴄᴇʙᴏᴏᴋ ᴠɪᴅᴇᴏ*\n\n📌 *ᴛɪᴛʟᴇ:* ${title}\n\n> ${config.BOT_FOOTER}`,
+            caption: `📘 *ғᴀᴄᴇʙᴏᴏᴋ ᴠɪᴅᴇᴏ*\n\n📌 *ᴛɪᴛʟᴇ:* ${title}\n\n> ${botConfig.BOT_FOOTER}`,
             buttons: [
                 { buttonId: `${prefix}fb`, buttonText: { displayText: '📘 ᴅᴏᴡɴʟᴏᴀᴅ ᴀɢᴀɪɴ' }, type: 1 },
                 { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 ᴍᴇɴᴜ' }, type: 1 }
@@ -10401,8 +10467,8 @@ case 'fbdl': {
             contextInfo: {
                 externalAdReply: {
                     title: 'ғᴀᴄᴇʙᴏᴏᴋ ᴅᴏᴡɴʟᴏᴀᴅᴇʀ',
-                    body: 'ᴘᴏᴡᴇʀᴇᴅ ʙʏ ' + config.OWNER_NAME,
-                    thumbnailUrl: config.RCD_IMAGE_PATH,
+                    body: 'ᴘᴏᴡᴇʀᴇᴅ ʙʏ ' + botConfig.OWNER_NAME,
+                    thumbnailUrl: botConfig.RCD_IMAGE_PATH,
                     sourceUrl: url,
                     mediaType: 1,
                     renderLargerThumbnail: true
@@ -10651,20 +10717,20 @@ case 'casey': {
 
         if (!q || q.trim() === '') {
             return await socket.sendMessage(from, {
-                text: `❓ *Please ask me something*\n\n*Example:* ${config.PREFIX}ai Who are you?`,
+                text: `❓ *Please ask me something*\n\n*Example:* ${botConfig.PREFIX}ai Who are you?`,
                 buttons: [
                     {
-                        buttonId: `${config.PREFIX}ai Who are you?`,
+                        buttonId: `${botConfig.PREFIX}ai Who are you?`,
                         buttonText: { displayText: '👋 WHO ARE YOU' },
                         type: 1
                     },
                     {
-                        buttonId: `${config.PREFIX}ai What can you do?`,
+                        buttonId: `${botConfig.PREFIX}ai What can you do?`,
                         buttonText: { displayText: '🤖 WHAT CAN YOU DO' },
                         type: 1
                     },
                     {
-                        buttonId: `${config.PREFIX}menu`,
+                        buttonId: `${botConfig.PREFIX}menu`,
                         buttonText: { displayText: '📋 MAIN MENU' },
                         type: 1
                     }
@@ -10685,12 +10751,12 @@ case 'casey': {
                     text: `*👨‍💻 MEET THE DEVELOPER*\n\n🇰🇪 *Primary Developer:* CaseyRhodes Tech\n• Location: Kenya\n• Specialization: AI Integration & Bot Development\n• Role: Lead Developer & Project Owner\n\n🤖 *Technical Partner:* Caseyrhodes\n• Specialization: Backend Systems & API Management\n• Role: Technical Support & Infrastructure\n\n*About Our Team:*\nCasey AI is the result of a CaseyRhodes Tech  Together, we bring you cutting-edge AI technology with reliable bot functionality, ensuring you get the best AI experience possible.\n\n*Proudly Made in Kenya* 🇰🇪`,
                     buttons: [
                         {
-                            buttonId: `${config.PREFIX}owner`,
+                            buttonId: `${botConfig.PREFIX}owner`,
                             buttonText: { displayText: '👑 CONTACT OWNER' },
                             type: 1
                         },
                         {
-                            buttonId: `${config.PREFIX}repo`,
+                            buttonId: `${botConfig.PREFIX}repo`,
                             buttonText: { displayText: '🔮 REPOSITORY' },
                             type: 1
                         }
@@ -10708,12 +10774,12 @@ case 'casey': {
                     text: `*📅 CASEY AI TIMELINE*\n\n🚀 *Development Started:* December 2025\n🎯 *First Release:* January 2025\n🔄 *Current Version:* 2.0 (February 2025)\n\n*Development Journey:*\n• *Phase 1:* Core AI integration and basic functionality\n• *Phase 2:* Enhanced response system and multi-API support\n• *Phase 3:* Advanced customization and user experience improvements\n\n*What's Next:*\nWe're constantly working on updates to make Casey AI smarter, faster, and more helpful. Stay tuned for exciting new features!\n\n*Age:* Just a few months old, but getting smarter every day! 🧠✨`,
                     buttons: [
                         {
-                            buttonId: `${config.PREFIX}ai What are your features?`,
+                            buttonId: `${botConfig.PREFIX}ai What are your features?`,
                             buttonText: { displayText: '✨ FEATURES' },
                             type: 1
                         },
                         {
-                            buttonId: `${config.PREFIX}menu`,
+                            buttonId: `${botConfig.PREFIX}menu`,
                             buttonText: { displayText: '📋 MAIN MENU' },
                             type: 1
                         }
@@ -10730,12 +10796,12 @@ case 'casey': {
                     text: `*🏷️ MY NAME*\n\n👋 Hello! My name is *CASEY AI*\n\n*About My Name:*\n• Full Name: Casey AI\n• Short Name: Casey\n• You can call me: Casey, Casey AI, or just AI\n\n*Name Origin:*\nI'm named after my primary developer *CaseyRhodes Tech*, combining the personal touch of my creator with the intelligence of artificial intelligence technology.\n\n*What Casey Stands For:*\n🔹 *C* - Creative Problem Solving\n🔹 *A* - Advanced AI Technology\n🔹 *S* - Smart Assistance\n🔹 *E* - Efficient Responses\n🔹 *Y* - Your Reliable Companion\n\n*Made in Kenya* 🇰🇪 *by CaseyRhodes Tech*`,
                     buttons: [
                         {
-                            buttonId: `${config.PREFIX}ai Who created you?`,
+                            buttonId: `${botConfig.PREFIX}ai Who created you?`,
                             buttonText: { displayText: '👨‍💻 CREATOR' },
                             type: 1
                         },
                         {
-                            buttonId: `${config.PREFIX}ai Tell me about yourself`,
+                            buttonId: `${botConfig.PREFIX}ai Tell me about yourself`,
                             buttonText: { displayText: '🤖 ABOUT ME' },
                             type: 1
                         }
@@ -10751,17 +10817,17 @@ case 'casey': {
                     text: `👋 Hi! I'm *Casey AI*, your intelligent WhatsApp assistant developed by CaseyRhodes Tech.\n\n*What I Can Do:*\n• Answer questions on any topic\n• Help with problem-solving\n• Provide information and explanations\n• Assist with creative tasks\n• Engage in meaningful conversations\n\n*My Features:*\n✅ Advanced AI technology\n✅ Multi-language support\n✅ Fast response times\n✅ Reliable dual-API system\n✅ User-friendly interface\n\n*My Identity:*\n• Name: Casey AI\n• Origin: Kenya 🇰🇪\n• Purpose: Making AI accessible and helpful\n\n*Proudly Kenyan:* 🇰🇪\nBuilt with passion in Kenya, serving users worldwide with cutting-edge AI technology.\n\nHow can I assist you today?`,
                     buttons: [
                         {
-                            buttonId: `${config.PREFIX}ai What can you help me with?`,
+                            buttonId: `${botConfig.PREFIX}ai What can you help me with?`,
                             buttonText: { displayText: '💡 ʜᴇʟᴘ ᴛᴏᴘɪᴄ' },
                             type: 1
                         },
                         {
-                            buttonId: `${config.PREFIX}menu`,
+                            buttonId: `${botConfig.PREFIX}menu`,
                             buttonText: { displayText: '📋 ᴍᴀɪɴ ᴍᴇɴᴜ' },
                             type: 1
                         },
                         {
-                            buttonId: `${config.PREFIX}owner`,
+                            buttonId: `${botConfig.PREFIX}owner`,
                             buttonText: { displayText: '👑 ᴏᴡɴᴇʀ' },
                             type: 1
                         }
@@ -10816,12 +10882,12 @@ case 'casey': {
                 text: `❌ *I'm experiencing technical difficulties*\nAll AI APIs are currently unavailable. Please try again later.`,
                 buttons: [
                     {
-                        buttonId: `${config.PREFIX}owner`,
+                        buttonId: `${botConfig.PREFIX}owner`,
                         buttonText: { displayText: '👑 REPORT ISSUE' },
                         type: 1
                     },
                     {
-                        buttonId: `${config.PREFIX}menu`,
+                        buttonId: `${botConfig.PREFIX}menu`,
                         buttonText: { displayText: '📋 MAIN MENU' },
                         type: 1
                     }
@@ -10835,17 +10901,17 @@ case 'casey': {
             caption: `🤖 *ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴀɪ:*\n\n${response}\n\n👨‍💻 *ᴅᴇᴠᴇʟᴏᴘᴇʀ:* Caseyrhodes Tech`,
             buttons: [
                 {
-                    buttonId: `${config.PREFIX}ai`,
+                    buttonId: `${botConfig.PREFIX}ai`,
                     buttonText: { displayText: '🤖 ᴀsᴋ ᴀɢᴀɪɴ' },
                     type: 1
                 },
                 {
-                    buttonId: `${config.PREFIX}menu`,
+                    buttonId: `${botConfig.PREFIX}menu`,
                     buttonText: { displayText: '📋ᴍᴀɪɴ ᴍᴇɴᴜ' },
                     type: 1
                 },
                 {
-                    buttonId: `${config.PREFIX}owner`,
+                    buttonId: `${botConfig.PREFIX}owner`,
                     buttonText: { displayText: '👑 ᴏᴡɴᴇʀ' },
                     type: 1
                 }
@@ -10884,12 +10950,12 @@ case 'casey': {
             text: `❌ *AI Error:* ${error.message}\nPlease try again later.`,
             buttons: [
                 {
-                    buttonId: `${config.PREFIX}owner`,
+                    buttonId: `${botConfig.PREFIX}owner`,
                     buttonText: { displayText: '👑 REPORT ISSUE' },
                     type: 1
                 },
                 {
-                    buttonId: `${config.PREFIX}menu`,
+                    buttonId: `${botConfig.PREFIX}menu`,
                     buttonText: { displayText: '📋 MAIN MENU' },
                     type: 1
                 }
@@ -11017,7 +11083,7 @@ case 'profilepic': {
     
     if (args.length === 0) {
         await socket.sendMessage(sender, {
-            text: `📌 *Usage:* ${config.PREFIX}add +254740007567\n\nExample: ${config.PREFIX}add +254740007567`
+            text: `📌 *Usage:* ${botConfig.PREFIX}add +254740007567\n\nExample: ${botConfig.PREFIX}add +254740007567`
         }, { quoted: fakevCard });
         break;
     }
@@ -11029,7 +11095,7 @@ case 'profilepic': {
             text: formatMessage(
                 '✅ MEMBER ADDED',
                 `Successfully added ${args[0]} to the group! 🎉`,
-                config.BOT_FOOTER
+                botConfig.BOT_FOOTER
             )
         }, { quoted: fakevCard });
     } catch (error) {
@@ -11063,7 +11129,7 @@ case 'leave': {
 
         // Send goodbye message
         await socket.sendMessage(from, {
-            text: `👋 *ɢᴏᴏᴅʙʏᴇ!*\n\nʙᴏᴛ ɪs ɴᴏᴡ ʟᴇᴀᴠɪɴɢ ᴛʜɪs ɢʀᴏᴜᴘ.\n\n> ${config.BOT_FOOTER}`
+            text: `👋 *ɢᴏᴏᴅʙʏᴇ!*\n\nʙᴏᴛ ɪs ɴᴏᴡ ʟᴇᴀᴠɪɴɢ ᴛʜɪs ɢʀᴏᴜᴘ.\n\n> ${botConfig.BOT_FOOTER}`
         });
 
         // Leave the group
@@ -11097,7 +11163,7 @@ case 'leave': {
     
     if (args.length === 0 && !msg.quoted) {
         await socket.sendMessage(sender, {
-            text: `📌 *Usage:* ${config.PREFIX}kick +254740007567 or reply to a message with ${config.PREFIX}kick`
+            text: `📌 *Usage:* ${botConfig.PREFIX}kick +254740007567 or reply to a message with ${botConfig.PREFIX}kick`
         }, { quoted: fakevCard });
         break;
     }
@@ -11114,7 +11180,7 @@ case 'leave': {
             text: formatMessage(
                 '🗑️ MEMBER KICKED',
                 `Successfully removed ${numberToKick.split('@')[0]} from the group! 🚪`,
-                config.BOT_FOOTER
+                botConfig.BOT_FOOTER
             )
         }, { quoted: fakevCard });
     } catch (error) {
@@ -11134,7 +11200,7 @@ case 'gh': {
 
         if (!username) {
             await socket.sendMessage(sender, {
-                text: '📦 *GitHub User Info*\n\nGet detailed information about any GitHub user.\n\n*Usage:* `.github <username>`\n\n*Examples:*\n• `.github caseyrhodes`\n• `.github microsoft`\n• `.github google`\n\n> ' + config.BOT_FOOTER,
+                text: '📦 *GitHub User Info*\n\nGet detailed information about any GitHub user.\n\n*Usage:* `.github <username>`\n\n*Examples:*\n• `.github caseyrhodes`\n• `.github microsoft`\n• `.github google`\n\n> ' + botConfig.BOT_FOOTER,
                 buttons: [
                     { buttonId: `${prefix}github caseyrhodes`, buttonText: { displayText: '👤 CASEYRHODES' }, type: 1 },
                     { buttonId: `${prefix}github microsoft`, buttonText: { displayText: '🪟 MICROSOFT' }, type: 1 },
@@ -11154,7 +11220,7 @@ case 'gh': {
 
             if (data.message === 'Not Found') {
                 await socket.sendMessage(sender, {
-                    text: `❌ *GitHub User Not Found*\n\n"${username}" does not exist on GitHub.\n\n*Suggestions:*\n• Check the spelling\n• Try a different username\n• Make sure the user exists\n\n> ${config.BOT_FOOTER}`,
+                    text: `❌ *GitHub User Not Found*\n\n"${username}" does not exist on GitHub.\n\n*Suggestions:*\n• Check the spelling\n• Try a different username\n• Make sure the user exists\n\n> ${botConfig.BOT_FOOTER}`,
                     buttons: [
                         { buttonId: `${prefix}github`, buttonText: { displayText: '🔍 TRY AGAIN' }, type: 1 },
                         { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 MENU' }, type: 1 }
@@ -11184,7 +11250,7 @@ case 'gh': {
                 `⭐ *Public Gists:* ${data.public_gists || 0}\n\n` +
                 `📅 *Created:* ${created}\n` +
                 `🔄 *Updated:* ${updated}\n\n` +
-                `> ${config.BOT_FOOTER}`;
+                `> ${botConfig.BOT_FOOTER}`;
 
             // Build CTA buttons
             const ctaButtons = [];
@@ -11212,7 +11278,7 @@ case 'gh': {
                 name: 'cta_url',
                 buttonParamsJson: JSON.stringify({
                     display_text: '📢 JOIN CHANNEL',
-                    url: config.CHANNEL_LINK
+                    url: botConfig.CHANNEL_LINK
                 })
             });
 
@@ -11239,7 +11305,7 @@ case 'gh': {
         } catch (err) {
             console.error('GitHub API error:', err);
             await socket.sendMessage(sender, {
-                text: `⚠️ *Error fetching GitHub user*\n\n${err.message || 'Please try again later.'}\n\n> ${config.BOT_FOOTER}`,
+                text: `⚠️ *Error fetching GitHub user*\n\n${err.message || 'Please try again later.'}\n\n> ${botConfig.BOT_FOOTER}`,
                 buttons: [
                     { buttonId: `${prefix}github ${username}`, buttonText: { displayText: '🔄 RETRY' }, type: 1 },
                     { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 MENU' }, type: 1 }
@@ -11251,7 +11317,7 @@ case 'gh': {
     } catch (error) {
         console.error('GitHub command error:', error);
         await socket.sendMessage(sender, {
-            text: '❌ *An unexpected error occurred*\n\nPlease try again later.\n\n> ' + config.BOT_FOOTER,
+            text: '❌ *An unexpected error occurred*\n\nPlease try again later.\n\n> ' + botConfig.BOT_FOOTER,
             buttons: [
                 { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 MENU' }, type: 1 }
             ],
@@ -11297,7 +11363,7 @@ case 'adminlist': {
         const mentions = admins.map(m => m.id);
 
         await socket.sendMessage(sender, {
-            text: `🛡️ *${meta.subject} — ᴀᴅᴍɪɴs*\n\n${list}\n\n📊 ᴛᴏᴛᴀʟ ᴀᴅᴍɪɴs: ${admins.length}\n\n> ${config.BOT_FOOTER}`,
+            text: `🛡️ *${meta.subject} — ᴀᴅᴍɪɴs*\n\n${list}\n\n📊 ᴛᴏᴛᴀʟ ᴀᴅᴍɪɴs: ${admins.length}\n\n> ${botConfig.BOT_FOOTER}`,
             mentions: mentions,
             buttons: [
                 { buttonId: `${prefix}tagadmins`, buttonText: { displayText: '🎌 ᴛᴀɢ ᴀᴅᴍɪɴs' }, type: 1 },
@@ -11348,7 +11414,7 @@ case 'memberlist': {
         const mentions = members.map(m => m.id);
 
         await socket.sendMessage(sender, {
-            text: `👥 *${meta.subject} — ᴍᴇᴍʙᴇʀs*\n\n${list}\n\n📊 ᴛᴏᴛᴀʟ: ${total} | 🛡️ ᴀᴅᴍɪɴs: ${admins} | 👤 ᴍᴇᴍʙᴇʀs: ${total - admins}\n\n> ${config.BOT_FOOTER}`,
+            text: `👥 *${meta.subject} — ᴍᴇᴍʙᴇʀs*\n\n${list}\n\n📊 ᴛᴏᴛᴀʟ: ${total} | 🛡️ ᴀᴅᴍɪɴs: ${admins} | 👤 ᴍᴇᴍʙᴇʀs: ${total - admins}\n\n> ${botConfig.BOT_FOOTER}`,
             mentions: mentions,
             buttons: [
                 { buttonId: `${prefix}tagall`, buttonText: { displayText: '👥 ᴛᴀɢ ᴀʟʟ' }, type: 1 },
@@ -11385,7 +11451,7 @@ case 'memberlist': {
     
     if (args.length === 0 && !msg.quoted) {
         await socket.sendMessage(sender, {
-            text: `📌 *Usage:* ${config.PREFIX}promote +254740007567 or reply to a message with ${config.PREFIX}promote`
+            text: `📌 *Usage:* ${botConfig.PREFIX}promote +254740007567 or reply to a message with ${botConfig.PREFIX}promote`
         }, { quoted: fakevCard });
         break;
     }
@@ -11402,7 +11468,7 @@ case 'memberlist': {
             text: formatMessage(
                 '⬆️ MEMBER PROMOTED',
                 `Successfully promoted ${numberToPromote.split('@')[0]} to group admin! 🌟`,
-                config.BOT_FOOTER
+                botConfig.BOT_FOOTER
             )
         }, { quoted: fakevCard });
     } catch (error) {
@@ -11437,7 +11503,7 @@ case 'memberlist': {
     
     if (args.length === 0 && !msg.quoted) {
         await socket.sendMessage(sender, {
-            text: `📌 *Usage:* ${config.PREFIX}demote +254740007567 or reply to a message with ${config.PREFIX}demote`,
+            text: `📌 *Usage:* ${botConfig.PREFIX}demote +254740007567 or reply to a message with ${botConfig.PREFIX}demote`,
             buttons: [
                 {buttonId: 'demote-help', buttonText: {displayText: 'Usage Examples'}, type: 1}
             ]
@@ -11459,7 +11525,7 @@ case 'memberlist': {
             text: formatMessage(
                 '⬇️ ADMIN DEMOTED',
                 `Successfully demoted ${numberToDemote.split('@')[0]} 📉`,
-                config.BOT_FOOTER
+                botConfig.BOT_FOOTER
             ),
             buttons: [
                 {buttonId: 'adminlist', buttonText: {displayText: 'View Admins'}, type: 1}
@@ -11490,7 +11556,7 @@ case 'livescore': {
         const events = res.data?.events?.slice(0, 10) || [];
         if (!events.length) {
             await socket.sendMessage(sender, {
-                text: `⚽ *ʟɪᴠᴇ sᴄᴏʀᴇs*\n\nɴᴏ ʟɪᴠᴇ ᴍᴀᴛᴄʜᴇs ʀɪɢʜᴛ ɴᴏᴡ.\n\n> ${config.BOT_FOOTER}`,
+                text: `⚽ *ʟɪᴠᴇ sᴄᴏʀᴇs*\n\nɴᴏ ʟɪᴠᴇ ᴍᴀᴛᴄʜᴇs ʀɪɢʜᴛ ɴᴏᴡ.\n\n> ${botConfig.BOT_FOOTER}`,
                 quoted: msg
             });
             break;
@@ -11503,12 +11569,12 @@ case 'livescore': {
             return `⚽ *${h}* ${hs} - ${as} *${a}*`;
         }).join('\n');
         await socket.sendMessage(sender, {
-            text: `⚽ *ʟɪᴠᴇ sᴄᴏʀᴇs*\n\n${list}\n\n> ${config.BOT_FOOTER}`,
+            text: `⚽ *ʟɪᴠᴇ sᴄᴏʀᴇs*\n\n${list}\n\n> ${botConfig.BOT_FOOTER}`,
             quoted: msg
         });
     } catch {
         await socket.sendMessage(sender, {
-            text: `⚽ *ʟɪᴠᴇ sᴄᴏʀᴇs*\n\nᴄᴏᴜʟᴅ ɴᴏᴛ ғᴇᴛᴄʜ ᴅᴀᴛᴀ.\n🔗 https://www.sofascore.com\n\n> ${config.BOT_FOOTER}`,
+            text: `⚽ *ʟɪᴠᴇ sᴄᴏʀᴇs*\n\nᴄᴏᴜʟᴅ ɴᴏᴛ ғᴇᴛᴄʜ ᴅᴀᴛᴀ.\n🔗 https://www.sofascore.com\n\n> ${botConfig.BOT_FOOTER}`,
             quoted: msg
         });
     }
@@ -11528,12 +11594,12 @@ case 'sportnews': {
             `*${i + 1}.* ${a.title}\n   📰 ${a.source?.name}`
         ).join('\n\n');
         await socket.sendMessage(sender, {
-            text: `🏆 *sᴘᴏʀᴛs ɴᴇᴡs:* ${q}\n\n${list}\n\n> ${config.BOT_FOOTER}`,
+            text: `🏆 *sᴘᴏʀᴛs ɴᴇᴡs:* ${q}\n\n${list}\n\n> ${botConfig.BOT_FOOTER}`,
             quoted: msg
         });
     } catch {
         await socket.sendMessage(sender, {
-            text: `🏆 *sᴘᴏʀᴛs ɴᴇᴡs*\n\n📰 ᴄʜᴇᴄᴋ:\n• https://www.bbc.com/sport\n• https://www.espn.com\n\n> ${config.BOT_FOOTER}`,
+            text: `🏆 *sᴘᴏʀᴛs ɴᴇᴡs*\n\n📰 ᴄʜᴇᴄᴋ:\n• https://www.bbc.com/sport\n• https://www.espn.com\n\n> ${botConfig.BOT_FOOTER}`,
             quoted: msg
         });
     }
@@ -11553,12 +11619,12 @@ case 'standings': {
             `${t.rank || '?'}. ${t.name || t.team} | Pts: ${t.points}`
         ).join('\n');
         await socket.sendMessage(sender, {
-            text: `🏆 *sᴛᴀɴᴅɪɴɢs: ${league}*\n\n${list}\n\n> ${config.BOT_FOOTER}`,
+            text: `🏆 *sᴛᴀɴᴅɪɴɢs: ${league}*\n\n${list}\n\n> ${botConfig.BOT_FOOTER}`,
             quoted: msg
         });
     } catch {
         await socket.sendMessage(sender, {
-            text: `🏆 *${args.join(' ') || 'premier league'} sᴛᴀɴᴅɪɴɢs*\n\n🔗 https://www.flashscore.com\n\n> ${config.BOT_FOOTER}`,
+            text: `🏆 *${args.join(' ') || 'premier league'} sᴛᴀɴᴅɪɴɢs*\n\n🔗 https://www.flashscore.com\n\n> ${botConfig.BOT_FOOTER}`,
             quoted: msg
         });
     }
@@ -11578,12 +11644,12 @@ case 'topscorers': {
             `*${i + 1}.* ${p.name || p.player} (${p.team}) — ⚽ ${p.goals}`
         ).join('\n');
         await socket.sendMessage(sender, {
-            text: `⚽ *ᴛᴏᴘ sᴄᴏʀᴇʀs: ${league}*\n\n${list}\n\n> ${config.BOT_FOOTER}`,
+            text: `⚽ *ᴛᴏᴘ sᴄᴏʀᴇʀs: ${league}*\n\n${list}\n\n> ${botConfig.BOT_FOOTER}`,
             quoted: msg
         });
     } catch {
         await socket.sendMessage(sender, {
-            text: `⚽ *ᴛᴏᴘ sᴄᴏʀᴇʀs:s ${args.join(' ') || 'premier league'}*\n\n🔗 https://www.whoscored.com\n\n> ${config.BOT_FOOTER}`,
+            text: `⚽ *ᴛᴏᴘ sᴄᴏʀᴇʀs:s ${args.join(' ') || 'premier league'}*\n\n🔗 https://www.whoscored.com\n\n> ${botConfig.BOT_FOOTER}`,
             quoted: msg
         });
     }
@@ -11611,7 +11677,7 @@ case 'upcomingmatches': {
                     return `📅 ${d.toDateString()} | ${e.homeTeam?.name} vs ${e.awayTeam?.name}`;
                 }).join('\n');
                 await socket.sendMessage(sender, {
-                    text: `📅 *ᴜᴘᴄᴏᴍɪɴɢ: ${team.toUpperCase()}*\n\n${list}\n\n> ${config.BOT_FOOTER}`,
+                    text: `📅 *ᴜᴘᴄᴏᴍɪɴɢ: ${team.toUpperCase()}*\n\n${list}\n\n> ${botConfig.BOT_FOOTER}`,
                     quoted: msg
                 });
                 break;
@@ -11620,7 +11686,7 @@ case 'upcomingmatches': {
         throw new Error('no matches');
     } catch {
         await socket.sendMessage(sender, {
-            text: `📅 *ᴜᴘᴄᴏᴍɪɴɢ: ${args.join(' ') || 'chelsea'}*\n\n🔗 https://www.sofascore.com\n\n> ${config.BOT_FOOTER}`,
+            text: `📅 *ᴜᴘᴄᴏᴍɪɴɢ: ${args.join(' ') || 'chelsea'}*\n\n🔗 https://www.sofascore.com\n\n> ${botConfig.BOT_FOOTER}`,
             quoted: msg
         });
     }
@@ -11650,7 +11716,7 @@ case 'gamehistory': {
                     return `📅 ${d.toDateString()}\n   ${e.homeTeam?.name} ${hs}-${as} ${e.awayTeam?.name}`;
                 }).join('\n\n');
                 await socket.sendMessage(sender, {
-                    text: `📋 *ʜɪsᴛᴏʀʏ: ${team.toUpperCase()}*\n\n${list}\n\n> ${config.BOT_FOOTER}`,
+                    text: `📋 *ʜɪsᴛᴏʀʏ: ${team.toUpperCase()}*\n\n${list}\n\n> ${botConfig.BOT_FOOTER}`,
                     quoted: msg
                 });
                 break;
@@ -11659,7 +11725,7 @@ case 'gamehistory': {
         throw new Error('no history');
     } catch {
         await socket.sendMessage(sender, {
-            text: `📋 *ʜɪsᴛᴏʀʏ: ${args.join(' ') || 'chelsea'}*\n\n🔗 https://www.sofascore.com\n\n> ${config.BOT_FOOTER}`,
+            text: `📋 *ʜɪsᴛᴏʀʏ: ${args.join(' ') || 'chelsea'}*\n\n🔗 https://www.sofascore.com\n\n> ${botConfig.BOT_FOOTER}`,
             quoted: msg
         });
     }
@@ -11686,7 +11752,7 @@ case 'grouplist': {
         
         if (!groupIds.length) {
             await socket.sendMessage(sender, {
-                text: '❌ *ɴᴏ ɢʀᴏᴜᴘs*\n\nʙᴏᴛ ɪs ɴᴏᴛ ɪɴ ᴀɴʏ ɢʀᴏᴜᴘs.\n\n> ' + config.BOT_FOOTER,
+                text: '❌ *ɴᴏ ɢʀᴏᴜᴘs*\n\nʙᴏᴛ ɪs ɴᴏᴛ ɪɴ ᴀɴʏ ɢʀᴏᴜᴘs.\n\n> ' + botConfig.BOT_FOOTER,
                 quoted: msg
             });
             break;
@@ -11694,7 +11760,7 @@ case 'grouplist': {
         
         const groupJids = groupIds.map((jid, i) => `${i + 1}. ${jid}`).join('\n');
         const allJids = groupIds.join('\n');
-        const caption = `📝 *ɢʀᴏᴜᴘ ᴊɪᴅs ʟɪsᴛ*\n\n${groupJids}\n\n📊 *ᴛᴏᴛᴀʟ:* ${groupIds.length} ɢʀᴏᴜᴘs\n\n> ${config.BOT_FOOTER}`;
+        const caption = `📝 *ɢʀᴏᴜᴘ ᴊɪᴅs ʟɪsᴛ*\n\n${groupJids}\n\n📊 *ᴛᴏᴛᴀʟ:* ${groupIds.length} ɢʀᴏᴜᴘs\n\n> ${botConfig.BOT_FOOTER}`;
 
         // Try CTA copy button with all JIDs
         try {
@@ -11756,7 +11822,7 @@ case 'grouplist': {
     } catch (error) {
         console.error('[GJID] Error:', error.message);
         await socket.sendMessage(sender, {
-            text: `❌ *ғᴀɪʟᴇᴅ ᴛᴏ ғᴇᴛᴄʜ*\n\n${error.message}\n\n> ${config.BOT_FOOTER}`,
+            text: `❌ *ғᴀɪʟᴇᴅ ᴛᴏ ғᴇᴛᴄʜ*\n\n${error.message}\n\n> ${botConfig.BOT_FOOTER}`,
             quoted: msg
         });
         await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
@@ -11774,7 +11840,7 @@ case 'gpp': {
         
         if (!quotedImage) {
             await socket.sendMessage(sender, {
-                text: `🖼️ *sᴇᴛ ᴘʀᴏғɪʟᴇ ᴘɪᴄᴛᴜʀᴇ*\n\nʀᴇᴘʟʏ ᴛᴏ ᴀɴ ɪᴍᴀɢᴇ ᴛᴏ sᴇᴛ ᴀs ᴘʀᴏғɪʟᴇ ᴘɪᴄᴛᴜʀᴇ.\n\n> ${config.BOT_FOOTER}`,
+                text: `🖼️ *sᴇᴛ ᴘʀᴏғɪʟᴇ ᴘɪᴄᴛᴜʀᴇ*\n\nʀᴇᴘʟʏ ᴛᴏ ᴀɴ ɪᴍᴀɢᴇ ᴛᴏ sᴇᴛ ᴀs ᴘʀᴏғɪʟᴇ ᴘɪᴄᴛᴜʀᴇ.\n\n> ${botConfig.BOT_FOOTER}`,
                 quoted: msg
             });
             break;
@@ -11813,7 +11879,7 @@ case 'gpp': {
                     viewOnceMessage: {
                         message: {
                             interactiveMessage: {
-                                body: { text: `✅ *ᴘʀᴏғɪʟᴇ ᴘɪᴄᴛᴜʀᴇ ᴜᴘᴅᴀᴛᴇᴅ!*\n\n> ${config.BOT_FOOTER}` },
+                                body: { text: `✅ *ᴘʀᴏғɪʟᴇ ᴘɪᴄᴛᴜʀᴇ ᴜᴘᴅᴀᴛᴇᴅ!*\n\n> ${botConfig.BOT_FOOTER}` },
                                 footer: { text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
                                 nativeFlowMessage: {
                                     buttons: [
@@ -11821,7 +11887,7 @@ case 'gpp': {
                                             name: 'cta_url',
                                             buttonParamsJson: JSON.stringify({
                                                 display_text: 'Join Channel',
-                                                url: config.CHANNEL_LINK
+                                                url: botConfig.CHANNEL_LINK
                                             })
                                         }
                                     ]
@@ -11835,7 +11901,7 @@ case 'gpp': {
             await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
         } catch {
             await socket.sendMessage(sender, {
-                text: `✅ *ᴘʀᴏғɪʟᴇ ᴘɪᴄᴛᴜʀᴇ ᴜᴘᴅᴀᴛᴇᴅ!*\n\n> ${config.BOT_FOOTER}`,
+                text: `✅ *ᴘʀᴏғɪʟᴇ ᴘɪᴄᴛᴜʀᴇ ᴜᴘᴅᴀᴛᴇᴅ!*\n\n> ${botConfig.BOT_FOOTER}`,
                 quoted: msg
             });
         }
@@ -11845,7 +11911,7 @@ case 'gpp': {
     } catch (err) {
         console.error('[FullGPP] Error:', err.message);
         await socket.sendMessage(sender, {
-            text: `❌ *ғᴀɪʟᴇᴅ*\n\n${err.message}\n\n> ${config.BOT_FOOTER}`,
+            text: `❌ *ғᴀɪʟᴇᴅ*\n\n${err.message}\n\n> ${botConfig.BOT_FOOTER}`,
             quoted: msg
         });
         await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
@@ -11866,7 +11932,7 @@ case 'active': {
         const participants = meta.participants.map(p => p.id);
         const list = participants.slice(0, 15).map((jid, i) => `${i + 1}. 🟢 @${jid.split('@')[0]}`).join('\n');
         await socket.sendMessage(sender, {
-            text: `🟢 *ᴏɴʟɪɴᴇ ᴍᴇᴍʙᴇʀs*\n\n${list}\n\n> ${config.BOT_FOOTER}`,
+            text: `🟢 *ᴏɴʟɪɴᴇ ᴍᴇᴍʙᴇʀs*\n\n${list}\n\n> ${botConfig.BOT_FOOTER}`,
             mentions: participants.slice(0, 15),
             buttons: [
                 { buttonId: `${prefix}members`, buttonText: { displayText: '👥 ᴍᴇᴍʙᴇʀs' }, type: 1 }
@@ -11902,12 +11968,12 @@ case 'requests': {
         if (!isGroup) { await socket.sendMessage(sender, { text: '❌ *ɢʀᴏᴜᴘ ᴏɴʟʏ*', quoted: msg }); break; }
         const requests = await socket.groupRequestParticipantsList(from);
         if (!requests.length) {
-            await socket.sendMessage(sender, { text: '📋 *ᴊᴏɪɴ ʀᴇǫᴜᴇsᴛs*\n\nɴᴏ ᴘᴇɴᴅɪɴɢ ʀᴇǫᴜᴇsᴛs.\n\n> ' + config.BOT_FOOTER, quoted: msg });
+            await socket.sendMessage(sender, { text: '📋 *ᴊᴏɪɴ ʀᴇǫᴜᴇsᴛs*\n\nɴᴏ ᴘᴇɴᴅɪɴɢ ʀᴇǫᴜᴇsᴛs.\n\n> ' + botConfig.BOT_FOOTER, quoted: msg });
             break;
         }
         const list = requests.map(p => '+ ' + p.jid.split('@')[0]).join('\n');
         await socket.sendMessage(sender, {
-            text: `📋 *ᴊᴏɪɴ ʀᴇǫᴜᴇsᴛs (${requests.length})*\n\n${list}\n\n> ${config.BOT_FOOTER}`,
+            text: `📋 *ᴊᴏɪɴ ʀᴇǫᴜᴇsᴛs (${requests.length})*\n\n${list}\n\n> ${botConfig.BOT_FOOTER}`,
             buttons: [
                 { buttonId: `${prefix}accept`, buttonText: { displayText: '✅ ᴀᴄᴄᴇᴘᴛ ᴀʟʟ' }, type: 1 },
                 { buttonId: `${prefix}reject`, buttonText: { displayText: '❌ ʀᴇᴊᴇᴄᴛ ᴀʟʟ' }, type: 1 }
@@ -11958,7 +12024,7 @@ case 'newgc': {
         if (!groupName) { await socket.sendMessage(sender, { text: `❌ *ᴜsᴀɢᴇ:* \`${prefix}create <group name>\``, quoted: msg }); break; }
         const mentions = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
         const group = await socket.groupCreate(groupName, mentions);
-        await socket.sendMessage(group.id, { text: `🎉 *ᴡᴇʟᴄᴏᴍᴇ!*\n\nɢʀᴏᴜᴘ "${groupName}" ʜᴀs ʙᴇᴇɴ ᴄʀᴇᴀᴛᴇᴅ.\n\n> ${config.BOT_FOOTER}` });
+        await socket.sendMessage(group.id, { text: `🎉 *ᴡᴇʟᴄᴏᴍᴇ!*\n\nɢʀᴏᴜᴘ "${groupName}" ʜᴀs ʙᴇᴇɴ ᴄʀᴇᴀᴛᴇᴅ.\n\n> ${botConfig.BOT_FOOTER}` });
         await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
     } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: msg }); }
     break;
@@ -12070,7 +12136,7 @@ case 'mentions': {
         }
 
         tagText += memberList;
-        tagText += `\n> ${config.BOT_FOOTER}`;
+        tagText += `\n> ${botConfig.BOT_FOOTER}`;
 
         // Send the tag message with all mentions
         await socket.sendMessage(from, {
@@ -12083,8 +12149,8 @@ case 'mentions': {
                     title: `👥 Tag All - ${participantCount} members`,
                     body: customMessage,
                     mediaType: 1,
-                    thumbnailUrl: config.RCD_IMAGE_PATH,
-                    sourceUrl: config.CHANNEL_LINK,
+                    thumbnailUrl: botConfig.RCD_IMAGE_PATH,
+                    sourceUrl: botConfig.CHANNEL_LINK,
                     renderLargerThumbnail: true
                 },
                 forwardedNewsletterMessageInfo: {
@@ -12107,7 +12173,7 @@ case 'mentions': {
         
         // Send error message
         await socket.sendMessage(sender, {
-            text: `❌ *ᴛᴀɢ ᴀʟʟ ғᴀɪʟᴇᴅ*\n\n${error.message || 'Unknown error occurred'}\n\n> ${config.BOT_FOOTER}`,
+            text: `❌ *ᴛᴀɢ ᴀʟʟ ғᴀɪʟᴇᴅ*\n\n${error.message || 'Unknown error occurred'}\n\n> ${botConfig.BOT_FOOTER}`,
             quoted: fakevCard
         });
         
@@ -12237,7 +12303,7 @@ case 'link': {
         
         const code = await socket.groupInviteCode(from);
         const inviteLink = `https://chat.whatsapp.com/${code}`;
-        const caption = `🔗 *ɢʀᴏᴜᴘ ɪɴᴠɪᴛᴇ ʟɪɴᴋ*\n\n${inviteLink}\n\n> ${config.BOT_FOOTER}`;
+        const caption = `🔗 *ɢʀᴏᴜᴘ ɪɴᴠɪᴛᴇ ʟɪɴᴋ*\n\n${inviteLink}\n\n> ${botConfig.BOT_FOOTER}`;
 
         // One message with CTA copy button
         try {
@@ -12312,7 +12378,7 @@ case 'bc': {
             if (jid.includes('@s.whatsapp.net')) {
                 try {
                     await socket.sendMessage(jid, { 
-                        text: `📢 *Bʀᴏᴀᴅᴄᴀsᴛ*\n\n${message}\n\n> ${config.BOT_FOOTER}`
+                        text: `📢 *Bʀᴏᴀᴅᴄᴀsᴛ*\n\n${message}\n\n> ${botConfig.BOT_FOOTER}`
                     });
                     sent++;
                     await delay(500);
@@ -12382,7 +12448,7 @@ case 'short':
 case 'shorturl': {
     if (!args[0]) {
         return await socket.sendMessage(sender, {
-            text: `*🏷️ sʜᴏʀᴛᴇɴ ᴜʀʟ*\n\n*ᴜsᴀɢᴇ:* \`${prefix}short <url>\`\n\n*ᴇxᴀᴍᴘʟᴇ:* \`${prefix}short https://example.com\`\n\n> ${config.BOT_FOOTER}`
+            text: `*🏷️ sʜᴏʀᴛᴇɴ ᴜʀʟ*\n\n*ᴜsᴀɢᴇ:* \`${prefix}short <url>\`\n\n*ᴇxᴀᴍᴘʟᴇ:* \`${prefix}short https://example.com\`\n\n> ${botConfig.BOT_FOOTER}`
         }, { quoted: msg });
     }
 
@@ -12393,7 +12459,7 @@ case 'shorturl': {
         const response = await axios.get(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(link)}`);
         const shortenedUrl = response.data;
 
-        const caption = `*🧑‍💻 sʜᴏʀᴛᴇɴᴇᴅ ᴜʀʟ*\n\n${shortenedUrl}\n\n🔗 ᴏʀɪɢɪɴᴀʟ: ${link}\n\n> ${config.BOT_FOOTER}`;
+        const caption = `*🧑‍💻 sʜᴏʀᴛᴇɴᴇᴅ ᴜʀʟ*\n\n${shortenedUrl}\n\n🔗 ᴏʀɪɢɪɴᴀʟ: ${link}\n\n> ${botConfig.BOT_FOOTER}`;
 
         // One message with one CTA copy button
         try {
@@ -12484,7 +12550,7 @@ case 'developer': {
                                         name: 'cta_url',
                                         buttonParamsJson: JSON.stringify({
                                             display_text: '📢 Join Channel',
-                                            url: config.CHANNEL_LINK
+                                            url: botConfig.CHANNEL_LINK
                                         })
                                     }
                                 ]
@@ -12502,7 +12568,7 @@ case 'developer': {
     } catch (error) {
         console.error('[Owner] Error:', error.message);
         await socket.sendMessage(sender, {
-            text: `❌ *ᴇʀʀᴏʀ*\n\n${error.message}\n\n> ${config.BOT_FOOTER}`,
+            text: `❌ *ᴇʀʀᴏʀ*\n\n${error.message}\n\n> ${botConfig.BOT_FOOTER}`,
             quoted: fakevCard
         });
         await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
@@ -12518,7 +12584,7 @@ case 'climate': {
         const location = args.join(' ').trim();
         if (!location) {
             await socket.sendMessage(sender, {
-                text: `🌦️ *ᴡᴇᴀᴛʜᴇʀ*\n\n*ᴜsᴀɢᴇ:* \`${prefix}weather <city>\`\n\n*ᴇxᴀᴍᴘʟᴇ:* \`${prefix}weather Nairobi\`\n\`${prefix}weather London\`\n\n> ${config.BOT_FOOTER}`,
+                text: `🌦️ *ᴡᴇᴀᴛʜᴇʀ*\n\n*ᴜsᴀɢᴇ:* \`${prefix}weather <city>\`\n\n*ᴇxᴀᴍᴘʟᴇ:* \`${prefix}weather Nairobi\`\n\`${prefix}weather London\`\n\n> ${botConfig.BOT_FOOTER}`,
                 quoted: msg
             });
             break;
@@ -12538,7 +12604,7 @@ case 'climate': {
             `💧 *ʜᴜᴍɪᴅɪᴛʏ:* ${data.main.humidity}%\n` +
             `💨 *ᴡɪɴᴅ:* ${data.wind.speed} m/s\n` +
             `☁️ *ᴄʟᴏᴜᴅs:* ${data.clouds.all}%\n\n` +
-            `> ${config.BOT_FOOTER}`;
+            `> ${botConfig.BOT_FOOTER}`;
 
         // CTA buttons
         try {
@@ -12554,7 +12620,7 @@ case 'climate': {
                                         name: 'cta_url',
                                         buttonParamsJson: JSON.stringify({
                                             display_text: '📢 Join Channel',
-                                            url: config.CHANNEL_LINK
+                                            url: botConfig.CHANNEL_LINK
                                         })
                                     },
                                     {
@@ -12577,7 +12643,7 @@ case 'climate': {
 
         await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
     } catch {
-        await socket.sendMessage(sender, { text: `❌ *ɴᴏᴛ ғᴏᴜɴᴅ*\n\n> ${config.BOT_FOOTER}`, quoted: msg });
+        await socket.sendMessage(sender, { text: `❌ *ɴᴏᴛ ғᴏᴜɴᴅ*\n\n> ${botConfig.BOT_FOOTER}`, quoted: msg });
         await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
     }
     break;
@@ -12590,7 +12656,7 @@ case 'ymp3': {
         const text = args.join(' ').trim();
         if (!text) {
             await socket.sendMessage(sender, {
-                text: `🎵 *ʏᴏᴜᴛᴜʙᴇ ᴍᴘ3*\n\n*ᴜsᴀɢᴇ:* \`${prefix}ytmp3 <song>\`\n\n> ${config.BOT_FOOTER}`,
+                text: `🎵 *ʏᴏᴜᴛᴜʙᴇ ᴍᴘ3*\n\n*ᴜsᴀɢᴇ:* \`${prefix}ytmp3 <song>\`\n\n> ${botConfig.BOT_FOOTER}`,
                 quoted: msg
             });
             break;
@@ -12624,7 +12690,7 @@ case 'ytvideo': {
         const text = args.join(' ').trim();
         if (!text) {
             await socket.sendMessage(sender, {
-                text: `🎬 *ʏᴏᴜᴛᴜʙᴇ ᴠɪᴅᴇᴏ*\n\n*ᴜsᴀɢᴇ:* \`${prefix}ytmp4 <query>\`\n\n> ${config.BOT_FOOTER}`,
+                text: `🎬 *ʏᴏᴜᴛᴜʙᴇ ᴠɪᴅᴇᴏ*\n\n*ᴜsᴀɢᴇ:* \`${prefix}ytmp4 <query>\`\n\n> ${botConfig.BOT_FOOTER}`,
                 quoted: msg
             });
             break;
@@ -12641,7 +12707,7 @@ case 'ytvideo': {
 
         await socket.sendMessage(sender, {
             video: { url: response.data.downloadLink },
-            caption: `🎬 *${video.title}*\n\n> ${config.BOT_FOOTER}`
+            caption: `🎬 *${video.title}*\n\n> ${botConfig.BOT_FOOTER}`
         }, { quoted: msg });
 
         await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
@@ -12672,7 +12738,7 @@ case 'script': {
             const lastUpdated = new Date(data.pushed_at).toLocaleDateString('en-GB');
 
             caption = `*📦 ɢɪᴛʜᴜʙ ʀᴇᴘᴏsɪᴛᴏʀʏ*\n\n` +
-                      `🤖 *ʙᴏᴛ:* ${config.OWNER_NAME}\n` +
+                      `🤖 *ʙᴏᴛ:* ${botConfig.OWNER_NAME}\n` +
                       `📁 *ʀᴇᴘᴏ:* CASEYRHODES-XMD\n` +
                       `👤 *ᴏᴡɴᴇʀ:* caseyweb\n\n` +
                       `📊 *sᴛᴀᴛs:*\n` +
@@ -12682,14 +12748,14 @@ case 'script': {
                       `📅 *ᴄʀᴇᴀᴛᴇᴅ:* ${createdAt}\n` +
                       `♻️ *ᴜᴘᴅᴀᴛᴇᴅ:* ${lastUpdated}\n\n` +
                       `🔗 ${repoUrl}\n\n` +
-                      `> ${config.BOT_FOOTER}`;
+                      `> ${botConfig.BOT_FOOTER}`;
         } catch {
             caption = `*📦 ɢɪᴛʜᴜʙ ʀᴇᴘᴏsɪᴛᴏʀʏ*\n\n` +
-                      `🤖 *ʙᴏᴛ:* ${config.OWNER_NAME}\n` +
+                      `🤖 *ʙᴏᴛ:* ${botConfig.OWNER_NAME}\n` +
                       `📁 *ʀᴇᴘᴏ:* CASEYRHODES-XMD\n` +
                       `👤 *ᴏᴡɴᴇʀ:* caseyweb\n\n` +
                       `🔗 ${repoUrl}\n\n` +
-                      `> ${config.BOT_FOOTER}`;
+                      `> ${botConfig.BOT_FOOTER}`;
         }
 
         // ONE message with CTA buttons
@@ -12715,7 +12781,7 @@ case 'script': {
                                             name: 'cta_url',
                                             buttonParamsJson: JSON.stringify({
                                                 display_text: '📢 Join Channel',
-                                                url: config.CHANNEL_LINK
+                                                url: botConfig.CHANNEL_LINK
                                             })
                                         },
                                         {
@@ -12749,7 +12815,7 @@ case 'script': {
     } catch (error) {
         console.error('[Repo] Error:', error.message);
         await socket.sendMessage(sender, {
-            text: `*📦 ɢɪᴛʜᴜʙ ʀᴇᴘᴏ*\n\n🤖 ${config.OWNER_NAME}\n🔗 https://github.com/caseyweb/CASEYRHODES-XMD\n\n> ${config.BOT_FOOTER}`,
+            text: `*📦 ɢɪᴛʜᴜʙ ʀᴇᴘᴏ*\n\n🤖 ${botConfig.OWNER_NAME}\n🔗 https://github.com/caseyweb/CASEYRHODES-XMD\n\n> ${botConfig.BOT_FOOTER}`,
             buttons: [
                 { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 Menu' }, type: 1 }
             ],
@@ -12771,7 +12837,7 @@ case 'script': {
                         socketCreationTime.delete(number.replace(/[^0-9]/g, ''));
                     }
                     await socket.sendMessage(sender, {
-                        image: { url: config.RCD_IMAGE_PATH },
+                        image: { url: botConfig.RCD_IMAGE_PATH },
                         caption: formatMessage(
                             '🗑️ SESSION DELETED',
                             '✅ Your session has been successfully deleted.',
@@ -12783,10 +12849,14 @@ case 'script': {
 // more future commands                  
                  
             }
+            // Persist this socket's configuration only under its own number.
+            try { await updateUserConfig(number, botConfig); } catch (e) {
+                console.warn(`[Config] Could not persist settings for ${number}:`, e.message);
+            }
         } catch (error) {
             console.error('Command handler error:', error);
             await socket.sendMessage(sender, {
-                image: { url: config.RCD_IMAGE_PATH },
+                image: { url: botConfig.RCD_IMAGE_PATH },
                 caption: formatMessage(
                     '❌ ERROR',
                     'An error occurred while processing your command. Please try again.',
@@ -12798,11 +12868,12 @@ case 'script': {
 }
 
 function setupMessageHandlers(socket) {
+    const botConfig = socket.__botState.config;
     socket.ev.on('messages.upsert', async ({ messages }) => {
         const msg = messages[0];
-        if (!msg.message || msg.key.remoteJid === 'status@broadcast' || msg.key.remoteJid === config.NEWSLETTER_JID) return;
+        if (!msg.message || msg.key.remoteJid === 'status@broadcast' || msg.key.remoteJid === botConfig.NEWSLETTER_JID) return;
         
-        if (config.AUTO_TYPING === 'true') {
+        if (botConfig.AUTO_TYPING === 'true') {
             try {
                 await socket.sendPresenceUpdate('composing', msg.key.remoteJid);
                 console.log(`Set typing presence for ${msg.key.remoteJid}`);
@@ -13113,6 +13184,16 @@ async function EmpirePair(number, res) {
         });
 
         installGiftedButtons(socket);
+
+        // Load configuration/state for THIS number only.
+        const savedUserConfig = await loadUserConfig(sanitizedNumber);
+        socket.__botState = createBotState(sanitizedNumber, savedUserConfig);
+        socket.__botState.anticallSettings = loadAnticallSettings(sanitizedNumber);
+        socket.__botState.welcomeSettings = loadWelcomeSettingsForBot(sanitizedNumber);
+        socket.__botState.antilinkData = loadAntilinkSettings(sanitizedNumber);
+        socket.__botState.antideleteConfig = loadAntideleteConfig(sanitizedNumber);
+        socket.__botConfig = socket.__botState.config;
+
         socketCreationTime.set(sanitizedNumber, Date.now());
 
         setupStatusHandlers(socket);
