@@ -1134,46 +1134,47 @@ async function setupWelcomeGoodbyeHandlers(sock) {
                     .replace(/{membercount}/g, String(memberCount))
                     .replace(/{mention}/g, `@${name}`);
 
-                const welcomeButtons = action === 'add' ? [{
-                    buttonId: `${botConfig.PREFIX}welcome_menu`,
-                    buttonText: { displayText: '📂 ᴡᴇʟᴄᴏᴍᴇ ᴍᴇɴᴜ' },
-                    type: 4,
-                    nativeFlowInfo: {
-                        name: 'single_select',
-                        paramsJson: JSON.stringify({
-                            title: 'ᴡᴇʟᴄᴏᴍᴇ ǫᴜɪᴄᴋ ᴍᴇɴᴜ',
-                            sections: [{ title: 'ᴄᴏᴍᴍᴏɴ ᴄᴏᴍᴍᴀɴᴅs', rows: [
-                                { title: '📋 ᴍᴇɴᴜ', description: 'Open the main bot menu', id: `${botConfig.PREFIX}menu` },
-                                { title: '📊 ɢʀᴏᴜᴘ ɪɴғᴏ', description: 'View group information', id: `${botConfig.PREFIX}groupinfo` },
-                                { title: '👥 ᴍᴇᴍʙᴇʀs', description: 'View group members', id: `${botConfig.PREFIX}members` },
-                                { title: '👥 ᴛᴀɢ ᴀʟʟ', description: 'Mention all members', id: `${botConfig.PREFIX}tagall` },
-                                { title: '💓 ᴀʟɪᴠᴇ', description: 'Check bot status', id: `${botConfig.PREFIX}alive` }
-                            ] }]
-                        })
-                    }
-                }, { buttonId: `${botConfig.PREFIX}menu`, buttonText: { displayText: '📋 ᴍᴇɴᴜ' }, type: 1 }] : [
-                    { buttonId: `${botConfig.PREFIX}menu`, buttonText: { displayText: '📋 ᴍᴇɴᴜ' }, type: 1 }
-                ];
-                const payload = { text, mentions: [mentionJid], buttons: welcomeButtons, headerType: 1 };
-
-                // Send directly to the group. If profile-photo media fails, the text
-                // welcome still goes out instead of being lost.
+                // Welcome uses a real WhatsApp native category/list button.
+                // Do not put nativeFlowInfo inside the legacy `buttons` array;
+                // Baileys does not serialize that form reliably.
                 if (action === 'add') {
+                    const categoryButton = {
+                        name: 'single_select',
+                        buttonParamsJson: JSON.stringify({
+                            title: 'ᴡᴇʟᴄᴏᴍᴇ ᴍᴇɴᴜ',
+                            sections: [{
+                                title: 'ᴄᴏᴍᴍᴏɴ ᴄᴏᴍᴍᴀɴᴅs',
+                                rows: [
+                                    { title: '📋 ᴍᴇɴᴜ', description: 'Open the main bot menu', id: `${botConfig.PREFIX}menu` },
+                                    { title: '📊 ɢʀᴏᴜᴘ ɪɴғᴏ', description: 'View group information', id: `${botConfig.PREFIX}groupinfo` },
+                                    { title: '👥 ᴍᴇᴍʙᴇʀs', description: 'View group members', id: `${botConfig.PREFIX}members` },
+                                    { title: '👥 ᴛᴀɢ ᴀʟʟ', description: 'Mention all members', id: `${botConfig.PREFIX}tagall` },
+                                    { title: '💓 ᴀʟɪᴠᴇ', description: 'Check bot status', id: `${botConfig.PREFIX}alive` }
+                                ]
+                            }]
+                        })
+                    };
+
+                    // gifted-btns is already used by this bot for native-flow messages.
+                    // Sending through it here makes the category button actually render.
                     try {
-                        const pp = await sock.profilePictureUrl(userJid, 'image');
-                        if (pp) {
-                            await sock.sendMessage(id, {
-                                image: { url: pp },
-                                caption: text,
-                                mentions: [mentionJid],
-                                buttons: welcomeButtons,
-                                headerType: 1
-                            });
-                            continue;
-                        }
-                    } catch {}
+                        await sendInteractiveMessage(sock, id, {
+                            text,
+                            footer: botConfig.BOT_FOOTER,
+                            interactiveButtons: [categoryButton]
+                        });
+                    } catch (interactiveError) {
+                        console.warn('[Welcome] Native category failed, sending plain welcome:', interactiveError.message);
+                        await sock.sendMessage(id, { text, mentions: [mentionJid] });
+                    }
+                } else {
+                    await sock.sendMessage(id, {
+                        text,
+                        mentions: [mentionJid],
+                        buttons: [{ buttonId: `${botConfig.PREFIX}menu`, buttonText: { displayText: '📋 ᴍᴇɴᴜ' }, type: 1 }],
+                        headerType: 1
+                    });
                 }
-                await sock.sendMessage(id, payload);
             }
         } catch (error) {
             console.error('[WelcomeGoodbye] Error:', error.message);
@@ -12977,7 +12978,6 @@ async function EmpirePair(number, res) {
 
         socket.__botState = botState;
         socket.__botConfig = botConfig;
-        installGiftedButtons(socket);
         socketCreationTime.set(sanitizedNumber, Date.now());
 
         setupStatusHandlers(socket);
@@ -13009,6 +13009,10 @@ async function EmpirePair(number, res) {
                 res.send({ code });
             }
         }
+
+        // Install the optional native-button relay only after pairing has been
+        // requested. This keeps the pairing path completely untouched.
+        installGiftedButtons(socket);
 
     
         socket.ev.on('creds.update', async () => {
