@@ -4976,72 +4976,134 @@ case 'mygroups': {
 }
 
 
-
- case 'creact': {
-    const q = args.join(" ");
+case 'creact': {
+    const q = args.join(" ").trim();
 
     if (!q.includes(",")) {
         return await socket.sendMessage(sender, {
-            text: '😒 Please provide the link and emoji separated by a comma.\n\nExample:\n.creact https://whatsapp.com/channel/120363396379901844/ABCDEF1234,🔥'
+            text:
+                '😒 Please provide the channel link and emoji separated by a comma.\n\n' +
+                'Example:\n' +
+                '.creact https://whatsapp.com/channel/120363396379901844/123,🔥'
         });
     }
 
     try {
-        let [link, emoji] = q.split(",");
-        link = link.trim();
-        emoji = emoji.trim();
-        
-        // Parse the channel link correctly
-        // Format: https://whatsapp.com/channel/CHANNEL_ID/MESSAGE_ID
-        const urlParts = link.split("/");
-        
-        // Find the channel ID and message ID from the URL
-        let channelJid, msgId;
-        
-        if (link.includes("whatsapp.com/channel/")) {
-            // Get the channel ID (the part after /channel/)
-            const channelIndex = urlParts.indexOf("channel");
-            if (channelIndex !== -1 && urlParts[channelIndex + 1]) {
-                channelJid = `${urlParts[channelIndex + 1]}@newsletter`;
-                // Message ID is the next part after channel ID
-                if (urlParts[channelIndex + 2]) {
-                    msgId = urlParts[channelIndex + 2];
-                } else {
-                    throw new Error("Message ID not found in link");
-                }
-            } else {
-                throw new Error("Invalid channel link format");
-            }
-        } else {
-            throw new Error("Invalid WhatsApp channel link");
+        const commaIndex = q.indexOf(",");
+
+        let link = q.slice(0, commaIndex).trim();
+        let emoji = q.slice(commaIndex + 1).trim();
+
+        if (!link || !emoji) {
+            return await socket.sendMessage(sender, {
+                text: '❌ Please provide both the channel link and emoji.'
+            });
         }
 
-        // Send reaction to the channel message
-        await socket.sendMessage(channelJid, {
-            react: {
-                text: emoji,
-                key: {
-                    remoteJid: channelJid,
-                    id: msgId,
-                    fromMe: false,
-                    participant: channelJid
-                }
-            }
-        });
+        link = link.replace(/\/+$/, "");
+
+        const match = link.match(
+            /^https?:\/\/(?:www\.)?whatsapp\.com\/channel\/([^/?#]+)\/([^/?#]+)$/i
+        );
+
+        if (!match) {
+            return await socket.sendMessage(sender, {
+                text:
+                    '❌ Invalid WhatsApp Channel link.\n\n' +
+                    'Use:\n' +
+                    'https://whatsapp.com/channel/CHANNEL_ID/MESSAGE_ID'
+            });
+        }
+
+        const channelId = match[1];
+        const messageId = match[2];
+        const channelJid = `${channelId}@newsletter`;
+
+        if (typeof socket.newsletterReactMessage !== "function") {
+            throw new Error(
+                "newsletterReactMessage() is not available in your Baileys version."
+            );
+        }
+
+        // Number of reaction attempts
+        const TOTAL_REACTIONS = 200;
+
+        // Delay between attempts (milliseconds)
+        const DELAY_MS = 1500;
+
+        let successful = 0;
+        let failed = 0;
 
         await socket.sendMessage(sender, {
-            text: `✅ Reacted to the channel message with ${emoji}`,
+            text:
+                `🚀 *Starting Channel reactions...*\n\n` +
+                `📢 Channel: ${channelId}\n` +
+                `🆔 Message: ${messageId}\n` +
+                `❤️ Emoji: ${emoji}\n` +
+                `🔢 Attempts: ${TOTAL_REACTIONS}\n\n` +
+                `⏳ Please wait...`,
             quoted: fakevCard
         });
-        
-        console.log(`[CREACT] Reacted with ${emoji} to message ${msgId} in channel ${channelJid}`);
+
+        for (let i = 1; i <= TOTAL_REACTIONS; i++) {
+            try {
+                await socket.newsletterReactMessage(
+                    channelJid,
+                    messageId,
+                    emoji
+                );
+
+                successful++;
+
+                console.log(
+                    `[CREACT] ${i}/${TOTAL_REACTIONS} ✅ ${emoji}`
+                );
+
+            } catch (err) {
+                failed++;
+
+                console.error(
+                    `[CREACT] ${i}/${TOTAL_REACTIONS} ❌`,
+                    err?.message || err
+                );
+            }
+
+            // Prevent sending all requests at once
+            if (i < TOTAL_REACTIONS) {
+                await new Promise(resolve =>
+                    setTimeout(resolve, DELAY_MS)
+                );
+            }
+        }
+
+        await socket.sendMessage(sender, {
+            text:
+                `✅ *CREACT FINISHED*\n\n` +
+                `📢 Channel: ${channelId}\n` +
+                `🆔 Message: ${messageId}\n` +
+                `❤️ Emoji: ${emoji}\n\n` +
+                `📤 Attempts: ${TOTAL_REACTIONS}\n` +
+                `✅ Successful: ${successful}\n` +
+                `❌ Failed: ${failed}`,
+            quoted: fakevCard
+        });
+
+        console.log(
+            `[CREACT] Finished: ${successful}/${TOTAL_REACTIONS} successful`
+        );
 
     } catch (e) {
-        console.error("❌ Error in .creact:", e);
+        console.error("❌ [CREACT] Error:", e);
+
         await socket.sendMessage(sender, {
-            text: `❌ Error: ${e.message}\n\nMake sure the link format is correct:\nhttps://whatsapp.com/channel/CHANNEL_ID/MESSAGE_ID`
+            text:
+                `❌ *CREACT ERROR*\n\n` +
+                `📛 ${e?.message || e}\n\n` +
+                `Make sure the Channel link is valid and your Baileys version supports newsletter reactions.`,
+            quoted: fakevCard
         });
     }
+
     break;
 }
 		
