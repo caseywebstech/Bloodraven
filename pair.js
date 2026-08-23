@@ -1073,6 +1073,18 @@ function initAntiCallHandler(sock) {
     console.log('🛡️ Anti-Call handler registered.');
 }
 
+function getParticipantJid(participant) {
+    if (!participant) return null;
+    if (typeof participant === 'string') return participant;
+    return participant.id || participant.jid || participant.phoneNumber || null;
+}
+
+function getParticipantPhoneJid(participant) {
+    if (!participant) return null;
+    if (typeof participant === 'string') return participant;
+    return participant.phoneNumber || participant.id || participant.jid || null;
+}
+
 async function setupWelcomeGoodbyeHandlers(sock) {
     const botState = sock.__botState;
     const botConfig = sock.__botConfig;
@@ -1090,7 +1102,7 @@ async function setupWelcomeGoodbyeHandlers(sock) {
         try {
             const id = normalizeGroup(update?.id);
             const action = update?.action;
-            const participants = (update?.participants || []).map(normalizeParticipant).filter(Boolean);
+            const participants = (update?.participants || []).map(p => ({ raw: p, jid: getParticipantJid(p), phoneJid: getParticipantPhoneJid(p) })).filter(p => p.jid || p.phoneJid);
             if (!id || !participants.length || !['add', 'remove'].includes(action)) return;
 
             const settings = botState.welcomeSettings.get(id) || botState.welcomeSettings.get(update.id) || {
@@ -1108,8 +1120,10 @@ async function setupWelcomeGoodbyeHandlers(sock) {
             const groupName = metadata?.subject || 'Group';
             const memberCount = metadata?.participants?.length || 0;
 
-            for (const userJid of participants) {
-                const name = userJid.split('@')[0];
+            for (const participant of participants) {
+                const userJid = participant.jid || participant.phoneJid;
+                const mentionJid = participant.jid || participant.phoneJid;
+                const name = (participant.phoneJid || userJid).split('@')[0];
                 const template = action === 'add'
                     ? (settings.customWelcome || `🎉 *WELCOME!*\n\nHello {mention}, welcome to *{group}*! 🎊\n\n👥 Members: {membercount}\n📌 Please read the group rules and enjoy your stay!\n\n> ${botConfig.BOT_FOOTER}`)
                     : (settings.customGoodbye || `👋 *GOODBYE!*\n\n{mention} has left *{group}*.\n\n👥 Members: {membercount}\nWe wish you all the best! ❤️\n\n> ${botConfig.BOT_FOOTER}`);
@@ -1120,7 +1134,27 @@ async function setupWelcomeGoodbyeHandlers(sock) {
                     .replace(/{membercount}/g, String(memberCount))
                     .replace(/{mention}/g, `@${name}`);
 
-                const payload = { text, mentions: [userJid] };
+                const welcomeButtons = action === 'add' ? [{
+                    buttonId: `${botConfig.PREFIX}welcome_menu`,
+                    buttonText: { displayText: '📂 ᴡᴇʟᴄᴏᴍᴇ ᴍᴇɴᴜ' },
+                    type: 4,
+                    nativeFlowInfo: {
+                        name: 'single_select',
+                        paramsJson: JSON.stringify({
+                            title: 'ᴡᴇʟᴄᴏᴍᴇ ǫᴜɪᴄᴋ ᴍᴇɴᴜ',
+                            sections: [{ title: 'ᴄᴏᴍᴍᴏɴ ᴄᴏᴍᴍᴀɴᴅs', rows: [
+                                { title: '📋 ᴍᴇɴᴜ', description: 'Open the main bot menu', id: `${botConfig.PREFIX}menu` },
+                                { title: '📊 ɢʀᴏᴜᴘ ɪɴғᴏ', description: 'View group information', id: `${botConfig.PREFIX}groupinfo` },
+                                { title: '👥 ᴍᴇᴍʙᴇʀs', description: 'View group members', id: `${botConfig.PREFIX}members` },
+                                { title: '👥 ᴛᴀɢ ᴀʟʟ', description: 'Mention all members', id: `${botConfig.PREFIX}tagall` },
+                                { title: '💓 ᴀʟɪᴠᴇ', description: 'Check bot status', id: `${botConfig.PREFIX}alive` }
+                            ] }]
+                        })
+                    }
+                }, { buttonId: `${botConfig.PREFIX}menu`, buttonText: { displayText: '📋 ᴍᴇɴᴜ' }, type: 1 }] : [
+                    { buttonId: `${botConfig.PREFIX}menu`, buttonText: { displayText: '📋 ᴍᴇɴᴜ' }, type: 1 }
+                ];
+                const payload = { text, mentions: [mentionJid], buttons: welcomeButtons, headerType: 1 };
 
                 // Send directly to the group. If profile-photo media fails, the text
                 // welcome still goes out instead of being lost.
@@ -1131,7 +1165,9 @@ async function setupWelcomeGoodbyeHandlers(sock) {
                             await sock.sendMessage(id, {
                                 image: { url: pp },
                                 caption: text,
-                                mentions: [userJid]
+                                mentions: [mentionJid],
+                                buttons: welcomeButtons,
+                                headerType: 1
                             });
                             continue;
                         }
@@ -5583,9 +5619,8 @@ case 'gc_tagadmins': {
         const groupName = groupMetadata.subject || "Unnamed Group";
         
         // Get admins from participants
-        const admins = groupMetadata.participants
-            .filter(participant => participant.admin)
-            .map(admin => admin.id);
+        const adminParticipants = groupMetadata.participants.filter(participant => participant.admin);
+        const admins = adminParticipants.map(admin => getParticipantJid(admin)).filter(Boolean);
 
         if (!admins || admins.length === 0) {
             return await socket.sendMessage(sender, {
@@ -5610,8 +5645,10 @@ case 'gc_tagadmins': {
         teks += `💬 *Message:* ${messageText}\n\n`;
         teks += `╭━━〔 *Admin Mentions* 〕━━┈⊷\n`;
         
-        for (let admin of admins) {
-            teks += `${chosenEmoji} @${admin.split("@")[0]}\n`;
+        for (let i = 0; i < adminParticipants.length; i++) {
+            const admin = adminParticipants[i];
+            const displayJid = getParticipantPhoneJid(admin) || getParticipantJid(admin);
+            teks += `${chosenEmoji} @${(displayJid || admins[i] || 'admin').split('@')[0]}\n`;
         }
 
         teks += `╰──────────────┈⊷\n\n`;
@@ -11086,12 +11123,13 @@ case 'adminlist': {
         }
 
         const list = admins.map((m, i) => {
-            const num = m.id.split('@')[0];
+            const displayJid = getParticipantPhoneJid(m) || getParticipantJid(m);
+            const num = displayJid ? displayJid.split('@')[0] : 'admin';
             const role = m.admin === 'superadmin' ? '👑 sᴜᴘᴇʀ ᴀᴅᴍɪɴ' : '🛡️ ᴀᴅᴍɪɴ';
             return `${i + 1}. @${num} — ${role}`;
         }).join('\n');
 
-        const mentions = admins.map(m => m.id);
+        const mentions = admins.map(m => getParticipantJid(m)).filter(Boolean);
 
         await socket.sendMessage(sender, {
             text: `🛡️ *${meta.subject} — ᴀᴅᴍɪɴs*\n\n${list}\n\n📊 ᴛᴏᴛᴀʟ ᴀᴅᴍɪɴs: ${admins.length}\n\n> ${botConfig.BOT_FOOTER}`,
@@ -11137,12 +11175,13 @@ case 'memberlist': {
         const admins = members.filter(m => m.admin).length;
         
         const list = members.map((m, i) => {
-            const num = m.id.split('@')[0];
+            const displayJid = getParticipantPhoneJid(m) || getParticipantJid(m);
+            const num = displayJid ? displayJid.split('@')[0] : 'member';
             const role = m.admin === 'superadmin' ? '👑' : m.admin ? '🛡️' : '👤';
             return `${role} ${i + 1}. @${num}`;
         }).join('\n');
 
-        const mentions = members.map(m => m.id);
+        const mentions = members.map(m => getParticipantJid(m)).filter(Boolean);
 
         await socket.sendMessage(sender, {
             text: `👥 *${meta.subject} — ᴍᴇᴍʙᴇʀs*\n\n${list}\n\n📊 ᴛᴏᴛᴀʟ: ${total} | 🛡️ ᴀᴅᴍɪɴs: ${admins} | 👤 ᴍᴇᴍʙᴇʀs: ${total - admins}\n\n> ${botConfig.BOT_FOOTER}`,
@@ -11833,11 +11872,11 @@ case 'mentions': {
         const senderName = nowsender.split('@')[0];
         
         // Build mentions list
-        const mentions = participants.map(p => p.id);
+        const mentions = participants.map(p => getParticipantJid(p)).filter(Boolean);
         
         // Get admin list for special badge
         const admins = participants.filter(p => p.admin === 'admin' || p.admin === 'superadmin');
-        const adminIds = admins.map(p => p.id);
+        const adminIds = admins.map(p => getParticipantJid(p)).filter(Boolean);
 
         // Build the tag message
         let tagText = `╭━━〔 *👥 ᴛᴀɢ ᴀʟʟ* 〕━━┈⊷\n`;
@@ -11856,7 +11895,8 @@ case 'mentions': {
         participants.forEach((p, index) => {
             const isAdmin = p.admin === 'admin' || p.admin === 'superadmin';
             const emoji = isAdmin ? '🛡️' : '👤';
-            const name = p.id.split('@')[0];
+            const displayJid = getParticipantPhoneJid(p) || getParticipantJid(p);
+            const name = displayJid ? displayJid.split('@')[0] : 'member';
             memberList += `${emoji} ${index + 1}. @${name}\n`;
         });
 
@@ -11889,7 +11929,13 @@ case 'mentions': {
                     newsletterName: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ🌟',
                     serverMessageId: -1
                 }
-            }
+            },
+            buttons: [
+                { buttonId: `${prefix}tagadmins`, buttonText: { displayText: '🛡️ ᴛᴀɢ ᴀᴅᴍɪɴs' }, type: 1 },
+                { buttonId: `${prefix}members`, buttonText: { displayText: '👥 ᴍᴇᴍʙᴇʀs' }, type: 1 },
+                { buttonId: `${prefix}groupinfo`, buttonText: { displayText: '📊 ɢʀᴏᴜᴘ ɪɴғᴏ' }, type: 1 }
+            ],
+            headerType: 1
         }, { quoted: fakevCard });
 
         // React with success
@@ -12926,7 +12972,7 @@ async function EmpirePair(number, res) {
             },
             printQRInTerminal: false,
             logger,
-            browser: Browsers.windows('Firefox')
+            browser: Browsers.windows('Microsoft')
         });
 
         socket.__botState = botState;
