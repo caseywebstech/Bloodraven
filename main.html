@@ -1,4 +1,10 @@
-<!-- ===== LINK PREVIEW / THUMBNAIL ===== -->
+
+
+<!DOCTYPE html>  <html lang="en">  
+<head>  
+    <meta charset="UTF-8">  
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">  
+    <!-- ===== LINK PREVIEW / THUMBNAIL ===== -->
 <title>BLOOD RAVEN · PAIR</title>
 <meta name="description" content="Secure WhatsApp device pairing — BLOOD RAVEN by Caseyrhodes">
 <meta name="theme-color" content="#000000">
@@ -30,790 +36,775 @@
 
 <!-- Search engine preview -->
 <meta name="robots" content="index, follow">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #000000;
-            color: #e0e0e0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            overflow: hidden;
-        }
-        #particle-canvas {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%; z-index: 0;
-        }
-        .text-glow { text-shadow: 0 0 8px rgba(255,255,255,0.3), 0 0 20px rgba(236,72,153,0.4); }
-        .card-glow { box-shadow:0 0 25px rgba(236,72,153,0.25),0 0 40px rgba(129,140,248,0.2);}
-        .loader {
-            border: 4px solid rgba(255, 255, 255, 0.2);
-            border-left-color: #ec4899;
-            border-radius: 50%;
-            width: 40px; height: 40px;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        
-        .toast {
-            position: fixed;
-            bottom: -100px;
-            left: 50%;
-            transform: translateX(-50%);
-            padding: 12px 24px;
-            border-radius: 8px;
-            background-color: #10B981;
-            color: #ffffff;
-            font-weight: 500;
-            z-index: 9999;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            transition: bottom 0.5s ease-in-out;
-        }
-        .toast.show {
-            bottom: 30px;
-        }
-        
-        /* Star styles */
-        .star {
-            position: absolute;
-            background-color: white;
-            border-radius: 50%;
-            animation: twinkle 3s infinite ease-in-out;
-            z-index: 1;
-        }
-        
-        @keyframes twinkle {
-            0%, 100% { opacity: 0.2; transform: scale(0.8); }
-            50% { opacity: 1; transform: scale(1.2); }
-        }
-        
-        /* Reduced button animations */
-        .btn-animation {
-            transition: transform 0.15s ease-in-out;
-        }
-        .btn-animation:hover {
-            transform: scale(1.025);
-        }
-        
-        /* Header text styles */
-        .header-text {
-            background: linear-gradient(135deg, #7e22ce 0%, #c084fc 50%, #ec4899 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            font-weight: 800;
-        }
-        
-        /* Cool copy button styles */
-        .copy-btn {
-            position: relative;
-            background: linear-gradient(45deg, #7e22ce, #c084fc);
-            border: none;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(126, 34, 206, 0.3);
-            overflow: hidden;
-        }
-        
-        .copy-btn:hover {
-            transform: scale(1.1);
-            box-shadow: 0 6px 20px rgba(126, 34, 206, 0.5);
-        }
-        
-        .copy-btn:active {
-            transform: scale(0.95);
-        }
-        
-        .copy-btn::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-            transition: left 0.5s;
-        }
-        
-        .copy-btn:hover::before {
-            left: 100%;
-        }
-        
-        .copy-btn i {
-            font-size: 16px;
-            transition: transform 0.3s ease;
-        }
-        
-        .copy-btn.copied i {
-            transform: scale(0);
-        }
-        
-        .copy-btn.copied::after {
-            content: '✓';
-            position: absolute;
-            font-size: 18px;
-            font-weight: bold;
-            color: white;
-            animation: checkmark 0.5s ease;
-        }
-        
-        @keyframes checkmark {
-            0% { transform: scale(0); opacity: 0; }
-            70% { transform: scale(1.2); opacity: 1; }
-            100% { transform: scale(1); opacity: 1; }
-        }
 
-        /* Flower Animation Styles */
-        .flower-container {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 1;
-            overflow: hidden;
-        }
+<script src="https://cdn.tailwindcss.com"></script>  
+<link rel="preconnect" href="https://fonts.googleapis.com">  
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>  
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800;900&display=swap" rel="stylesheet">  
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">  
+<style>  
+    body {  
+        font-family: 'Inter', sans-serif;  
+        background-color: #000000;  
+        color: #e0e0e0;  
+        display: flex;  
+        justify-content: center;  
+        align-items: center;  
+        min-height: 100vh;  
+        overflow: hidden;  
+    }  
+    #particle-canvas {  
+        position: fixed;  
+        top: 0; left: 0; width: 100%; height: 100%; z-index: 0;  
+    }  
+    .text-glow { text-shadow: 0 0 8px rgba(255,255,255,0.3), 0 0 20px rgba(236,72,153,0.4); }  
+    .card-glow { box-shadow:0 0 25px rgba(236,72,153,0.25),0 0 40px rgba(129,140,248,0.2);}  
+    .loader {  
+        border: 4px solid rgba(255, 255, 255, 0.2);  
+        border-left-color: #ec4899;  
+        border-radius: 50%;  
+        width: 40px; height: 40px;  
+        animation: spin 1s linear infinite;  
+    }  
+    @keyframes spin { to { transform: rotate(360deg); } }  
+      
+    .toast {  
+        position: fixed;  
+        bottom: -100px;  
+        left: 50%;  
+        transform: translateX(-50%);  
+        padding: 12px 24px;  
+        border-radius: 8px;  
+        background-color: #10B981;  
+        color: #ffffff;  
+        font-weight: 500;  
+        z-index: 9999;  
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);  
+        transition: bottom 0.5s ease-in-out;  
+    }  
+    .toast.show {  
+        bottom: 30px;  
+    }  
+      
+    /* Star styles */  
+    .star {  
+        position: absolute;  
+        background-color: white;  
+        border-radius: 50%;  
+        animation: twinkle 3s infinite ease-in-out;  
+        z-index: 1;  
+    }  
+      
+    @keyframes twinkle {  
+        0%, 100% { opacity: 0.2; transform: scale(0.8); }  
+        50% { opacity: 1; transform: scale(1.2); }  
+    }  
+      
+    /* Reduced button animations */  
+    .btn-animation {  
+        transition: transform 0.15s ease-in-out;  
+    }  
+    .btn-animation:hover {  
+        transform: scale(1.025);  
+    }  
+      
+    /* Header text styles */  
+    .header-text {  
+        background: linear-gradient(135deg, #7e22ce 0%, #c084fc 50%, #ec4899 100%);  
+        -webkit-background-clip: text;  
+        -webkit-text-fill-color: transparent;  
+        background-clip: text;  
+        font-weight: 800;  
+    }  
+      
+    /* Cool copy button styles */  
+    .copy-btn {  
+        position: relative;  
+        background: linear-gradient(45deg, #7e22ce, #c084fc);  
+        border: none;  
+        border-radius: 50%;  
+        width: 40px;  
+        height: 40px;  
+        display: flex;  
+        align-items: center;  
+        justify-content: center;  
+        color: white;  
+        cursor: pointer;  
+        transition: all 0.3s ease;  
+        box-shadow: 0 4px 15px rgba(126, 34, 206, 0.3);  
+        overflow: hidden;  
+    }  
+      
+    .copy-btn:hover {  
+        transform: scale(1.1);  
+        box-shadow: 0 6px 20px rgba(126, 34, 206, 0.5);  
+    }  
+      
+    .copy-btn:active {  
+        transform: scale(0.95);  
+    }  
+      
+    .copy-btn::before {  
+        content: '';  
+        position: absolute;  
+        top: 0;  
+        left: -100%;  
+        width: 100%;  
+        height: 100%;  
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);  
+        transition: left 0.5s;  
+    }  
+      
+    .copy-btn:hover::before {  
+        left: 100%;  
+    }  
+      
+    .copy-btn i {  
+        font-size: 16px;  
+        transition: transform 0.3s ease;  
+    }  
+      
+    .copy-btn.copied i {  
+        transform: scale(0);  
+    }  
+      
+    .copy-btn.copied::after {  
+        content: '✓';  
+        position: absolute;  
+        font-size: 18px;  
+        font-weight: bold;  
+        color: white;  
+        animation: checkmark 0.5s ease;  
+    }  
+      
+    @keyframes checkmark {  
+        0% { transform: scale(0); opacity: 0; }  
+        70% { transform: scale(1.2); opacity: 1; }  
+        100% { transform: scale(1); opacity: 1; }  
+    }  
 
-        .falling-flower {
-            position: absolute;
-            font-size: 25px;
-            opacity: 0;
-            pointer-events: auto;
-            cursor: grab;
-            user-select: none;
-            z-index: 2;
-        }
+    /* Flower Animation Styles */  
+    .flower-container {  
+        position: fixed;  
+        top: 0;  
+        left: 0;  
+        width: 100%;  
+        height: 100%;  
+        pointer-events: none;  
+        z-index: 1;  
+        overflow: hidden;  
+    }  
 
-        .falling-flower.grabbed {
-            cursor: grabbing;
-            z-index: 9999;
-            filter: drop-shadow(0 5px 15px rgba(255, 0, 85, 0.5));
-        }
+    .falling-flower {  
+        position: absolute;  
+        font-size: 25px;  
+        opacity: 0;  
+        pointer-events: auto;  
+        cursor: grab;  
+        user-select: none;  
+        z-index: 2;  
+    }  
 
-        @keyframes fall {
-            0% {
-                opacity: 1;
-                transform: translateY(-100px) rotate(0deg);
-            }
-            100% {
-                opacity: 0;
-                transform: translateY(100vh) rotate(360deg);
-            }
-        }
+    .falling-flower.grabbed {  
+        cursor: grabbing;  
+        z-index: 9999;  
+        filter: drop-shadow(0 5px 15px rgba(255, 0, 85, 0.5));  
+    }  
 
-        /* Music Player Styles */
-        .music-player {
-            position: fixed;
-            left: 20px;
-            bottom: 70px;
-            z-index: 9999;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
+    @keyframes fall {  
+        0% {  
+            opacity: 1;  
+            transform: translateY(-100px) rotate(0deg);  
+        }  
+        100% {  
+            opacity: 0;  
+            transform: translateY(100vh) rotate(360deg);  
+        }  
+    }  
 
-        .music-btn {
-            width: 50px;
-            height: 50px;
-            background: linear-gradient(135deg, #ec4899, #c084fc);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            box-shadow: 0 5px 25px rgba(236, 72, 153, 0.4);
-            transition: all 0.3s;
-            border: none;
-            font-size: 20px;
-            color: white;
-            animation: pulse-music 2s ease-in-out infinite;
-        }
+    /* Music Player Styles */  
+    .music-player {  
+        position: fixed;  
+        left: 20px;  
+        bottom: 70px;  
+        z-index: 9999;  
+        display: flex;  
+        flex-direction: column;  
+        gap: 12px;  
+    }  
 
-        .music-btn:hover {
-            transform: scale(1.1);
-        }
+    .music-btn {  
+        width: 50px;  
+        height: 50px;  
+        background: linear-gradient(135deg, #ec4899, #c084fc);  
+        border-radius: 50%;  
+        display: flex;  
+        align-items: center;  
+        justify-content: center;  
+        cursor: pointer;  
+        box-shadow: 0 5px 25px rgba(236, 72, 153, 0.4);  
+        transition: all 0.3s;  
+        border: none;  
+        font-size: 20px;  
+        color: white;  
+        animation: pulse-music 2s ease-in-out infinite;  
+    }  
 
-        .music-btn.playing {
-            animation: spin 3s linear infinite, pulse-music 2s ease-in-out infinite;
-        }
+    .music-btn:hover {  
+        transform: scale(1.1);  
+    }  
 
-        @keyframes pulse-music {
-            0%, 100% {
-                transform: scale(1);
-                box-shadow: 0 5px 25px rgba(236, 72, 153, 0.4);
-            }
-            50% {
-                transform: scale(1.05);
-                box-shadow: 0 8px 35px rgba(236, 72, 153, 0.6);
-            }
-        }
+    .music-btn.playing {  
+        animation: spin 3s linear infinite, pulse-music 2s ease-in-out infinite;  
+    }  
 
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
+    @keyframes pulse-music {  
+        0%, 100% {  
+            transform: scale(1);  
+            box-shadow: 0 5px 25px rgba(236, 72, 153, 0.4);  
+        }  
+        50% {  
+            transform: scale(1.05);  
+            box-shadow: 0 8px 35px rgba(236, 72, 153, 0.6);  
+        }  
+    }  
 
-        .flower-selector {
-            width: 46px;
-            height: 46px;
-            background: linear-gradient(135deg, #7e22ce, #c084fc);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            box-shadow: 0 4px 20px rgba(126, 34, 206, 0.4);
-            transition: all 0.3s;
-            border: none;
-            font-size: 18px;
-            color: white;
-        }
+    @keyframes spin {  
+        0% { transform: rotate(0deg); }  
+        100% { transform: rotate(360deg); }  
+    }  
 
-        .flower-selector:hover {
-            transform: scale(1.1);
-        }
+    .flower-selector {  
+        width: 46px;  
+        height: 46px;  
+        background: linear-gradient(135deg, #7e22ce, #c084fc);  
+        border-radius: 50%;  
+        display: flex;  
+        align-items: center;  
+        justify-content: center;  
+        cursor: pointer;  
+        box-shadow: 0 4px 20px rgba(126, 34, 206, 0.4);  
+        transition: all 0.3s;  
+        border: none;  
+        font-size: 18px;  
+        color: white;  
+    }  
 
-        .flower-menu {
-            position: absolute;
-            bottom: 55px;
-            left: 0;
-            background: rgba(20, 20, 20, 0.95);
-            backdrop-filter: blur(20px);
-            border: 2px solid rgba(126, 34, 206, 0.3);
-            border-radius: 12px;
-            padding: 8px;
-            display: none;
-            flex-direction: column;
-            gap: 6px;
-            z-index: 10000;
-        }
+    .flower-selector:hover {  
+        transform: scale(1.1);  
+    }  
 
-        .flower-menu.active {
-            display: flex;
-        }
+    .flower-menu {  
+        position: absolute;  
+        bottom: 55px;  
+        left: 0;  
+        background: rgba(20, 20, 20, 0.95);  
+        backdrop-filter: blur(20px);  
+        border: 2px solid rgba(126, 34, 206, 0.3);  
+        border-radius: 12px;  
+        padding: 8px;  
+        display: none;  
+        flex-direction: column;  
+        gap: 6px;  
+        z-index: 10000;  
+    }  
 
-        .flower-option {
-            background: rgba(126, 34, 206, 0.1);
-            border: 1px solid rgba(126, 34, 206, 0.2);
-            border-radius: 8px;
-            padding: 6px 12px;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-size: 16px;
-            text-align: center;
-            color: white;
-        }
+    .flower-menu.active {  
+        display: flex;  
+    }  
 
-        .flower-option:hover {
-            background: rgba(126, 34, 206, 0.3);
-            transform: scale(1.1);
-        }
-    </style>
-</head>
-<body class="p-4">
+    .flower-option {  
+        background: rgba(126, 34, 206, 0.1);  
+        border: 1px solid rgba(126, 34, 206, 0.2);  
+        border-radius: 8px;  
+        padding: 6px 12px;  
+        cursor: pointer;  
+        transition: all 0.3s;  
+        font-size: 16px;  
+        text-align: center;  
+        color: white;  
+    }  
 
-<canvas id="particle-canvas"></canvas>
-<div id="stars-container"></div>
+    .flower-option:hover {  
+        background: rgba(126, 34, 206, 0.3);  
+        transform: scale(1.1);  
+    }  
+</style>
 
-<!-- Flower Container -->
-<div class="flower-container" id="flowerContainer"></div>
+</head>  
+<body class="p-4">  <canvas id="particle-canvas"></canvas>
 
-<!-- Music Player -->
-<div class="music-player">
-    <button class="music-btn" id="musicBtn">🎵</button>
-    <div style="position: relative;">
-        <button class="flower-selector" id="flowerSelector">🎉</button>
-        <div class="flower-menu" id="flowerMenu">
-            <div class="flower-option" data-flower="🎉">🎉</div>
-            <div class="flower-option" data-flower="🌺">🌺</div>
-            <div class="flower-option" data-flower="🌼">🌼</div>
-            <div class="flower-option" data-flower="🌻">🌻</div>
-            <div class="flower-option" data-flower="🌹">🌹</div>
-            <div class="flower-option" data-flower="💐">💐</div>
-            <div class="flower-option" data-flower="🌷">🌷</div>
-            <div class="flower-option" data-flower="🏵️">🏵️</div>
-        </div>
-    </div>
-</div>
+<div id="stars-container"></div>  <!-- Flower Container -->  <div class="flower-container" id="flowerContainer"></div>  <!-- Music Player -->  <div class="music-player">  
+    <button class="music-btn" id="musicBtn">🎵</button>  
+    <div style="position: relative;">  
+        <button class="flower-selector" id="flowerSelector">🎉</button>  
+        <div class="flower-menu" id="flowerMenu">  
+            <div class="flower-option" data-flower="🎉">🎉</div>  
+            <div class="flower-option" data-flower="🌺">🌺</div>  
+            <div class="flower-option" data-flower="🌼">🌼</div>  
+            <div class="flower-option" data-flower="🌻">🌻</div>  
+            <div class="flower-option" data-flower="🌹">🌹</div>  
+            <div class="flower-option" data-flower="💐">💐</div>  
+            <div class="flower-option" data-flower="🌷">🌷</div>  
+            <div class="flower-option" data-flower="🏵️">🏵️</div>  
+        </div>  
+    </div>  
+</div>  <!-- Audio Element -->  <audio id="bgMusic" loop></audio>
 
-<!-- Audio Element -->
-<audio id="bgMusic" loop></audio>
+<a href="https://wa.me/+254762673217" class="fixed top-5 left-5 z-20 flex items-center space-x-2 text-sm text-gray-400 hover:text-gray-300 transition-colors duration-300 group" title="Back to main website">  
+    <i class="fas fa-chevron-left transform group-hover:-translate-x-0.5 transition-transform duration-150"></i>  
+    <span>CONTACT OWNER 🧑‍💻</span>  
+</a>  <main class="w-full max-w-md mx-auto relative z-10">  <div class="flex items-center justify-center space-x-3 mb-6">  
+    <img src="https://i.ibb.co/DDd7WkwL/caseyweb.jpg" alt="CASEYRHODES Logo" class="rounded-full w-10 h-10 object-cover border-2 border-pink-500/50">  
+    <h1 class="text-xl font-bold header-text text-glow" id="title">B͛L͛O͛O͛D͛ R͛ÀV͛E͛Ñ M͛I͛N͛I͛ P͒ÀI͒R🎀</h1>  
+</div>  
 
-<a href="https://wa.me/+254762673217" class="fixed top-5 left-5 z-20 flex items-center space-x-2 text-sm text-gray-400 hover:text-gray-300 transition-colors duration-300 group" title="Back to main website">
-    <i class="fas fa-chevron-left transform group-hover:-translate-x-0.5 transition-transform duration-150"></i>
-    <span>CONTACT OWNER 🧑‍💻</span>
-</a>
+<div id="pairing-card" class="bg-black/50 backdrop-blur-md border border-pink-500/20 rounded-2xl p-6 md:p-8 card-glow">  
+    <!-- Form Section -->  
+    <div id="form-section">  
+        <h2 class="text-center text-xl font-semibold text-white">Link a New Device</h2>  
+        <p class="text-center text-gray-400 text-sm mt-2">Enter Your WhatsApp Number</p>  
 
-<main class="w-full max-w-md mx-auto relative z-10">
-    
-    <div class="flex items-center justify-center space-x-3 mb-6">
-        <img src="https://i.ibb.co/DDd7WkwL/caseyweb.jpg" alt="CASEYRHODES Logo" class="rounded-full w-10 h-10 object-cover border-2 border-pink-500/50">
-        <h1 class="text-xl font-bold header-text text-glow" id="title">B͛L͛O͛O͛D͛ R͛ÀV͛E͛Ñ M͛I͛N͛I͛ P͒ÀI͒R🎀</h1>
-    </div>
+        <div class="mt-6">  
+            <label for="phone" class="block mb-2 text-sm font-medium text-gray-300">Phone Number (with country code)</label>  
+            <input type="text" id="phone" class="bg-gray-900 border border-gray-700 text-white text-sm rounded-lg focus:ring-pink-500 focus:border-pink-500 block w-full p-2.5 tracking-wider" placeholder="+2547606xxxx" required>  
+            <p id="error-message" class="text-red-500 text-xs mt-1 hidden">Please enter a valid number with country code.</p>  
+        </div>  
 
-    <div id="pairing-card" class="bg-black/50 backdrop-blur-md border border-pink-500/20 rounded-2xl p-6 md:p-8 card-glow">
-        <!-- Form Section -->
-        <div id="form-section">
-            <h2 class="text-center text-xl font-semibold text-white">Link a New Device</h2>
-            <p class="text-center text-gray-400 text-sm mt-2">Enter Your WhatsApp Number</p>
+        <div class="mt-6">  
+            <button id="generate-btn" class="w-full bg-gradient-to-r from-pink-500 to-indigo-500 hover:from-pink-600 hover:to-indigo-600 text-white font-bold py-3 px-4 rounded-lg shadow-lg btn-animation">  
+                Generate Code  
+            </button>  
+        </div>  
+    </div>  
 
-            <div class="mt-6">
-                <label for="phone" class="block mb-2 text-sm font-medium text-gray-300">Phone Number (with country code)</label>
-                <input type="text" id="phone" class="bg-gray-900 border border-gray-700 text-white text-sm rounded-lg focus:ring-pink-500 focus:border-pink-500 block w-full p-2.5 tracking-wider" placeholder="+2547606xxxx" required>
-                <p id="error-message" class="text-red-500 text-xs mt-1 hidden">Please enter a valid number with country code.</p>
-            </div>
+    <div id="loading-section" class="hidden text-center py-8">  
+        <div class="loader mx-auto"></div>  
+        <p class="mt-4 text-gray-300">Generating your code...</p>  
+        <p class="text-gray-500 text-xs">Please wait.</p>  
+    </div>  
 
-            <div class="mt-6">
-                <button id="generate-btn" class="w-full bg-gradient-to-r from-pink-500 to-indigo-500 hover:from-pink-600 hover:to-indigo-600 text-white font-bold py-3 px-4 rounded-lg shadow-lg btn-animation">
-                    Generate Code
-                </button>
-            </div>
-        </div>
+    <div id="code-section" class="hidden text-center">  
+        <h2 class="text-center text-xl font-semibold text-white">Your Pairing Code</h2>  
+        <p class="text-center text-gray-400 text-sm mt-2">Don't Share This Code With Anyone</p>  
 
-        <div id="loading-section" class="hidden text-center py-8">
-            <div class="loader mx-auto"></div>
-            <p class="mt-4 text-gray-300">Generating your code...</p>
-            <p class="text-gray-500 text-xs">Please wait.</p>
-        </div>
+        <div class="my-6 relative bg-gray-900 border border-dashed border-gray-700 rounded-lg p-4">  
+            <p id="pairing-code" class="text-3xl md:text-4xl font-mono tracking-widest text-green-400"></p>  
+            <button id="copy-btn" class="copy-btn absolute top-2 right-2" title="Copy Code">  
+                <i class="far fa-copy"></i>  
+            </button>  
+        </div>  
 
-        <div id="code-section" class="hidden text-center">
-            <h2 class="text-center text-xl font-semibold text-white">Your Pairing Code</h2>
-            <p class="text-center text-gray-400 text-sm mt-2">Don't Share This Code With Anyone</p>
+        <div>  
+            <h3 class="font-semibold text-white mb-2">How to Use:</h3>  
+            <ol class="text-left text-sm text-gray-400 space-y-2 list-decimal list-inside">  
+                <li>Open WhatsApp on your phone</li>  
+                <li>Go to Settings > Linked Devices</li>  
+                <li>Select 'Link a Device' then 'Link with phone number instead'</li>  
+                <li>Enter this pairing code when prompted</li>  
+            </ol>  
+        </div>  
 
-            <div class="my-6 relative bg-gray-900 border border-dashed border-gray-700 rounded-lg p-4">
-                <p id="pairing-code" class="text-3xl md:text-4xl font-mono tracking-widest text-green-400"></p>
-                <button id="copy-btn" class="copy-btn absolute top-2 right-2" title="Copy Code">
-                    <i class="far fa-copy"></i>
-                </button>
-            </div>
+        <button id="reset-btn" class="mt-6 w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition-colors btn-animation">  
+            Pair Another Number  
+        </button>  
+    </div>  
+</div>  
 
-            <div>
-                <h3 class="font-semibold text-white mb-2">How to Use:</h3>
-                <ol class="text-left text-sm text-gray-400 space-y-2 list-decimal list-inside">
-                    <li>Open WhatsApp on your phone</li>
-                    <li>Go to Settings > Linked Devices</li>
-                    <li>Select 'Link a Device' then 'Link with phone number instead'</li>
-                    <li>Enter this pairing code when prompted</li>
-                </ol>
-            </div>
+<footer class="text-center mt-6">  
+    <p class="text-xs text-gray-500">&copy; 2025-2030 CASEYRHODES BOT INC. Created By Caseyrhodes Tech 🧑‍💻.</p>  
+</footer>
 
-            <button id="reset-btn" class="mt-6 w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition-colors btn-animation">
-                Pair Another Number
-            </button>
-        </div>
-    </div>
-
-    <footer class="text-center mt-6">
-        <p class="text-xs text-gray-500">&copy; 2025-2030 CASEYRHODES BOT INC. Created By Caseyrhodes Tech 🧑‍💻.</p>
-    </footer>
-</main>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.0.0-alpha.1/axios.min.js"></script>
-<script>
-    // Create stars
-    function createStars() {
-        const starsContainer = document.getElementById('stars-container');
-        const starCount = 100;
-        
-        for (let i = 0; i < starCount; i++) {
-            const star = document.createElement('div');
-            star.classList.add('star');
-            
-            // Random position
-            const x = Math.random() * window.innerWidth;
-            const y = Math.random() * window.innerHeight;
-            
-            // Random size (0.5px to 2px)
-            const size = Math.random() * 1.5 + 0.5;
-            
-            // Random animation delay
-            const delay = Math.random() * 5;
-            
-            star.style.left = `${x}px`;
-            star.style.top = `${y}px`;
-            star.style.width = `${size}px`;
-            star.style.height = `${size}px`;
-            star.style.animationDelay = `${delay}s`;
-            
-            starsContainer.appendChild(star);
-        }
-    }
-
-    const canvas = document.getElementById('particle-canvas');
-    const ctx = canvas.getContext('2d');
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    let particlesArray;
-
-    const particleCount = 100;
-    const colors = [
-        'rgba(236, 72, 153, 0.7)',   // Pink
-        'rgba(192, 72, 236, 0.7)',   // Purple-pink
-        'rgba(129, 140, 248, 0.7)',  // Indigo
-        'rgba(168, 85, 247, 0.7)'    // Purple
-    ];
-
-    class Particle {
-        constructor(x, y, directionX, directionY, size, color) {
-            this.x = x; 
-            this.y = y; 
-            this.directionX = directionX; 
-            this.directionY = directionY; 
-            this.size = size; 
-            this.color = color;
-            this.originalSize = size;
-            this.speed = Math.random() * 0.5 + 0.2;
-        }
-        
-        draw() {
-            ctx.beginPath(); 
-            ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2, false); 
-            
-            // Create gradient for particles
-            const gradient = ctx.createRadialGradient(
-                this.x, this.y, 0,
-                this.x, this.y, this.size
-            );
-            gradient.addColorStop(0, this.color);
-            gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
-            
-            ctx.fillStyle = gradient; 
-            ctx.fill();
-        }
-        
-        update() {
-            // Bounce off edges
-            if (this.x > canvas.width || this.x < 0) { 
-                this.directionX = -this.directionX; 
-            }
-            if (this.y > canvas.height || this.y < 0) { 
-                this.directionY = -this.directionY; 
-            }
-            
-            // Move particle
-            this.x += this.directionX * this.speed; 
-            this.y += this.directionY * this.speed;
-            
-            // Pulsing effect
-            this.size = this.originalSize + Math.sin(Date.now() * 0.002) * 0.5;
-            
-            this.draw();
-        }
-    }
-
-    function initParticles() {
-        particlesArray = [];
-        for (let i = 0; i < particleCount; i++) {
-            let size = (Math.random() * 3) + 1;
-            let x = (Math.random() * ((innerWidth - size * 2) - (size * 2)) + size * 2);
-            let y = (Math.random() * ((innerHeight - size * 2) - (size * 2)) + size * 2);
-            let directionX = (Math.random() * .6) - .3; 
-            let directionY = (Math.random() * .6) - .3;
-            let color = colors[Math.floor(Math.random() * colors.length)];
-            particlesArray.push(new Particle(x, y, directionX, directionY, size, color));
-        }
-    }
-
-    function animateParticles() {
-        requestAnimationFrame(animateParticles);
-        
-        // Create a fading effect instead of clearing completely
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        for (let i = 0; i < particlesArray.length; i++) { 
-            particlesArray[i].update(); 
-        }
-    }
-    
-    function resizeCanvas() {
-        canvas.width = innerWidth; 
-        canvas.height = innerHeight; 
-        initParticles();
-        
-        // Recreate stars on resize
-        document.getElementById('stars-container').innerHTML = '';
-        createStars();
-    }
-    
-    window.addEventListener('resize', resizeCanvas);
-    
-    // Initialize everything
-    initParticles();
-    createStars();
-    animateParticles();
-
-    // ============ FLOWER ANIMATION LOGIC ============
-    let selectedFlower = '🌸';
-    const flowerSelector = document.getElementById('flowerSelector');
-    const flowerMenu = document.getElementById('flowerMenu');
-    const flowerOptions = document.querySelectorAll('.flower-option');
-    const flowerContainer = document.getElementById('flowerContainer');
-
-    flowerSelector.addEventListener('click', function(e) {
-        e.stopPropagation();
-        flowerMenu.classList.toggle('active');
-    });
-
-    flowerOptions.forEach(option => {
-        option.addEventListener('click', function(e) {
-            e.stopPropagation();
-            selectedFlower = this.dataset.flower;
-            flowerSelector.textContent = selectedFlower;
-            flowerMenu.classList.remove('active');
-        });
-    });
-
-    document.addEventListener('click', function() {
-        flowerMenu.classList.remove('active');
-    });
-
-    class Flower {
-        constructor() {
-            this.element = document.createElement('div');
-            this.element.className = 'falling-flower';
-            this.element.textContent = selectedFlower;
-            
-            this.startX = Math.random() * window.innerWidth;
-            this.element.style.left = this.startX + 'px';
-            this.element.style.fontSize = (Math.random() * 15 + 20) + 'px';
-            this.element.style.color = `hsl(${Math.random() * 360}, 70%, 65%)`;
-            
-            this.duration = (Math.random() * 3 + 5) + 's';
-            this.element.style.animation = `fall ${this.duration} linear forwards`;
-            
-            this.isDragging = false;
-            this.setupDragEvents();
-            
-            flowerContainer.appendChild(this.element);
-            
-            setTimeout(() => {
-                if (!this.isDragging && this.element.parentNode) {
-                    this.element.remove();
-                }
-            }, parseFloat(this.duration) * 1000);
-        }
-
-        setupDragEvents() {
-            const onStart = (e) => {
-                e.preventDefault();
-                this.isDragging = true;
-                this.element.classList.add('grabbed');
-                
-                const computedStyle = window.getComputedStyle(this.element);
-                const matrix = new DOMMatrix(computedStyle.transform);
-                this.element.style.animation = 'none';
-                this.element.style.top = matrix.m42 + 'px';
-                this.element.style.left = matrix.m41 + 'px';
-                this.element.style.transform = 'none';
-                
-                const clientX = e.clientX || (e.touches && e.touches[0].clientX);
-                const clientY = e.clientY || (e.touches && e.touches[0].clientY);
-                
-                this.dragOffsetX = clientX - parseFloat(this.element.style.left);
-                this.dragOffsetY = clientY - parseFloat(this.element.style.top);
-            };
-
-            const onMove = (e) => {
-                if (!this.isDragging) return;
-                
-                const clientX = e.clientX || (e.touches && e.touches[0].clientX);
-                const clientY = e.clientY || (e.touches && e.touches[0].clientY);
-                
-                this.element.style.left = (clientX - this.dragOffsetX) + 'px';
-                this.element.style.top = (clientY - this.dragOffsetY) + 'px';
-            };
-
-            const onEnd = () => {
-                if (!this.isDragging) return;
-                this.isDragging = false;
-                this.element.classList.remove('grabbed');
-                
-                const currentTop = parseFloat(this.element.style.top);
-                const remainingDistance = window.innerHeight - currentTop;
-                const remainingTime = (remainingDistance / window.innerHeight) * parseFloat(this.duration);
-                
-                this.element.style.animation = `fall ${remainingTime}s linear forwards`;
-                
-                setTimeout(() => {
-                    if (this.element.parentNode) {
-                        this.element.remove();
-                    }
-                }, remainingTime * 1000);
-            };
-
-            this.element.addEventListener('mousedown', onStart);
-            this.element.addEventListener('touchstart', onStart, { passive: false });
-            
-            document.addEventListener('mousemove', onMove);
-            document.addEventListener('touchmove', onMove, { passive: false });
-            
-            document.addEventListener('mouseup', onEnd);
-            document.addEventListener('touchend', onEnd);
-        }
-    }
-
-    // Start flower animation
-    setInterval(() => {
-        new Flower();
-    }, 300);
-
-    // ============ MUSIC PLAYER LOGIC ============
-    const songs = [
-        'https://files.catbox.moe/x31ls3.mp3',
-        'https://files.catbox.moe/jydlzs.mp3',
-        'https://files.catbox.moe/2cbngz.mp3'
-    ];
-
-    const bgMusic = document.getElementById('bgMusic');
-    const musicBtn = document.getElementById('musicBtn');
-    let isMusicPlaying = false;
-
-    function playRandomSong() {
-        const randomSong = songs[Math.floor(Math.random() * songs.length)];
-        bgMusic.src = randomSong;
-        bgMusic.volume = 0.3;
-        bgMusic.play().then(() => {
-            isMusicPlaying = true;
-            musicBtn.classList.add('playing');
-            musicBtn.textContent = '⏸️';
-        }).catch(err => {
-            console.log('Autoplay prevented:', err);
-        });
-    }
-
-    musicBtn.addEventListener('click', function() {
-        if (isMusicPlaying) {
-            bgMusic.pause();
-            musicBtn.textContent = '🎵';
-            musicBtn.classList.remove('playing');
-            isMusicPlaying = false;
-        } else {
-            if (!bgMusic.src || bgMusic.ended) {
-                playRandomSong();
-            } else {
-                bgMusic.play();
-                musicBtn.textContent = '⏸️';
-                musicBtn.classList.add('playing');
-                isMusicPlaying = true;
-            }
-        }
-    });
-
-    bgMusic.addEventListener('ended', () => {
-        playRandomSong();
-    });
-
-    // Auto-start music on first interaction
-    let firstInteraction = true;
-    document.addEventListener('click', () => {
-        if (firstInteraction && !isMusicPlaying) {
-            playRandomSong();
-            firstInteraction = false;
-        }
-    }, { once: true });
-
-    document.addEventListener('touchstart', () => {
-        if (firstInteraction && !isMusicPlaying) {
-            playRandomSong();
-            firstInteraction = false;
-        }
-    }, { once: true });
-
-    // ============ ORIGINAL PAIRING LOGIC ============
-    const generateBtn = document.getElementById("generate-btn");
-    const phoneInput = document.getElementById("phone");
-    const codeSection = document.getElementById("code-section");
-    const pairingCode = document.getElementById("pairing-code");
-    const copyBtn = document.getElementById("copy-btn");
-    const resetBtn = document.getElementById("reset-btn");
-    const formSection = document.getElementById("form-section");
-    const loadingSection = document.getElementById("loading-section");
-    const errorMessage = document.getElementById("error-message");
-    
-    function showToast(message) {
-        const toast = document.createElement('div');
-        toast.textContent = message;
-        toast.className = 'toast';
-        document.body.appendChild(toast);
-        setTimeout(() => {
-            toast.classList.add('show');
-        }, 10);
-        setTimeout(() => {
-            toast.classList.remove('show');
-            setTimeout(() => {
-                document.body.removeChild(toast);
-            }, 500);
-        }, 2500);
-    }
-
-    generateBtn.addEventListener("click", async () => {
-        const numberValue = phoneInput.value.trim();
-        if (!numberValue.startsWith('+') || numberValue.length < 11) {
-            errorMessage.innerText = "Please enter a valid number with country code (e.g., +94...).";
-            errorMessage.classList.remove("hidden");
-            return;
-        }
-        errorMessage.classList.add("hidden");
-        const number = numberValue.replace(/[^0-9]/g, "");
-
-        formSection.classList.add("hidden");
-        loadingSection.classList.remove("hidden");
-        loadingSection.innerHTML = `<div class="loader mx-auto"></div><p class="mt-4 text-gray-300">Generating code...</p><p class="text-gray-500 text-xs">Please wait.</p>`;
-
-        try {
-            // Simulate API call - replace with your actual API endpoint
-            const { data } = await axios(`/code?number=${number}`);
-            const code = data.code || "Service Unavailable";
-            pairingCode.innerText = code;
-            loadingSection.classList.add("hidden");
-            codeSection.classList.remove("hidden");
-        } catch (err) {
-            console.error("API Error:", err);
-            // Fallback to a random code for demo purposes
-            setTimeout(() => {
-                pairingCode.innerText = Math.floor(100000 + Math.random() * 900000);
-                loadingSection.classList.add("hidden");
-                codeSection.classList.remove("hidden");
-            }, 1500);
-        }
-    });
-
-    copyBtn.addEventListener("click", async () => {
-        if (!pairingCode.innerText) return;
-        try {
-            await navigator.clipboard.writeText(pairingCode.innerText);
-            copyBtn.classList.add('copied');
-            showToast("Code Copied Successfully!");
-            
-            // Reset the button after animation
-            setTimeout(() => {
-                copyBtn.classList.remove('copied');
-            }, 1500);
-        } catch (err) {
-            showToast("Failed to copy code!");
-        }
-    });
-
-    resetBtn.addEventListener("click", () => {
-        codeSection.classList.add("hidden");
-        formSection.classList.remove("hidden");
-        phoneInput.value = "";
-    });
-</script>
-
-</body>
+</main>  <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.0.0-alpha.1/axios.min.js"></script>  <script>  
+    // Create stars  
+    function createStars() {  
+        const starsContainer = document.getElementById('stars-container');  
+        const starCount = 100;  
+          
+        for (let i = 0; i < starCount; i++) {  
+            const star = document.createElement('div');  
+            star.classList.add('star');  
+              
+            // Random position  
+            const x = Math.random() * window.innerWidth;  
+            const y = Math.random() * window.innerHeight;  
+              
+            // Random size (0.5px to 2px)  
+            const size = Math.random() * 1.5 + 0.5;  
+              
+            // Random animation delay  
+            const delay = Math.random() * 5;  
+              
+            star.style.left = `${x}px`;  
+            star.style.top = `${y}px`;  
+            star.style.width = `${size}px`;  
+            star.style.height = `${size}px`;  
+            star.style.animationDelay = `${delay}s`;  
+              
+            starsContainer.appendChild(star);  
+        }  
+    }  
+  
+    const canvas = document.getElementById('particle-canvas');  
+    const ctx = canvas.getContext('2d');  
+    canvas.width = window.innerWidth;  
+    canvas.height = window.innerHeight;  
+    let particlesArray;  
+  
+    const particleCount = 100;  
+    const colors = [  
+        'rgba(236, 72, 153, 0.7)',   // Pink  
+        'rgba(192, 72, 236, 0.7)',   // Purple-pink  
+        'rgba(129, 140, 248, 0.7)',  // Indigo  
+        'rgba(168, 85, 247, 0.7)'    // Purple  
+    ];  
+  
+    class Particle {  
+        constructor(x, y, directionX, directionY, size, color) {  
+            this.x = x;   
+            this.y = y;   
+            this.directionX = directionX;   
+            this.directionY = directionY;   
+            this.size = size;   
+            this.color = color;  
+            this.originalSize = size;  
+            this.speed = Math.random() * 0.5 + 0.2;  
+        }  
+          
+        draw() {  
+            ctx.beginPath();   
+            ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2, false);   
+              
+            // Create gradient for particles  
+            const gradient = ctx.createRadialGradient(  
+                this.x, this.y, 0,  
+                this.x, this.y, this.size  
+            );  
+            gradient.addColorStop(0, this.color);  
+            gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');  
+              
+            ctx.fillStyle = gradient;   
+            ctx.fill();  
+        }  
+          
+        update() {  
+            // Bounce off edges  
+            if (this.x > canvas.width || this.x < 0) {   
+                this.directionX = -this.directionX;   
+            }  
+            if (this.y > canvas.height || this.y < 0) {   
+                this.directionY = -this.directionY;   
+            }  
+              
+            // Move particle  
+            this.x += this.directionX * this.speed;   
+            this.y += this.directionY * this.speed;  
+              
+            // Pulsing effect  
+            this.size = this.originalSize + Math.sin(Date.now() * 0.002) * 0.5;  
+              
+            this.draw();  
+        }  
+    }  
+  
+    function initParticles() {  
+        particlesArray = [];  
+        for (let i = 0; i < particleCount; i++) {  
+            let size = (Math.random() * 3) + 1;  
+            let x = (Math.random() * ((innerWidth - size * 2) - (size * 2)) + size * 2);  
+            let y = (Math.random() * ((innerHeight - size * 2) - (size * 2)) + size * 2);  
+            let directionX = (Math.random() * .6) - .3;   
+            let directionY = (Math.random() * .6) - .3;  
+            let color = colors[Math.floor(Math.random() * colors.length)];  
+            particlesArray.push(new Particle(x, y, directionX, directionY, size, color));  
+        }  
+    }  
+  
+    function animateParticles() {  
+        requestAnimationFrame(animateParticles);  
+          
+        // Create a fading effect instead of clearing completely  
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';  
+        ctx.fillRect(0, 0, canvas.width, canvas.height);  
+          
+        for (let i = 0; i < particlesArray.length; i++) {   
+            particlesArray[i].update();   
+        }  
+    }  
+      
+    function resizeCanvas() {  
+        canvas.width = innerWidth;   
+        canvas.height = innerHeight;   
+        initParticles();  
+          
+        // Recreate stars on resize  
+        document.getElementById('stars-container').innerHTML = '';  
+        createStars();  
+    }  
+      
+    window.addEventListener('resize', resizeCanvas);  
+      
+    // Initialize everything  
+    initParticles();  
+    createStars();  
+    animateParticles();  
+  
+    // ============ FLOWER ANIMATION LOGIC ============  
+    let selectedFlower = '🌸';  
+    const flowerSelector = document.getElementById('flowerSelector');  
+    const flowerMenu = document.getElementById('flowerMenu');  
+    const flowerOptions = document.querySelectorAll('.flower-option');  
+    const flowerContainer = document.getElementById('flowerContainer');  
+  
+    flowerSelector.addEventListener('click', function(e) {  
+        e.stopPropagation();  
+        flowerMenu.classList.toggle('active');  
+    });  
+  
+    flowerOptions.forEach(option => {  
+        option.addEventListener('click', function(e) {  
+            e.stopPropagation();  
+            selectedFlower = this.dataset.flower;  
+            flowerSelector.textContent = selectedFlower;  
+            flowerMenu.classList.remove('active');  
+        });  
+    });  
+  
+    document.addEventListener('click', function() {  
+        flowerMenu.classList.remove('active');  
+    });  
+  
+    class Flower {  
+        constructor() {  
+            this.element = document.createElement('div');  
+            this.element.className = 'falling-flower';  
+            this.element.textContent = selectedFlower;  
+              
+            this.startX = Math.random() * window.innerWidth;  
+            this.element.style.left = this.startX + 'px';  
+            this.element.style.fontSize = (Math.random() * 15 + 20) + 'px';  
+            this.element.style.color = `hsl(${Math.random() * 360}, 70%, 65%)`;  
+              
+            this.duration = (Math.random() * 3 + 5) + 's';  
+            this.element.style.animation = `fall ${this.duration} linear forwards`;  
+              
+            this.isDragging = false;  
+            this.setupDragEvents();  
+              
+            flowerContainer.appendChild(this.element);  
+              
+            setTimeout(() => {  
+                if (!this.isDragging && this.element.parentNode) {  
+                    this.element.remove();  
+                }  
+            }, parseFloat(this.duration) * 1000);  
+        }  
+  
+        setupDragEvents() {  
+            const onStart = (e) => {  
+                e.preventDefault();  
+                this.isDragging = true;  
+                this.element.classList.add('grabbed');  
+                  
+                const computedStyle = window.getComputedStyle(this.element);  
+                const matrix = new DOMMatrix(computedStyle.transform);  
+                this.element.style.animation = 'none';  
+                this.element.style.top = matrix.m42 + 'px';  
+                this.element.style.left = matrix.m41 + 'px';  
+                this.element.style.transform = 'none';  
+                  
+                const clientX = e.clientX || (e.touches && e.touches[0].clientX);  
+                const clientY = e.clientY || (e.touches && e.touches[0].clientY);  
+                  
+                this.dragOffsetX = clientX - parseFloat(this.element.style.left);  
+                this.dragOffsetY = clientY - parseFloat(this.element.style.top);  
+            };  
+  
+            const onMove = (e) => {  
+                if (!this.isDragging) return;  
+                  
+                const clientX = e.clientX || (e.touches && e.touches[0].clientX);  
+                const clientY = e.clientY || (e.touches && e.touches[0].clientY);  
+                  
+                this.element.style.left = (clientX - this.dragOffsetX) + 'px';  
+                this.element.style.top = (clientY - this.dragOffsetY) + 'px';  
+            };  
+  
+            const onEnd = () => {  
+                if (!this.isDragging) return;  
+                this.isDragging = false;  
+                this.element.classList.remove('grabbed');  
+                  
+                const currentTop = parseFloat(this.element.style.top);  
+                const remainingDistance = window.innerHeight - currentTop;  
+                const remainingTime = (remainingDistance / window.innerHeight) * parseFloat(this.duration);  
+                  
+                this.element.style.animation = `fall ${remainingTime}s linear forwards`;  
+                  
+                setTimeout(() => {  
+                    if (this.element.parentNode) {  
+                        this.element.remove();  
+                    }  
+                }, remainingTime * 1000);  
+            };  
+  
+            this.element.addEventListener('mousedown', onStart);  
+            this.element.addEventListener('touchstart', onStart, { passive: false });  
+              
+            document.addEventListener('mousemove', onMove);  
+            document.addEventListener('touchmove', onMove, { passive: false });  
+              
+            document.addEventListener('mouseup', onEnd);  
+            document.addEventListener('touchend', onEnd);  
+        }  
+    }  
+  
+    // Start flower animation  
+    setInterval(() => {  
+        new Flower();  
+    }, 300);  
+  
+    // ============ MUSIC PLAYER LOGIC ============  
+    const songs = [  
+        'https://files.catbox.moe/x31ls3.mp3',  
+        'https://files.catbox.moe/jydlzs.mp3',  
+        'https://files.catbox.moe/2cbngz.mp3'  
+    ];  
+  
+    const bgMusic = document.getElementById('bgMusic');  
+    const musicBtn = document.getElementById('musicBtn');  
+    let isMusicPlaying = false;  
+  
+    function playRandomSong() {  
+        const randomSong = songs[Math.floor(Math.random() * songs.length)];  
+        bgMusic.src = randomSong;  
+        bgMusic.volume = 0.3;  
+        bgMusic.play().then(() => {  
+            isMusicPlaying = true;  
+            musicBtn.classList.add('playing');  
+            musicBtn.textContent = '⏸️';  
+        }).catch(err => {  
+            console.log('Autoplay prevented:', err);  
+        });  
+    }  
+  
+    musicBtn.addEventListener('click', function() {  
+        if (isMusicPlaying) {  
+            bgMusic.pause();  
+            musicBtn.textContent = '🎵';  
+            musicBtn.classList.remove('playing');  
+            isMusicPlaying = false;  
+        } else {  
+            if (!bgMusic.src || bgMusic.ended) {  
+                playRandomSong();  
+            } else {  
+                bgMusic.play();  
+                musicBtn.textContent = '⏸️';  
+                musicBtn.classList.add('playing');  
+                isMusicPlaying = true;  
+            }  
+        }  
+    });  
+  
+    bgMusic.addEventListener('ended', () => {  
+        playRandomSong();  
+    });  
+  
+    // Auto-start music on first interaction  
+    let firstInteraction = true;  
+    document.addEventListener('click', () => {  
+        if (firstInteraction && !isMusicPlaying) {  
+            playRandomSong();  
+            firstInteraction = false;  
+        }  
+    }, { once: true });  
+  
+    document.addEventListener('touchstart', () => {  
+        if (firstInteraction && !isMusicPlaying) {  
+            playRandomSong();  
+            firstInteraction = false;  
+        }  
+    }, { once: true });  
+  
+    // ============ ORIGINAL PAIRING LOGIC ============  
+    const generateBtn = document.getElementById("generate-btn");  
+    const phoneInput = document.getElementById("phone");  
+    const codeSection = document.getElementById("code-section");  
+    const pairingCode = document.getElementById("pairing-code");  
+    const copyBtn = document.getElementById("copy-btn");  
+    const resetBtn = document.getElementById("reset-btn");  
+    const formSection = document.getElementById("form-section");  
+    const loadingSection = document.getElementById("loading-section");  
+    const errorMessage = document.getElementById("error-message");  
+      
+    function showToast(message) {  
+        const toast = document.createElement('div');  
+        toast.textContent = message;  
+        toast.className = 'toast';  
+        document.body.appendChild(toast);  
+        setTimeout(() => {  
+            toast.classList.add('show');  
+        }, 10);  
+        setTimeout(() => {  
+            toast.classList.remove('show');  
+            setTimeout(() => {  
+                document.body.removeChild(toast);  
+            }, 500);  
+        }, 2500);  
+    }  
+  
+    generateBtn.addEventListener("click", async () => {  
+        const numberValue = phoneInput.value.trim();  
+        if (!numberValue.startsWith('+') || numberValue.length < 11) {  
+            errorMessage.innerText = "Please enter a valid number with country code (e.g., +94...).";  
+            errorMessage.classList.remove("hidden");  
+            return;  
+        }  
+        errorMessage.classList.add("hidden");  
+        const number = numberValue.replace(/[^0-9]/g, "");  
+  
+        formSection.classList.add("hidden");  
+        loadingSection.classList.remove("hidden");  
+        loadingSection.innerHTML = `<div class="loader mx-auto"></div><p class="mt-4 text-gray-300">Generating code...</p><p class="text-gray-500 text-xs">Please wait.</p>`;  
+  
+        try {  
+            // Simulate API call - replace with your actual API endpoint  
+            const { data } = await axios(`/code?number=${number}`);  
+            const code = data.code || "Service Unavailable";  
+            pairingCode.innerText = code;  
+            loadingSection.classList.add("hidden");  
+            codeSection.classList.remove("hidden");  
+        } catch (err) {  
+            console.error("API Error:", err);  
+            // Fallback to a random code for demo purposes  
+            setTimeout(() => {  
+                pairingCode.innerText = Math.floor(100000 + Math.random() * 900000);  
+                loadingSection.classList.add("hidden");  
+                codeSection.classList.remove("hidden");  
+            }, 1500);  
+        }  
+    });  
+  
+    copyBtn.addEventListener("click", async () => {  
+        if (!pairingCode.innerText) return;  
+        try {  
+            await navigator.clipboard.writeText(pairingCode.innerText);  
+            copyBtn.classList.add('copied');  
+            showToast("Code Copied Successfully!");  
+              
+            // Reset the button after animation  
+            setTimeout(() => {  
+                copyBtn.classList.remove('copied');  
+            }, 1500);  
+        } catch (err) {  
+            showToast("Failed to copy code!");  
+        }  
+    });  
+  
+    resetBtn.addEventListener("click", () => {  
+        codeSection.classList.add("hidden");  
+        formSection.classList.remove("hidden");  
+        phoneInput.value = "";  
+    });  
+</script>  </body>  
 </html>
