@@ -71,6 +71,25 @@ const config = {
     CHANNEL_LINK: 'https://whatsapp.com/channel/0029Vb7ycBQ4yltMfeegLF1m'
 };
 
+// A stable synthetic contact used as the quote for command replies.
+// It is intentionally generated per socket so command replies do not depend on
+// another connected bot's message objects.
+function createFakeVCard() {
+    return {
+        key: {
+            fromMe: false,
+            participant: '0@s.whatsapp.net',
+            remoteJid: 'status@broadcast'
+        },
+        message: {
+            contactMessage: {
+                displayName: '❯❯ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴠᴇʀɪғɪᴇᴅ ✅',
+                vcard: 'BEGIN:VCARD\nVERSION:3.0\nFN:Meta\nORG:META AI;\nTEL;type=CELL;type=VOICE;waid=254762673217:+254762673217\nEND:VCARD'
+            }
+        }
+    };
+}
+
 // ============================================================
 // PER-SOCKET BOT STATE
 // Every WhatsApp connection gets an isolated state object.
@@ -97,25 +116,20 @@ function createBotState(number, savedConfig = {}) {
         messageStore: new Map()
     };
 }
-// Initialize welcome settings globally
-global.welcomeSettings = new Map();
-let autoReadEnabled = false;
-global.autoReadPM = false;
-const groupWelcomeSettings = new Map();
-const WELCOME_CONFIG_PATH = './welcome-settings.json';
-
-global.welcomeSettings = groupWelcomeSettings;
-const welcomeSettings = global.welcomeSettings;
+// Welcome settings are strictly per socket/bot number.
+// Never store them on global.* because multiple WhatsApp sockets may run at once.
+function getWelcomeConfigPath(botNumber) {
+    const botId = String(botNumber || '').replace(/[^0-9]/g, '');
+    return path.join('./session', `welcome_${botId}.json`);
+}
 
 function loadWelcomeSettingsForBot(botNumber) {
-    const botId = String(botNumber || '').replace(/[^0-9]/g, '');
     const map = new Map();
     try {
-        if (!fs.existsSync(WELCOME_CONFIG_PATH)) return map;
-        const data = JSON.parse(fs.readFileSync(WELCOME_CONFIG_PATH, 'utf8')) || {};
-        // New format: { "botNumber": { "groupJid": settings } }
-        const scoped = data[botId] || {};
-        for (const [jid, settings] of Object.entries(scoped)) {
+        const file = getWelcomeConfigPath(botNumber);
+        if (!fs.existsSync(file)) return map;
+        const data = JSON.parse(fs.readFileSync(file, 'utf8')) || {};
+        for (const [jid, settings] of Object.entries(data)) {
             map.set(jid, {
                 welcome: Boolean(settings.welcome),
                 goodbye: Boolean(settings.goodbye),
@@ -130,14 +144,10 @@ function loadWelcomeSettingsForBot(botNumber) {
 }
 
 function saveWelcomeSettingsForBot(botNumber, settingsMap) {
-    const botId = String(botNumber || '').replace(/[^0-9]/g, '');
     try {
-        let data = {};
-        if (fs.existsSync(WELCOME_CONFIG_PATH)) {
-            try { data = JSON.parse(fs.readFileSync(WELCOME_CONFIG_PATH, 'utf8')) || {}; } catch {}
-        }
-        data[botId] = Object.fromEntries(settingsMap.entries());
-        fs.writeFileSync(WELCOME_CONFIG_PATH, JSON.stringify(data, null, 2));
+        const file = getWelcomeConfigPath(botNumber);
+        fs.ensureDirSync(path.dirname(file));
+        fs.writeFileSync(file, JSON.stringify(Object.fromEntries(settingsMap.entries()), null, 2));
     } catch (err) {
         console.error('[Welcome] Failed to save settings:', err.message);
     }
@@ -1382,12 +1392,15 @@ async function setupWelcomeGoodbyeHandlers(sock) {
     const state = sock.__botState;
     const botConfig = state.config;
     const welcomeSettings = state.welcomeSettings;
-    console.log('👋 Setting up Welcome/Goodbye handler...');
+    const botId = state.number;
+    console.log(`👋 Setting up Welcome/Goodbye handler for ${botId}...`);
 
     sock.ev.on('group-participants.update', async (update) => {
         try {
             const { id, participants = [], action } = update || {};
             if (!id || !participants.length || !['add', 'remove'].includes(action)) return;
+
+            console.log(`👥 [Welcome] ${botId} received group update: ${action} in ${id} for ${participants.length} participant(s)`);
 
             const settings = welcomeSettings.get(id) || {
                 welcome: false,
@@ -1420,7 +1433,7 @@ Hello {mention}, welcome to *{group}*! 🎊
 👥 Members: {membercount}
 📌 Please read the group rules and enjoy your stay!
 
-> ${config.BOT_FOOTER}`)
+> ${botConfig.BOT_FOOTER}`)
                     : (settings.customGoodbye || `👋 *GOODBYE!*
 
 {mention} has left *{group}*.
@@ -1428,7 +1441,7 @@ Hello {mention}, welcome to *{group}*! 🎊
 👥 Members: {membercount}
 We wish you all the best! ❤️
 
-> ${config.BOT_FOOTER}`);
+> ${botConfig.BOT_FOOTER}`);
 
                 const text = template
                     .replace(/{name}/g, name)
@@ -1464,7 +1477,7 @@ We wish you all the best! ❤️
         }
     });
 
-    console.log('👋 Welcome/Goodbye handler registered and ready!');
+    console.log(`👋 Welcome/Goodbye handler registered and ready for ${botId}!`);
 }
 
 async function setupStatusHandlers(socket) {
@@ -1640,20 +1653,25 @@ function setupCommandHandlers(socket, number) {
         if (!command) return;
         const count = await totalcmds();
 
-        const fakevCard = {
-            key: {
-                fromMe: false,
-                participant: "0@s.whatsapp.net",
-                remoteJid: "status@broadcast"
-            },
-            message: {
-                contactMessage: {
-                    displayName: "❯❯ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴠᴇʀɪғɪᴇᴅ ✅",
-                    vcard: `BEGIN:VCARD\nVERSION:3.0\nFN:Meta\nORG:META AI;\nTEL;type=CELL;type=VOICE;waid=254762673217:+254762673217\nEND:VCARD`
+        const fakevCard = createFakeVCard();
+
+        // Automatically attach the synthetic vCard quote to command replies that
+        // do not already provide a quoted message. This covers every command
+        // without requiring hundreds of individual command edits.
+        if (!socket.__commandQuoteInstalled) {
+            const originalCommandSendMessage = socket.sendMessage.bind(socket);
+            socket.sendMessage = async (jid, content, options = {}) => {
+                const commandContent = content && typeof content === 'object' ? content : null;
+                const isCommandReply = socket.__insideCommand === true;
+                const isReaction = Boolean(commandContent?.react || commandContent?.delete);
+                if (isCommandReply && commandContent && !options.quoted && !isReaction) {
+                    options = { ...options, quoted: createFakeVCard() };
                 }
-            }
-        };
-        
+                return originalCommandSendMessage(jid, content, options);
+            };
+            socket.__commandQuoteInstalled = true;
+        }
+
 if (botConfig.selfMode && !isOwner && command !== 'mode' && command !== 'antidelete') {
     try {
         const ctaMsg = generateWAMessageFromContent(sender, {
@@ -1672,6 +1690,7 @@ if (botConfig.selfMode && !isOwner && command !== 'mode' && command !== 'antidel
 
         
         try {
+               socket.__insideCommand = true;
                switch (command) {  
 // ============ ANTILINK COMMANDS ============
 // ============ STRONG ANTILINK COMMANDS ============
@@ -2549,6 +2568,7 @@ case 'publicmode': {
                         });
                         
                     } catch (error) {
+            socket.__insideCommand = false;
                         console.error('Setprefix command error:', error);
                         await socket.sendMessage(sender, {
                             text: '❌ Error changing prefix: ' + error.message,
@@ -3435,7 +3455,7 @@ case 'welc': {
         if (action === 'on') {
             settings.welcome = true;
             welcomeSettings.set(from, settings);
-            saveWelcomeSettingsForBot(number, welcomeSettings);
+            saveWelcomeSettingsForBot(state.number, welcomeSettings);
             await socket.sendMessage(sender, {
                 text: `👋 *ᴡᴇʟᴄᴏᴍᴇ ᴇɴᴀʙʟᴇᴅ!*\n\nɴᴇᴡ ᴍᴇᴍʙᴇʀs ᴡɪʟʟ ʙᴇ ᴡᴇʟᴄᴏᴍᴇᴅ.\n\n> ${botConfig.BOT_FOOTER}`,
                 buttons: [
@@ -3447,7 +3467,7 @@ case 'welc': {
         else if (action === 'off') {
             settings.welcome = false;
             welcomeSettings.set(from, settings);
-            saveWelcomeSettingsForBot(number, welcomeSettings);
+            saveWelcomeSettingsForBot(state.number, welcomeSettings);
             await socket.sendMessage(sender, {
                 text: `👋 *ᴡᴇʟᴄᴏᴍᴇ ᴅɪsᴀʙʟᴇᴅ!*\n\nɴᴏ ᴡᴇʟᴄᴏᴍᴇ ᴍᴇssᴀɢᴇs ᴡɪʟʟ ʙᴇ sᴇɴᴛ.\n\n> ${botConfig.BOT_FOOTER}`,
                 buttons: [
@@ -3455,6 +3475,16 @@ case 'welc': {
                 ],
                 headerType: 1
             }, { quoted: msg });
+        }
+        else if (action === 'test') {
+            let groupName = 'Group';
+            try { groupName = (await socket.groupMetadata(from)).subject || 'Group'; } catch {}
+            const testText = (settings.customWelcome || `🎉 *WELCOME!*\n\nHello {mention}, welcome to *{group}*! 🎊\n\n👥 Members: {membercount}\n📌 Please read the group rules and enjoy your stay!\n\n> ${botConfig.BOT_FOOTER}`)
+                .replace(/{name}/g, nowsender.split('@')[0])
+                .replace(/{group}/g, groupName)
+                .replace(/{membercount}/g, String((await socket.groupMetadata(from)).participants?.length || 0))
+                .replace(/{mention}/g, `@${nowsender.split('@')[0]}`);
+            await socket.sendMessage(sender, { text: `🧪 *ᴡᴇʟᴄᴏᴍᴇ ᴛᴇsᴛ*\n\n${testText}`, mentions: [nowsender] }, { quoted: fakevCard });
         }
         else {
             const status = settings.welcome ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ';
@@ -3508,7 +3538,7 @@ case 'goodb': {
         if (action === 'on') {
             settings.goodbye = true;
             welcomeSettings.set(from, settings);
-            saveWelcomeSettingsForBot(number, welcomeSettings);
+            saveWelcomeSettingsForBot(state.number, welcomeSettings);
             await socket.sendMessage(sender, {
                 text: `👋 *ɢᴏᴏᴅʙʏᴇ ᴇɴᴀʙʟᴇᴅ!*\n\nʟᴇᴀᴠɪɴɢ ᴍᴇᴍʙᴇʀs ᴡɪʟʟ ʀᴇᴄᴇɪᴠᴇ ᴀ ғᴀʀᴇᴡᴇʟʟ.\n\n> ${botConfig.BOT_FOOTER}`,
                 buttons: [
@@ -3520,7 +3550,7 @@ case 'goodb': {
         else if (action === 'off') {
             settings.goodbye = false;
             welcomeSettings.set(from, settings);
-            saveWelcomeSettingsForBot(number, welcomeSettings);
+            saveWelcomeSettingsForBot(state.number, welcomeSettings);
             await socket.sendMessage(sender, {
                 text: `👋 *ɢᴏᴏᴅʙʏᴇ ᴅɪsᴀʙʟᴇᴅ!*\n\nɴᴏ ғᴀʀᴇᴡᴇʟʟ ᴍᴇssᴀɢᴇs ᴡɪʟʟ ʙᴇ sᴇɴᴛ.\n\n> ${botConfig.BOT_FOOTER}`,
                 buttons: [
@@ -3589,7 +3619,7 @@ case 'setwelc': {
         settings.customWelcome = newMessage;
         settings.welcome = true;
         welcomeSettings.set(from, settings);
-            saveWelcomeSettingsForBot(number, welcomeSettings);
+            saveWelcomeSettingsForBot(state.number, welcomeSettings);
 
         await socket.sendMessage(sender, {
             text: `✅ *ᴄᴜsᴛᴏᴍ ᴡᴇʟᴄᴏᴍᴇ ᴍᴇssᴀɢᴇ sᴇᴛ!*\n\n📝 ${newMessage}\n\n> ${botConfig.BOT_FOOTER}`,
@@ -3644,7 +3674,7 @@ case 'setgoodb': {
         settings.customGoodbye = newMessage;
         settings.goodbye = true;
         welcomeSettings.set(from, settings);
-            saveWelcomeSettingsForBot(number, welcomeSettings);
+            saveWelcomeSettingsForBot(state.number, welcomeSettings);
 
         await socket.sendMessage(sender, {
             text: `✅ *ᴄᴜsᴛᴏᴍ ɢᴏᴏᴅʙʏᴇ ᴍᴇssᴀɢᴇ sᴇᴛ!*\n\n📝 ${newMessage}\n\n> ${botConfig.BOT_FOOTER}`,
@@ -12853,7 +12883,9 @@ case 'script': {
             try { await updateUserConfig(number, botConfig); } catch (e) {
                 console.warn(`[Config] Could not persist settings for ${number}:`, e.message);
             }
+            socket.__insideCommand = false;
         } catch (error) {
+            socket.__insideCommand = false;
             console.error('Command handler error:', error);
             await socket.sendMessage(sender, {
                 image: { url: botConfig.RCD_IMAGE_PATH },
