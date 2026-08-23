@@ -29,6 +29,7 @@ const {
     getContentType,
     makeCacheableSignalKeyStore,
     Browsers,
+    fetchLatestWaWebVersion,
     jidNormalizedUser,
     downloadContentFromMessage,
     proto,
@@ -12966,15 +12967,38 @@ async function EmpirePair(number, res) {
             return sock;
         };
 
-        const socket = makeWASocket({
+        // Use a current WhatsApp Web version and a canonical Windows browser
+        // identity. WhatsApp's pairing-code endpoint is stricter than normal
+        // registration and can reject non-canonical browser labels.
+        let waWebVersion;
+        try {
+            const latestWaWeb = await fetchLatestWaWebVersion({});
+            waWebVersion = latestWaWeb?.version;
+            if (Array.isArray(waWebVersion)) {
+                console.log('[Pairing] WhatsApp Web version:', waWebVersion.join('.'));
+            }
+        } catch (versionError) {
+            console.warn('[Pairing] Could not fetch latest WhatsApp Web version:', versionError.message);
+        }
+
+        const socketOptions = {
             auth: {
                 creds: state.creds,
                 keys: makeCacheableSignalKeyStore(state.keys, logger),
             },
             printQRInTerminal: false,
             logger,
-            browser: Browsers.windows('Microsoft')
-        });
+            // Keep the requested Microsoft/Windows identity, but use the
+            // canonical Edge label understood by Baileys/WhatsApp.
+            browser: Browsers.windows('Edge'),
+            connectTimeoutMs: 60_000,
+        };
+
+        if (Array.isArray(waWebVersion) && waWebVersion.length === 3) {
+            socketOptions.version = waWebVersion;
+        }
+
+        const socket = makeWASocket(socketOptions);
 
         socket.__botState = botState;
         socket.__botConfig = botConfig;
@@ -12996,17 +13020,27 @@ async function EmpirePair(number, res) {
             let code;
             while (retries > 0) {
                 try {
-                    await delay(1500);
+                    // Give the WebSocket/companion handshake a moment to settle
+                    // before asking WhatsApp for a pairing code.
+                    await delay(2500);
                     code = await socket.requestPairingCode(sanitizedNumber);
+                    if (!code) throw new Error('WhatsApp returned an empty pairing code');
+                    console.log('[Pairing] Pairing code generated successfully');
                     break;
                 } catch (error) {
                     retries--;
-                    console.warn(`Failed to request pairing code: ${retries}, error.message`, retries);
-                    await delay(2000 * (botConfig.MAX_RETRIES - retries));
+                    console.warn(`[Pairing] Failed to request pairing code (${retries} retries left):`, error.message);
+                    if (retries > 0) await delay(2500);
                 }
             }
             if (!res.headersSent) {
-                res.send({ code });
+                if (code) {
+                    res.send({ code });
+                } else {
+                    res.status(503).send({
+                        error: 'Unable to generate a valid WhatsApp pairing code. Please try again.'
+                    });
+                }
             }
         }
 
