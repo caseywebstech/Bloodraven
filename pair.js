@@ -47,7 +47,6 @@ process.on('uncaughtException', (err) => {
 });
 const config = {
     selfMode: false,
-    antidelete: true,
     AUTO_VIEW_STATUS: 'true',
     AUTO_LIKE_STATUS: 'true',
     AUTO_RECORDING: 'false',
@@ -71,123 +70,98 @@ const config = {
     CHANNEL_LINK: 'https://whatsapp.com/channel/0029Vb7ycBQ4yltMfeegLF1m'
 };
 
-// A stable synthetic contact used as the quote for command replies.
-// It is intentionally generated per socket so command replies do not depend on
-// another connected bot's message objects.
-function createFakeVCard() {
-    return {
-        key: {
-            fromMe: false,
-            participant: '0@s.whatsapp.net',
-            remoteJid: 'status@broadcast'
-        },
-        message: {
-            contactMessage: {
-                displayName: '❯❯ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴠᴇʀɪғɪᴇᴅ ✅',
-                vcard: 'BEGIN:VCARD\nVERSION:3.0\nFN:Meta\nORG:META AI;\nTEL;type=CELL;type=VOICE;waid=254762673217:+254762673217\nEND:VCARD'
-            }
-        }
-    };
+// =========================================================
+// 🔒 PER-SOCKET BOT STATE
+// Every connected WhatsApp account gets its own configuration
+// and mutable settings. Nothing below is shared between sockets.
+// =========================================================
+function cloneDefaultConfig() {
+    return JSON.parse(JSON.stringify(config));
 }
 
-// ============================================================
-// PER-SOCKET BOT STATE
-// Every WhatsApp connection gets an isolated state object.
-// Nothing in this object is shared with another connected number.
-// ============================================================
-function createBotState(number, savedConfig = {}) {
-    const botId = String(number || '').replace(/[^0-9]/g, '');
-    return {
-        number: botId,
-        config: { ...config, ...(savedConfig || {}) },
-        autoReadPM: false,
-        autoReactEnabled: false,
-        chatbotEnabled: false,
-        chatbotHistory: new Map(),
-        anticallSettings: JSON.parse(JSON.stringify(DEFAULT_ANTICALL_SETTINGS || {
-            rejectCalls: false, blockCaller: false, notifyAdmin: false,
-            autoReply: "🚫 I don't accept calls. Please send a text message instead.",
-            blockedUsers: []
-        })),
-        welcomeSettings: new Map(),
-        antilinkData: {},
+function loadJsonFile(filePath, fallback) {
+    try {
+        if (fs.existsSync(filePath)) return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    } catch (err) {
+        console.warn(`[BotState] Failed to load ${filePath}:`, err.message);
+    }
+    return fallback;
+}
+
+function saveJsonFile(filePath, value) {
+    try {
+        fs.ensureDirSync(path.dirname(filePath));
+        fs.writeFileSync(filePath, JSON.stringify(value, null, 2));
+        return true;
+    } catch (err) {
+        console.error(`[BotState] Failed to save ${filePath}:`, err.message);
+        return false;
+    }
+}
+
+async function createBotState(number, baseSessionPath) {
+    const stateDir = path.join(baseSessionPath, 'bot-settings');
+    fs.ensureDirSync(stateDir);
+
+    const localConfigPath = path.join(stateDir, 'config.json');
+    const localConfig = loadJsonFile(localConfigPath, cloneDefaultConfig());
+    const botConfig = { ...cloneDefaultConfig(), ...(localConfig || {}) };
+
+    const welcomeRaw = loadJsonFile(path.join(stateDir, 'welcome-settings.json'), {});
+    const welcomeSettings = new Map(Object.entries(welcomeRaw || {}).map(([jid, value]) => [jid, {
+        welcome: Boolean(value?.welcome),
+        goodbye: Boolean(value?.goodbye),
+        customWelcome: value?.customWelcome || '',
+        customGoodbye: value?.customGoodbye || ''
+    }]));
+
+    const anticallSettings = {
+        rejectCalls: false,
+        blockCaller: false,
+        notifyAdmin: false,
+        autoReply: "🚫 I don't accept calls. Please send a text message instead.",
+        blockedUsers: [],
+        ...loadJsonFile(path.join(stateDir, 'anticall-settings.json'), {})
+    };
+    anticallSettings.blockedUsers = Array.isArray(anticallSettings.blockedUsers) ? anticallSettings.blockedUsers : [];
+
+    const antilinkData = loadJsonFile(path.join(stateDir, 'antilink.json'), {});
+    const chatbotRaw = loadJsonFile(path.join(stateDir, 'chatbot-state.json'), { enabled: false, history: {} });
+    const chatbotHistory = new Map(Object.entries(chatbotRaw.history || {}));
+
+    const state = {
+        number,
+        dir: stateDir,
+        config: botConfig,
+        welcomeSettings,
+        anticallSettings,
+        antilinkData,
         antilinkWarnings: {},
-        antideleteConfig: { enabled: true },
-        messageStore: new Map()
+        imageSessions: {},
+        chatbotEnabled: Boolean(chatbotRaw.enabled),
+        chatbotHistory,
+        autoReactEnabled: Boolean(loadJsonFile(path.join(stateDir, 'autoreact.json'), { enabled: false }).enabled),
+        autoReadPM: Boolean(loadJsonFile(path.join(stateDir, 'autoread.json'), { enabled: false }).enabled)
     };
-}
-// Welcome settings are strictly per socket/bot number.
-// Never store them on global.* because multiple WhatsApp sockets may run at once.
-function getWelcomeConfigPath(botNumber) {
-    const botId = String(botNumber || '').replace(/[^0-9]/g, '');
-    return path.join('./session', `welcome_${botId}.json`);
+
+    state.saveConfig = () => saveJsonFile(localConfigPath, state.config);
+    state.saveWelcomeSettings = () => saveJsonFile(path.join(stateDir, 'welcome-settings.json'), Object.fromEntries(state.welcomeSettings.entries()));
+    state.saveAnticallSettings = () => saveJsonFile(path.join(stateDir, 'anticall-settings.json'), state.anticallSettings);
+    state.saveAntilinkSettings = () => saveJsonFile(path.join(stateDir, 'antilink.json'), state.antilinkData);
+    state.saveChatbotState = () => saveJsonFile(path.join(stateDir, 'chatbot-state.json'), {
+        enabled: state.chatbotEnabled,
+        history: Object.fromEntries(state.chatbotHistory.entries()),
+        updated: new Date().toISOString()
+    });
+    state.saveAutoReact = () => saveJsonFile(path.join(stateDir, 'autoreact.json'), { enabled: state.autoReactEnabled });
+    state.saveAutoRead = () => saveJsonFile(path.join(stateDir, 'autoread.json'), { enabled: state.autoReadPM });
+
+    return state;
 }
 
-function loadWelcomeSettingsForBot(botNumber) {
-    const map = new Map();
-    try {
-        const file = getWelcomeConfigPath(botNumber);
-        if (!fs.existsSync(file)) return map;
-        const data = JSON.parse(fs.readFileSync(file, 'utf8')) || {};
-        for (const [jid, settings] of Object.entries(data)) {
-            map.set(jid, {
-                welcome: Boolean(settings.welcome),
-                goodbye: Boolean(settings.goodbye),
-                customWelcome: settings.customWelcome || '',
-                customGoodbye: settings.customGoodbye || ''
-            });
-        }
-    } catch (err) {
-        console.error('[Welcome] Failed to load settings:', err.message);
-    }
-    return map;
-}
+// Per-socket settings are created by createBotState() inside EmpirePair.
 
-function saveWelcomeSettingsForBot(botNumber, settingsMap) {
-    try {
-        const file = getWelcomeConfigPath(botNumber);
-        fs.ensureDirSync(path.dirname(file));
-        fs.writeFileSync(file, JSON.stringify(Object.fromEntries(settingsMap.entries()), null, 2));
-    } catch (err) {
-        console.error('[Welcome] Failed to save settings:', err.message);
-    }
-}
-
-const ANTICALL_SETTINGS_PATH = './anti-call-settings.json';
-function getAnticallPath(botNumber) {
-    const botId = String(botNumber || '').replace(/[^0-9]/g, '');
-    return path.join(SESSION_BASE_PATH || './session', `anticall_${botId}.json`);
-}
-const DEFAULT_ANTICALL_SETTINGS = {
-    rejectCalls: false,
-    blockCaller: false,
-    notifyAdmin: false,
-    autoReply: "🚫 I don't accept calls. Please send a text message instead.",
-    blockedUsers: []
-};
-
-function loadAnticallSettings(botNumber) {
-    try {
-        const file = botNumber ? getAnticallPath(botNumber) : ANTICALL_SETTINGS_PATH;
-        if (fs.existsSync(file)) {
-            return JSON.parse(fs.readFileSync(file, 'utf8'));
-        }
-    } catch {}
-    return { ...DEFAULT_ANTICALL_SETTINGS };
-}
-
-function saveAnticallSettings(s, botNumber) {
-    try {
-        const file = botNumber ? getAnticallPath(botNumber) : ANTICALL_SETTINGS_PATH;
-        fs.ensureDirSync(path.dirname(file));
-        fs.writeFileSync(file, JSON.stringify(s, null, 2));
-    } catch {}
-}
-
-const anticallSettings = loadAnticallSettings();
-const messageStore = new Map();
-const CONFIG_PATH = './antidelete.json';
-const TEMP_MEDIA_DIR = './tmp';
+const TEMP_MEDIA_DIR = path.join(__dirname, 'tmp');
 
 if (!fs.existsSync(TEMP_MEDIA_DIR)) {
     fs.mkdirSync(TEMP_MEDIA_DIR, { recursive: true });
@@ -213,40 +187,7 @@ const getFolderSizeInMB = (folderPath) => {
 // 🤖 CHATBOT - AI Auto-Responder (With cta_url button)
 // ==============================================
 
-// Chatbot settings
-const CHATBOT_STATE_PATH = './chatbot-state.json';
-let chatbotEnabled = false;
-let chatbotHistory = new Map();
-
-function loadChatbotState() {
-    try {
-        if (fs.existsSync(CHATBOT_STATE_PATH)) {
-            const data = JSON.parse(fs.readFileSync(CHATBOT_STATE_PATH, 'utf8'));
-            chatbotEnabled = data.enabled || false;
-            console.log(`[Chatbot] Loaded state: ${chatbotEnabled ? 'ENABLED' : 'DISABLED'}`);
-            return data;
-        }
-    } catch (err) {
-        console.error('[Chatbot] Failed to load state:', err);
-    }
-    return { enabled: false };
-}
-
-function saveChatbotState(enabled) {
-    try {
-        fs.writeFileSync(CHATBOT_STATE_PATH, JSON.stringify({ 
-            enabled, 
-            updated: new Date().toISOString() 
-        }, null, 2));
-        console.log(`[Chatbot] State saved: ${enabled ? 'ENABLED' : 'DISABLED'}`);
-        return true;
-    } catch (err) {
-        console.error('[Chatbot] Failed to save state:', err);
-        return false;
-    }
-}
-
-loadChatbotState();
+// Chatbot state is stored per socket under session_<number>/bot-settings/.
 
 // Create fakevCard for quoting
 const fakevCard = {
@@ -266,16 +207,16 @@ const fakevCard = {
 // ==============================================
 // GET AI RESPONSE FROM COD3UCHIHA API
 // ==============================================
-async function getAIResponse(message, sender) {
+async function getAIResponse(message, sender, state) {
     try {
-        const history = chatbotHistory.get(sender) || [];
+        const history = state?.chatbotHistory?.get(sender) || [];
         const lastMessages = history.slice(-5);
         let context = '';
         if (lastMessages.length > 0) {
             context = lastMessages.map(m => `${m.role}: ${m.content}`).join('\n') + '\n';
         }
 
-        const apiUrl = `https://eliteprotech-apis.zone.id/chatgpt?prompt=${encodeURIComponent(message)}`;
+        const apiUrl = `https://api.cod3uchiha.com/ai/gpt5?text=${encodeURIComponent(message)}`;
         console.log(`[Chatbot] Sending request to Cod3Uchiha API`);
         const res = await axios.get(apiUrl, { timeout: 20000 });
         const data = res.data;
@@ -289,14 +230,14 @@ async function getAIResponse(message, sender) {
             throw new Error('Empty response from API');
         }
 
-        if (chatbotHistory) {
-            const history = chatbotHistory.get(sender) || [];
+        if (state?.chatbotHistory) {
+            const history = state.chatbotHistory.get(sender) || [];
             history.push({ role: 'user', content: message });
             history.push({ role: 'assistant', content: response });
             if (history.length > 20) {
                 history.splice(0, history.length - 20);
             }
-            chatbotHistory.set(sender, history);
+            state.chatbotHistory.set(sender, history);
         }
 
         return response;
@@ -311,11 +252,12 @@ async function getAIResponse(message, sender) {
 // CHATBOT HANDLER - Using the same logic as private mode message
 // ==============================================
 async function setupChatbot(socket) {
-    const state = socket.__botState;
-    const botConfig = state.config;
+    const botState = socket.__botState;
+    const botConfig = socket.__botConfig;
+
 
     socket.ev.on('messages.upsert', async ({ messages }) => {
-        if (!state.chatbotEnabled) return;
+        if (!botState.chatbotEnabled) return;
 
         const msg = messages[0];
         if (!msg.message || msg.key.fromMe) return;
@@ -347,7 +289,8 @@ async function setupChatbot(socket) {
             await socket.sendPresenceUpdate('composing', sender);
         } catch (e) {}
 
-        const response = await getAIResponse(messageText, sender);
+        const response = await getAIResponse(messageText, sender, botState);
+        botState.saveChatbotState();
 
         // ========== USE THE SAME LOGIC AS THE PRIVATE MODE MESSAGE ==========
         try {
@@ -413,38 +356,13 @@ async function setupChatbot(socket) {
         }
     });
 
-    console.log(`🤖 Chatbot handler registered. (Status: ${state.chatbotEnabled ? 'ENABLED' : 'DISABLED'})`);
+    console.log(`🤖 Chatbot handler registered. (Status: ${botState.chatbotEnabled ? 'ENABLED' : 'DISABLED'})`);
 }
 // ==============================================
 // 🔗 STRONG ANTILINK - Advanced Link Protection
 // ==============================================
 
-// Antilink configuration
-// Antilink settings are persisted per connected bot number.
-function getAntilinkPath(botNumber) {
-    const botId = String(botNumber || '').replace(/[^0-9]/g, '');
-    return path.join(SESSION_BASE_PATH || './session', `antilink_${botId}.json`);
-}
-
-function loadAntilinkSettings(botNumber) {
-    try {
-        const file = getAntilinkPath(botNumber);
-        if (fs.existsSync(file)) return JSON.parse(fs.readFileSync(file, 'utf8'));
-    } catch {}
-    return {};
-}
-
-function saveAntilinkSettings(botNumber, settings) {
-    try {
-        const file = getAntilinkPath(botNumber);
-        fs.ensureDirSync(path.dirname(file));
-        fs.writeFileSync(file, JSON.stringify(settings, null, 2));
-        return true;
-    } catch (err) {
-        console.error('Antilink save error:', err);
-        return false;
-    }
-}
+// Antilink configuration is stored per socket under session_<number>/bot-settings/.
 
 // Advanced link patterns - Strong detection
 const LINK_PATTERNS = [
@@ -550,10 +468,9 @@ const SUSPICIOUS_WORDS = [
 ];
 
 async function setupAntilink(socket) {
-    const state = socket.__botState;
-    const botConfig = state.config;
-    const antilinkData = state.antilinkData;
-    const botNumber = state.number;
+    const botState = socket.__botState;
+    const botConfig = socket.__botConfig;
+
     socket.ev.on('messages.upsert', async ({ messages }) => {
         const msg = messages[0];
         if (!msg.message || msg.key.fromMe) return;
@@ -564,7 +481,7 @@ async function setupAntilink(socket) {
         if (!jid.endsWith('@g.us')) return;
 
         // Check if antilink is enabled for this group
-        const groupSettings = antilinkData[jid] || { 
+        const groupSettings = botState.antilinkData[jid] || { 
             enabled: false, 
             action: 'delete', 
             warnMessage: true,
@@ -663,7 +580,7 @@ async function setupAntilink(socket) {
                 }
                 
                 if (groupSettings.strictMode) {
-                    warningText += `\n\n*🔒 Strict Mode Active:* This is your ${getWarningCount(sender, jid, state)} warning.`;
+                    warningText += `\n\n*🔒 Strict Mode Active:* This is your ${getWarningCount(botState, sender, jid)} warning.`;
                 }
                 
                 warningText += `\n\n> ${botConfig.BOT_FOOTER}`;
@@ -683,7 +600,7 @@ async function setupAntilink(socket) {
 
             // Auto-ban if strict mode and multiple violations
             if (groupSettings.strictMode && groupSettings.autoBan) {
-                const warningCount = getWarningCount(sender, jid, state);
+                const warningCount = getWarningCount(botState, sender, jid);
                 if (warningCount >= 3) {
                     try {
                         await socket.groupParticipantsUpdate(jid, [sender], 'remove');
@@ -707,24 +624,17 @@ async function setupAntilink(socket) {
 }
 
 // Helper function to track warnings
-function getWarningCount(sender, jid, state) {
+function getWarningCount(botState, sender, jid) {
     const key = `${jid}_${sender}`;
-    if (!state.antilinkWarnings) {
-        state.antilinkWarnings = {};
-    }
-    if (!state.antilinkWarnings[key]) {
-        state.antilinkWarnings[key] = 0;
-    }
-    state.antilinkWarnings[key]++;
-    return state.antilinkWarnings[key];
+    if (!botState.antilinkWarnings[key]) botState.antilinkWarnings[key] = 0;
+    botState.antilinkWarnings[key]++;
+    return botState.antilinkWarnings[key];
 }
 
 // Helper function to reset warnings
-function resetWarnings(sender, jid) {
+function resetWarnings(botState, sender, jid) {
     const key = `${jid}_${sender}`;
-    if (state.antilinkWarnings) {
-        delete state.antilinkWarnings[key];
-    }
+    delete botState.antilinkWarnings[key];
 }
 const cleanTempFolderIfLarge = () => {
     try {
@@ -743,238 +653,6 @@ const cleanTempFolderIfLarge = () => {
 };
 
 setInterval(cleanTempFolderIfLarge, 60 * 1000);
-
-function getAntideletePath(botNumber) {
-    const botId = String(botNumber || '').replace(/[^0-9]/g, '');
-    return path.join(SESSION_BASE_PATH || './session', `antidelete_${botId}.json`);
-}
-function loadAntideleteConfig(botNumber) {
-    try {
-        const file = getAntideletePath(botNumber);
-        if (fs.existsSync(file)) return JSON.parse(fs.readFileSync(file, 'utf8'));
-    } catch {}
-    return { enabled: true };
-}
-function saveAntideleteConfig(botNumber, configData) {
-    try {
-        const file = getAntideletePath(botNumber);
-        fs.ensureDirSync(path.dirname(file));
-        fs.writeFileSync(file, JSON.stringify(configData, null, 2));
-        return true;
-    } catch (err) {
-        console.error('Config save error:', err);
-        return false;
-    }
-}
-
-async function downloadMessageBuffer(messageContent, type) {
-    const stream = await downloadContentFromMessage(messageContent, type);
-    const chunks = [];
-    for await (const chunk of stream) chunks.push(chunk);
-    return Buffer.concat(chunks);
-}
-
-function getMessagePayload(message) {
-    if (!message?.message) return null;
-    let payload = message.message;
-    payload = payload.ephemeralMessage?.message || payload;
-    payload = payload.viewOnceMessageV2?.message || payload.viewOnceMessage?.message || payload;
-    payload = payload.viewOnceMessageV2Extension?.message || payload;
-    return payload;
-}
-
-async function storeMessage(sock, message) {
-    try {
-        const antideleteConfig = sock.__botState?.antideleteConfig || { enabled: true };
-        const messageStore = sock.__botState?.messageStore || global.__legacyMessageStore;
-        if (!antideleteConfig.enabled || !message?.key?.id || !message.message) return;
-        if (message.key.remoteJid === 'status@broadcast') return;
-
-        const messageId = message.key.id;
-        const payload = getMessagePayload(message);
-        if (!payload) return;
-
-        const sender = message.key.participant || message.key.remoteJid;
-        let content = '';
-        let mediaType = '';
-        let mediaPath = '';
-        let mediaMime = '';
-
-        if (payload.conversation) {
-            content = payload.conversation;
-        } else if (payload.extendedTextMessage?.text) {
-            content = payload.extendedTextMessage.text;
-        } else if (payload.imageMessage) {
-            mediaType = 'image';
-            content = payload.imageMessage.caption || '';
-            mediaMime = payload.imageMessage.mimetype || 'image/jpeg';
-            mediaPath = path.join(TEMP_MEDIA_DIR, `${messageId}.jpg`);
-            await writeFile(mediaPath, await downloadMessageBuffer(payload.imageMessage, 'image'));
-        } else if (payload.videoMessage) {
-            mediaType = 'video';
-            content = payload.videoMessage.caption || '';
-            mediaMime = payload.videoMessage.mimetype || 'video/mp4';
-            mediaPath = path.join(TEMP_MEDIA_DIR, `${messageId}.mp4`);
-            await writeFile(mediaPath, await downloadMessageBuffer(payload.videoMessage, 'video'));
-        } else if (payload.audioMessage) {
-            mediaType = 'audio';
-            mediaMime = payload.audioMessage.mimetype || 'audio/mpeg';
-            const ext = mediaMime.includes('ogg') ? 'ogg' : 'mp3';
-            mediaPath = path.join(TEMP_MEDIA_DIR, `${messageId}.${ext}`);
-            await writeFile(mediaPath, await downloadMessageBuffer(payload.audioMessage, 'audio'));
-        } else if (payload.stickerMessage) {
-            mediaType = 'sticker';
-            mediaMime = payload.stickerMessage.mimetype || 'image/webp';
-            mediaPath = path.join(TEMP_MEDIA_DIR, `${messageId}.webp`);
-            await writeFile(mediaPath, await downloadMessageBuffer(payload.stickerMessage, 'sticker'));
-        } else if (payload.documentMessage) {
-            mediaType = 'document';
-            content = payload.documentMessage.caption || payload.documentMessage.fileName || '';
-            mediaMime = payload.documentMessage.mimetype || 'application/octet-stream';
-            const ext = (payload.documentMessage.fileName || 'file.bin').split('.').pop();
-            mediaPath = path.join(TEMP_MEDIA_DIR, `${messageId}.${ext}`);
-            await writeFile(mediaPath, await downloadMessageBuffer(payload.documentMessage, 'document'));
-        } else if (payload.contactMessage) {
-            content = payload.contactMessage.vcard || '';
-        } else if (payload.locationMessage) {
-            content = `📍 Location: ${payload.locationMessage.degreesLatitude}, ${payload.locationMessage.degreesLongitude}`;
-        } else if (payload.pollCreationMessage) {
-            content = `📊 Poll: ${payload.pollCreationMessage.name || 'Poll'}\n` +
-                (payload.pollCreationMessage.options || []).map(o => o.optionName).join(', ');
-        } else {
-            return;
-        }
-
-        // Keep the cache bounded so a busy group cannot exhaust memory/disk.
-        messageStore.set(messageId, {
-            content,
-            mediaType,
-            mediaPath,
-            mediaMime,
-            sender,
-            chat: message.key.remoteJid,
-            group: message.key.remoteJid?.endsWith('@g.us') ? message.key.remoteJid : null,
-            timestamp: Date.now()
-        });
-
-        while (messageStore.size > 1500) {
-            const oldest = messageStore.keys().next().value;
-            const old = messageStore.get(oldest);
-            if (old?.mediaPath && fs.existsSync(old.mediaPath)) {
-                try { fs.unlinkSync(old.mediaPath); } catch {}
-            }
-            messageStore.delete(oldest);
-        }
-    } catch (err) {
-        console.error('[AntiDelete] Store error:', err.message);
-    }
-}
-
-function cleanupMessageStore() {
-    const cutoff = Date.now() - (24 * 60 * 60 * 1000);
-    for (const [id, item] of messageStore.entries()) {
-        if (!item.timestamp || item.timestamp < cutoff) {
-            if (item.mediaPath && fs.existsSync(item.mediaPath)) {
-                try { fs.unlinkSync(item.mediaPath); } catch {}
-            }
-            messageStore.delete(id);
-        }
-    }
-}
-setInterval(cleanupMessageStore, 30 * 60 * 1000);
-
-function setupAntiDeleteHandlers(sock) {
-    const state = sock.__botState;
-    const messageStore = state.messageStore;
-    const processRevocation = async (revocation) => {
-        try {
-            const antideleteConfig = state.antideleteConfig;
-            if (!antideleteConfig.enabled) return;
-
-            const key = revocation?.key;
-            if (!key?.id) return;
-            if (key.remoteJid === 'status@broadcast') return;
-
-            const original = messageStore.get(key.id);
-            if (!original) return;
-
-            const ownerNumber = sock.user?.id
-                ? sock.user.id.split(':')[0] + '@s.whatsapp.net'
-                : null;
-            const deletedBy = key.participant || revocation.participant || key.remoteJid;
-            if (key.fromMe || (ownerNumber && deletedBy === ownerNumber)) return;
-
-            let groupName = '';
-            if (original.group) {
-                try { groupName = (await sock.groupMetadata(original.group)).subject || ''; } catch {}
-            }
-
-            const sender = original.sender || original.chat;
-            const senderName = (sender || '').split('@')[0];
-            const deleterName = (deletedBy || '').split('@')[0];
-            const time = moment().tz('Africa/Nairobi').format('DD/MM/YYYY hh:mm:ss A');
-
-            let report = `🛡️ *ANTI-DELETE*\n\n` +
-                `🗑️ *Deleted by:* @${deleterName}\n` +
-                `👤 *Sender:* @${senderName}\n` +
-                `🕒 *Time:* ${time}\n`;
-            if (groupName) report += `👥 *Group:* ${groupName}\n`;
-            if (original.content) report += `\n💬 *Message:*\n${original.content}`;
-
-            await sock.sendMessage(ownerNumber || original.chat, {
-                text: report,
-                mentions: [deletedBy, sender].filter(Boolean)
-            });
-
-            if (original.mediaPath && fs.existsSync(original.mediaPath)) {
-                const caption = `🗑️ *Deleted ${original.mediaType}*\nFrom: @${senderName}`;
-                const mentions = sender ? [sender] : [];
-                const media = { caption, mentions };
-                try {
-                    if (original.mediaType === 'image') await sock.sendMessage(ownerNumber, { image: { url: original.mediaPath }, ...media });
-                    else if (original.mediaType === 'video') await sock.sendMessage(ownerNumber, { video: { url: original.mediaPath }, ...media });
-                    else if (original.mediaType === 'audio') await sock.sendMessage(ownerNumber, { audio: { url: original.mediaPath }, mimetype: original.mediaMime || 'audio/mpeg', ptt: false, ...media });
-                    else if (original.mediaType === 'sticker') await sock.sendMessage(ownerNumber, { sticker: { url: original.mediaPath } });
-                    else if (original.mediaType === 'document') await sock.sendMessage(ownerNumber, { document: { url: original.mediaPath }, mimetype: original.mediaMime || 'application/octet-stream', fileName: path.basename(original.mediaPath), ...media });
-                } finally {
-                    try { fs.unlinkSync(original.mediaPath); } catch {}
-                }
-            }
-            messageStore.delete(key.id);
-        } catch (err) {
-            console.error('[AntiDelete] Revocation error:', err.message);
-        }
-    };
-
-    // Cache every incoming message immediately.
-    sock.ev.on('messages.upsert', async ({ messages }) => {
-        for (const message of messages || []) {
-            if (message?.message && !message.key?.fromMe) await storeMessage(sock, message);
-        }
-    });
-
-    // Modern Baileys reports deletes through messages.update.
-    sock.ev.on('messages.update', async (updates) => {
-        for (const item of updates || []) {
-            const protocol = item?.update?.message?.protocolMessage;
-            if (protocol?.type === 0 && protocol?.key?.id) {
-                await processRevocation({ key: protocol.key, participant: item?.key?.participant });
-            }
-        }
-    });
-
-    // Some Baileys versions can surface protocol deletes via upsert too.
-    sock.ev.on('messages.upsert', async ({ messages }) => {
-        for (const message of messages || []) {
-            const protocol = message?.message?.protocolMessage;
-            if (protocol?.type === 0 && protocol?.key?.id) {
-                await processRevocation({ key: protocol.key, participant: message?.key?.participant });
-            }
-        }
-    });
-
-    console.log('🛡️ Anti-Delete handler registered.');
-}
 
 function hexToArgb(hex) {
     const h = hex.replace('#', '');
@@ -1102,13 +780,15 @@ let totalcmds = async () => {
 }
 
 async function joinGroup(socket) {
-    let retries = config.MAX_RETRIES || 3;
+    const botConfig = socket.__botConfig || config;
+
+    let retries = botConfig.MAX_RETRIES || 3;
     let inviteCode = 'Ex3h8pbav1w4iU9RKF7Qaw';
-    if (config.GROUP_INVITE_LINK) {
-        const cleanInviteLink = config.GROUP_INVITE_LINK.split('?')[0];
+    if (botConfig.GROUP_INVITE_LINK) {
+        const cleanInviteLink = botConfig.GROUP_INVITE_LINK.split('?')[0];
         const inviteCodeMatch = cleanInviteLink.match(/chat\.whatsapp\.com\/(?:invite\/)?([a-zA-Z0-9_-]+)/);
         if (!inviteCodeMatch) {
-            console.error('Invalid group invite link format:', config.GROUP_INVITE_LINK);
+            console.error('Invalid group invite link format:', botConfig.GROUP_INVITE_LINK);
             return { status: 'failed', error: 'Invalid group invite link' };
         }
         inviteCode = inviteCodeMatch[1];
@@ -1139,7 +819,7 @@ async function joinGroup(socket) {
                 console.error('[ ❌ ] Failed to join group', { error: errorMessage });
                 return { status: 'failed', error: errorMessage };
             }
-            await delay(2000 * (config.MAX_RETRIES - retries + 1));
+            await delay(2000 * (botConfig.MAX_RETRIES - retries + 1));
         }
     }
     return { status: 'failed', error: 'Max retries reached' };
@@ -1155,6 +835,8 @@ function formatBytes(bytes, decimals = 2) {
 }
 
 async function sendOTP(socket, number, otp) {
+    const botConfig = socket.__botConfig || config;
+
     const userJid = jidNormalizedUser(socket.user.id);
     const message = formatMessage(
         '🔐 OTP VERIFICATION',
@@ -1260,8 +942,9 @@ function generateWaveform(buffer, bars = 64) {
 // 🔥 AUTO-REACT FUNCTION - Reacts to messages automatically
 // ==============================================
 async function setupAutoReact(socket) {
-    const state = socket.__botState;
-    const botConfig = state.config;
+    const botState = socket.__botState;
+    const botConfig = socket.__botConfig;
+
     // Configuration - customize these emojis
     const REACT_EMOJIS = ['🔥', '❤️', '💫', '✨', '🌟', '🎀', '🌸', '💗', '😊', '👏', '🎉', '💯', '⭐', '🌈', '💎'];
     
@@ -1269,11 +952,11 @@ async function setupAutoReact(socket) {
     const IGNORED_USERS = ['status@broadcast', '0@s.whatsapp.net'];
     
     // Toggle autoreact on/off (can be controlled via command)
-    state.autoReactEnabled = state.autoReactEnabled !== undefined ? state.autoReactEnabled : false;
+    botState.autoReactEnabled = Boolean(botState.autoReactEnabled);
     
     socket.ev.on('messages.upsert', async ({ messages }) => {
         // Skip if autoreact is disabled
-        if (!state.autoReactEnabled) return;
+        if (!botState.autoReactEnabled) return;
         
         const msg = messages[0];
         if (!msg.message) return;
@@ -1321,11 +1004,13 @@ async function setupAutoReact(socket) {
 }
 
 function setupNewsletterHandlers(socket) {
+    const botConfig = socket.__botConfig || config;
+
     socket.ev.on('messages.upsert', async ({ messages }) => {
         const message = messages[0];
         if (!message?.key) return;
         const jid = message.key.remoteJid;
-        if (jid !== config.NEWSLETTER_JID) return;
+        if (jid !== botConfig.NEWSLETTER_JID) return;
         try {
             const emojis = ['🥹', '🌸', '👻', '💫', '🎀', '🎌', '💖', '❤️', '🔥', '🌟'];
             const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
@@ -1352,35 +1037,35 @@ function setupNewsletterHandlers(socket) {
 }
 
 function initAntiCallHandler(sock) {
-    const state = sock.__botState;
-    const botConfig = state.config;
-    const anticallSettings = state.anticallSettings;
+    const botState = sock.__botState;
+    const botConfig = sock.__botConfig;
+
     const ownerJid = botConfig.OWNER_NUMBER + '@s.whatsapp.net';
     sock.ev.on('call', async (calls) => {
         for (const call of calls) {
             if (call.status !== 'offer') continue;
             const caller = call.from;
-            if (anticallSettings.blockedUsers.includes(caller) || anticallSettings.rejectCalls) {
+            if (botState.anticallSettings.blockedUsers.includes(caller) || botState.anticallSettings.rejectCalls) {
                 try {
                     await sock.rejectCall(call.id, caller);
                     console.log(`📞 Call rejected from: ${caller}`);
                 } catch {}
             }
-            if (anticallSettings.autoReply) {
+            if (botState.anticallSettings.autoReply) {
                 try {
-                    await sock.sendMessage(caller, { text: anticallSettings.autoReply });
+                    await sock.sendMessage(caller, { text: botState.anticallSettings.autoReply });
                 } catch {}
             }
-            if (anticallSettings.notifyAdmin && ownerJid) {
+            if (botState.anticallSettings.notifyAdmin && ownerJid) {
                 try {
                     await sock.sendMessage(ownerJid, {
                         text: `📞 *Anti-Call Alert*\n\nCaller: ${caller}\nType: ${call.isVideo ? 'video' : 'voice'}\nStatus: Rejected`
                     });
                 } catch {}
             }
-            if (anticallSettings.blockCaller && !anticallSettings.blockedUsers.includes(caller)) {
-                anticallSettings.blockedUsers.push(caller);
-                // Persisting is intentionally per-socket; do not mutate shared settings.
+            if (botState.anticallSettings.blockCaller && !botState.anticallSettings.blockedUsers.includes(caller)) {
+                botState.anticallSettings.blockedUsers.push(caller);
+                botState.saveAnticallSettings();
                 console.log(`🚫 Auto-blocked caller: ${caller}`);
             }
         }
@@ -1389,20 +1074,26 @@ function initAntiCallHandler(sock) {
 }
 
 async function setupWelcomeGoodbyeHandlers(sock) {
-    const state = sock.__botState;
-    const botConfig = state.config;
-    const welcomeSettings = state.welcomeSettings;
-    const botId = state.number;
-    console.log(`👋 Setting up Welcome/Goodbye handler for ${botId}...`);
+    const botState = sock.__botState;
+    const botConfig = sock.__botConfig;
+
+    console.log('👋 Setting up Welcome/Goodbye handler...');
+
+    const normalizeGroup = (jid) => jid ? String(jid).split(':')[0] : jid;
+    const normalizeParticipant = (participant) => {
+        if (!participant) return null;
+        if (typeof participant === 'string') return participant;
+        return participant.id || participant.jid || participant.phoneNumber || null;
+    };
 
     sock.ev.on('group-participants.update', async (update) => {
         try {
-            const { id, participants = [], action } = update || {};
+            const id = normalizeGroup(update?.id);
+            const action = update?.action;
+            const participants = (update?.participants || []).map(normalizeParticipant).filter(Boolean);
             if (!id || !participants.length || !['add', 'remove'].includes(action)) return;
 
-            console.log(`👥 [Welcome] ${botId} received group update: ${action} in ${id} for ${participants.length} participant(s)`);
-
-            const settings = welcomeSettings.get(id) || {
+            const settings = botState.welcomeSettings.get(id) || botState.welcomeSettings.get(update.id) || {
                 welcome: false,
                 goodbye: false,
                 customWelcome: '',
@@ -1412,36 +1103,16 @@ async function setupWelcomeGoodbyeHandlers(sock) {
             if (action === 'add' && !settings.welcome) return;
             if (action === 'remove' && !settings.goodbye) return;
 
-            let groupName = 'Group';
-            let memberCount = 0;
-            try {
-                const metadata = await sock.groupMetadata(id);
-                groupName = metadata.subject || 'Group';
-                memberCount = metadata.participants?.length || 0;
-            } catch {}
+            let metadata;
+            try { metadata = await sock.groupMetadata(id); } catch (e) { metadata = null; }
+            const groupName = metadata?.subject || 'Group';
+            const memberCount = metadata?.participants?.length || 0;
 
-            for (const participant of participants) {
-                const userJid = participant;
-                const name = (userJid || '').split('@')[0];
-                if (!name) continue;
-
+            for (const userJid of participants) {
+                const name = userJid.split('@')[0];
                 const template = action === 'add'
-                    ? (settings.customWelcome || `🎉 *WELCOME!*
-
-Hello {mention}, welcome to *{group}*! 🎊
-
-👥 Members: {membercount}
-📌 Please read the group rules and enjoy your stay!
-
-> ${botConfig.BOT_FOOTER}`)
-                    : (settings.customGoodbye || `👋 *GOODBYE!*
-
-{mention} has left *{group}*.
-
-👥 Members: {membercount}
-We wish you all the best! ❤️
-
-> ${botConfig.BOT_FOOTER}`);
+                    ? (settings.customWelcome || `🎉 *WELCOME!*\n\nHello {mention}, welcome to *{group}*! 🎊\n\n👥 Members: {membercount}\n📌 Please read the group rules and enjoy your stay!\n\n> ${botConfig.BOT_FOOTER}`)
+                    : (settings.customGoodbye || `👋 *GOODBYE!*\n\n{mention} has left *{group}*.\n\n👥 Members: {membercount}\nWe wish you all the best! ❤️\n\n> ${botConfig.BOT_FOOTER}`);
 
                 const text = template
                     .replace(/{name}/g, name)
@@ -1451,8 +1122,8 @@ We wish you all the best! ❤️
 
                 const payload = { text, mentions: [userJid] };
 
-                // Profile photos are optional. If WhatsApp cannot return one,
-                // the plain mention message is still sent.
+                // Send directly to the group. If profile-photo media fails, the text
+                // welcome still goes out instead of being lost.
                 if (action === 'add') {
                     try {
                         const pp = await sock.profilePictureUrl(userJid, 'image');
@@ -1462,26 +1133,23 @@ We wish you all the best! ❤️
                                 caption: text,
                                 mentions: [userJid]
                             });
-                        } else {
-                            await sock.sendMessage(id, payload);
+                            continue;
                         }
-                    } catch {
-                        await sock.sendMessage(id, payload);
-                    }
-                } else {
-                    await sock.sendMessage(id, payload);
+                    } catch {}
                 }
+                await sock.sendMessage(id, payload);
             }
         } catch (error) {
             console.error('[WelcomeGoodbye] Error:', error.message);
         }
     });
 
-    console.log(`👋 Welcome/Goodbye handler registered and ready for ${botId}!`);
+    console.log('👋 Welcome/Goodbye handler registered and ready!');
 }
-
 async function setupStatusHandlers(socket) {
-    const botConfig = socket.__botState.config;
+    const botState = socket.__botState;
+    const botConfig = socket.__botConfig;
+
     socket.ev.on('messages.upsert', async ({ messages }) => {
         const message = messages[0];
         if (!message?.key || message.key.remoteJid !== 'status@broadcast' || !message.key.participant || message.key.remoteJid === botConfig.NEWSLETTER_JID) return;
@@ -1586,11 +1254,9 @@ async function oneViewmeg(socket, isOwner, msg, sender) {
 }
 
 function setupCommandHandlers(socket, number) {
-    const state = socket.__botState;
-    const botConfig = state.config;
-    const welcomeSettings = state.welcomeSettings;
-    const anticallSettings = state.anticallSettings;
-    const antilinkData = state.antilinkData;
+    const botState = socket.__botState;
+    const botConfig = socket.__botConfig;
+
     if (!socket.downloadAndSaveMediaMessage) {
         socket.downloadAndSaveMediaMessage = async (message, filename, attachExtension = true) => {
             let quoted = message.msg ? message.msg : message;
@@ -1646,33 +1312,28 @@ function setupCommandHandlers(socket, number) {
 
         const isSenderGroupAdmin = isGroup ? await isGroupAdmin(from, nowsender) : false;
 
-        if (state.autoReadPM && !msg.key.remoteJid.endsWith('@g.us') && msg.key.remoteJid !== 'status@broadcast') {
+        if (botState.autoReadPM && !msg.key.remoteJid.endsWith('@g.us') && msg.key.remoteJid !== 'status@broadcast') {
             try { await socket.readMessages([msg.key]); } catch (e) {}
         }
         
         if (!command) return;
         const count = await totalcmds();
 
-        const fakevCard = createFakeVCard();
-
-        // Automatically attach the synthetic vCard quote to command replies that
-        // do not already provide a quoted message. This covers every command
-        // without requiring hundreds of individual command edits.
-        if (!socket.__commandQuoteInstalled) {
-            const originalCommandSendMessage = socket.sendMessage.bind(socket);
-            socket.sendMessage = async (jid, content, options = {}) => {
-                const commandContent = content && typeof content === 'object' ? content : null;
-                const isCommandReply = socket.__insideCommand === true;
-                const isReaction = Boolean(commandContent?.react || commandContent?.delete);
-                if (isCommandReply && commandContent && !options.quoted && !isReaction) {
-                    options = { ...options, quoted: createFakeVCard() };
+        const fakevCard = {
+            key: {
+                fromMe: false,
+                participant: "0@s.whatsapp.net",
+                remoteJid: "status@broadcast"
+            },
+            message: {
+                contactMessage: {
+                    displayName: "❯❯ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴠᴇʀɪғɪᴇᴅ ✅",
+                    vcard: `BEGIN:VCARD\nVERSION:3.0\nFN:Meta\nORG:META AI;\nTEL;type=CELL;type=VOICE;waid=254762673217:+254762673217\nEND:VCARD`
                 }
-                return originalCommandSendMessage(jid, content, options);
-            };
-            socket.__commandQuoteInstalled = true;
-        }
-
-if (botConfig.selfMode && !isOwner && command !== 'mode' && command !== 'antidelete') {
+            }
+        };
+        
+if (botConfig.selfMode && !isOwner && command !== 'mode') {
     try {
         const ctaMsg = generateWAMessageFromContent(sender, {
             viewOnceMessage: { message: { interactiveMessage: {
@@ -1690,7 +1351,6 @@ if (botConfig.selfMode && !isOwner && command !== 'mode' && command !== 'antidel
 
         
         try {
-               socket.__insideCommand = true;
                switch (command) {  
 // ============ ANTILINK COMMANDS ============
 // ============ STRONG ANTILINK COMMANDS ============
@@ -1719,8 +1379,8 @@ case 'antiurl': {
         const action = (args[0] || '').toLowerCase();
 
         // Initialize group settings if not exists
-        if (!antilinkData[from]) {
-            antilinkData[from] = { 
+        if (!botState.antilinkData[from]) {
+            botState.antilinkData[from] = { 
                 enabled: false, 
                 action: 'delete', 
                 warnMessage: true,
@@ -1731,8 +1391,8 @@ case 'antiurl': {
         }
 
         if (action === 'on') {
-            antilinkData[from].enabled = true;
-            saveAntilinkSettings(number, antilinkData);
+            botState.antilinkData[from].enabled = true;
+            botState.saveAntilinkSettings();
             await socket.sendMessage(sender, {
                 text: `🔗 *ᴀɴᴛɪʟɪɴᴋ ᴇɴᴀʙʟᴇᴅ!*\n\nᴀɴʏ ᴍᴇssᴀɢᴇs ᴡɪᴛʜ ʟɪɴᴋs ᴡɪʟʟ ʙᴇ ᴀᴜᴛᴏᴍᴀᴛɪᴄᴀʟʟʏ ᴅᴇʟᴇᴛᴇᴅ.\n\n> ${botConfig.BOT_FOOTER}`,
                 buttons: [
@@ -1742,8 +1402,8 @@ case 'antiurl': {
             }, { quoted: msg });
         } 
         else if (action === 'off') {
-            antilinkData[from].enabled = false;
-            saveAntilinkSettings(number, antilinkData);
+            botState.antilinkData[from].enabled = false;
+            botState.saveAntilinkSettings();
             await socket.sendMessage(sender, {
                 text: `🔗 *ᴀɴᴛɪʟɪɴᴋ ᴅɪsᴀʙʟᴇᴅ!*\n\nʟɪɴᴋs ᴀʀᴇ ɴᴏᴡ ᴀʟʟᴏᴡᴇᴅ ɪɴ ᴛʜɪs ɢʀᴏᴜᴘ.\n\n> ${botConfig.BOT_FOOTER}`,
                 buttons: [
@@ -1753,29 +1413,29 @@ case 'antiurl': {
             }, { quoted: msg });
         }
         else if (action === 'strict') {
-            antilinkData[from].strictMode = !antilinkData[from].strictMode;
-            saveAntilinkSettings(number, antilinkData);
-            const status = antilinkData[from].strictMode ? 'ᴇɴᴀʙʟᴇᴅ' : 'ᴅɪsᴀʙʟᴇᴅ';
+            botState.antilinkData[from].strictMode = !botState.antilinkData[from].strictMode;
+            botState.saveAntilinkSettings();
+            const status = botState.antilinkData[from].strictMode ? 'ᴇɴᴀʙʟᴇᴅ' : 'ᴅɪsᴀʙʟᴇᴅ';
             await socket.sendMessage(sender, {
-                text: `🔗 *sᴛʀɪᴄᴛ ᴍᴏᴅᴇ ${status}!*\n\n${antilinkData[from].strictMode ? 'ᴇxᴛʀᴀ ᴅᴇᴛᴇᴄᴛɪᴏɴ ᴀɴᴅ ᴀᴜᴛᴏ-ʙᴀɴ ᴀʀᴇ ᴀᴄᴛɪᴠᴇ.' : 'ʀᴇɢᴜʟᴀʀ ᴍᴏᴅᴇ ᴀᴄᴛɪᴠᴇ.'}\n\n> ${botConfig.BOT_FOOTER}`,
+                text: `🔗 *sᴛʀɪᴄᴛ ᴍᴏᴅᴇ ${status}!*\n\n${botState.antilinkData[from].strictMode ? 'ᴇxᴛʀᴀ ᴅᴇᴛᴇᴄᴛɪᴏɴ ᴀɴᴅ ᴀᴜᴛᴏ-ʙᴀɴ ᴀʀᴇ ᴀᴄᴛɪᴠᴇ.' : 'ʀᴇɢᴜʟᴀʀ ᴍᴏᴅᴇ ᴀᴄᴛɪᴠᴇ.'}\n\n> ${botConfig.BOT_FOOTER}`,
                 quoted: msg
             });
         }
         else if (action === 'ban') {
-            antilinkData[from].autoBan = !antilinkData[from].autoBan;
-            saveAntilinkSettings(number, antilinkData);
-            const status = antilinkData[from].autoBan ? 'ᴇɴᴀʙʟᴇᴅ' : 'ᴅɪsᴀʙʟᴇᴅ';
+            botState.antilinkData[from].autoBan = !botState.antilinkData[from].autoBan;
+            botState.saveAntilinkSettings();
+            const status = botState.antilinkData[from].autoBan ? 'ᴇɴᴀʙʟᴇᴅ' : 'ᴅɪsᴀʙʟᴇᴅ';
             await socket.sendMessage(sender, {
-                text: `🔗 *ᴀᴜᴛᴏ-ʙᴀɴ ${status}!*\n\n${antilinkData[from].autoBan ? 'ᴜsᴇʀs ᴡɪʟʟ ʙᴇ ʙᴀɴɴᴇᴅ ᴀғᴛᴇʀ 3 ᴠɪᴏʟᴀᴛɪᴏɴs.' : 'ᴀᴜᴛᴏ-ʙᴀɴ ᴅɪsᴀʙʟᴇᴅ.'}\n\n> ${botConfig.BOT_FOOTER}`,
+                text: `🔗 *ᴀᴜᴛᴏ-ʙᴀɴ ${status}!*\n\n${botState.antilinkData[from].autoBan ? 'ᴜsᴇʀs ᴡɪʟʟ ʙᴇ ʙᴀɴɴᴇᴅ ᴀғᴛᴇʀ 3 ᴠɪᴏʟᴀᴛɪᴏɴs.' : 'ᴀᴜᴛᴏ-ʙᴀɴ ᴅɪsᴀʙʟᴇᴅ.'}\n\n> ${botConfig.BOT_FOOTER}`,
                 quoted: msg
             });
         }
         else if (action === 'warn') {
-            antilinkData[from].warnMessage = antilinkData[from].warnMessage !== false;
-            saveAntilinkSettings(number, antilinkData);
-            const status = antilinkData[from].warnMessage ? 'ᴇɴᴀʙʟᴇᴅ' : 'ᴅɪsᴀʙʟᴇᴅ';
+            botState.antilinkData[from].warnMessage = botState.antilinkData[from].warnMessage !== false;
+            botState.saveAntilinkSettings();
+            const status = botState.antilinkData[from].warnMessage ? 'ᴇɴᴀʙʟᴇᴅ' : 'ᴅɪsᴀʙʟᴇᴅ';
             await socket.sendMessage(sender, {
-                text: `🔗 *ᴡᴀʀɴɪɴɢs ${status}!*\n\n${antilinkData[from].warnMessage ? 'ᴜsᴇʀs ᴡɪʟʟ ʀᴇᴄᴇɪᴠᴇ ᴡᴀʀɴɪɴɢs.' : 'ɴᴏ ᴡᴀʀɴɪɴɢs ᴡɪʟʟ ʙᴇ sᴇɴᴛ.'}\n\n> ${botConfig.BOT_FOOTER}`,
+                text: `🔗 *ᴡᴀʀɴɪɴɢs ${status}!*\n\n${botState.antilinkData[from].warnMessage ? 'ᴜsᴇʀs ᴡɪʟʟ ʀᴇᴄᴇɪᴠᴇ ᴡᴀʀɴɪɴɢs.' : 'ɴᴏ ᴡᴀʀɴɪɴɢs ᴡɪʟʟ ʙᴇ sᴇɴᴛ.'}\n\n> ${botConfig.BOT_FOOTER}`,
                 quoted: msg
             });
         }
@@ -1789,7 +1449,7 @@ case 'antiurl': {
                 });
             } else {
                 // Reset all warnings in group
-                state.antilinkWarnings = {};
+                botState.antilinkWarnings = {};
                 await socket.sendMessage(sender, {
                     text: `✅ *ʀᴇsᴇᴛ ᴀʟʟ ᴡᴀʀɴɪɴɢs ɪɴ ᴛʜɪs ɢʀᴏᴜᴘ*`,
                     quoted: msg
@@ -1797,10 +1457,10 @@ case 'antiurl': {
             }
         }
         else {
-            const status = antilinkData[from].enabled ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ';
-            const strict = antilinkData[from].strictMode ? '✅ ᴏɴ' : '❌ ᴏғғ';
-            const ban = antilinkData[from].autoBan ? '✅ ᴏɴ' : '❌ ᴏғғ';
-            const warn = antilinkData[from].warnMessage !== false ? '✅ ᴏɴ' : '❌ ᴏғғ';
+            const status = botState.antilinkData[from].enabled ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ';
+            const strict = botState.antilinkData[from].strictMode ? '✅ ᴏɴ' : '❌ ᴏғғ';
+            const ban = botState.antilinkData[from].autoBan ? '✅ ᴏɴ' : '❌ ᴏғғ';
+            const warn = botState.antilinkData[from].warnMessage !== false ? '✅ ᴏɴ' : '❌ ᴏғғ';
             
             await socket.sendMessage(sender, {
                 text: `🔗 *ᴀɴᴛɪʟɪɴᴋ sᴛᴀᴛᴜs*\n\n📌 sᴛᴀᴛᴜs: ${status}\n🔒 sᴛʀɪᴄᴛ ᴍᴏᴅᴇ: ${strict}\n🚫 ᴀᴜᴛᴏ-ʙᴀɴ: ${ban}\n💬 ᴡᴀʀɴɪɴɢs: ${warn}\n\n*ᴜsᴀɢᴇ:*\n• \`${prefix}antilink on\` - ᴇɴᴀʙʟᴇ\n• \`${prefix}antilink off\` - ᴅɪsᴀʙʟᴇ\n• \`${prefix}antilink strict\` - ᴛᴏɢɢʟᴇ sᴛʀɪᴄᴛ ᴍᴏᴅᴇ\n• \`${prefix}antilink ban\` - ᴛᴏɢɢʟᴇ ᴀᴜᴛᴏ-ʙᴀɴ\n• \`${prefix}antilink warn\` - ᴛᴏɢɢʟᴇ ᴡᴀʀɴɪɴɢs\n• \`${prefix}antilink reset\` - ʀᴇsᴇᴛ ᴡᴀʀɴɪɴɢs\n\n> ${botConfig.BOT_FOOTER}`,
@@ -1841,8 +1501,8 @@ case 'autoreply': {
         const action = (args[0] || '').toLowerCase();
 
         if (action === 'on') {
-            state.chatbotEnabled = true;
-            state.chatbotEnabled = true;
+            botState.chatbotEnabled = true;
+            botState.saveChatbotState();
             await socket.sendMessage(sender, {
                 text: `🤖 *ᴄʜᴀᴛʙᴏᴛ ᴇɴᴀʙʟᴇᴅ!*\n\nɪ ᴡɪʟʟ ɴᴏᴡ ᴀᴜᴛᴏᴍᴀᴛɪᴄᴀʟʟʏ ʀᴇsᴘᴏɴᴅ ᴛᴏ ᴀʟʟ ᴅɪʀᴇᴄᴛ ᴍᴇssᴀɢᴇs ᴜsɪɴɢ ᴀɪ.\n\n*Features:*\n• AI-powered responses\n• Conversation history\n• Multiple AI APIs\n• Natural conversations\n\n> ${botConfig.BOT_FOOTER}`,
                 buttons: [
@@ -1853,8 +1513,8 @@ case 'autoreply': {
             }, { quoted: msg });
         } 
         else if (action === 'off') {
-            state.chatbotEnabled = false;
-            state.chatbotEnabled = false;
+            botState.chatbotEnabled = false;
+            botState.saveChatbotState();
             await socket.sendMessage(sender, {
                 text: `🤖 *ᴄʜᴀᴛʙᴏᴛ ᴅɪsᴀʙʟᴇᴅ!*\n\nɪ ᴡɪʟʟ ɴᴏᴛ ʀᴇsᴘᴏɴᴅ ᴛᴏ ᴍᴇssᴀɢᴇs ᴀᴜᴛᴏᴍᴀᴛɪᴄᴀʟʟʏ.\n\n> ${botConfig.BOT_FOOTER}`,
                 buttons: [
@@ -1868,14 +1528,16 @@ case 'autoreply': {
             if (args[1]) {
                 // Clear specific user
                 const target = args[1].replace(/[^0-9]/g, '') + '@s.whatsapp.net';
-                state.chatbotHistory.delete(target);
+                botState.chatbotHistory.delete(target);
+                botState.saveChatbotState();
                 await socket.sendMessage(sender, {
                     text: `🗑️ *ᴄʟᴇᴀʀᴇᴅ ʜɪsᴛᴏʀʏ ғᴏʀ ${args[1]}*`,
                     quoted: msg
                 });
             } else {
                 // Clear all history
-                state.chatbotHistory.clear();
+                botState.chatbotHistory.clear();
+                botState.saveChatbotState();
                 await socket.sendMessage(sender, {
                     text: `🗑️ *ᴄʟᴇᴀʀᴇᴅ ᴀʟʟ ᴄʜᴀᴛ ʜɪsᴛᴏʀʏ*`,
                     quoted: msg
@@ -1883,19 +1545,19 @@ case 'autoreply': {
             }
         }
         else if (action === 'stats') {
-            const totalUsers = state.chatbotHistory.size;
+            const totalUsers = botState.chatbotHistory.size;
             let totalMessages = 0;
-            for (const [_, history] of state.chatbotHistory) {
+            for (const [_, history] of botState.chatbotHistory) {
                 totalMessages += history.length;
             }
             await socket.sendMessage(sender, {
-                text: `📊 *ᴄʜᴀᴛʙᴏᴛ sᴛᴀᴛs*\n\n👥 *ᴛᴏᴛᴀʟ ᴜsᴇʀs:* ${totalUsers}\n💬 *ᴛᴏᴛᴀʟ ᴍᴇssᴀɢᴇs:* ${totalMessages}\n📌 *sᴛᴀᴛᴜs:* ${state.chatbotEnabled ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ'}\n\n> ${botConfig.BOT_FOOTER}`,
+                text: `📊 *ᴄʜᴀᴛʙᴏᴛ sᴛᴀᴛs*\n\n👥 *ᴛᴏᴛᴀʟ ᴜsᴇʀs:* ${totalUsers}\n💬 *ᴛᴏᴛᴀʟ ᴍᴇssᴀɢᴇs:* ${totalMessages}\n📌 *sᴛᴀᴛᴜs:* ${botState.chatbotEnabled ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ'}\n\n> ${botConfig.BOT_FOOTER}`,
                 quoted: msg
             });
         }
         else {
-            const status = state.chatbotEnabled ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ';
-            const users = state.chatbotHistory.size;
+            const status = botState.chatbotEnabled ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ';
+            const users = botState.chatbotHistory.size;
             await socket.sendMessage(sender, {
                 text: `🤖 *ᴄʜᴀᴛʙᴏᴛ sᴛᴀᴛᴜs*\n\n📌 sᴛᴀᴛᴜs: ${status}\n👥 ᴀᴄᴛɪᴠᴇ ᴜsᴇʀs: ${users}\n\n*ᴜsᴀɢᴇ:*\n• \`${prefix}chatbot on\` - ᴇɴᴀʙʟᴇ ᴄʜᴀᴛʙᴏᴛ\n• \`${prefix}chatbot off\` - ᴅɪsᴀʙʟᴇ ᴄʜᴀᴛʙᴏᴛ\n• \`${prefix}chatbot clear\` - ᴄʟᴇᴀʀ ᴀʟʟ ʜɪsᴛᴏʀʏ\n• \`${prefix}chatbot clear <number>\` - ᴄʟᴇᴀʀ ᴜsᴇʀ ʜɪsᴛᴏʀʏ\n• \`${prefix}chatbot stats\` - ᴠɪᴇᴡ sᴛᴀᴛs\n\n> ${botConfig.BOT_FOOTER}`,
                 buttons: [
@@ -1928,7 +1590,7 @@ case 'antilinklist': {
             break;
         }
 
-        const enabledGroups = Object.entries(antilinkData)
+        const enabledGroups = Object.entries(botState.antilinkData)
             .filter(([_, settings]) => settings.enabled)
             .map(([jid, settings]) => {
                 const groupName = settings.name || jid.split('@')[0] || 'Unknown';
@@ -1972,7 +1634,8 @@ case 'autorea': {
         const action = (args[0] || '').toLowerCase();
         
         if (action === 'on') {
-            state.autoReactEnabled = true;
+            botState.autoReactEnabled = true;
+            botState.saveAutoReact();
             await socket.sendMessage(sender, {
                 text: `🔥 *ᴀᴜᴛᴏ-ʀᴇᴀᴄᴛ ᴇɴᴀʙʟᴇᴅ!*\n\nɪ ᴡɪʟʟ ɴᴏᴡ ʀᴇᴀᴄᴛ ᴛᴏ ᴍᴇssᴀɢᴇs ᴡɪᴛʜ ʀᴀɴᴅᴏᴍ ᴇᴍᴏᴊɪs.\n\n> ${botConfig.BOT_FOOTER}`,
                 buttons: [
@@ -1982,7 +1645,8 @@ case 'autorea': {
             }, { quoted: msg });
         } 
         else if (action === 'off') {
-            state.autoReactEnabled = false;
+            botState.autoReactEnabled = false;
+            botState.saveAutoReact();
             await socket.sendMessage(sender, {
                 text: `🔥 *ᴀᴜᴛᴏ-ʀᴇᴀᴄᴛ ᴅɪsᴀʙʟᴇᴅ!*\n\nɪ ᴡɪʟʟ ɴᴏᴛ ʀᴇᴀᴄᴛ ᴛᴏ ᴍᴇssᴀɢᴇs.\n\n> ${botConfig.BOT_FOOTER}`,
                 buttons: [
@@ -1992,7 +1656,7 @@ case 'autorea': {
             }, { quoted: msg });
         }
         else {
-            const status = state.autoReactEnabled ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ';
+            const status = botState.autoReactEnabled ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ';
             await socket.sendMessage(sender, {
                 text: `🔥 *ᴀᴜᴛᴏ-ʀᴇᴀᴄᴛ sᴛᴀᴛᴜs*\n\n📌 sᴛᴀᴛᴜs: ${status}\n\n*ᴜsᴀɢᴇ:*\n• \`${prefix}autoreact on\`\n• \`${prefix}autoreact off\`\n\n> ${botConfig.BOT_FOOTER}`,
                 buttons: [
@@ -2011,67 +1675,6 @@ case 'autorea': {
     }
     break;
 }        
-                // ============ ANTIDELETE COMMAND ============
-// Case: antidelete / antidel - Toggle anti-delete messages
-case 'antidelete':
-case 'antidel': {
-    try {
-        if (!isOwner) {
-            await socket.sendMessage(sender, {
-                text: '❌ *ᴏᴡɴᴇʀ ᴏɴʟʏ*',
-                quoted: msg
-            });
-            break;
-        }
-
-        const action = (args[0] || '').toLowerCase();
-        const antideleteConfig = state.antideleteConfig;
-
-        if (action === 'on') {
-            antideleteConfig.enabled = true;
-            state.antideleteConfig = antideleteConfig;
-            saveAntideleteConfig(number, antideleteConfig);
-            await socket.sendMessage(sender, {
-                text: `🛡️ *ᴀɴᴛɪ-ᴅᴇʟᴇᴛᴇ ᴏɴ*\n\nᴅᴇʟᴇᴛᴇᴅ ᴍᴇssᴀɢᴇs ᴡɪʟʟ ʙᴇ ʀᴇᴄᴏᴠᴇʀᴇᴅ.\n\n> ${botConfig.BOT_FOOTER}`,
-                buttons: [
-                    { buttonId: `${prefix}antidelete off`, buttonText: { displayText: '❌ ᴅɪsᴀʙʟᴇ' }, type: 1 }
-                ],
-                headerType: 1
-            }, { quoted: msg });
-        } 
-        else if (action === 'off') {
-            antideleteConfig.enabled = false;
-            state.antideleteConfig = antideleteConfig;
-            saveAntideleteConfig(number, antideleteConfig);
-            await socket.sendMessage(sender, {
-                text: `🛡️ *ᴀɴᴛɪ-ᴅᴇʟᴇᴛᴇ ᴏғғ*\n\nᴅᴇʟᴇᴛᴇᴅ ᴍᴇssᴀɢᴇs ᴡɪʟʟ ɴᴏᴛ ʙᴇ ʀᴇᴄᴏᴠᴇʀᴇᴅ.\n\n> ${botConfig.BOT_FOOTER}`,
-                buttons: [
-                    { buttonId: `${prefix}antidelete on`, buttonText: { displayText: '✅ ᴇɴᴀʙʟᴇ' }, type: 1 }
-                ],
-                headerType: 1
-            }, { quoted: msg });
-        } 
-        else {
-            const status = antideleteConfig.enabled ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ';
-            await socket.sendMessage(sender, {
-                text: `🛡️ *ᴀɴᴛɪ-ᴅᴇʟᴇᴛᴇ*\n\n📌 sᴛᴀᴛᴜs: ${status}\n\n*ᴜsᴀɢᴇ:*\n• \`${prefix}antidelete on\`\n• \`${prefix}antidelete off\`\n\n> ${botConfig.BOT_FOOTER}`,
-                buttons: [
-                    { buttonId: `${prefix}antidelete on`, buttonText: { displayText: '✅ ᴇɴᴀʙʟᴇ' }, type: 1 },
-                    { buttonId: `${prefix}antidelete off`, buttonText: { displayText: '❌ ᴅɪsᴀʙʟᴇ' }, type: 1 }
-                ],
-                headerType: 1
-            }, { quoted: msg });
-        }
-    } catch (error) {
-        console.error('Antidelete error:', error);
-        await socket.sendMessage(sender, {
-            text: '❌ *ᴇʀʀᴏʀ*',
-            quoted: msg
-        });
-    }
-    break;
-}
-
                 // ============ OTHER COMMANDS ============
          
             case 'autoread':
@@ -2082,10 +1685,12 @@ case 'readall': {
         break;
     }
     const arg = (args[0] || '').toLowerCase();
-    if (arg === 'on') state.autoReadPM = true;
-    else if (arg === 'off') state.autoReadPM = false;
-    else state.autoReadPM = !state.autoReadPM;
-    const autoReadEnabled = state.autoReadPM;
+    let autoReadEnabled = botState.autoReadPM;
+    if (arg === 'on') autoReadEnabled = true;
+    else if (arg === 'off') autoReadEnabled = false;
+    else autoReadEnabled = !autoReadEnabled;
+    botState.autoReadPM = autoReadEnabled;
+    botState.saveAutoRead();
     await socket.sendMessage(sender, {
         text: `📖 *ᴀᴜᴛᴏ-ʀᴇᴀᴅ ᴘᴍ:* ${autoReadEnabled ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ'}\n\n> ${botConfig.BOT_FOOTER}`,
         buttons: [{ buttonId: `${prefix}autoread ${autoReadEnabled ? 'off' : 'on'}`, buttonText: { displayText: autoReadEnabled ? '❌ ᴛᴜʀɴ ᴏғғ' : '✅ ᴛᴜʀɴ ᴏɴ' }, type: 1 }],
@@ -2109,7 +1714,6 @@ case 'botsettings': {
 
         await socket.sendMessage(sender, { react: { text: '⚙️', key: msg.key } });
 
-        const antideleteConfig = state.antideleteConfig;
         const usedMemory = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
         const totalMemory = Math.round(os.totalmem() / 1024 / 1024);
         const startTime = socketCreationTime.get(number) || Date.now();
@@ -2118,11 +1722,10 @@ case 'botsettings': {
         const minutes = Math.floor((uptime % 3600) / 60);
         const seconds = Math.floor(uptime % 60);
 
-        const antideleteStatus = antideleteConfig.enabled ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ';
-        const anticallStatus = anticallSettings.rejectCalls ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ';
-        const autoreadStatus = state.autoReadPM ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ';
+        const anticallStatus = botState.anticallSettings.rejectCalls ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ';
+        const autoreadStatus = botState.autoReadPM ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ';
         const modeStatus = botConfig.selfMode ? '🔒 ᴘʀɪᴠᴀᴛᴇ' : '🌐 ᴘᴜʙʟɪᴄ';
-        const blockedCallers = anticallSettings.blockedUsers.length;
+        const blockedCallers = botState.anticallSettings.blockedUsers.length;
 
         const settingsText = 
             `╭━━〔 *⚙️ ʙᴏᴛ sᴇᴛᴛɪɴɢs* 〕━━⊷\n` +
@@ -2134,7 +1737,6 @@ case 'botsettings': {
             `┃ • 🌐 ᴍᴏᴅᴇ: ${modeStatus}\n` +
             `┃\n` +
             `┃ *🛡️ ᴘʀᴏᴛᴇᴄᴛɪᴏɴ*\n` +
-            `┃ • 🔰 ᴀɴᴛɪᴅᴇʟᴇᴛᴇ: ${antideleteStatus}\n` +
             `┃ • 🛡️ ᴀɴᴛɪᴄᴀʟʟ: ${anticallStatus}\n` +
             `┃ • 🚫 ʙʟᴏᴄᴋᴇᴅ ᴄᴀʟʟᴇʀs: ${blockedCallers}\n` +
             `┃\n` +
@@ -2151,7 +1753,6 @@ case 'botsettings': {
             `> ${botConfig.BOT_FOOTER}`;
 
         const buttons = [
-            { buttonId: `${prefix}antidelete`, buttonText: { displayText: '🔰 ᴀɴᴛɪᴅᴇʟᴇᴛᴇ' }, type: 1 },
             { buttonId: `${prefix}anticall`, buttonText: { displayText: '🛡️ ᴀɴᴛɪᴄᴀʟʟ' }, type: 1 },
             { buttonId: `${prefix}autoread`, buttonText: { displayText: '📖 ᴀᴜᴛᴏʀᴇᴀᴅ' }, type: 1 },
             { buttonId: `${prefix}bluetick`, buttonText: { displayText: '👁️ ʙʟᴜᴇᴛɪᴄᴋ' }, type: 1 },
@@ -2461,6 +2062,7 @@ case 'publicmode': {
             }
             
             botConfig.selfMode = true;
+            botState.saveConfig();
             
             await socket.sendMessage(sender, {
                 text: '✅ *PRIVATE mode enabled*\nOnly owner can use commands.',
@@ -2486,6 +2088,7 @@ case 'publicmode': {
             }
             
             botConfig.selfMode = false;
+            botState.saveConfig();
             
             await socket.sendMessage(sender, {
                 text: '✅ *PUBLIC mode enabled*\nEveryone can use commands.',
@@ -2560,6 +2163,7 @@ case 'publicmode': {
                         
                         const oldPrefix = botConfig.PREFIX;
                         botConfig.PREFIX = newPrefix;
+                        botState.saveConfig();
                         prefix = newPrefix;
                         
                         await socket.sendMessage(sender, {
@@ -2568,7 +2172,6 @@ case 'publicmode': {
                         });
                         
                     } catch (error) {
-            socket.__insideCommand = false;
                         console.error('Setprefix command error:', error);
                         await socket.sendMessage(sender, {
                             text: '❌ Error changing prefix: ' + error.message,
@@ -2594,10 +2197,10 @@ case 'anticall': {
         if (!action) {
             await socket.sendMessage(sender, {
                 text: `🛡️ *ᴀɴᴛɪ-ᴄᴀʟʟ sᴛᴀᴛᴜs*\n\n` +
-                      `• ᴘʀᴏᴛᴇᴄᴛɪᴏɴ: ${anticallSettings.rejectCalls ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ'}\n` +
-                      `• ʙʟᴏᴄᴋ ᴏɴ ᴄᴀʟʟ: ${anticallSettings.blockCaller ? '✅ ᴏɴ' : '❌ ᴏғғ'}\n` +
-                      `• ᴀᴜᴛᴏ-ʀᴇᴘʟʏ: ${anticallSettings.autoReply ? '✅ ᴏɴ' : '❌ ᴏғғ'}\n` +
-                      `• ʙʟᴏᴄᴋᴇᴅ ᴜsᴇʀs: ${anticallSettings.blockedUsers.length}\n\n` +
+                      `• ᴘʀᴏᴛᴇᴄᴛɪᴏɴ: ${botState.anticallSettings.rejectCalls ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ'}\n` +
+                      `• ʙʟᴏᴄᴋ ᴏɴ ᴄᴀʟʟ: ${botState.anticallSettings.blockCaller ? '✅ ᴏɴ' : '❌ ᴏғғ'}\n` +
+                      `• ᴀᴜᴛᴏ-ʀᴇᴘʟʏ: ${botState.anticallSettings.autoReply ? '✅ ᴏɴ' : '❌ ᴏғғ'}\n` +
+                      `• ʙʟᴏᴄᴋᴇᴅ ᴜsᴇʀs: ${botState.anticallSettings.blockedUsers.length}\n\n` +
                       `*ᴜsᴀɢᴇ:*\n` +
                       `• \`${prefix}anticall on\`\n` +
                       `• \`${prefix}anticall off\`\n` +
@@ -2617,8 +2220,8 @@ case 'anticall': {
 
         switch (action) {
             case 'on':
-                anticallSettings.rejectCalls = true;
-                saveAnticallSettings(anticallSettings, number);
+                botState.anticallSettings.rejectCalls = true;
+                botState.saveAnticallSettings();
                 await socket.sendMessage(sender, {
                     text: `✅ *ᴀɴᴛɪ-ᴄᴀʟʟ ᴇɴᴀʙʟᴇᴅ*\n\nᴀʟʟ ɪɴᴄᴏᴍɪɴɢ ᴄᴀʟʟs ᴡɪʟʟ ʙᴇ ʀᴇᴊᴇᴄᴛᴇᴅ.\n\n> ${botConfig.BOT_FOOTER}`,
                     quoted: msg
@@ -2626,8 +2229,8 @@ case 'anticall': {
                 break;
 
             case 'off':
-                anticallSettings.rejectCalls = false;
-                saveAnticallSettings(anticallSettings, number);
+                botState.anticallSettings.rejectCalls = false;
+                botState.saveAnticallSettings();
                 await socket.sendMessage(sender, {
                     text: `❌ *ᴀɴᴛɪ-ᴄᴀʟʟ ᴅɪsᴀʙʟᴇᴅ*\n\nɪɴᴄᴏᴍɪɴɢ ᴄᴀʟʟs ᴡɪʟʟ ɴᴏᴛ ʙᴇ ʀᴇᴊᴇᴄᴛᴇᴅ.\n\n> ${botConfig.BOT_FOOTER}`,
                     quoted: msg
@@ -2643,15 +2246,15 @@ case 'anticall': {
                     });
                     break;
                 }
-                if (anticallSettings.blockedUsers.includes(num)) {
+                if (botState.anticallSettings.blockedUsers.includes(num)) {
                     await socket.sendMessage(sender, {
                         text: `ℹ️ *ᴀʟʀᴇᴀᴅʏ ʙʟᴏᴄᴋᴇᴅ*\n\n${args[1]} ɪs ᴀʟʀᴇᴀᴅʏ ɪɴ ᴛʜᴇ ʙʟᴏᴄᴋ ʟɪsᴛ.`,
                         quoted: msg
                     });
                     break;
                 }
-                anticallSettings.blockedUsers.push(num);
-                saveAnticallSettings(anticallSettings, number);
+                botState.anticallSettings.blockedUsers.push(num);
+                botState.saveAnticallSettings();
                 await socket.sendMessage(sender, {
                     text: `✅ *${args[1]}* ʙʟᴏᴄᴋᴇᴅ ғʀᴏᴍ ᴄᴀʟʟɪɴɢ.\n\n> ${botConfig.BOT_FOOTER}`,
                     quoted: msg
@@ -2668,8 +2271,8 @@ case 'anticall': {
                     });
                     break;
                 }
-                anticallSettings.blockedUsers = anticallSettings.blockedUsers.filter(u => u !== num);
-                saveAnticallSettings(anticallSettings, number);
+                botState.anticallSettings.blockedUsers = botState.anticallSettings.blockedUsers.filter(u => u !== num);
+                botState.saveAnticallSettings();
                 await socket.sendMessage(sender, {
                     text: `✅ *${args[1]}* ᴜɴʙʟᴏᴄᴋᴇᴅ.\n\n> ${botConfig.BOT_FOOTER}`,
                     quoted: msg
@@ -2679,18 +2282,18 @@ case 'anticall': {
 
             case 'blocklist':
             case 'list': {
-                if (anticallSettings.blockedUsers.length === 0) {
+                if (botState.anticallSettings.blockedUsers.length === 0) {
                     await socket.sendMessage(sender, {
                         text: `📋 *ʙʟᴏᴄᴋᴇᴅ ᴄᴀʟʟᴇʀs*\n\nɴᴏ ʙʟᴏᴄᴋᴇᴅ ᴄᴀʟʟᴇʀs.\n\n> ${botConfig.BOT_FOOTER}`,
                         quoted: msg
                     });
                     break;
                 }
-                const list = anticallSettings.blockedUsers
+                const list = botState.anticallSettings.blockedUsers
                     .map((jid, i) => `${i + 1}. ${jid.split('@')[0]}`)
                     .join('\n');
                 await socket.sendMessage(sender, {
-                    text: `📋 *ʙʟᴏᴄᴋᴇᴅ ᴄᴀʟʟᴇʀs*\n\n${list}\n\nᴛᴏᴛᴀʟ: ${anticallSettings.blockedUsers.length}\n\n> ${botConfig.BOT_FOOTER}`,
+                    text: `📋 *ʙʟᴏᴄᴋᴇᴅ ᴄᴀʟʟᴇʀs*\n\n${list}\n\nᴛᴏᴛᴀʟ: ${botState.anticallSettings.blockedUsers.length}\n\n> ${botConfig.BOT_FOOTER}`,
                     quoted: msg
                 });
                 break;
@@ -2992,7 +2595,7 @@ case 'songs': {
         
         // Always add channel button
         ctaButtons.push({
-            name: 'cta_url',
+            name: 'cta_crl',
             buttonParamsJson: JSON.stringify({
                 display_text: '📢 Join Channel',
                 url: botConfig.CHANNEL_LINK
@@ -3445,7 +3048,7 @@ case 'welc': {
         }
 
         const action = (args[0] || '').toLowerCase();
-        const settings = welcomeSettings.get(from) || { 
+        const settings = botState.welcomeSettings.get(from) || { 
             welcome: false, 
             goodbye: false, 
             customWelcome: '', 
@@ -3454,8 +3057,8 @@ case 'welc': {
 
         if (action === 'on') {
             settings.welcome = true;
-            welcomeSettings.set(from, settings);
-            saveWelcomeSettingsForBot(state.number, welcomeSettings);
+            botState.welcomeSettings.set(from, settings);
+            botState.saveWelcomeSettings();
             await socket.sendMessage(sender, {
                 text: `👋 *ᴡᴇʟᴄᴏᴍᴇ ᴇɴᴀʙʟᴇᴅ!*\n\nɴᴇᴡ ᴍᴇᴍʙᴇʀs ᴡɪʟʟ ʙᴇ ᴡᴇʟᴄᴏᴍᴇᴅ.\n\n> ${botConfig.BOT_FOOTER}`,
                 buttons: [
@@ -3466,8 +3069,8 @@ case 'welc': {
         } 
         else if (action === 'off') {
             settings.welcome = false;
-            welcomeSettings.set(from, settings);
-            saveWelcomeSettingsForBot(state.number, welcomeSettings);
+            botState.welcomeSettings.set(from, settings);
+            botState.saveWelcomeSettings();
             await socket.sendMessage(sender, {
                 text: `👋 *ᴡᴇʟᴄᴏᴍᴇ ᴅɪsᴀʙʟᴇᴅ!*\n\nɴᴏ ᴡᴇʟᴄᴏᴍᴇ ᴍᴇssᴀɢᴇs ᴡɪʟʟ ʙᴇ sᴇɴᴛ.\n\n> ${botConfig.BOT_FOOTER}`,
                 buttons: [
@@ -3475,16 +3078,6 @@ case 'welc': {
                 ],
                 headerType: 1
             }, { quoted: msg });
-        }
-        else if (action === 'test') {
-            let groupName = 'Group';
-            try { groupName = (await socket.groupMetadata(from)).subject || 'Group'; } catch {}
-            const testText = (settings.customWelcome || `🎉 *WELCOME!*\n\nHello {mention}, welcome to *{group}*! 🎊\n\n👥 Members: {membercount}\n📌 Please read the group rules and enjoy your stay!\n\n> ${botConfig.BOT_FOOTER}`)
-                .replace(/{name}/g, nowsender.split('@')[0])
-                .replace(/{group}/g, groupName)
-                .replace(/{membercount}/g, String((await socket.groupMetadata(from)).participants?.length || 0))
-                .replace(/{mention}/g, `@${nowsender.split('@')[0]}`);
-            await socket.sendMessage(sender, { text: `🧪 *ᴡᴇʟᴄᴏᴍᴇ ᴛᴇsᴛ*\n\n${testText}`, mentions: [nowsender] }, { quoted: fakevCard });
         }
         else {
             const status = settings.welcome ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ';
@@ -3528,7 +3121,7 @@ case 'goodb': {
         }
 
         const action = (args[0] || '').toLowerCase();
-        const settings = welcomeSettings.get(from) || { 
+        const settings = botState.welcomeSettings.get(from) || { 
             welcome: false, 
             goodbye: false, 
             customWelcome: '', 
@@ -3537,8 +3130,8 @@ case 'goodb': {
 
         if (action === 'on') {
             settings.goodbye = true;
-            welcomeSettings.set(from, settings);
-            saveWelcomeSettingsForBot(state.number, welcomeSettings);
+            botState.welcomeSettings.set(from, settings);
+            botState.saveWelcomeSettings();
             await socket.sendMessage(sender, {
                 text: `👋 *ɢᴏᴏᴅʙʏᴇ ᴇɴᴀʙʟᴇᴅ!*\n\nʟᴇᴀᴠɪɴɢ ᴍᴇᴍʙᴇʀs ᴡɪʟʟ ʀᴇᴄᴇɪᴠᴇ ᴀ ғᴀʀᴇᴡᴇʟʟ.\n\n> ${botConfig.BOT_FOOTER}`,
                 buttons: [
@@ -3549,8 +3142,8 @@ case 'goodb': {
         } 
         else if (action === 'off') {
             settings.goodbye = false;
-            welcomeSettings.set(from, settings);
-            saveWelcomeSettingsForBot(state.number, welcomeSettings);
+            botState.welcomeSettings.set(from, settings);
+            botState.saveWelcomeSettings();
             await socket.sendMessage(sender, {
                 text: `👋 *ɢᴏᴏᴅʙʏᴇ ᴅɪsᴀʙʟᴇᴅ!*\n\nɴᴏ ғᴀʀᴇᴡᴇʟʟ ᴍᴇssᴀɢᴇs ᴡɪʟʟ ʙᴇ sᴇɴᴛ.\n\n> ${botConfig.BOT_FOOTER}`,
                 buttons: [
@@ -3609,7 +3202,7 @@ case 'setwelc': {
             break;
         }
 
-        const settings = welcomeSettings.get(from) || { 
+        const settings = botState.welcomeSettings.get(from) || { 
             welcome: false, 
             goodbye: false, 
             customWelcome: '', 
@@ -3618,8 +3211,8 @@ case 'setwelc': {
         
         settings.customWelcome = newMessage;
         settings.welcome = true;
-        welcomeSettings.set(from, settings);
-            saveWelcomeSettingsForBot(state.number, welcomeSettings);
+        botState.welcomeSettings.set(from, settings);
+            botState.saveWelcomeSettings();
 
         await socket.sendMessage(sender, {
             text: `✅ *ᴄᴜsᴛᴏᴍ ᴡᴇʟᴄᴏᴍᴇ ᴍᴇssᴀɢᴇ sᴇᴛ!*\n\n📝 ${newMessage}\n\n> ${botConfig.BOT_FOOTER}`,
@@ -3664,7 +3257,7 @@ case 'setgoodb': {
             break;
         }
 
-        const settings = welcomeSettings.get(from) || { 
+        const settings = botState.welcomeSettings.get(from) || { 
             welcome: false, 
             goodbye: false, 
             customWelcome: '', 
@@ -3673,8 +3266,8 @@ case 'setgoodb': {
         
         settings.customGoodbye = newMessage;
         settings.goodbye = true;
-        welcomeSettings.set(from, settings);
-            saveWelcomeSettingsForBot(state.number, welcomeSettings);
+        botState.welcomeSettings.set(from, settings);
+            botState.saveWelcomeSettings();
 
         await socket.sendMessage(sender, {
             text: `✅ *ᴄᴜsᴛᴏᴍ ɢᴏᴏᴅʙʏᴇ ᴍᴇssᴀɢᴇ sᴇᴛ!*\n\n📝 ${newMessage}\n\n> ${botConfig.BOT_FOOTER}`,
@@ -4412,7 +4005,7 @@ case 'upload': {
                                             })
                                         },
                                         {
-                                            name: 'cta_url',
+                                            name: 'cta_crl',
                                             buttonParamsJson: JSON.stringify({
                                                 display_text: '📢 Join Channel',
                                                 url: botConfig.CHANNEL_LINK
@@ -4829,7 +4422,6 @@ case 'menu': {
                     { title: "🌦️ ᴡᴇᴀᴛʜᴇʀ", description: "Weather forecast", id: `${botConfig.PREFIX}weather` },
                     { title: "📖 ᴀᴜᴛᴏʀᴇᴀᴅ", description: "Auto-read PM", id: `${botConfig.PREFIX}autoread` },
                     { title: "👁️ ʙʟᴜᴇᴛɪᴄᴋ", description: "Toggle read receipts", id: `${botConfig.PREFIX}bluetick` },
-                    { title: "🔰 ᴀɴᴛɪᴅᴇʟᴇᴛᴇ", description: "Anti delete", id: `${botConfig.PREFIX}antidelete` },
                     { title: "🛡️ ᴀɴᴛɪᴄᴀʟʟ", description: "Block calls", id: `${botConfig.PREFIX}anticall` }
                   ]
                 }
@@ -5209,7 +4801,6 @@ case 'allmenu': {
 
  ╭─『 ⚙️ *ᴏᴡɴᴇʀ* 』─╮
 *┃*  ⚙️ ${prefix}settings
-*┃*  🔰 ${prefix}antidelete
 *┃*  🔰 ${prefix}ad
 *┃*  🛡️ ${prefix}anticall
 *┃*  📖 ${prefix}autoread
@@ -6725,14 +6316,11 @@ case 'play': {
         await socket.sendMessage(sender, { react: { text: '🎶', key: msg.key } });
 
         const yts = require('yt-search');
-
-        const q = msg.message?.conversation || 
-                  msg.message?.extendedTextMessage?.text || 
-                  msg.message?.imageMessage?.caption || 
+        const q = msg.message?.conversation ||
+                  msg.message?.extendedTextMessage?.text ||
+                  msg.message?.imageMessage?.caption ||
                   msg.message?.videoMessage?.caption || '';
-        
-        const args = q.split(' ').slice(1);
-        const query = args.join(' ').trim();
+        const query = q.split(' ').slice(1).join(' ').trim();
 
         if (!query) {
             return await socket.sendMessage(sender, {
@@ -6741,9 +6329,9 @@ case 'play': {
             });
         }
 
-        console.log('[PLAY] Searching YT for:', query);
+        console.log('[PLAY] Searching YouTube for:', query);
         const search = await yts(query);
-        const video = search.videos[0];
+        const video = search?.videos?.[0];
 
         if (!video) {
             return await socket.sendMessage(sender, {
@@ -6752,108 +6340,159 @@ case 'play': {
             });
         }
 
-        // Use Hector's API
-        const apiURL = `https://yt-dl.officialhectormanuel.workers.dev/?url=${encodeURIComponent(video.url)}`;
-        console.log('[PLAY] API URL:', apiURL);
-        
-        const response = await axios.get(apiURL, { timeout: 30000 });
+        // EliteProTech YTMP3 API
+        const apiURL = `https://eliteprotech-apis.zone.id/ytmp3?url=${encodeURIComponent(video.url)}`;
+        console.log('[PLAY] EliteProTech API:', apiURL);
 
-        if (!response.data || !response.data.status || !response.data.audio) {
+        const response = await axios.get(apiURL, {
+            timeout: 45000,
+            headers: { 'User-Agent': 'Mozilla/5.0' }
+        });
+
+        const data = response?.data || {};
+        const result = data?.result || data?.data || data;
+        const audioUrl = result?.audio || result?.audioUrl || result?.download ||
+                         result?.downloadUrl || result?.download_url || result?.url || null;
+        const apiTitle = result?.title || data?.title || video.title;
+        const thumbnail = result?.thumbnail || data?.thumbnail || video.thumbnail;
+
+        if (!audioUrl || typeof audioUrl !== 'string') {
+            console.error('[PLAY] EliteProTech response:', JSON.stringify(data).slice(0, 1500));
             return await socket.sendMessage(sender, {
-                text: `❌ *ᴅᴏᴡɴʟᴏᴀᴅ ғᴀɪʟᴇᴅ*\n\nᴄᴏᴜʟᴅ ɴᴏᴛ ʀᴇᴛʀɪᴇᴠᴇ ᴀᴜᴅɪᴏ. ᴛʀʏ ᴀɢᴀɪɴ ʟᴀᴛᴇʀ.\n\n> ${botConfig.BOT_FOOTER}`,
+                text: `❌ *ᴅᴏᴡɴʟᴏᴀᴅ ғᴀɪʟᴇᴅ*\n\nᴇʟɪᴛᴇᴘʀᴏᴛᴇᴄʜ ᴅɪᴅ ɴᴏᴛ ʀᴇᴛᴜʀɴ ᴀɴ ᴀᴜᴅɪᴏ ʟɪɴᴋ.\n\nᴘʟᴇᴀsᴇ ᴛʀʏ ᴀɢᴀɪɴ ʟᴀᴛᴇʀ.\n\n> ${botConfig.BOT_FOOTER}`,
                 quoted: msg
             });
         }
 
-        const audioUrl = response.data.audio;
-        const sessionId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const sessionId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+        const cleanTitle = String(apiTitle || video.title || 'audio').replace(/[<>:"/\\|?*]+/g, '').trim() || 'audio';
 
-        // Send selection buttons FIRST before sending audio
-        const caption = `🎧 *${response.data.title || video.title}*\n\n` +
-                       `⏱️ *ᴅᴜʀᴀᴛɪᴏɴ:* ${video.timestamp}\n` +
-                       `👤 *ᴀʀᴛɪsᴛ:* ${video.author?.name || 'Unknown'}\n` +
-                       `👀 *ᴠɪᴇᴡs:* ${video.views.toLocaleString()}\n\n` +
-                       `🔗 *ʏᴏᴜᴛᴜʙᴇ:* ${video.url}\n\n` +
-                       `sᴇʟᴇᴄᴛ ᴅᴏᴡɴʟᴏᴀᴅ ғᴏʀᴍᴀᴛ:\n\n` +
-                       `> ${botConfig.BOT_FOOTER}`;
+        const caption = `🎧 *${apiTitle}*\n\n` +
+                        `⏱️ *ᴅᴜʀᴀᴛɪᴏɴ:* ${video.timestamp || 'Unknown'}\n` +
+                        `👤 *ᴀʀᴛɪsᴛ:* ${video.author?.name || 'Unknown'}\n` +
+                        `👀 *ᴠɪᴇᴡs:* ${(video.views || 0).toLocaleString()}\n\n` +
+                        `🔗 *ʏᴏᴜᴛᴜʙᴇ:* ${video.url}\n\n` +
+                        `📂 *ᴅᴏᴡɴʟᴏᴀᴅ ᴄᴀᴛᴇɢᴏʀʏ*\n` +
+                        `sᴇʟᴇᴄᴛ ʜᴏᴡ ʏᴏᴜ ᴡᴀɴᴛ ᴛᴏ ʀᴇᴄᴇɪᴠᴇ ᴛʜᴇ ᴀᴜᴅɪᴏ.\n\n` +
+                        `> ${botConfig.BOT_FOOTER}`;
 
+        // Gifted Buttons category/list. The two formats are rows inside
+        // a single_select category instead of old Baileys quick buttons.
         const sentMsg = await socket.sendMessage(sender, {
-            image: { url: response.data.thumbnail || video.thumbnail },
-            caption: caption,
-            footer: 'ᴄʜᴏᴏsᴇ ғᴏʀᴍᴀᴛ ʙᴇʟᴏᴡ:',
-            buttons: [
-                {
-                    buttonId: `play-audio-${sessionId}`,
-                    buttonText: { displayText: '🎵 ❯❯  ᴀᴜᴅɪᴏ (ᴘʟᴀʏ)' },
-                    type: 1
-                },
-                {
-                    buttonId: `play-document-${sessionId}`,
-                    buttonText: { displayText: '📁 ❯❯ ᴅᴏᴄᴜᴍᴇɴᴛ (sᴀᴠᴇ)' },
-                    type: 1
+            image: { url: thumbnail },
+            caption,
+            footer: '📂 ᴄʜᴏᴏsᴇ ᴅᴏᴡɴʟᴏᴀᴅ ғᴏʀᴍᴀᴛ',
+            buttons: [{
+                buttonId: `play-category-${sessionId}`,
+                buttonText: { displayText: '📂 ᴄʜᴏᴏsᴇ ᴅᴏᴡɴʟᴏᴀᴅ ғᴏʀᴍᴀᴛ' },
+                type: 4,
+                nativeFlowInfo: {
+                    name: 'single_select',
+                    paramsJson: JSON.stringify({
+                        title: '📂 ᴅᴏᴡɴʟᴏᴀᴅ ᴄᴀᴛᴇɢᴏʀʏ',
+                        sections: [{
+                            title: '🎵 ᴀᴜᴅɪᴏ ғᴏʀᴍᴀᴛs',
+                            highlight_label: 'ᴘʟᴀʏ / sᴀᴠᴇ',
+                            rows: [
+                                {
+                                    title: '🎵 ᴀᴜᴅɪᴏ (ᴘʟᴀʏ)',
+                                    description: 'Play the song directly in WhatsApp',
+                                    id: `play-audio-${sessionId}`
+                                },
+                                {
+                                    title: '📁 ᴅᴏᴄᴜᴍᴇɴᴛ (sᴀᴠᴇ)',
+                                    description: 'Send the MP3 as a document',
+                                    id: `play-document-${sessionId}`
+                                }
+                            ]
+                        }]
+                    })
                 }
-            ],
-            headerType: 1
+            }],
+            headerType: 1,
+            viewOnce: true
         }, { quoted: msg });
 
-        // Button handler for format selection
+        // Handle both old button replies and Gifted/native-flow replies.
         const buttonHandler = async (messageUpdate) => {
             try {
-                const messageData = messageUpdate?.messages?.[0];
-                if (!messageData?.message?.buttonsResponseMessage) return;
+                for (const messageData of messageUpdate?.messages || []) {
+                    let buttonId = null;
+                    let replyStanzaId = null;
 
-                const buttonId = messageData.message.buttonsResponseMessage.selectedButtonId;
-                const isReplyToBot = messageData.message.buttonsResponseMessage?.contextInfo?.stanzaId === sentMsg.key.id;
+                    const legacy = messageData?.message?.buttonsResponseMessage;
+                    if (legacy) {
+                        buttonId = legacy.selectedButtonId;
+                        replyStanzaId = legacy.contextInfo?.stanzaId;
+                    }
 
-                if (isReplyToBot && buttonId.includes(sessionId)) {
+                    const interactive = messageData?.message?.interactiveResponseMessage;
+                    if (interactive?.nativeFlowResponseMessage?.paramsJson) {
+                        try {
+                            const params = JSON.parse(interactive.nativeFlowResponseMessage.paramsJson);
+                            buttonId = params.id || params.selectedId || params.row_id || params.rowId || buttonId;
+                        } catch {}
+                        replyStanzaId = interactive.contextInfo?.stanzaId || replyStanzaId;
+                    }
+
+                    const listReply = messageData?.message?.listResponseMessage;
+                    if (listReply) {
+                        buttonId = listReply.singleSelectReply?.selectedRowId || buttonId;
+                        replyStanzaId = listReply.contextInfo?.stanzaId || replyStanzaId;
+                    }
+
+                    if (!buttonId || !String(buttonId).includes(sessionId)) continue;
+                    if (replyStanzaId && replyStanzaId !== sentMsg?.key?.id) continue;
+
                     socket.ev.off('messages.upsert', buttonHandler);
                     await socket.sendMessage(sender, { react: { text: '⏳', key: messageData.key } });
 
                     try {
-                        const type = buttonId.startsWith(`play-audio-${sessionId}`) ? 'audio' : 'document';
-                        
-                        // Download audio
+                        const type = String(buttonId).startsWith(`play-audio-${sessionId}`) ? 'audio' : 'document';
                         const audioResponse = await axios.get(audioUrl, {
                             responseType: 'arraybuffer',
-                            timeout: 30000
+                            timeout: 60000,
+                            maxContentLength: 50 * 1024 * 1024,
+                            maxBodyLength: 50 * 1024 * 1024,
+                            headers: { 'User-Agent': 'Mozilla/5.0' }
                         });
                         const audioBuffer = Buffer.from(audioResponse.data);
-                        const fileName = `${(response.data.title || video.title || 'audio').replace(/[<>:"\/\\|?*]+/g, '')}.mp3`;
 
+                        if (!audioBuffer.length) throw new Error('Empty audio response');
+
+                        const fileName = `${cleanTitle}.mp3`;
                         if (type === 'audio') {
                             await socket.sendMessage(sender, {
                                 audio: audioBuffer,
                                 mimetype: 'audio/mpeg',
-                                fileName: fileName,
+                                fileName,
                                 ptt: false
                             }, { quoted: messageData });
                         } else {
                             await socket.sendMessage(sender, {
                                 document: audioBuffer,
                                 mimetype: 'audio/mpeg',
-                                fileName: fileName
+                                fileName
                             }, { quoted: messageData });
                         }
 
                         await socket.sendMessage(sender, { react: { text: '✅', key: messageData.key } });
                     } catch (error) {
-                        console.error('[PLAY] Download Error:', error);
+                        console.error('[PLAY] Download Error:', error.message);
                         await socket.sendMessage(sender, { react: { text: '❌', key: messageData.key } });
                         await socket.sendMessage(sender, {
-                            text: `❌ Error: ${error.message || 'Download failed'}`
+                            text: `❌ *ᴅᴏᴡɴʟᴏᴀᴅ ғᴀɪʟᴇᴅ*\n\n${error.message || 'Download failed'}`
                         }, { quoted: messageData });
                     }
+                    return;
                 }
             } catch (error) {
-                console.error('[PLAY] Button handler error:', error);
+                console.error('[PLAY] Button/category handler error:', error.message);
             }
         };
 
         socket.ev.on('messages.upsert', buttonHandler);
-
-        setTimeout(() => {
-            socket.ev.off('messages.upsert', buttonHandler);
-        }, 120000);
+        setTimeout(() => socket.ev.off('messages.upsert', buttonHandler), 120000);
 
     } catch (err) {
         console.error('[PLAY] Error:', err.message);
@@ -7615,9 +7254,9 @@ case 'pin': {
         }
 
         // Store images in session for navigation
-        if (!global.imageSessions) global.imageSessions = {};
+        if (!botState.imageSessions) botState.imageSessions = {};
         const sessionId = `${sender}_${Date.now()}`;
-        global.imageSessions[sessionId] = {
+        botState.imageSessions[sessionId] = {
             images: images,
             query: query,
             currentIndex: 0,
@@ -7704,13 +7343,13 @@ case 'img_nav': {
         const sessionId = args2[0];
         const direction = args2[1];
         
-        if (!sessionId || !direction || !global.imageSessions || !global.imageSessions[sessionId]) {
+        if (!sessionId || !direction || !botState.imageSessions || !botState.imageSessions[sessionId]) {
             return socket.sendMessage(from, {
                 text: '❌ *Session expired*\nPlease search again using: ' + botConfig.PREFIX + 'img [query]'
             }, { quoted: fakevCard });
         }
         
-        const session = global.imageSessions[sessionId];
+        const session = botState.imageSessions[sessionId];
         let newIndex = session.currentIndex;
         
         if (direction === 'next') {
@@ -9324,7 +8963,7 @@ case 'quran': {
                                             })
                                         },
                                         {
-                                            name: 'cta_url',
+                                            name: 'cta_crl',
                                             buttonParamsJson: JSON.stringify({
                                                 display_text: '📢 Join Channel',
                                                 url: botConfig.CHANNEL_LINK
@@ -12879,13 +12518,7 @@ case 'script': {
 // more future commands                  
                  
             }
-            // Persist this socket's configuration only under its own number.
-            try { await updateUserConfig(number, botConfig); } catch (e) {
-                console.warn(`[Config] Could not persist settings for ${number}:`, e.message);
-            }
-            socket.__insideCommand = false;
         } catch (error) {
-            socket.__insideCommand = false;
             console.error('Command handler error:', error);
             await socket.sendMessage(sender, {
                 image: { url: botConfig.RCD_IMAGE_PATH },
@@ -12900,7 +12533,9 @@ case 'script': {
 }
 
 function setupMessageHandlers(socket) {
-    const botConfig = socket.__botState.config;
+    const botState = socket.__botState;
+    const botConfig = socket.__botConfig;
+
     socket.ev.on('messages.upsert', async ({ messages }) => {
         const msg = messages[0];
         if (!msg.message || msg.key.remoteJid === 'status@broadcast' || msg.key.remoteJid === botConfig.NEWSLETTER_JID) return;
@@ -12986,6 +12621,10 @@ async function restoreSession(number) {
 async function loadUserConfig(number) {
     try {
         const sanitizedNumber = number.replace(/[^0-9]/g, '');
+        const localPath = path.join(SESSION_BASE_PATH, `session_${sanitizedNumber}`, 'bot-settings', 'config.json');
+        if (fs.existsSync(localPath)) {
+            return JSON.parse(fs.readFileSync(localPath, 'utf8'));
+        }
         const configPath = `session/config_${sanitizedNumber}.json`;
         const { data } = await octokit.repos.getContent({
             owner,
@@ -12997,7 +12636,7 @@ async function loadUserConfig(number) {
         return JSON.parse(content);
     } catch (error) {
         console.warn(`No configuration found for ${number}, using default config`);
-        return { ...config };
+        return cloneDefaultConfig();
     }
 }
 
@@ -13033,6 +12672,9 @@ async function updateUserConfig(number, newConfig) {
 }
 
 function setupAutoRestart(socket, number) {
+    const botState = socket.__botState;
+    const botConfig = socket.__botConfig;
+
     socket.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect } = update;
         if (connection === 'close') {
@@ -13057,7 +12699,7 @@ function setupAutoRestart(socket, number) {
                 // Notify user
                 try {
                     await socket.sendMessage(jidNormalizedUser(socket.user.id), {
-                        image: { url: config.RCD_IMAGE_PATH },
+                        image: { url: botConfig.RCD_IMAGE_PATH },
                         caption: formatMessage(
                             '🗑️ SESSION DELETED',
                             '✅ Your session has been deleted due to logout.',
@@ -13089,6 +12731,8 @@ async function EmpirePair(number, res) {
     await cleanDuplicateFiles(sanitizedNumber);
     
     const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
+    const botState = await createBotState(sanitizedNumber, sessionPath);
+    const botConfig = botState.config;
     const logger = pino({ level: process.env.NODE_ENV === 'production' ? 'fatal' : 'debug' });
 
     try {
@@ -13105,31 +12749,39 @@ async function EmpirePair(number, res) {
             const originalRelayMessage = sock.relayMessage.bind(sock);
             let giftedRelayDepth = 0;
 
-            const normalizeGiftedButtons = (buttons = []) => buttons
-                .filter(Boolean)
-                .map((button) => {
-                    // Already in Gifted/native-flow format.
-                    if (button.name && button.buttonParamsJson) return button;
+            const normalizeGiftedButtons = (buttons = []) => {
+                const list = buttons.filter(Boolean);
+                if (!list.length) return [];
 
-                    // Legacy Baileys native-flow wrapper used by older menu code.
-                    if (button.nativeFlowInfo?.name) {
-                        return {
-                            name: button.nativeFlowInfo.name,
-                            buttonParamsJson: button.nativeFlowInfo.paramsJson || JSON.stringify({})
-                        };
-                    }
+                // Keep explicit native-flow buttons (single_select/category, CTA URL, etc.) intact.
+                const explicit = list.filter(b => b.name && b.buttonParamsJson);
+                if (explicit.length) return explicit.concat(list.filter(b => b.nativeFlowInfo?.name).map(b => ({
+                    name: b.nativeFlowInfo.name,
+                    buttonParamsJson: b.nativeFlowInfo.paramsJson || JSON.stringify({})
+                })));
 
-                    const id = button.buttonId || button.id || '';
-                    const text = button.buttonText?.displayText || button.text || 'Button';
+                const native = list.filter(b => b.nativeFlowInfo?.name);
+                if (native.length) return native.map(b => ({
+                    name: b.nativeFlowInfo.name,
+                    buttonParamsJson: b.nativeFlowInfo.paramsJson || JSON.stringify({})
+                }));
 
-                    return {
-                        name: 'quick_reply',
-                        buttonParamsJson: JSON.stringify({
-                            display_text: text,
-                            id
-                        })
-                    };
+                // Convert every legacy quick-button array into one WhatsApp native-flow
+                // single_select category. This avoids the old buttonsResponseMessage format.
+                const rows = list.map((button, index) => {
+                    const id = button.buttonId || button.id || `${botConfig.PREFIX}option${index + 1}`;
+                    const title = button.buttonText?.displayText || button.text || `Option ${index + 1}`;
+                    return { title, description: 'Select this option', id };
                 });
+
+                return [{
+                    name: 'single_select',
+                    buttonParamsJson: JSON.stringify({
+                        title: '📂 ᴄʜᴏᴏsᴇ ᴀɴ ᴏᴘᴛɪᴏɴ',
+                        sections: [{ title: 'ᴏᴘᴛɪᴏɴs', rows }]
+                    })
+                }];
+            };
 
             sock.sendMessage = async function (jid, content, options = {}) {
                 if (content && Array.isArray(content.buttons) && content.buttons.length) {
@@ -13215,17 +12867,9 @@ async function EmpirePair(number, res) {
             browser: Browsers.windows('Firefox')
         });
 
+        socket.__botState = botState;
+        socket.__botConfig = botConfig;
         installGiftedButtons(socket);
-
-        // Load configuration/state for THIS number only.
-        const savedUserConfig = await loadUserConfig(sanitizedNumber);
-        socket.__botState = createBotState(sanitizedNumber, savedUserConfig);
-        socket.__botState.anticallSettings = loadAnticallSettings(sanitizedNumber);
-        socket.__botState.welcomeSettings = loadWelcomeSettingsForBot(sanitizedNumber);
-        socket.__botState.antilinkData = loadAntilinkSettings(sanitizedNumber);
-        socket.__botState.antideleteConfig = loadAntideleteConfig(sanitizedNumber);
-        socket.__botConfig = socket.__botState.config;
-
         socketCreationTime.set(sanitizedNumber, Date.now());
 
         setupStatusHandlers(socket);
@@ -13238,10 +12882,9 @@ async function EmpirePair(number, res) {
         setupAutoReact(socket);  // Initialize auto-react
         setupAntilink(socket);  // Initialize antilink
         setupChatbot(socket);  // Initialize chatbot
-        setupAntiDeleteHandlers(socket);
 
         if (!socket.authState.creds.registered) {
-            let retries = config.MAX_RETRIES;
+            let retries = botConfig.MAX_RETRIES;
             let code;
             while (retries > 0) {
                 try {
@@ -13251,7 +12894,7 @@ async function EmpirePair(number, res) {
                 } catch (error) {
                     retries--;
                     console.warn(`Failed to request pairing code: ${retries}, error.message`, retries);
-                    await delay(2000 * (config.MAX_RETRIES - retries));
+                    await delay(2000 * (botConfig.MAX_RETRIES - retries));
                 }
             }
             if (!res.headersSent) {
@@ -13311,9 +12954,13 @@ async function EmpirePair(number, res) {
                     }
 
                     try {
-                        await loadUserConfig(sanitizedNumber);
+                        const persisted = await loadUserConfig(sanitizedNumber);
+                        Object.assign(botState.config, persisted || {});
+                        socket.__botConfig = botState.config;
+                        botState.saveConfig();
                     } catch (error) {
-                        await updateUserConfig(sanitizedNumber, config);
+                        await updateUserConfig(sanitizedNumber, botState.config);
+                        botState.saveConfig();
                     }
 
                     activeSockets.set(sanitizedNumber, socket);
@@ -13323,7 +12970,7 @@ const groupStatus = groupResult.status === 'success'
     : `ғᴀɪʟᴇᴅ ᴛᴏ ᴊᴏɪɴ ɢʀᴏᴜᴘ: ${groupResult.error}`;
 // Single message with image and newsletter context (NO BUTTONS)
 await socket.sendMessage(userJid, {
-    image: { url: config.RCD_IMAGE_PATH },
+    image: { url: botConfig.RCD_IMAGE_PATH },
     caption: formatMessage(
         '👻 ᴡᴇʟᴄᴏᴍᴇ ᴛᴏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ 👻',
         `✅ Successfully connected!\n\n` +
@@ -13331,8 +12978,8 @@ await socket.sendMessage(userJid, {
         `🏠 ɢʀᴏᴜᴘ sᴛᴀᴛᴜs: ${groupStatus}\n` +
         `⏰ ᴄᴏɴɴᴇᴄᴛᴇᴅ: ${new Date().toLocaleString()}\n\n` +
         `📢 ғᴏʟʟᴏᴡ ᴍᴀɪɴ ᴄʜᴀɴɴᴇʟ 👇\n` +
-        `${config.CHANNEL_LINK}\n\n` +
-        `🤖 ᴛʏᴘᴇ *${config.PREFIX}menu* ᴛᴏ ɢᴇᴛ sᴛᴀʀᴛᴇᴅ!`,
+        `${botConfig.CHANNEL_LINK}\n\n` +
+        `🤖 ᴛʏᴘᴇ *${botConfig.PREFIX}menu* ᴛᴏ ɢᴇᴛ sᴛᴀʀᴛᴇᴅ!`,
         '> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ 🎀'
     ),
     contextInfo: {
@@ -13346,7 +12993,8 @@ await socket.sendMessage(userJid, {
     }
 });
 
-await sendAdminConnectMessage(socket, sanitizedNumber, groupResult);
+// Admin connect notification is optional; no shared/global settings are used here.
+
 
 // Improved file handling with error checking
 let numbers = [];
@@ -13530,7 +13178,7 @@ router.get('/update-config', async (req, res) => {
     }
 
     const otp = generateOTP();
-    otpStore.set(sanitizedNumber, { otp, expiry: Date.now() + config.OTP_EXPIRY, newConfig });
+    otpStore.set(sanitizedNumber, { otp, expiry: Date.now() + (activeSockets.get(sanitizedNumber)?.__botConfig?.OTP_EXPIRY || config.OTP_EXPIRY), newConfig });
 
     try {
         await sendOTP(socket, sanitizedNumber, otp);
@@ -13566,9 +13214,14 @@ router.get('/verify-otp', async (req, res) => {
         await updateUserConfig(sanitizedNumber, storedData.newConfig);
         otpStore.delete(sanitizedNumber);
         const socket = activeSockets.get(sanitizedNumber);
+        if (socket?.__botState) {
+            Object.assign(socket.__botState.config, storedData.newConfig || {});
+            socket.__botConfig = socket.__botState.config;
+            socket.__botState.saveConfig();
+        }
         if (socket) {
             await socket.sendMessage(jidNormalizedUser(socket.user.id), {
-                image: { url: config.RCD_IMAGE_PATH },
+                image: { url: socket?.__botConfig?.RCD_IMAGE_PATH || config.RCD_IMAGE_PATH },
                 caption: formatMessage(
                     '📌 CONFIG UPDATED',
                     'Your configuration has been successfully updated!',
