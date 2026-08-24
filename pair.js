@@ -4516,9 +4516,9 @@ case 'info': {
     break;
 }
 //case menu
+//case menu
 case 'menu': {
   try {
-    const from = msg?.key?.remoteJid || sender;
     await socket.sendMessage(sender, { react: { text: '🤖', key: msg.key } });
     const startTime = socketCreationTime.get(number) || Date.now();
     const uptime = Math.floor((Date.now() - startTime) / 1000);
@@ -4556,7 +4556,7 @@ case 'menu': {
       caption: `*🎀 B͛L͛O͛O͛D͛ R͛A͛V͛E͛N͛ M͛I͛N͛I͛ B͛O͛T͛ 🎀*\n${menuText}`,
       buttons: [
         {
-          buttonId: `${botConfig.PREFIX}quick_commands`,
+          buttonId: `${config.PREFIX}quick_commands`,
           buttonText: { displayText: '🤖 C͛H͛O͛O͛SE͛ C͛A͛T͛E͛G͛O͛R͛Y͛' },
           type: 4,
           nativeFlowInfo: {
@@ -4568,102 +4568,103 @@ case 'menu': {
                   title: "🌐 ɢᴇɴᴇʀᴀʟ ᴄᴏᴍᴍᴀɴᴅs",
                   highlight_label: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ',
                   rows: [
-                    { title: "📜 ᴀʟʟᴍᴇɴᴜ", description: "get all command in list", id: `${botConfig.PREFIX}allmenu` }, 
-                     { title: "🤖 CHATBOT", description: "reply with chatgpt", id: `${botConfig.PREFIX}chatbot` }, 
-                    { title: "🎨 ʟᴏɢᴏ ᴍᴇɴᴜ", description: "get your own logo texts", id: `${botConfig.PREFIX}logomenu` }, 
-                    { title: "🟢 ᴀʟɪᴠᴇ", description: "Check if bot is active", id: `${botConfig.PREFIX}alive` }, 
-                    { title: "⚙️ sᴇᴛᴛɪɴɢs", description: "change your settings", id: `${botConfig.PREFIX}settings` },
-                    { title: "♻️ᴀᴜᴛᴏʙɪᴏ", description: "set your bio on and off", id: `${botConfig.PREFIX}autobio` },
-                    { title: "🪀MODE", description: "set your bot public or private", id: `${botConfig.PREFIX}mode` },    
-                    { title: "🌟owner", description: "get in touch with dev", id: `${botConfig.PREFIX}owner` },
-                    { title: "🎭ʜᴀᴄᴋ", description: "prank others", id: `${botConfig.PREFIX}hack` },
-                    { title: "🗣️ᴄᴀʟᴄᴜʟᴀᴛᴏʀ", description: "do your own math", id: `${botConfig.PREFIX}calculator` },
-                    { title: "📊 ʙᴏᴛ sᴛᴀᴛs", description: "View bot statistics", id: `${botConfig.PREFIX}session` },
-                    { title: "ℹ️ ʙᴏᴛ ɪɴғᴏ", description: "Get bot information", id: `${botConfig.PREFIX}active` },
-                    { title: "🔰sᴇᴛᴘᴘ", description: "set your own profile", id: `${botConfig.PREFIX}setpp` },
-                    { title: "📋 ᴍᴇɴᴜ", description: "Show this menu", id: `${botConfig.PREFIX}menu` },
-                    { title: "📜 ϙᴜʀᴀɴ", description: "List all your quran by number", id: `${botConfig.PREFIX}quran` },
-                    { title: "🔮sᴄʀᴇᴇɴsʜᴏᴏᴛ", description: "get website screenshots", id: `${botConfig.PREFIX}ss` },
-                    { title: "💌ғᴇᴛᴄʜ", description: "get url content", id: `${botConfig.PREFIX}get` },  
-                    { title: "🏓 ᴘɪɴɢ", description: "Check bot response speed", id: `${botConfig.PREFIX}ping` },
-                    { title: "📜 ᴘᴅғ", description: "change text to pdf", id: `${botConfig.PREFIX}pdf` },
-                    { title: "🔗 ᴘᴀɪʀ", description: "Generate pairing code", id: `${botConfig.PREFIX}pair` },
-                    { title: "✨ ғᴀɴᴄʏ", description: "Fancy text generator", id: `${botConfig.PREFIX}fancy` },
-                    { title: "🔮tts", description: "voice converter", id: `${botConfig.PREFIX}tts` },
-                    { title: "🎉ɪᴍᴀɢᴇ", description: "random image generator", id: `${botConfig.PREFIX}img` },
-                    { title: "🎨 ʟᴏɢᴏ", description: "Create custom logos", id: `${botConfig.PREFIX}logo` },
-                    { title: "❇️ᴠᴄғ", description: "Create group contacts", id: `${botConfig.PREFIX}vcf` },
-                    { title: "📦 ʀᴇᴘᴏ", description: "Bot repository info", id: `${botConfig.PREFIX}repo` },
-                    { title: "📦 ɢɪᴛᴄʟᴏɴᴇ", description: "Download GitHub repos", id: `${botConfig.PREFIX}gitclone` }
+                    { title: "📜 ᴀʟʟᴍᴇɴᴜ", description: "get all command in list", id: `${config.PREFIX}allmenu` }, 
+                     { title: "🤖 CHATBOT", description: "reply with chatgpt", id: `${config.PREFIX}chatbot` }, 
+                    { title: "🎨 ʟᴏɢᴏ ᴍᴇɴᴜ", description: "get your own logo texts", id: `${config.PREFIX}logomenu` }, 
+                    { title: "🟢 ᴀʟɪᴠᴇ", description: "Check if bot is active", id: `${config.PREFIX}alive` }, 
+                    { title: "⚙️ sᴇᴛᴛɪɴɢs", description: "change your settings", id: `${config.PREFIX}settings` },
+                    { title: "♻️ᴀᴜᴛᴏʙɪᴏ", description: "set your bio on and off", id: `${config.PREFIX}autobio` },
+                    { title: "🪀MODE", description: "set your bot public or private", id: `${config.PREFIX}mode` },    
+                    { title: "🌟owner", description: "get in touch with dev", id: `${config.PREFIX}owner` },
+                    { title: "🎭ʜᴀᴄᴋ", description: "prank others", id: `${config.PREFIX}hack` },
+                    { title: "🗣️ᴄᴀʟᴄᴜʟᴀᴛᴏʀ", description: "do your own math", id: `${config.PREFIX}calculator` },
+                    { title: "📊 ʙᴏᴛ sᴛᴀᴛs", description: "View bot statistics", id: `${config.PREFIX}session` },
+                    { title: "ℹ️ ʙᴏᴛ ɪɴғᴏ", description: "Get bot information", id: `${config.PREFIX}active` },
+                    { title: "🔰sᴇᴛᴘᴘ", description: "set your own profile", id: `${config.PREFIX}setpp` },
+                    { title: "📋 ᴍᴇɴᴜ", description: "Show this menu", id: `${config.PREFIX}menu` },
+                    { title: "📜 ϙᴜʀᴀɴ", description: "List all your quran by number", id: `${config.PREFIX}quran` },
+                    { title: "🔮sᴄʀᴇᴇɴsʜᴏᴏᴛ", description: "get website screenshots", id: `${config.PREFIX}ss` },
+                    { title: "💌ғᴇᴛᴄʜ", description: "get url content", id: `${config.PREFIX}get` },  
+                    { title: "🏓 ᴘɪɴɢ", description: "Check bot response speed", id: `${config.PREFIX}ping` },
+                    { title: "📜 ᴘᴅғ", description: "change text to pdf", id: `${config.PREFIX}pdf` },
+                    { title: "🔗 ᴘᴀɪʀ", description: "Generate pairing code", id: `${config.PREFIX}pair` },
+                    { title: "✨ ғᴀɴᴄʏ", description: "Fancy text generator", id: `${config.PREFIX}fancy` },
+                    { title: "🔮tts", description: "voice converter", id: `${config.PREFIX}tts` },
+                    { title: "🎉ɪᴍᴀɢᴇ", description: "random image generator", id: `${config.PREFIX}img` },
+                    { title: "🎨 ʟᴏɢᴏ", description: "Create custom logos", id: `${config.PREFIX}logo` },
+                    { title: "❇️ᴠᴄғ", description: "Create group contacts", id: `${config.PREFIX}vcf` },
+                    { title: "📦 ʀᴇᴘᴏ", description: "Bot repository info", id: `${config.PREFIX}repo` },
+                    { title: "📦 ɢɪᴛᴄʟᴏɴᴇ", description: "Download GitHub repos", id: `${config.PREFIX}gitclone` }
                   ]
                 },
                 {
                   title: "🎵 ᴍᴇᴅɪᴀ ᴛᴏᴏʟs",
                   highlight_label: 'New',
                   rows: [
-                    { title: "🎵 sᴏɴɢ", description: "Download music from YouTube", id: `${botConfig.PREFIX}song` }, 
-                    { title: "🎀play", description: "play favourite songs", id: `${botConfig.PREFIX}play` },
-                    { title: "📱 ᴛɪᴋᴛᴏᴋ", description: "Download TikTok videos", id: `${botConfig.PREFIX}tiktok` },
-                    { title: "🎵 sʜᴀᴢᴀᴍ", description: "Identify songs from audio", id: `${botConfig.PREFIX}shazam` },
-                    { title: "📘 ғᴀᴄᴇʙᴏᴏᴋ", description: "Download Facebook content", id: `${botConfig.PREFIX}fb` },
-                    { title: "📸 ɪɴsᴛᴀɢʀᴀᴍ", description: "Download Instagram content", id: `${botConfig.PREFIX}ig` },
-                    { title: "🖼️ ᴀɪ ɪᴍɢ", description: "Generate AI images", id: `${botConfig.PREFIX}aiimg` },
-                    { title: "👀 ᴠɪᴇᴡᴏɴᴄᴇ", description: "Access view-once media", id: `${botConfig.PREFIX}viewonce` },
-                    { title: "🖼️ sᴛɪᴄᴋᴇʀ", description: "Convert image/video to sticker", id: `${botConfig.PREFIX}sticker` },
-                    { title: "📤 ᴛᴏᴜʀʟ", description: "Upload media to URL", id: `${botConfig.PREFIX}tourl` },
-                    { title: "📁 ᴍᴇᴅɪᴀғɪʀᴇ", description: "Get MediaFire download link", id: `${botConfig.PREFIX}mf` }
+                    { title: "🎵 sᴏɴɢ", description: "Download music from YouTube", id: `${config.PREFIX}song` }, 
+                    { title: "🎀play", description: "play favourite songs", id: `${config.PREFIX}play` },
+                    { title: "📱 ᴛɪᴋᴛᴏᴋ", description: "Download TikTok videos", id: `${config.PREFIX}tiktok` },
+                    { title: "🎵 sʜᴀᴢᴀᴍ", description: "Identify songs from audio", id: `${config.PREFIX}shazam` },
+                    { title: "📘 ғᴀᴄᴇʙᴏᴏᴋ", description: "Download Facebook content", id: `${config.PREFIX}fb` },
+                    { title: "📸 ɪɴsᴛᴀɢʀᴀᴍ", description: "Download Instagram content", id: `${config.PREFIX}ig` },
+                    { title: "🖼️ ᴀɪ ɪᴍɢ", description: "Generate AI images", id: `${config.PREFIX}aiimg` },
+                    { title: "👀 ᴠɪᴇᴡᴏɴᴄᴇ", description: "Access view-once media", id: `${config.PREFIX}viewonce` },
+                    { title: "🖼️ sᴛɪᴄᴋᴇʀ", description: "Convert image/video to sticker", id: `${config.PREFIX}sticker` },
+                    { title: "📤 ᴛᴏᴜʀʟ", description: "Upload media to URL", id: `${config.PREFIX}tourl` },
+                    { title: "📁 ᴍᴇᴅɪᴀғɪʀᴇ", description: "Get MediaFire download link", id: `${config.PREFIX}mf` }
                   ]
                 },
                 {
                   title: "🫂 ɢʀᴏᴜᴘ sᴇᴛᴛɪɴɢs",
                   highlight_label: 'Popular',
                   rows: [
-                    { title: "➕ ᴀᴅᴅ", description: "Add Numbers to Group", id: `${botConfig.PREFIX}add` },
-                    { title: "🦶 ᴋɪᴄᴋ", description: "Remove Number from Group", id: `${botConfig.PREFIX}kick` },
-                    { title: "🔓 ᴜɴʟᴏᴄᴋ", description: "Open group", id: `${botConfig.PREFIX}unlock` },
-                    { title: "🔒 ʟᴏᴄᴋ", description: "Close Group", id: `${botConfig.PREFIX}lock` },
-                    { title: "👑 ᴘʀᴏᴍᴏᴛᴇ", description: "Promote Member to Admin", id: `${botConfig.PREFIX}promote` },
-                    { title: "😢 ᴅᴇᴍᴏᴛᴇ", description: "Demote Member from Admin", id: `${botConfig.PREFIX}demote` },
-                    { title: "👥 ᴛᴀɢᴀʟʟ", description: "Tag All Members", id: `${botConfig.PREFIX}tagall` },
-                    { title: "👻 ʜɪᴅᴇᴛᴀɢ", description: "Silent tag all", id: `${botConfig.PREFIX}hidetag` },
-                    { title: "👤 ᴊᴏɪɴ", description: "Join A Group", id: `${botConfig.PREFIX}join` },
-                    { title: "💠 ʟᴇᴀᴠᴇ", description: "Bot leaves group", id: `${botConfig.PREFIX}leave` },
-                    { title: "📊 ɢʀᴏᴜᴘ ɪɴғᴏ", description: "View group info", id: `${botConfig.PREFIX}ginfo` },
-                    { title: "👥 ᴍᴇᴍʙᴇʀs", description: "List all members", id: `${botConfig.PREFIX}members` },
-                    { title: "📢 ɢʀᴏᴜᴘsᴛᴀᴛᴜs", description: "Post group status", id: `${botConfig.PREFIX}togstatus` },
-                    { title: "👋 ᴡᴇʟᴄᴏᴍᴇ", description: "Toggle welcome", id: `${botConfig.PREFIX}welcome` },
-                    { title: "👋 ɢᴏᴏᴅʙʏᴇ", description: "Toggle goodbye", id: `${botConfig.PREFIX}goodbye` }
+                    { title: "➕ ᴀᴅᴅ", description: "Add Numbers to Group", id: `${config.PREFIX}add` },
+                    { title: "🦶 ᴋɪᴄᴋ", description: "Remove Number from Group", id: `${config.PREFIX}kick` },
+                    { title: "🔓 ᴜɴʟᴏᴄᴋ", description: "Open group", id: `${config.PREFIX}unlock` },
+                    { title: "🔒 ʟᴏᴄᴋ", description: "Close Group", id: `${config.PREFIX}lock` },
+                    { title: "👑 ᴘʀᴏᴍᴏᴛᴇ", description: "Promote Member to Admin", id: `${config.PREFIX}promote` },
+                    { title: "😢 ᴅᴇᴍᴏᴛᴇ", description: "Demote Member from Admin", id: `${config.PREFIX}demote` },
+                    { title: "👥 ᴛᴀɢᴀʟʟ", description: "Tag All Members", id: `${config.PREFIX}tagall` },
+                    { title: "👻 ʜɪᴅᴇᴛᴀɢ", description: "Silent tag all", id: `${config.PREFIX}hidetag` },
+                    { title: "👤 ᴊᴏɪɴ", description: "Join A Group", id: `${config.PREFIX}join` },
+                    { title: "💠 ʟᴇᴀᴠᴇ", description: "Bot leaves group", id: `${config.PREFIX}leave` },
+                    { title: "📊 ɢʀᴏᴜᴘ ɪɴғᴏ", description: "View group info", id: `${config.PREFIX}ginfo` },
+                    { title: "👥 ᴍᴇᴍʙᴇʀs", description: "List all members", id: `${config.PREFIX}members` },
+                    { title: "📢 ɢʀᴏᴜᴘsᴛᴀᴛᴜs", description: "Post group status", id: `${config.PREFIX}togstatus` },
+                    { title: "👋 ᴡᴇʟᴄᴏᴍᴇ", description: "Toggle welcome", id: `${config.PREFIX}welcome` },
+                    { title: "👋 ɢᴏᴏᴅʙʏᴇ", description: "Toggle goodbye", id: `${config.PREFIX}goodbye` }
                   ]
                 },
                 {
                   title: "📰 ɴᴇᴡs & ɪɴғᴏ",
                   rows: [
-                    { title: "📰 ɴᴇᴡs", description: "Get latest news", id: `${botConfig.PREFIX}news` },
-                    { title: "🚀 ɴᴀsᴀ", description: "NASA updates", id: `${botConfig.PREFIX}nasa` },
-                    { title: "🌍 ᴄᴏᴜɴᴛʀʏ", description: "Country details", id: `${botConfig.PREFIX}country` },
-                    { title: "🕐 ᴛɪᴍᴇ", description: "Check world time", id: `${botConfig.PREFIX}time` },
-                    { title: "🌍 ᴛʀᴀɴsʟᴀᴛᴇ", description: "Translate text", id: `${botConfig.PREFIX}translate` }
+                    { title: "📰 ɴᴇᴡs", description: "Get latest news", id: `${config.PREFIX}news` },
+                    { title: "🚀 ɴᴀsᴀ", description: "NASA updates", id: `${config.PREFIX}nasa` },
+                    { title: "🌍 ᴄᴏᴜɴᴛʀʏ", description: "Country details", id: `${config.PREFIX}country` },
+                    { title: "🕐 ᴛɪᴍᴇ", description: "Check world time", id: `${config.PREFIX}time` },
+                    { title: "🌍 ᴛʀᴀɴsʟᴀᴛᴇ", description: "Translate text", id: `${config.PREFIX}translate` }
                   ]
                 },
                 {
                   title: "🖤 ғᴜɴ",
                   rows: [
-                    { title: "😂 ᴊᴏᴋᴇ", description: "Random joke", id: `${botConfig.PREFIX}joke` },
-                    { title: "😂 ᴍᴇᴍᴇ", description: "Random meme", id: `${botConfig.PREFIX}meme` },
-                    { title: "🐈 ᴄᴀᴛ", description: "Cute cat pic", id: `${botConfig.PREFIX}cat` },
-                    { title: "💡 ғᴀᴄᴛ", description: "Random fact", id: `${botConfig.PREFIX}fact` },
-                    { title: "🎨 ᴇᴍᴏᴊɪ ᴍɪx", description: "Mix emojis", id: `${botConfig.PREFIX}emojimix` }
+                    { title: "😂 ᴊᴏᴋᴇ", description: "Random joke", id: `${config.PREFIX}joke` },
+                    { title: "😂 ᴍᴇᴍᴇ", description: "Random meme", id: `${config.PREFIX}meme` },
+                    { title: "🐈 ᴄᴀᴛ", description: "Cute cat pic", id: `${config.PREFIX}cat` },
+                    { title: "💡 ғᴀᴄᴛ", description: "Random fact", id: `${config.PREFIX}fact` },
+                    { title: "🎨 ᴇᴍᴏᴊɪ ᴍɪx", description: "Mix emojis", id: `${config.PREFIX}emojimix` }
                   ]
                 },
                 {
                   title: "🔧 ᴛᴏᴏʟs",
                   rows: [
-                    { title: "🤖 ᴀɪ", description: "Chat with AI", id: `${botConfig.PREFIX}ai` },
-                    { title: "🎵 ʟʏʀɪᴄs", description: "Get song lyrics", id: `${botConfig.PREFIX}lyrics` },
-                    { title: "🌦️ ᴡᴇᴀᴛʜᴇʀ", description: "Weather forecast", id: `${botConfig.PREFIX}weather` },
-                    { title: "📖 ᴀᴜᴛᴏʀᴇᴀᴅ", description: "Auto-read PM", id: `${botConfig.PREFIX}autoread` },
-                    { title: "👁️ ʙʟᴜᴇᴛɪᴄᴋ", description: "Toggle read receipts", id: `${botConfig.PREFIX}bluetick` },
-                    { title: "🛡️ ᴀɴᴛɪᴄᴀʟʟ", description: "Block calls", id: `${botConfig.PREFIX}anticall` }
+                    { title: "🤖 ᴀɪ", description: "Chat with AI", id: `${config.PREFIX}ai` },
+                    { title: "🎵 ʟʏʀɪᴄs", description: "Get song lyrics", id: `${config.PREFIX}lyrics` },
+                    { title: "🌦️ ᴡᴇᴀᴛʜᴇʀ", description: "Weather forecast", id: `${config.PREFIX}weather` },
+                    { title: "📖 ᴀᴜᴛᴏʀᴇᴀᴅ", description: "Auto-read PM", id: `${config.PREFIX}autoread` },
+                    { title: "👁️ ʙʟᴜᴇᴛɪᴄᴋ", description: "Toggle read receipts", id: `${config.PREFIX}bluetick` },
+                    { title: "🔰 ᴀɴᴛɪᴅᴇʟᴇᴛᴇ", description: "Anti delete", id: `${config.PREFIX}antidelete` },
+                    { title: "🛡️ ᴀɴᴛɪᴄᴀʟʟ", description: "Block calls", id: `${config.PREFIX}anticall` }
                   ]
                 }
               ]
@@ -4675,71 +4676,21 @@ case 'menu': {
       contextInfo: messageContext
     };
     
-    // IMPORTANT: Keep the entire menu in ONE WhatsApp message.
-    // The image, category selector, JOIN CHANNEL button, newsletter context,
-    // and fakevCard quote are all sent together below. Do not call sendMessage
-    // again for the channel button or category menu.
-    const menuMedia = await prepareWAMessageMedia(
-      { image: { url: 'https://i.ibb.co/750pdM9/b46b44ae51c1.jpg' } },
-      { upload: socket.waUploadToServer }
-    );
-    const menuInteractive = generateWAMessageFromContent(from, {
-      viewOnceMessage: {
-        message: {
-          interactiveMessage: {
-            header: {
-              title: '🎀 B͛L͛O͛O͛D͛ R͛A͛V͛E͛N͛ M͛I͛N͛I͛ B͛O͛T͛ 🎀',
-              hasMediaAttachment: true,
-              imageMessage: menuMedia.imageMessage
-            },
-            body: { text: menuText },
-            footer: { text: 'ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ ッ' },
-            nativeFlowMessage: {
-              buttons: [
-                {
-                  name: 'single_select',
-                  buttonParamsJson: JSON.stringify({
-                    title: '🤖 C͛H͛O͛O͛SE͛ C͛A͛T͛E͛G͛O͛R͛Y͛',
-                    sections: JSON.parse(menuMessage.buttons[0].nativeFlowInfo.paramsJson).sections
-                  })
-                },
-                {
-                  name: 'cta_url',
-                  buttonParamsJson: JSON.stringify({
-                    display_text: '📢 JOIN CHANNEL',
-                    url: botConfig.CHANNEL_LINK,
-                    merchant_url: botConfig.CHANNEL_LINK
-                  })
-                }
-              ]
-            },
-            contextInfo: messageContext
-          }
-        }
-      }
-    }, { quoted: fakevCard });
-
-    // Keep the menu as ONE native WhatsApp message and preserve its image header.
-    // The gifted relay is bypassed only for this message because its conversion
-    // path can drop the prepared imageMessage.
-    socket.__bypassGiftedRelay = true;
-    try {
-      await socket.relayMessage(from, menuInteractive.message, { messageId: menuInteractive.key.id });
-    } finally {
-      socket.__bypassGiftedRelay = false;
-    }
+    await socket.sendMessage(from, menuMessage, { quoted: fakevCard });
+    
     await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
     
   } catch (error) {
     console.error('Menu command error:', error);
     await socket.sendMessage(from, {
       image: { url: "https://i.ibb.co/fGSVG8vJ/caseyweb.jpg" },
-      caption: `*⚡ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ*\n\n${botConfig.PREFIX}allmenu ᴛᴏ ᴠɪᴇᴡ ᴀʟʟ ᴄᴍᴅs\n\n> ${botConfig.BOT_FOOTER}`
+      caption: `*⚡ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ*\n\n${config.PREFIX}allmenu ᴛᴏ ᴠɪᴇᴡ ᴀʟʟ ᴄᴍᴅs\n\n> ${config.BOT_FOOTER}`
     }, { quoted: fakevCard });
     await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
   }
   break;
 }
+
 
 // Case: fact / facts / funfact - Get a random interesting fact
 case 'fact':
@@ -6695,9 +6646,10 @@ case 'play': {
             });
         }
 
-        // EliteProTech YTMP3 API
-        const apiURL = `https://eliteprotech-apis.zone.id/ytmp3?url=${encodeURIComponent(video.url)}`;
-        console.log('[PLAY] EliteProTech API:', apiURL);
+        // FIXED: New API endpoint with proper API key
+        const API_KEY = 'jordanellis776888@gmail.com:vajira-97868';
+        const apiURL = `https://vajiraofc-apis.vercel.app/api/ytmp3?apikey=${API_KEY}&url=${encodeURIComponent(video.url)}`;
+        console.log('[PLAY] API Request:', apiURL);
 
         const response = await axios.get(apiURL, {
             timeout: 45000,
@@ -6705,16 +6657,36 @@ case 'play': {
         });
 
         const data = response?.data || {};
-        const result = data?.result || data?.data || data;
-        const audioUrl = result?.audio || result?.audioUrl || result?.download ||
-                         result?.downloadUrl || result?.download_url || result?.url || null;
-        const apiTitle = result?.title || data?.title || video.title;
-        const thumbnail = result?.thumbnail || data?.thumbnail || video.thumbnail;
+        console.log('[PLAY] API Response:', JSON.stringify(data).slice(0, 500));
+
+        // FIXED: Better response parsing for the new API
+        let audioUrl = null;
+        let apiTitle = video.title;
+        let thumbnail = video.thumbnail;
+        let duration = video.timestamp || 'Unknown';
+
+        // Try to find audio URL in different possible response structures
+        if (data.result) {
+            audioUrl = data.result.audio || data.result.download || data.result.url || null;
+            apiTitle = data.result.title || video.title;
+            thumbnail = data.result.thumbnail || video.thumbnail;
+            duration = data.result.duration || video.timestamp || 'Unknown';
+        } else if (data.data) {
+            audioUrl = data.data.audio || data.data.download || data.data.url || null;
+            apiTitle = data.data.title || video.title;
+            thumbnail = data.data.thumbnail || video.thumbnail;
+            duration = data.data.duration || video.timestamp || 'Unknown';
+        } else if (data.audio || data.download || data.url) {
+            audioUrl = data.audio || data.download || data.url;
+            apiTitle = data.title || video.title;
+            thumbnail = data.thumbnail || video.thumbnail;
+            duration = data.duration || video.timestamp || 'Unknown';
+        }
 
         if (!audioUrl || typeof audioUrl !== 'string') {
-            console.error('[PLAY] EliteProTech response:', JSON.stringify(data).slice(0, 1500));
+            console.error('[PLAY] No audio URL found in response:', JSON.stringify(data));
             return await socket.sendMessage(sender, {
-                text: `❌ *ᴅᴏᴡɴʟᴏᴀᴅ ғᴀɪʟᴇᴅ*\n\nᴇʟɪᴛᴇᴘʀᴏᴛᴇᴄʜ ᴅɪᴅ ɴᴏᴛ ʀᴇᴛᴜʀɴ ᴀɴ ᴀᴜᴅɪᴏ ʟɪɴᴋ.\n\nᴘʟᴇᴀsᴇ ᴛʀʏ ᴀɢᴀɪɴ ʟᴀᴛᴇʀ.\n\n> ${botConfig.BOT_FOOTER}`,
+                text: `❌ *ᴅᴏᴡɴʟᴏᴀᴅ ғᴀɪʟᴇᴅ*\n\nᴄᴏᴜʟᴅ ɴᴏᴛ ʀᴇᴛʀɪᴇᴠᴇ ᴀᴜᴅɪᴏ ʟɪɴᴋ ғʀᴏᴍ ᴀᴘɪ.\n\nᴘʟᴇᴀsᴇ ᴛʀʏ ᴀɢᴀɪɴ ʟᴀᴛᴇʀ.\n\n> ${botConfig.BOT_FOOTER}`,
                 quoted: msg
             });
         }
@@ -6723,7 +6695,7 @@ case 'play': {
         const cleanTitle = String(apiTitle || video.title || 'audio').replace(/[<>:"/\\|?*]+/g, '').trim() || 'audio';
 
         const caption = `🎧 *${apiTitle}*\n\n` +
-                        `⏱️ *ᴅᴜʀᴀᴛɪᴏɴ:* ${video.timestamp || 'Unknown'}\n` +
+                        `⏱️ *ᴅᴜʀᴀᴛɪᴏɴ:* ${duration}\n` +
                         `👤 *ᴀʀᴛɪsᴛ:* ${video.author?.name || 'Unknown'}\n` +
                         `👀 *ᴠɪᴇᴡs:* ${(video.views || 0).toLocaleString()}\n\n` +
                         `🔗 *ʏᴏᴜᴛᴜʙᴇ:* ${video.url}\n\n` +
@@ -6731,8 +6703,7 @@ case 'play': {
                         `sᴇʟᴇᴄᴛ ʜᴏᴡ ʏᴏᴜ ᴡᴀɴᴛ ᴛᴏ ʀᴇᴄᴇɪᴠᴇ ᴛʜᴇ ᴀᴜᴅɪᴏ.\n\n` +
                         `> ${botConfig.BOT_FOOTER}`;
 
-        // Gifted Buttons category/list. The two formats are rows inside
-        // a single_select category instead of old Baileys quick buttons.
+        // FIXED: Gifted category buttons with proper interactive response handling
         const sentMsg = await socket.sendMessage(sender, {
             image: { url: thumbnail },
             caption,
@@ -6768,91 +6739,210 @@ case 'play': {
             viewOnce: true
         }, { quoted: msg });
 
-        // Handle both old button replies and Gifted/native-flow replies.
+        // FIXED: Enhanced Gifted button handler
         const buttonHandler = async (messageUpdate) => {
             try {
                 for (const messageData of messageUpdate?.messages || []) {
                     let buttonId = null;
                     let replyStanzaId = null;
+                    let selectedId = null;
 
+                    // Handle Gifted category interactive response
+                    const interactive = messageData?.message?.interactiveResponseMessage;
+                    if (interactive?.nativeFlowResponseMessage?.paramsJson) {
+                        try {
+                            const params = JSON.parse(interactive.nativeFlowResponseMessage.paramsJson);
+                            // The selected row ID can be in different fields
+                            buttonId = params.id || params.selectedId || params.row_id || params.rowId || null;
+                            selectedId = params.id || params.selectedId || params.row_id || params.rowId || null;
+                            
+                            // For Gifted categories, the actual selection might be in a nested structure
+                            if (!buttonId && params.selected) {
+                                buttonId = params.selected.id || params.selected.rowId || null;
+                            }
+                        } catch (e) {
+                            console.log('[PLAY] Failed to parse interactive params:', e.message);
+                        }
+                        replyStanzaId = interactive.contextInfo?.stanzaId || replyStanzaId;
+                    }
+
+                    // Handle legacy buttons response (fallback)
                     const legacy = messageData?.message?.buttonsResponseMessage;
                     if (legacy) {
                         buttonId = legacy.selectedButtonId;
                         replyStanzaId = legacy.contextInfo?.stanzaId;
                     }
 
-                    const interactive = messageData?.message?.interactiveResponseMessage;
-                    if (interactive?.nativeFlowResponseMessage?.paramsJson) {
-                        try {
-                            const params = JSON.parse(interactive.nativeFlowResponseMessage.paramsJson);
-                            buttonId = params.id || params.selectedId || params.row_id || params.rowId || buttonId;
-                        } catch {}
-                        replyStanzaId = interactive.contextInfo?.stanzaId || replyStanzaId;
-                    }
-
+                    // Handle list response (fallback)
                     const listReply = messageData?.message?.listResponseMessage;
                     if (listReply) {
                         buttonId = listReply.singleSelectReply?.selectedRowId || buttonId;
                         replyStanzaId = listReply.contextInfo?.stanzaId || replyStanzaId;
                     }
 
-                    if (!buttonId || !String(buttonId).includes(sessionId)) continue;
-                    if (replyStanzaId && replyStanzaId !== sentMsg?.key?.id) continue;
+                    // Check if this is a response to our category
+                    if (!buttonId) continue;
+                    if (!String(buttonId).includes(sessionId)) continue;
+                    
+                    // Check reply context
+                    if (replyStanzaId && sentMsg?.key?.id && replyStanzaId !== sentMsg.key.id) {
+                        console.log('[PLAY] Reply mismatch:', replyStanzaId, 'vs', sentMsg.key.id);
+                        continue;
+                    }
 
+                    // Remove handler to prevent duplicates
                     socket.ev.off('messages.upsert', buttonHandler);
                     await socket.sendMessage(sender, { react: { text: '⏳', key: messageData.key } });
 
                     try {
-                        const type = String(buttonId).startsWith(`play-audio-${sessionId}`) ? 'audio' : 'document';
+                        // Determine type from button ID
+                        const isAudio = String(buttonId).includes('play-audio');
+                        const isDocument = String(buttonId).includes('play-document');
+                        
+                        if (!isAudio && !isDocument) {
+                            throw new Error('Invalid selection');
+                        }
+
+                        const type = isAudio ? 'audio' : 'document';
+                        console.log(`[PLAY] User selected: ${type} from button: ${buttonId}`);
+
+                        // Download audio with progress
                         const audioResponse = await axios.get(audioUrl, {
                             responseType: 'arraybuffer',
                             timeout: 60000,
                             maxContentLength: 50 * 1024 * 1024,
                             maxBodyLength: 50 * 1024 * 1024,
-                            headers: { 'User-Agent': 'Mozilla/5.0' }
+                            headers: { 
+                                'User-Agent': 'Mozilla/5.0',
+                                'Accept': 'audio/mpeg,audio/*;q=0.9,*/*;q=0.8'
+                            },
+                            onDownloadProgress: (progressEvent) => {
+                                const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+                                if (percentCompleted % 20 === 0) {
+                                    console.log(`[PLAY] Download progress: ${percentCompleted}%`);
+                                }
+                            }
                         });
+                        
                         const audioBuffer = Buffer.from(audioResponse.data);
 
-                        if (!audioBuffer.length) throw new Error('Empty audio response');
+                        if (!audioBuffer || audioBuffer.length === 0) {
+                            throw new Error('Empty audio response');
+                        }
 
                         const fileName = `${cleanTitle}.mp3`;
+                        const sizeMB = (audioBuffer.length / (1024 * 1024)).toFixed(2);
+                        
+                        console.log(`[PLAY] Sending ${type} - ${fileName} (${sizeMB}MB)`);
+
                         if (type === 'audio') {
                             await socket.sendMessage(sender, {
                                 audio: audioBuffer,
                                 mimetype: 'audio/mpeg',
                                 fileName,
-                                ptt: false
+                                ptt: false,
+                                contextInfo: {
+                                    externalAdReply: {
+                                        title: apiTitle,
+                                        body: `Duration: ${duration}`,
+                                        thumbnail: thumbnail,
+                                        mediaType: 2,
+                                        mediaUrl: video.url,
+                                        sourceUrl: video.url
+                                    }
+                                }
                             }, { quoted: messageData });
                         } else {
                             await socket.sendMessage(sender, {
                                 document: audioBuffer,
                                 mimetype: 'audio/mpeg',
-                                fileName
+                                fileName,
+                                contextInfo: {
+                                    externalAdReply: {
+                                        title: apiTitle,
+                                        body: `Duration: ${duration}`,
+                                        thumbnail: thumbnail,
+                                        mediaType: 2,
+                                        mediaUrl: video.url,
+                                        sourceUrl: video.url
+                                    }
+                                }
                             }, { quoted: messageData });
                         }
 
                         await socket.sendMessage(sender, { react: { text: '✅', key: messageData.key } });
+
                     } catch (error) {
                         console.error('[PLAY] Download Error:', error.message);
                         await socket.sendMessage(sender, { react: { text: '❌', key: messageData.key } });
+                        
+                        // Try alternative download method if first fails
+                        if (error.message.includes('timeout') || error.message.includes('network') || error.message.includes('ETIMEDOUT')) {
+                            try {
+                                console.log('[PLAY] Trying alternative download method...');
+                                const altResponse = await axios.get(audioUrl, {
+                                    responseType: 'arraybuffer',
+                                    timeout: 90000,
+                                    maxContentLength: 50 * 1024 * 1024,
+                                    maxBodyLength: 50 * 1024 * 1024,
+                                    headers: { 
+                                        'User-Agent': 'Mozilla/5.0',
+                                        'Accept-Encoding': 'gzip, deflate, br',
+                                        'Connection': 'keep-alive'
+                                    }
+                                });
+                                
+                                const altBuffer = Buffer.from(altResponse.data);
+                                if (altBuffer.length > 0) {
+                                    const type = String(buttonId).includes('play-audio') ? 'audio' : 'document';
+                                    const fileName = `${cleanTitle}.mp3`;
+                                    
+                                    if (type === 'audio') {
+                                        await socket.sendMessage(sender, {
+                                            audio: altBuffer,
+                                            mimetype: 'audio/mpeg',
+                                            fileName,
+                                            ptt: false
+                                        }, { quoted: messageData });
+                                    } else {
+                                        await socket.sendMessage(sender, {
+                                            document: altBuffer,
+                                            mimetype: 'audio/mpeg',
+                                            fileName
+                                        }, { quoted: messageData });
+                                    }
+                                    
+                                    await socket.sendMessage(sender, { react: { text: '✅', key: messageData.key } });
+                                    return;
+                                }
+                            } catch (altError) {
+                                console.error('[PLAY] Alternative download failed:', altError.message);
+                            }
+                        }
+
                         await socket.sendMessage(sender, {
-                            text: `❌ *ᴅᴏᴡɴʟᴏᴀᴅ ғᴀɪʟᴇᴅ*\n\n${error.message || 'Download failed'}`
-                        }, { quoted: messageData });
+                            text: `❌ *ᴅᴏᴡɴʟᴏᴀᴅ ғᴀɪʟᴇᴅ*\n\n${error.message || 'Download failed'}\n\nPlease try again later.`,
+                            quoted: messageData
+                        });
                     }
                     return;
                 }
             } catch (error) {
-                console.error('[PLAY] Button/category handler error:', error.message);
+                console.error('[PLAY] Button handler error:', error.message);
             }
         };
 
+        // Register handler with extended timeout
         socket.ev.on('messages.upsert', buttonHandler);
-        setTimeout(() => socket.ev.off('messages.upsert', buttonHandler), 120000);
+        setTimeout(() => {
+            socket.ev.off('messages.upsert', buttonHandler);
+            console.log('[PLAY] Button handler timeout - removed');
+        }, 180000); // 3 minutes
 
     } catch (err) {
         console.error('[PLAY] Error:', err.message);
         await socket.sendMessage(sender, {
-            text: `❌ *ᴇʀʀᴏʀ*\n\nᴜɴᴀʙʟᴇ ᴛᴏ ᴘʀᴏᴄᴇss ʏᴏᴜʀ ʀᴇǫᴜᴇsᴛ.\n\n> ${botConfig.BOT_FOOTER}`,
+            text: `❌ *ᴇʀʀᴏʀ*\n\n${err.message || 'Unable to process your request.'}\n\n> ${botConfig.BOT_FOOTER}`,
             quoted: msg
         });
         await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
