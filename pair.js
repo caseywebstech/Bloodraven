@@ -6616,16 +6616,18 @@ case 'songlyrics': {
     }
     break;
 }
-//case play damn am good
 case 'play': {
     try {
-        await socket.sendMessage(sender, { react: { text: '🎶', key: msg.key } });
+        await socket.sendMessage(sender, {
+            react: { text: '🎶', key: msg.key }
+        });
 
         const yts = require('yt-search');
         const q = msg.message?.conversation ||
                   msg.message?.extendedTextMessage?.text ||
                   msg.message?.imageMessage?.caption ||
                   msg.message?.videoMessage?.caption || '';
+
         const query = q.split(' ').slice(1).join(' ').trim();
 
         if (!query) {
@@ -6636,6 +6638,7 @@ case 'play': {
         }
 
         console.log('[PLAY] Searching YouTube for:', query);
+
         const search = await yts(query);
         const video = search?.videos?.[0];
 
@@ -6646,79 +6649,124 @@ case 'play': {
             });
         }
 
-        // FIXED: New API endpoint with proper API key
-        const API_KEY = 'jordanellis776888@gmail.com:vajira-97868';
-        const apiURL = `https://vajiraofc-apis.vercel.app/api/ytmp3?apikey=${API_KEY}&url=${encodeURIComponent(video.url)}`;
-        console.log('[PLAY] API Request:', apiURL);
+        // ============================================
+        // VAJIRA YTMP3 API
+        // ============================================
+
+        const apiURL =
+            `https://vajiraofc-apis.vercel.app/api/ytmp3` +
+            `?apikey=${encodeURIComponent('jordanellis776888@gmail.com:vajira-97868')}` +
+            `&url=${encodeURIComponent(video.url)}`;
+
+        console.log('[PLAY] Vajira API:', apiURL);
 
         const response = await axios.get(apiURL, {
-            timeout: 45000,
-            headers: { 'User-Agent': 'Mozilla/5.0' }
+            timeout: 60000,
+            headers: {
+                'User-Agent': 'Mozilla/5.0'
+            }
         });
 
         const data = response?.data || {};
-        console.log('[PLAY] API Response:', JSON.stringify(data).slice(0, 500));
 
-        // FIXED: Better response parsing for the new API
-        let audioUrl = null;
-        let apiTitle = video.title;
-        let thumbnail = video.thumbnail;
-        let duration = video.timestamp || 'Unknown';
+        console.log(
+            '[PLAY] Vajira response:',
+            JSON.stringify(data).slice(0, 2000)
+        );
 
-        // Try to find audio URL in different possible response structures
-        if (data.result) {
-            audioUrl = data.result.audio || data.result.download || data.result.url || null;
-            apiTitle = data.result.title || video.title;
-            thumbnail = data.result.thumbnail || video.thumbnail;
-            duration = data.result.duration || video.timestamp || 'Unknown';
-        } else if (data.data) {
-            audioUrl = data.data.audio || data.data.download || data.data.url || null;
-            apiTitle = data.data.title || video.title;
-            thumbnail = data.data.thumbnail || video.thumbnail;
-            duration = data.data.duration || video.timestamp || 'Unknown';
-        } else if (data.audio || data.download || data.url) {
-            audioUrl = data.audio || data.download || data.url;
-            apiTitle = data.title || video.title;
-            thumbnail = data.thumbnail || video.thumbnail;
-            duration = data.duration || video.timestamp || 'Unknown';
-        }
+        // Support common Vajira response structures
+        const result =
+            data?.result ||
+            data?.data ||
+            data?.response ||
+            data;
+
+        const audioUrl =
+            result?.audio ||
+            result?.audioUrl ||
+            result?.audio_url ||
+            result?.download ||
+            result?.downloadUrl ||
+            result?.download_url ||
+            result?.url ||
+            data?.audio ||
+            data?.audioUrl ||
+            data?.download ||
+            data?.downloadUrl ||
+            data?.url ||
+            null;
+
+        const apiTitle =
+            result?.title ||
+            result?.name ||
+            data?.title ||
+            video.title;
+
+        const thumbnail =
+            result?.thumbnail ||
+            result?.thumb ||
+            result?.image ||
+            data?.thumbnail ||
+            data?.thumb ||
+            video.thumbnail;
 
         if (!audioUrl || typeof audioUrl !== 'string') {
-            console.error('[PLAY] No audio URL found in response:', JSON.stringify(data));
+            console.error(
+                '[PLAY] No audio URL:',
+                JSON.stringify(data).slice(0, 3000)
+            );
+
             return await socket.sendMessage(sender, {
-                text: `❌ *ᴅᴏᴡɴʟᴏᴀᴅ ғᴀɪʟᴇᴅ*\n\nᴄᴏᴜʟᴅ ɴᴏᴛ ʀᴇᴛʀɪᴇᴠᴇ ᴀᴜᴅɪᴏ ʟɪɴᴋ ғʀᴏᴍ ᴀᴘɪ.\n\nᴘʟᴇᴀsᴇ ᴛʀʏ ᴀɢᴀɪɴ ʟᴀᴛᴇʀ.\n\n> ${botConfig.BOT_FOOTER}`,
+                text: `❌ *ᴅᴏᴡɴʟᴏᴀᴅ ғᴀɪʟᴇᴅ*\n\nᴛʜᴇ ᴠᴀᴊɪʀᴀ ᴀᴘɪ ᴅɪᴅ ɴᴏᴛ ʀᴇᴛᴜʀɴ ᴀɴ ᴀᴜᴅɪᴏ ʟɪɴᴋ.\n\nᴘʟᴇᴀsᴇ ᴛʀʏ ᴀɢᴀɪɴ ʟᴀᴛᴇʀ.\n\n> ${botConfig.BOT_FOOTER}`,
                 quoted: msg
             });
         }
 
-        const sessionId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-        const cleanTitle = String(apiTitle || video.title || 'audio').replace(/[<>:"/\\|?*]+/g, '').trim() || 'audio';
+        const sessionId =
+            `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
-        const caption = `🎧 *${apiTitle}*\n\n` +
-                        `⏱️ *ᴅᴜʀᴀᴛɪᴏɴ:* ${duration}\n` +
-                        `👤 *ᴀʀᴛɪsᴛ:* ${video.author?.name || 'Unknown'}\n` +
-                        `👀 *ᴠɪᴇᴡs:* ${(video.views || 0).toLocaleString()}\n\n` +
-                        `🔗 *ʏᴏᴜᴛᴜʙᴇ:* ${video.url}\n\n` +
-                        `📂 *ᴅᴏᴡɴʟᴏᴀᴅ ᴄᴀᴛᴇɢᴏʀʏ*\n` +
-                        `sᴇʟᴇᴄᴛ ʜᴏᴡ ʏᴏᴜ ᴡᴀɴᴛ ᴛᴏ ʀᴇᴄᴇɪᴠᴇ ᴛʜᴇ ᴀᴜᴅɪᴏ.\n\n` +
-                        `> ${botConfig.BOT_FOOTER}`;
+        const cleanTitle =
+            String(apiTitle || video.title || 'audio')
+                .replace(/[<>:"/\\|?*]+/g, '')
+                .trim() || 'audio';
 
-        // FIXED: Gifted category buttons with proper interactive response handling
+        const caption =
+            `🎧 *${apiTitle}*\n\n` +
+            `⏱️ *ᴅᴜʀᴀᴛɪᴏɴ:* ${video.timestamp || 'Unknown'}\n` +
+            `👤 *ᴀʀᴛɪsᴛ:* ${video.author?.name || 'Unknown'}\n` +
+            `👀 *ᴠɪᴇᴡs:* ${(video.views || 0).toLocaleString()}\n\n` +
+            `🔗 *ʏᴏᴜᴛᴜʙᴇ:* ${video.url}\n\n` +
+            `📂 *ᴅᴏᴡɴʟᴏᴀᴅ ᴄᴀᴛᴇɢᴏʀʏ*\n` +
+            `sᴇʟᴇᴄᴛ ʜᴏᴡ ʏᴏᴜ ᴡᴀɴᴛ ᴛᴏ ʀᴇᴄᴇɪᴠᴇ ᴛʜᴇ ᴀᴜᴅɪᴏ.\n\n` +
+            `> ${botConfig.BOT_FOOTER}`;
+
+        // ============================================
+        // CATEGORY MESSAGE
+        // ============================================
+
         const sentMsg = await socket.sendMessage(sender, {
             image: { url: thumbnail },
             caption,
             footer: '📂 ᴄʜᴏᴏsᴇ ᴅᴏᴡɴʟᴏᴀᴅ ғᴏʀᴍᴀᴛ',
+
             buttons: [{
                 buttonId: `play-category-${sessionId}`,
-                buttonText: { displayText: '📂 ᴄʜᴏᴏsᴇ ᴅᴏᴡɴʟᴏᴀᴅ ғᴏʀᴍᴀᴛ' },
+                buttonText: {
+                    displayText: '📂 ᴄʜᴏᴏsᴇ ᴅᴏᴡɴʟᴏᴀᴅ ғᴏʀᴍᴀᴛ'
+                },
                 type: 4,
+
                 nativeFlowInfo: {
                     name: 'single_select',
+
                     paramsJson: JSON.stringify({
                         title: '📂 ᴅᴏᴡɴʟᴏᴀᴅ ᴄᴀᴛᴇɢᴏʀʏ',
+
                         sections: [{
                             title: '🎵 ᴀᴜᴅɪᴏ ғᴏʀᴍᴀᴛs',
+
                             highlight_label: 'ᴘʟᴀʏ / sᴀᴠᴇ',
+
                             rows: [
                                 {
                                     title: '🎵 ᴀᴜᴅɪᴏ (ᴘʟᴀʏ)',
@@ -6735,221 +6783,277 @@ case 'play': {
                     })
                 }
             }],
+
             headerType: 1,
             viewOnce: true
+
         }, { quoted: msg });
 
-        // FIXED: Enhanced Gifted button handler
+
+        // ============================================
+        // CATEGORY BUTTON HANDLER
+        // ============================================
+
         const buttonHandler = async (messageUpdate) => {
             try {
+
                 for (const messageData of messageUpdate?.messages || []) {
+
                     let buttonId = null;
                     let replyStanzaId = null;
-                    let selectedId = null;
 
-                    // Handle Gifted category interactive response
-                    const interactive = messageData?.message?.interactiveResponseMessage;
-                    if (interactive?.nativeFlowResponseMessage?.paramsJson) {
-                        try {
-                            const params = JSON.parse(interactive.nativeFlowResponseMessage.paramsJson);
-                            // The selected row ID can be in different fields
-                            buttonId = params.id || params.selectedId || params.row_id || params.rowId || null;
-                            selectedId = params.id || params.selectedId || params.row_id || params.rowId || null;
-                            
-                            // For Gifted categories, the actual selection might be in a nested structure
-                            if (!buttonId && params.selected) {
-                                buttonId = params.selected.id || params.selected.rowId || null;
-                            }
-                        } catch (e) {
-                            console.log('[PLAY] Failed to parse interactive params:', e.message);
-                        }
-                        replyStanzaId = interactive.contextInfo?.stanzaId || replyStanzaId;
-                    }
+                    // Old button response
+                    const legacy =
+                        messageData?.message?.buttonsResponseMessage;
 
-                    // Handle legacy buttons response (fallback)
-                    const legacy = messageData?.message?.buttonsResponseMessage;
                     if (legacy) {
                         buttonId = legacy.selectedButtonId;
-                        replyStanzaId = legacy.contextInfo?.stanzaId;
+                        replyStanzaId =
+                            legacy.contextInfo?.stanzaId;
                     }
 
-                    // Handle list response (fallback)
-                    const listReply = messageData?.message?.listResponseMessage;
+                    // Native flow response
+                    const interactive =
+                        messageData?.message?.interactiveResponseMessage;
+
+                    if (
+                        interactive
+                        ?.nativeFlowResponseMessage
+                        ?.paramsJson
+                    ) {
+                        try {
+                            const params = JSON.parse(
+                                interactive
+                                    .nativeFlowResponseMessage
+                                    .paramsJson
+                            );
+
+                            buttonId =
+                                params.id ||
+                                params.selectedId ||
+                                params.row_id ||
+                                params.rowId ||
+                                buttonId;
+
+                        } catch (e) {
+                            console.error(
+                                '[PLAY] Native flow parse error:',
+                                e.message
+                            );
+                        }
+
+                        replyStanzaId =
+                            interactive.contextInfo?.stanzaId ||
+                            replyStanzaId;
+                    }
+
+                    // List response
+                    const listReply =
+                        messageData?.message?.listResponseMessage;
+
                     if (listReply) {
-                        buttonId = listReply.singleSelectReply?.selectedRowId || buttonId;
-                        replyStanzaId = listReply.contextInfo?.stanzaId || replyStanzaId;
+                        buttonId =
+                            listReply
+                                .singleSelectReply
+                                ?.selectedRowId ||
+                            buttonId;
+
+                        replyStanzaId =
+                            listReply.contextInfo?.stanzaId ||
+                            replyStanzaId;
                     }
 
-                    // Check if this is a response to our category
-                    if (!buttonId) continue;
-                    if (!String(buttonId).includes(sessionId)) continue;
-                    
-                    // Check reply context
-                    if (replyStanzaId && sentMsg?.key?.id && replyStanzaId !== sentMsg.key.id) {
-                        console.log('[PLAY] Reply mismatch:', replyStanzaId, 'vs', sentMsg.key.id);
+                    // Ignore unrelated buttons
+                    if (
+                        !buttonId ||
+                        !String(buttonId).includes(sessionId)
+                    ) {
                         continue;
                     }
 
-                    // Remove handler to prevent duplicates
-                    socket.ev.off('messages.upsert', buttonHandler);
-                    await socket.sendMessage(sender, { react: { text: '⏳', key: messageData.key } });
+                    // Make sure the response belongs to our menu
+                    if (
+                        replyStanzaId &&
+                        replyStanzaId !== sentMsg?.key?.id
+                    ) {
+                        continue;
+                    }
+
+                    // Remove handler after selection
+                    socket.ev.off(
+                        'messages.upsert',
+                        buttonHandler
+                    );
+
+                    await socket.sendMessage(sender, {
+                        react: {
+                            text: '⏳',
+                            key: messageData.key
+                        }
+                    });
 
                     try {
-                        // Determine type from button ID
-                        const isAudio = String(buttonId).includes('play-audio');
-                        const isDocument = String(buttonId).includes('play-document');
-                        
-                        if (!isAudio && !isDocument) {
-                            throw new Error('Invalid selection');
-                        }
 
-                        const type = isAudio ? 'audio' : 'document';
-                        console.log(`[PLAY] User selected: ${type} from button: ${buttonId}`);
+                        const type =
+                            String(buttonId).startsWith(
+                                `play-audio-${sessionId}`
+                            )
+                                ? 'audio'
+                                : 'document';
 
-                        // Download audio with progress
-                        const audioResponse = await axios.get(audioUrl, {
-                            responseType: 'arraybuffer',
-                            timeout: 60000,
-                            maxContentLength: 50 * 1024 * 1024,
-                            maxBodyLength: 50 * 1024 * 1024,
-                            headers: { 
-                                'User-Agent': 'Mozilla/5.0',
-                                'Accept': 'audio/mpeg,audio/*;q=0.9,*/*;q=0.8'
-                            },
-                            onDownloadProgress: (progressEvent) => {
-                                const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-                                if (percentCompleted % 20 === 0) {
-                                    console.log(`[PLAY] Download progress: ${percentCompleted}%`);
+
+                        // ========================================
+                        // DOWNLOAD AUDIO
+                        // ========================================
+
+                        const audioResponse = await axios.get(
+                            audioUrl,
+                            {
+                                responseType: 'arraybuffer',
+                                timeout: 60000,
+
+                                maxContentLength:
+                                    50 * 1024 * 1024,
+
+                                maxBodyLength:
+                                    50 * 1024 * 1024,
+
+                                headers: {
+                                    'User-Agent':
+                                        'Mozilla/5.0'
                                 }
                             }
-                        });
-                        
-                        const audioBuffer = Buffer.from(audioResponse.data);
+                        );
 
-                        if (!audioBuffer || audioBuffer.length === 0) {
-                            throw new Error('Empty audio response');
+                        const audioBuffer =
+                            Buffer.from(audioResponse.data);
+
+                        if (!audioBuffer.length) {
+                            throw new Error(
+                                'Empty audio response'
+                            );
                         }
 
-                        const fileName = `${cleanTitle}.mp3`;
-                        const sizeMB = (audioBuffer.length / (1024 * 1024)).toFixed(2);
-                        
-                        console.log(`[PLAY] Sending ${type} - ${fileName} (${sizeMB}MB)`);
+
+                        const fileName =
+                            `${cleanTitle}.mp3`;
+
+
+                        // ========================================
+                        // SEND AUDIO
+                        // ========================================
 
                         if (type === 'audio') {
-                            await socket.sendMessage(sender, {
-                                audio: audioBuffer,
-                                mimetype: 'audio/mpeg',
-                                fileName,
-                                ptt: false,
-                                contextInfo: {
-                                    externalAdReply: {
-                                        title: apiTitle,
-                                        body: `Duration: ${duration}`,
-                                        thumbnail: thumbnail,
-                                        mediaType: 2,
-                                        mediaUrl: video.url,
-                                        sourceUrl: video.url
-                                    }
+
+                            await socket.sendMessage(
+                                sender,
+                                {
+                                    audio: audioBuffer,
+                                    mimetype: 'audio/mpeg',
+                                    fileName,
+                                    ptt: false
+                                },
+                                {
+                                    quoted: messageData
                                 }
-                            }, { quoted: messageData });
+                            );
+
                         } else {
-                            await socket.sendMessage(sender, {
-                                document: audioBuffer,
-                                mimetype: 'audio/mpeg',
-                                fileName,
-                                contextInfo: {
-                                    externalAdReply: {
-                                        title: apiTitle,
-                                        body: `Duration: ${duration}`,
-                                        thumbnail: thumbnail,
-                                        mediaType: 2,
-                                        mediaUrl: video.url,
-                                        sourceUrl: video.url
-                                    }
+
+                            await socket.sendMessage(
+                                sender,
+                                {
+                                    document: audioBuffer,
+                                    mimetype: 'audio/mpeg',
+                                    fileName
+                                },
+                                {
+                                    quoted: messageData
                                 }
-                            }, { quoted: messageData });
+                            );
                         }
 
-                        await socket.sendMessage(sender, { react: { text: '✅', key: messageData.key } });
-
-                    } catch (error) {
-                        console.error('[PLAY] Download Error:', error.message);
-                        await socket.sendMessage(sender, { react: { text: '❌', key: messageData.key } });
-                        
-                        // Try alternative download method if first fails
-                        if (error.message.includes('timeout') || error.message.includes('network') || error.message.includes('ETIMEDOUT')) {
-                            try {
-                                console.log('[PLAY] Trying alternative download method...');
-                                const altResponse = await axios.get(audioUrl, {
-                                    responseType: 'arraybuffer',
-                                    timeout: 90000,
-                                    maxContentLength: 50 * 1024 * 1024,
-                                    maxBodyLength: 50 * 1024 * 1024,
-                                    headers: { 
-                                        'User-Agent': 'Mozilla/5.0',
-                                        'Accept-Encoding': 'gzip, deflate, br',
-                                        'Connection': 'keep-alive'
-                                    }
-                                });
-                                
-                                const altBuffer = Buffer.from(altResponse.data);
-                                if (altBuffer.length > 0) {
-                                    const type = String(buttonId).includes('play-audio') ? 'audio' : 'document';
-                                    const fileName = `${cleanTitle}.mp3`;
-                                    
-                                    if (type === 'audio') {
-                                        await socket.sendMessage(sender, {
-                                            audio: altBuffer,
-                                            mimetype: 'audio/mpeg',
-                                            fileName,
-                                            ptt: false
-                                        }, { quoted: messageData });
-                                    } else {
-                                        await socket.sendMessage(sender, {
-                                            document: altBuffer,
-                                            mimetype: 'audio/mpeg',
-                                            fileName
-                                        }, { quoted: messageData });
-                                    }
-                                    
-                                    await socket.sendMessage(sender, { react: { text: '✅', key: messageData.key } });
-                                    return;
-                                }
-                            } catch (altError) {
-                                console.error('[PLAY] Alternative download failed:', altError.message);
-                            }
-                        }
 
                         await socket.sendMessage(sender, {
-                            text: `❌ *ᴅᴏᴡɴʟᴏᴀᴅ ғᴀɪʟᴇᴅ*\n\n${error.message || 'Download failed'}\n\nPlease try again later.`,
+                            react: {
+                                text: '✅',
+                                key: messageData.key
+                            }
+                        });
+
+                    } catch (error) {
+
+                        console.error(
+                            '[PLAY] Download Error:',
+                            error.message
+                        );
+
+                        await socket.sendMessage(sender, {
+                            react: {
+                                text: '❌',
+                                key: messageData.key
+                            }
+                        });
+
+                        await socket.sendMessage(sender, {
+                            text:
+                                `❌ *ᴅᴏᴡɴʟᴏᴀᴅ ғᴀɪʟᴇᴅ*\n\n` +
+                                `${error.message || 'Download failed'}`
+                        }, {
                             quoted: messageData
                         });
                     }
+
                     return;
                 }
+
             } catch (error) {
-                console.error('[PLAY] Button handler error:', error.message);
+
+                console.error(
+                    '[PLAY] Button/category handler error:',
+                    error.message
+                );
             }
         };
 
-        // Register handler with extended timeout
-        socket.ev.on('messages.upsert', buttonHandler);
+
+        socket.ev.on(
+            'messages.upsert',
+            buttonHandler
+        );
+
         setTimeout(() => {
-            socket.ev.off('messages.upsert', buttonHandler);
-            console.log('[PLAY] Button handler timeout - removed');
-        }, 180000); // 3 minutes
+            socket.ev.off(
+                'messages.upsert',
+                buttonHandler
+            );
+        }, 120000);
 
     } catch (err) {
-        console.error('[PLAY] Error:', err.message);
+
+        console.error(
+            '[PLAY] Error:',
+            err.message
+        );
+
         await socket.sendMessage(sender, {
-            text: `❌ *ᴇʀʀᴏʀ*\n\n${err.message || 'Unable to process your request.'}\n\n> ${botConfig.BOT_FOOTER}`,
+            text:
+                `❌ *ᴇʀʀᴏʀ*\n\n` +
+                `ᴜɴᴀʙʟᴇ ᴛᴏ ᴘʀᴏᴄᴇss ʏᴏᴜʀ ʀᴇǫᴜᴇsᴛ.\n\n` +
+                `> ${botConfig.BOT_FOOTER}`,
             quoted: msg
         });
-        await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
+
+        await socket.sendMessage(sender, {
+            react: {
+                text: '❌',
+                key: msg.key
+            }
+        });
     }
+
     break;
 }
-  
 
 // Case: tiktok / tt / ttdl / tiktokdl - Download TikTok videos
 case 'tiktok':
