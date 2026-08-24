@@ -12967,9 +12967,7 @@ async function EmpirePair(number, res) {
             return sock;
         };
 
-        // Use a current WhatsApp Web version and a canonical Windows browser
-        // identity. WhatsApp's pairing-code endpoint is stricter than normal
-        // registration and can reject non-canonical browser labels.
+        // Use a current WhatsApp Web version and the requested Firefox/Windows identity.
         let waWebVersion;
         try {
             const latestWaWeb = await fetchLatestWaWebVersion({});
@@ -12988,9 +12986,8 @@ async function EmpirePair(number, res) {
             },
             printQRInTerminal: false,
             logger,
-            // Keep the requested Microsoft/Windows identity, but use the
-            // canonical Edge label understood by Baileys/WhatsApp.
-            browser: Browsers.windows('Edge'),
+            // Restore the original Firefox/Windows browser identity.
+            browser: Browsers.windows('Firefox'),
             connectTimeoutMs: 60_000,
         };
 
