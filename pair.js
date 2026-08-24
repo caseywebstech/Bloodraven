@@ -1105,12 +1105,6 @@ async function setupWelcomeGoodbyeHandlers(sock) {
             customGoodbye: ''
         };
     };
-    const saveSetting = (jid, settings) => {
-        const normalized = normalizeGroup(jid);
-        botState.welcomeSettings.delete(jid);
-        botState.welcomeSettings.set(normalized, settings);
-        botState.saveWelcomeSettings();
-    };
 
     sock.ev.on('group-participants.update', async (update) => {
         try {
@@ -1138,8 +1132,6 @@ async function setupWelcomeGoodbyeHandlers(sock) {
                 const phoneJid = typeof raw === 'object' ? (raw?.phoneNumber || raw?.id || raw?.jid) : raw;
                 if (!jid) continue;
 
-                // Prefer the phone JID when available for a reliable WhatsApp mention;
-                // otherwise use the participant JID/LID supplied by the event.
                 const mentionJid = phoneJid || jid;
                 const name = String(mentionJid).split('@')[0].split(':')[0];
                 const template = action === 'add'
@@ -1153,29 +1145,64 @@ async function setupWelcomeGoodbyeHandlers(sock) {
                     .replace(/{mention}/g, `@${name}`);
 
                 if (action === 'add') {
-                    // Legacy buttons are converted by the installed gifted relay into
-                    // one native WhatsApp single-select category. This is more reliable
-                    // than calling gifted-btns directly before the socket relay is ready.
-                    await sock.sendMessage(id, {
-                        text,
+                    // Retrieve the new member's current WhatsApp profile picture.
+                    // LIDs are tried first; phone JID is used as a fallback.
+                    let profileUrl = null;
+                    const candidates = [...new Set([jid, mentionJid, phoneJid].filter(Boolean))];
+                    for (const candidate of candidates) {
+                        try {
+                            profileUrl = await sock.profilePictureUrl(candidate, 'image');
+                            if (profileUrl) break;
+                        } catch (_) {}
+                    }
+
+                    const menuButtons = [
+                        { buttonId: `${botConfig.PREFIX}menu`, buttonText: { displayText: '📋 ᴍᴇɴᴜ' }, type: 1 },
+                        { buttonId: `${botConfig.PREFIX}groupinfo`, buttonText: { displayText: '📊 ɢʀᴏᴜᴘ ɪɴғᴏ' }, type: 1 },
+                        { buttonId: `${botConfig.PREFIX}members`, buttonText: { displayText: '👥 ᴍᴇᴍʙᴇʀs' }, type: 1 },
+                        { buttonId: `${botConfig.PREFIX}tagall`, buttonText: { displayText: '👥 ᴛᴀɢ ᴀʟʟ' }, type: 1 },
+                        { buttonId: `${botConfig.PREFIX}alive`, buttonText: { displayText: '💓 ᴀʟɪᴠᴇ' }, type: 1 },
+                        {
+                            name: 'cta_url',
+                            buttonParamsJson: JSON.stringify({
+                                display_text: '📢 ᴊᴏɪɴ ɴᴇᴡsʟᴇᴛᴛᴇʀ',
+                                url: botConfig.CHANNEL_LINK
+                            })
+                        }
+                    ];
+
+                    const payload = {
+                        caption: text,
                         footer: botConfig.BOT_FOOTER,
                         mentions: [mentionJid],
-                        buttons: [
-                            { buttonId: `${botConfig.PREFIX}menu`, buttonText: { displayText: '📋 ᴍᴇɴᴜ' }, type: 1 },
-                            { buttonId: `${botConfig.PREFIX}groupinfo`, buttonText: { displayText: '📊 ɢʀᴏᴜᴘ ɪɴғᴏ' }, type: 1 },
-                            { buttonId: `${botConfig.PREFIX}members`, buttonText: { displayText: '👥 ᴍᴇᴍʙᴇʀs' }, type: 1 },
-                            { buttonId: `${botConfig.PREFIX}tagall`, buttonText: { displayText: '👥 ᴛᴀɢ ᴀʟʟ' }, type: 1 },
-                            { buttonId: `${botConfig.PREFIX}alive`, buttonText: { displayText: '💓 ᴀʟɪᴠᴇ' }, type: 1 },
-                            {
-                                name: 'cta_url',
-                                buttonParamsJson: JSON.stringify({
-                                    display_text: '📢 ᴊᴏɪɴ ɴᴇᴡsʟᴇᴛᴛᴇʀ',
-                                    url: botConfig.CHANNEL_LINK
-                                })
-                            }
-                        ],
-                        headerType: 1
-                    });
+                        buttons: menuButtons,
+                        headerType: 4
+                    };
+
+                    // Sending the profile picture as the welcome message makes the
+                    // greeting visually identify the member who just joined.
+                    if (profileUrl) {
+                        try {
+                            await sock.sendMessage(id, { image: { url: profileUrl }, ...payload });
+                        } catch (imageErr) {
+                            console.warn('[Welcome] Profile image send failed, sending text welcome:', imageErr.message);
+                            await sock.sendMessage(id, {
+                                text,
+                                footer: botConfig.BOT_FOOTER,
+                                mentions: [mentionJid],
+                                buttons: menuButtons,
+                                headerType: 1
+                            });
+                        }
+                    } else {
+                        await sock.sendMessage(id, {
+                            text,
+                            footer: botConfig.BOT_FOOTER,
+                            mentions: [mentionJid],
+                            buttons: menuButtons,
+                            headerType: 1
+                        });
+                    }
                 } else {
                     await sock.sendMessage(id, {
                         text,
@@ -1199,8 +1226,8 @@ async function setupWelcomeGoodbyeHandlers(sock) {
 function setupAntiDelete(sock) {
     const botState = sock.__botState;
     const cache = new Map();
-    const MAX_CACHED = 500;
-    const TTL = 24 * 60 * 60 * 1000;
+    const MAX_CACHED = 1000;
+    const TTL = 48 * 60 * 60 * 1000;
 
     const keyOf = (key) => {
         if (!key?.remoteJid || !key?.id) return null;
@@ -1219,16 +1246,95 @@ function setupAntiDelete(sock) {
     };
 
     const findOriginal = (key) => {
+        if (!key?.id || !key?.remoteJid) return null;
         const exact = cache.get(keyOf(key));
         if (exact && Date.now() - exact.at <= TTL) return exact.message;
-        // WhatsApp may omit participant/fromMe on the revoke key. Match the id/jid.
         for (const entry of cache.values()) {
             const k = entry.message.key;
-            if (k?.id === key?.id && k?.remoteJid === key?.remoteJid && Date.now() - entry.at <= TTL) {
+            if (k?.id === key.id && k?.remoteJid === key.remoteJid && Date.now() - entry.at <= TTL) {
                 return entry.message;
             }
         }
         return null;
+    };
+
+    const restoreInSameChat = async (original) => {
+        const chat = original?.key?.remoteJid;
+        if (!chat) return false;
+
+        const sender = original.key.participant || original.key.remoteJid;
+        const who = sender ? `@${String(sender).split('@')[0].split(':')[0]}` : 'Someone';
+
+        await sock.sendMessage(chat, {
+            text: `🛡️ *ANTI-DELETE*\n\n${who} deleted a message.\n\n♻️ *Retrieved message:*`,
+            mentions: sender ? [sender] : []
+        });
+
+        // First try Baileys' native forward. This preserves captions, replies,
+        // stickers, documents and other message types when the original is cached.
+        try {
+            await sock.copyNForward(chat, original, true);
+            return true;
+        } catch (forwardErr) {
+            console.warn('[AntiDelete] copyNForward failed:', forwardErr.message);
+        }
+
+        // If forwarding fails (commonly for media), download and send the media
+        // back into THE SAME CHAT instead of sending it to the owner/private chat.
+        try {
+            const content = original.message;
+            const type = getContentType(content);
+            if (!type) return false;
+
+            const msgNode = content[type];
+            if (type === 'conversation') {
+                await sock.sendMessage(chat, { text: msgNode || '' });
+                return true;
+            }
+            if (type === 'extendedTextMessage') {
+                await sock.sendMessage(chat, { text: msgNode?.text || '' });
+                return true;
+            }
+            if (['imageMessage', 'videoMessage', 'audioMessage', 'documentMessage', 'stickerMessage'].includes(type)) {
+                const downloaded = await downloadMediaMessage({ type, msg: msgNode }, `antidelete_${Date.now()}`);
+                if (!downloaded) return false;
+
+                if (type === 'imageMessage') {
+                    await sock.sendMessage(chat, { image: downloaded, caption: msgNode.caption || '' });
+                } else if (type === 'videoMessage') {
+                    await sock.sendMessage(chat, { video: downloaded, caption: msgNode.caption || '', mimetype: msgNode.mimetype || 'video/mp4' });
+                } else if (type === 'audioMessage') {
+                    await sock.sendMessage(chat, { audio: downloaded, mimetype: msgNode.mimetype || 'audio/mpeg', ptt: !!msgNode.ptt });
+                } else if (type === 'documentMessage') {
+                    await sock.sendMessage(chat, { document: downloaded, mimetype: msgNode.mimetype || 'application/octet-stream', fileName: msgNode.fileName || 'retrieved-file' });
+                } else if (type === 'stickerMessage') {
+                    await sock.sendMessage(chat, { sticker: downloaded });
+                }
+                return true;
+            }
+        } catch (mediaErr) {
+            console.warn('[AntiDelete] Media recovery failed:', mediaErr.message);
+        }
+        return false;
+    };
+
+    const handleRevoke = async (protocol, fallbackKey) => {
+        if (!protocol || (protocol.type !== 0 && protocol.type !== 'REVOKE')) return;
+        if (!botState.antiDeleteEnabled) return;
+
+        const original = findOriginal(protocol.key || fallbackKey);
+        if (!original?.message) {
+            console.warn('[AntiDelete] Original message not found in cache. It may have been deleted before the bot received it or the cache expired.');
+            return;
+        }
+        if (botState.antiDeleteMode === 'groups' && !String(original.key.remoteJid || '').endsWith('@g.us')) return;
+
+        try {
+            const ok = await restoreInSameChat(original);
+            console.log(`[AntiDelete] ${ok ? 'Retrieved' : 'Failed to retrieve'} ${original.key.id} in ${original.key.remoteJid}`);
+        } catch (err) {
+            console.warn('[AntiDelete] Restore failed:', err.message);
+        }
     };
 
     sock.ev.on('messages.upsert', async ({ messages }) => {
@@ -1236,47 +1342,23 @@ function setupAntiDelete(sock) {
             if (!m?.message) continue;
             const protocol = m.message.protocolMessage;
             if (protocol?.type === 0 || protocol?.type === 'REVOKE') {
-                if (!botState.antiDeleteEnabled) continue;
-                const original = findOriginal(protocol.key);
-                if (!original?.message) continue;
-                if (botState.antiDeleteMode === 'groups' && !String(original.key.remoteJid || '').endsWith('@g.us')) continue;
-                try {
-                    const restored = original.message;
-                    const sender = original.key.participant || original.key.remoteJid;
-                    const who = sender ? `@${String(sender).split('@')[0].split(':')[0]}` : 'Someone';
-                    await sock.sendMessage(original.key.remoteJid, {
-                        text: `🛡️ *ANTI-DELETE*\n\n${who} deleted a message.\n\nThe deleted content is restored below.`,
-                        mentions: sender ? [sender] : []
-                    });
-                    await sock.copyNForward(original.key.remoteJid, original, true);
-                    console.log(`[AntiDelete] Restored ${original.key.id} in ${original.key.remoteJid}`);
-                } catch (err) {
-                    console.warn('[AntiDelete] Restore failed:', err.message);
-                }
-                continue;
+                await handleRevoke(protocol, m.key);
+            } else {
+                remember(m);
             }
-            remember(m);
         }
     });
 
     sock.ev.on('messages.update', async (updates) => {
         for (const item of updates || []) {
-            const update = item?.update;
-            const protocol = update?.message?.protocolMessage;
-            if (!protocol || (protocol.type !== 0 && protocol.type !== 'REVOKE')) continue;
-            if (!botState.antiDeleteEnabled) continue;
-            const original = findOriginal(protocol.key || item.key);
-            if (!original?.message) continue;
-            if (botState.antiDeleteMode === 'groups' && !String(original.key.remoteJid || '').endsWith('@g.us')) continue;
-            try {
-                await sock.copyNForward(original.key.remoteJid, original, true);
-            } catch (err) {
-                console.warn('[AntiDelete] Update restore failed:', err.message);
+            const protocol = item?.update?.message?.protocolMessage;
+            if (protocol?.type === 0 || protocol?.type === 'REVOKE') {
+                await handleRevoke(protocol, item.key);
             }
         }
     });
 
-    console.log('🛡️ Anti-Delete handler registered.');
+    console.log('🛡️ Anti-Delete handler registered — same-chat retrieval enabled.');
 }
 async function setupStatusHandlers(socket) {
     const botState = socket.__botState;
