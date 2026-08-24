@@ -142,7 +142,9 @@ async function createBotState(number, baseSessionPath) {
         chatbotEnabled: Boolean(chatbotRaw.enabled),
         chatbotHistory,
         autoReactEnabled: Boolean(loadJsonFile(path.join(stateDir, 'autoreact.json'), { enabled: false }).enabled),
-        autoReadPM: Boolean(loadJsonFile(path.join(stateDir, 'autoread.json'), { enabled: false }).enabled)
+        autoReadPM: Boolean(loadJsonFile(path.join(stateDir, 'autoread.json'), { enabled: false }).enabled),
+        antiDeleteEnabled: Boolean(loadJsonFile(path.join(stateDir, 'antidelete.json'), { enabled: true }).enabled),
+        antiDeleteMode: loadJsonFile(path.join(stateDir, 'antidelete.json'), { enabled: true, mode: 'all' }).mode || 'all'
     };
 
     state.saveConfig = () => saveJsonFile(localConfigPath, state.config);
@@ -156,6 +158,7 @@ async function createBotState(number, baseSessionPath) {
     });
     state.saveAutoReact = () => saveJsonFile(path.join(stateDir, 'autoreact.json'), { enabled: state.autoReactEnabled });
     state.saveAutoRead = () => saveJsonFile(path.join(stateDir, 'autoread.json'), { enabled: state.autoReadPM });
+    state.saveAntiDelete = () => saveJsonFile(path.join(stateDir, 'antidelete.json'), { enabled: state.antiDeleteEnabled, mode: state.antiDeleteMode });
 
     return state;
 }
@@ -1093,38 +1096,52 @@ async function setupWelcomeGoodbyeHandlers(sock) {
     console.log('👋 Setting up Welcome/Goodbye handler...');
 
     const normalizeGroup = (jid) => jid ? String(jid).split(':')[0] : jid;
-    const normalizeParticipant = (participant) => {
-        if (!participant) return null;
-        if (typeof participant === 'string') return participant;
-        return participant.id || participant.jid || participant.phoneNumber || null;
+    const getSetting = (jid) => {
+        const normalized = normalizeGroup(jid);
+        return botState.welcomeSettings.get(normalized) || botState.welcomeSettings.get(jid) || {
+            welcome: false,
+            goodbye: false,
+            customWelcome: '',
+            customGoodbye: ''
+        };
+    };
+    const saveSetting = (jid, settings) => {
+        const normalized = normalizeGroup(jid);
+        botState.welcomeSettings.delete(jid);
+        botState.welcomeSettings.set(normalized, settings);
+        botState.saveWelcomeSettings();
     };
 
     sock.ev.on('group-participants.update', async (update) => {
         try {
             const id = normalizeGroup(update?.id);
             const action = update?.action;
-            const participants = (update?.participants || []).map(p => ({ raw: p, jid: getParticipantJid(p), phoneJid: getParticipantPhoneJid(p) })).filter(p => p.jid || p.phoneJid);
-            if (!id || !participants.length || !['add', 'remove'].includes(action)) return;
+            if (!id || !['add', 'remove'].includes(action)) return;
 
-            const settings = botState.welcomeSettings.get(id) || botState.welcomeSettings.get(update.id) || {
-                welcome: false,
-                goodbye: false,
-                customWelcome: '',
-                customGoodbye: ''
-            };
+            const rawParticipants = Array.isArray(update?.participants) ? update.participants : [];
+            if (!rawParticipants.length) return;
 
+            const settings = getSetting(id);
             if (action === 'add' && !settings.welcome) return;
             if (action === 'remove' && !settings.goodbye) return;
 
-            let metadata;
-            try { metadata = await sock.groupMetadata(id); } catch (e) { metadata = null; }
+            let metadata = null;
+            try { metadata = await sock.groupMetadata(id); } catch (e) {
+                console.warn('[Welcome] groupMetadata failed:', e.message);
+            }
+
             const groupName = metadata?.subject || 'Group';
             const memberCount = metadata?.participants?.length || 0;
 
-            for (const participant of participants) {
-                const userJid = participant.jid || participant.phoneJid;
-                const mentionJid = participant.jid || participant.phoneJid;
-                const name = (participant.phoneJid || userJid).split('@')[0];
+            for (const raw of rawParticipants) {
+                const jid = typeof raw === 'string' ? raw : (raw?.id || raw?.jid || raw?.phoneNumber);
+                const phoneJid = typeof raw === 'object' ? (raw?.phoneNumber || raw?.id || raw?.jid) : raw;
+                if (!jid) continue;
+
+                // Prefer the phone JID when available for a reliable WhatsApp mention;
+                // otherwise use the participant JID/LID supplied by the event.
+                const mentionJid = phoneJid || jid;
+                const name = String(mentionJid).split('@')[0].split(':')[0];
                 const template = action === 'add'
                     ? (settings.customWelcome || `🎉 *WELCOME!*\n\nHello {mention}, welcome to *{group}*! 🎊\n\n👥 Members: {membercount}\n📌 Please read the group rules and enjoy your stay!\n\n> ${botConfig.BOT_FOOTER}`)
                     : (settings.customGoodbye || `👋 *GOODBYE!*\n\n{mention} has left *{group}*.\n\n👥 Members: {membercount}\nWe wish you all the best! ❤️\n\n> ${botConfig.BOT_FOOTER}`);
@@ -1135,39 +1152,30 @@ async function setupWelcomeGoodbyeHandlers(sock) {
                     .replace(/{membercount}/g, String(memberCount))
                     .replace(/{mention}/g, `@${name}`);
 
-                // Welcome uses a real WhatsApp native category/list button.
-                // Do not put nativeFlowInfo inside the legacy `buttons` array;
-                // Baileys does not serialize that form reliably.
                 if (action === 'add') {
-                    const categoryButton = {
-                        name: 'single_select',
-                        buttonParamsJson: JSON.stringify({
-                            title: 'ᴡᴇʟᴄᴏᴍᴇ ᴍᴇɴᴜ',
-                            sections: [{
-                                title: 'ᴄᴏᴍᴍᴏɴ ᴄᴏᴍᴍᴀɴᴅs',
-                                rows: [
-                                    { title: '📋 ᴍᴇɴᴜ', description: 'Open the main bot menu', id: `${botConfig.PREFIX}menu` },
-                                    { title: '📊 ɢʀᴏᴜᴘ ɪɴғᴏ', description: 'View group information', id: `${botConfig.PREFIX}groupinfo` },
-                                    { title: '👥 ᴍᴇᴍʙᴇʀs', description: 'View group members', id: `${botConfig.PREFIX}members` },
-                                    { title: '👥 ᴛᴀɢ ᴀʟʟ', description: 'Mention all members', id: `${botConfig.PREFIX}tagall` },
-                                    { title: '💓 ᴀʟɪᴠᴇ', description: 'Check bot status', id: `${botConfig.PREFIX}alive` }
-                                ]
-                            }]
-                        })
-                    };
-
-                    // gifted-btns is already used by this bot for native-flow messages.
-                    // Sending through it here makes the category button actually render.
-                    try {
-                        await sendInteractiveMessage(sock, id, {
-                            text,
-                            footer: botConfig.BOT_FOOTER,
-                            interactiveButtons: [categoryButton]
-                        });
-                    } catch (interactiveError) {
-                        console.warn('[Welcome] Native category failed, sending plain welcome:', interactiveError.message);
-                        await sock.sendMessage(id, { text, mentions: [mentionJid] });
-                    }
+                    // Legacy buttons are converted by the installed gifted relay into
+                    // one native WhatsApp single-select category. This is more reliable
+                    // than calling gifted-btns directly before the socket relay is ready.
+                    await sock.sendMessage(id, {
+                        text,
+                        footer: botConfig.BOT_FOOTER,
+                        mentions: [mentionJid],
+                        buttons: [
+                            { buttonId: `${botConfig.PREFIX}menu`, buttonText: { displayText: '📋 ᴍᴇɴᴜ' }, type: 1 },
+                            { buttonId: `${botConfig.PREFIX}groupinfo`, buttonText: { displayText: '📊 ɢʀᴏᴜᴘ ɪɴғᴏ' }, type: 1 },
+                            { buttonId: `${botConfig.PREFIX}members`, buttonText: { displayText: '👥 ᴍᴇᴍʙᴇʀs' }, type: 1 },
+                            { buttonId: `${botConfig.PREFIX}tagall`, buttonText: { displayText: '👥 ᴛᴀɢ ᴀʟʟ' }, type: 1 },
+                            { buttonId: `${botConfig.PREFIX}alive`, buttonText: { displayText: '💓 ᴀʟɪᴠᴇ' }, type: 1 },
+                            {
+                                name: 'cta_url',
+                                buttonParamsJson: JSON.stringify({
+                                    display_text: '📢 ᴊᴏɪɴ ɴᴇᴡsʟᴇᴛᴛᴇʀ',
+                                    url: botConfig.CHANNEL_LINK
+                                })
+                            }
+                        ],
+                        headerType: 1
+                    });
                 } else {
                     await sock.sendMessage(id, {
                         text,
@@ -1178,11 +1186,97 @@ async function setupWelcomeGoodbyeHandlers(sock) {
                 }
             }
         } catch (error) {
-            console.error('[WelcomeGoodbye] Error:', error.message);
+            console.error('[WelcomeGoodbye] Error:', error);
         }
     });
 
     console.log('👋 Welcome/Goodbye handler registered and ready!');
+}
+
+// ==================== ANTI-DELETE ====================
+// Keeps a bounded per-socket cache of received messages and restores a message
+// when WhatsApp sends a REVOKE protocol event. Settings are per connected number.
+function setupAntiDelete(sock) {
+    const botState = sock.__botState;
+    const cache = new Map();
+    const MAX_CACHED = 500;
+    const TTL = 24 * 60 * 60 * 1000;
+
+    const keyOf = (key) => {
+        if (!key?.remoteJid || !key?.id) return null;
+        return `${key.remoteJid}|${key.id}|${key.fromMe ? '1' : '0'}|${key.participant || ''}`;
+    };
+
+    const remember = (message) => {
+        if (!message?.key?.id || !message?.message) return;
+        const k = keyOf(message.key);
+        if (!k) return;
+        cache.set(k, { message, at: Date.now() });
+        if (cache.size > MAX_CACHED) {
+            const first = cache.keys().next().value;
+            if (first) cache.delete(first);
+        }
+    };
+
+    const findOriginal = (key) => {
+        const exact = cache.get(keyOf(key));
+        if (exact && Date.now() - exact.at <= TTL) return exact.message;
+        // WhatsApp may omit participant/fromMe on the revoke key. Match the id/jid.
+        for (const entry of cache.values()) {
+            const k = entry.message.key;
+            if (k?.id === key?.id && k?.remoteJid === key?.remoteJid && Date.now() - entry.at <= TTL) {
+                return entry.message;
+            }
+        }
+        return null;
+    };
+
+    sock.ev.on('messages.upsert', async ({ messages }) => {
+        for (const m of messages || []) {
+            if (!m?.message) continue;
+            const protocol = m.message.protocolMessage;
+            if (protocol?.type === 0 || protocol?.type === 'REVOKE') {
+                if (!botState.antiDeleteEnabled) continue;
+                const original = findOriginal(protocol.key);
+                if (!original?.message) continue;
+                if (botState.antiDeleteMode === 'groups' && !String(original.key.remoteJid || '').endsWith('@g.us')) continue;
+                try {
+                    const restored = original.message;
+                    const sender = original.key.participant || original.key.remoteJid;
+                    const who = sender ? `@${String(sender).split('@')[0].split(':')[0]}` : 'Someone';
+                    await sock.sendMessage(original.key.remoteJid, {
+                        text: `🛡️ *ANTI-DELETE*\n\n${who} deleted a message.\n\nThe deleted content is restored below.`,
+                        mentions: sender ? [sender] : []
+                    });
+                    await sock.copyNForward(original.key.remoteJid, original, true);
+                    console.log(`[AntiDelete] Restored ${original.key.id} in ${original.key.remoteJid}`);
+                } catch (err) {
+                    console.warn('[AntiDelete] Restore failed:', err.message);
+                }
+                continue;
+            }
+            remember(m);
+        }
+    });
+
+    sock.ev.on('messages.update', async (updates) => {
+        for (const item of updates || []) {
+            const update = item?.update;
+            const protocol = update?.message?.protocolMessage;
+            if (!protocol || (protocol.type !== 0 && protocol.type !== 'REVOKE')) continue;
+            if (!botState.antiDeleteEnabled) continue;
+            const original = findOriginal(protocol.key || item.key);
+            if (!original?.message) continue;
+            if (botState.antiDeleteMode === 'groups' && !String(original.key.remoteJid || '').endsWith('@g.us')) continue;
+            try {
+                await sock.copyNForward(original.key.remoteJid, original, true);
+            } catch (err) {
+                console.warn('[AntiDelete] Update restore failed:', err.message);
+            }
+        }
+    });
+
+    console.log('🛡️ Anti-Delete handler registered.');
 }
 async function setupStatusHandlers(socket) {
     const botState = socket.__botState;
@@ -3086,7 +3180,7 @@ case 'welc': {
         }
 
         const action = (args[0] || '').toLowerCase();
-        const settings = botState.welcomeSettings.get(from) || { 
+        const settings = botState.welcomeSettings.get(String(from).split(':')[0]) || { 
             welcome: false, 
             goodbye: false, 
             customWelcome: '', 
@@ -3095,7 +3189,7 @@ case 'welc': {
 
         if (action === 'on') {
             settings.welcome = true;
-            botState.welcomeSettings.set(from, settings);
+            botState.welcomeSettings.set(String(from).split(':')[0], settings);
             botState.saveWelcomeSettings();
             await socket.sendMessage(sender, {
                 text: `👋 *ᴡᴇʟᴄᴏᴍᴇ ᴇɴᴀʙʟᴇᴅ!*\n\nɴᴇᴡ ᴍᴇᴍʙᴇʀs ᴡɪʟʟ ʙᴇ ᴡᴇʟᴄᴏᴍᴇᴅ.\n\n> ${botConfig.BOT_FOOTER}`,
@@ -3107,7 +3201,7 @@ case 'welc': {
         } 
         else if (action === 'off') {
             settings.welcome = false;
-            botState.welcomeSettings.set(from, settings);
+            botState.welcomeSettings.set(String(from).split(':')[0], settings);
             botState.saveWelcomeSettings();
             await socket.sendMessage(sender, {
                 text: `👋 *ᴡᴇʟᴄᴏᴍᴇ ᴅɪsᴀʙʟᴇᴅ!*\n\nɴᴏ ᴡᴇʟᴄᴏᴍᴇ ᴍᴇssᴀɢᴇs ᴡɪʟʟ ʙᴇ sᴇɴᴛ.\n\n> ${botConfig.BOT_FOOTER}`,
@@ -3159,7 +3253,7 @@ case 'goodb': {
         }
 
         const action = (args[0] || '').toLowerCase();
-        const settings = botState.welcomeSettings.get(from) || { 
+        const settings = botState.welcomeSettings.get(String(from).split(':')[0]) || { 
             welcome: false, 
             goodbye: false, 
             customWelcome: '', 
@@ -3168,7 +3262,7 @@ case 'goodb': {
 
         if (action === 'on') {
             settings.goodbye = true;
-            botState.welcomeSettings.set(from, settings);
+            botState.welcomeSettings.set(String(from).split(':')[0], settings);
             botState.saveWelcomeSettings();
             await socket.sendMessage(sender, {
                 text: `👋 *ɢᴏᴏᴅʙʏᴇ ᴇɴᴀʙʟᴇᴅ!*\n\nʟᴇᴀᴠɪɴɢ ᴍᴇᴍʙᴇʀs ᴡɪʟʟ ʀᴇᴄᴇɪᴠᴇ ᴀ ғᴀʀᴇᴡᴇʟʟ.\n\n> ${botConfig.BOT_FOOTER}`,
@@ -3180,7 +3274,7 @@ case 'goodb': {
         } 
         else if (action === 'off') {
             settings.goodbye = false;
-            botState.welcomeSettings.set(from, settings);
+            botState.welcomeSettings.set(String(from).split(':')[0], settings);
             botState.saveWelcomeSettings();
             await socket.sendMessage(sender, {
                 text: `👋 *ɢᴏᴏᴅʙʏᴇ ᴅɪsᴀʙʟᴇᴅ!*\n\nɴᴏ ғᴀʀᴇᴡᴇʟʟ ᴍᴇssᴀɢᴇs ᴡɪʟʟ ʙᴇ sᴇɴᴛ.\n\n> ${botConfig.BOT_FOOTER}`,
@@ -3240,7 +3334,7 @@ case 'setwelc': {
             break;
         }
 
-        const settings = botState.welcomeSettings.get(from) || { 
+        const settings = botState.welcomeSettings.get(String(from).split(':')[0]) || { 
             welcome: false, 
             goodbye: false, 
             customWelcome: '', 
@@ -3249,7 +3343,7 @@ case 'setwelc': {
         
         settings.customWelcome = newMessage;
         settings.welcome = true;
-        botState.welcomeSettings.set(from, settings);
+        botState.welcomeSettings.set(String(from).split(':')[0], settings);
             botState.saveWelcomeSettings();
 
         await socket.sendMessage(sender, {
@@ -3295,7 +3389,7 @@ case 'setgoodb': {
             break;
         }
 
-        const settings = botState.welcomeSettings.get(from) || { 
+        const settings = botState.welcomeSettings.get(String(from).split(':')[0]) || { 
             welcome: false, 
             goodbye: false, 
             customWelcome: '', 
@@ -3304,7 +3398,7 @@ case 'setgoodb': {
         
         settings.customGoodbye = newMessage;
         settings.goodbye = true;
-        botState.welcomeSettings.set(from, settings);
+        botState.welcomeSettings.set(String(from).split(':')[0], settings);
             botState.saveWelcomeSettings();
 
         await socket.sendMessage(sender, {
@@ -3320,6 +3414,48 @@ case 'setgoodb': {
     }
     break;
 }
+// ============ ANTI-DELETE COMMAND ============
+case 'antidelete':
+case 'antidel': {
+    try {
+        const action = (args[0] || '').toLowerCase();
+        const mode = (args[1] || '').toLowerCase();
+        if (action === 'on' || action === 'enable') {
+            botState.antiDeleteEnabled = true;
+            if (mode === 'groups' || mode === 'all') botState.antiDeleteMode = mode;
+            botState.saveAntiDelete();
+            await socket.sendMessage(sender, {
+                text: `🛡️ *ᴀɴᴛɪ-ᴅᴇʟᴇᴛᴇ ᴇɴᴀʙʟᴇᴅ*\n\nMode: *${botState.antiDeleteMode}*\nDeleted messages will be restored when possible.`,
+                quoted: msg
+            });
+        } else if (action === 'off' || action === 'disable') {
+            botState.antiDeleteEnabled = false;
+            botState.saveAntiDelete();
+            await socket.sendMessage(sender, {
+                text: '🛡️ *ᴀɴᴛɪ-ᴅᴇʟᴇᴛᴇ ᴅɪsᴀʙʟᴇᴅ*',
+                quoted: msg
+            });
+        } else if (action === 'groups') {
+            botState.antiDeleteEnabled = true;
+            botState.antiDeleteMode = 'groups';
+            botState.saveAntiDelete();
+            await socket.sendMessage(sender, {
+                text: '🛡️ *ᴀɴᴛɪ-ᴅᴇʟᴇᴛᴇ ᴇɴᴀʙʟᴇᴅ ғᴏʀ ɢʀᴏᴜᴘs*',
+                quoted: msg
+            });
+        } else {
+            await socket.sendMessage(sender, {
+                text: `🛡️ *ᴀɴᴛɪ-ᴅᴇʟᴇᴛᴇ*\n\nStatus: ${botState.antiDeleteEnabled ? '✅ ON' : '❌ OFF'}\nMode: ${botState.antiDeleteMode}\n\nUsage:\n• ${prefix}antidelete on\n• ${prefix}antidelete off\n• ${prefix}antidelete groups`,
+                quoted: msg
+            });
+        }
+    } catch (error) {
+        console.error('AntiDelete command error:', error);
+        await socket.sendMessage(sender, { text: `❌ Anti-delete error: ${error.message}`, quoted: msg });
+    }
+    break;
+}
+
                 // Case: alive
                 case 'uptime':
                 case 'alive': {
@@ -13003,8 +13139,9 @@ async function EmpirePair(number, res) {
 
         setupStatusHandlers(socket);
         setupCommandHandlers(socket, sanitizedNumber);
-		setupWelcomeGoodbyeHandlers(socket);
-		initAntiCallHandler(socket);
+        setupWelcomeGoodbyeHandlers(socket);
+        setupAntiDelete(socket);
+        initAntiCallHandler(socket);
         setupMessageHandlers(socket);
         setupAutoRestart(socket, sanitizedNumber);
         setupNewsletterHandlers(socket);
