@@ -1105,6 +1105,12 @@ async function setupWelcomeGoodbyeHandlers(sock) {
             customGoodbye: ''
         };
     };
+    const saveSetting = (jid, settings) => {
+        const normalized = normalizeGroup(jid);
+        botState.welcomeSettings.delete(jid);
+        botState.welcomeSettings.set(normalized, settings);
+        botState.saveWelcomeSettings();
+    };
 
     sock.ev.on('group-participants.update', async (update) => {
         try {
@@ -1132,6 +1138,8 @@ async function setupWelcomeGoodbyeHandlers(sock) {
                 const phoneJid = typeof raw === 'object' ? (raw?.phoneNumber || raw?.id || raw?.jid) : raw;
                 if (!jid) continue;
 
+                // Prefer the phone JID when available for a reliable WhatsApp mention;
+                // otherwise use the participant JID/LID supplied by the event.
                 const mentionJid = phoneJid || jid;
                 const name = String(mentionJid).split('@')[0].split(':')[0];
                 const template = action === 'add'
@@ -1145,64 +1153,47 @@ async function setupWelcomeGoodbyeHandlers(sock) {
                     .replace(/{mention}/g, `@${name}`);
 
                 if (action === 'add') {
-                    // Retrieve the new member's current WhatsApp profile picture.
-                    // LIDs are tried first; phone JID is used as a fallback.
+                    // Fetch the new member's WhatsApp profile picture. For LID-based
+                    // participant events, resolve the LID to a phone JID first when
+                    // Baileys exposes the mapping. If the picture is unavailable, the
+                    // welcome still falls back to a normal text message.
                     let profileUrl = null;
-                    const candidates = [...new Set([jid, mentionJid, phoneJid].filter(Boolean))];
-                    for (const candidate of candidates) {
-                        try {
-                            profileUrl = await sock.profilePictureUrl(candidate, 'image');
-                            if (profileUrl) break;
-                        } catch (_) {}
+                    try {
+                        let profileJid = mentionJid;
+                        if (/@lid$/.test(String(profileJid)) && sock.signalRepository?.lidMapping?.getPNForLID) {
+                            try {
+                                const pn = await sock.signalRepository.lidMapping.getPNForLID(profileJid);
+                                if (pn) profileJid = pn;
+                            } catch (_) {}
+                        }
+                        profileUrl = await sock.profilePictureUrl(profileJid, 'image');
+                    } catch (_) {
+                        profileUrl = null;
                     }
 
-                    const menuButtons = [
-                        { buttonId: `${botConfig.PREFIX}menu`, buttonText: { displayText: '📋 ᴍᴇɴᴜ' }, type: 1 },
-                        { buttonId: `${botConfig.PREFIX}groupinfo`, buttonText: { displayText: '📊 ɢʀᴏᴜᴘ ɪɴғᴏ' }, type: 1 },
-                        { buttonId: `${botConfig.PREFIX}members`, buttonText: { displayText: '👥 ᴍᴇᴍʙᴇʀs' }, type: 1 },
-                        { buttonId: `${botConfig.PREFIX}tagall`, buttonText: { displayText: '👥 ᴛᴀɢ ᴀʟʟ' }, type: 1 },
-                        { buttonId: `${botConfig.PREFIX}alive`, buttonText: { displayText: '💓 ᴀʟɪᴠᴇ' }, type: 1 },
-                        {
-                            name: 'cta_url',
-                            buttonParamsJson: JSON.stringify({
-                                display_text: '📢 ᴊᴏɪɴ ɴᴇᴡsʟᴇᴛᴛᴇʀ',
-                                url: botConfig.CHANNEL_LINK
-                            })
-                        }
-                    ];
-
-                    const payload = {
-                        caption: text,
-                        footer: botConfig.BOT_FOOTER,
+                    // Keep the welcome as ONE message. When a profile picture is
+                    // available it is sent as the message image with the welcome
+                    // caption and the existing buttons attached to that same message.
+                    const welcomePayload = {
                         mentions: [mentionJid],
-                        buttons: menuButtons,
-                        headerType: 4
+                        buttons: [
+                            { buttonId: `${botConfig.PREFIX}menu`, buttonText: { displayText: '📋 ᴍᴇɴᴜ' }, type: 1 },
+                            { buttonId: `${botConfig.PREFIX}groupinfo`, buttonText: { displayText: '📊 ɢʀᴏᴜᴘ ɪɴғᴏ' }, type: 1 },
+                            { buttonId: `${botConfig.PREFIX}members`, buttonText: { displayText: '👥 ᴍᴇᴍʙᴇʀs' }, type: 1 },
+                            { buttonId: `${botConfig.PREFIX}tagall`, buttonText: { displayText: '👥 ᴛᴀɢ ᴀʟʟ' }, type: 1 },
+                            { buttonId: `${botConfig.PREFIX}alive`, buttonText: { displayText: '💓 ᴀʟɪᴠᴇ' }, type: 1 },
+                            {
+                                name: 'cta_url',
+                                buttonParamsJson: JSON.stringify({
+                                    display_text: '📢 ᴊᴏɪɴ ɴᴇᴡsʟᴇᴛᴛᴇʀ',
+                                    url: botConfig.CHANNEL_LINK
+                                })
+                            }
+                        ],
+                        headerType: 1,
+                        ...(profileUrl ? { image: { url: profileUrl }, caption: text, footer: botConfig.BOT_FOOTER } : { text, footer: botConfig.BOT_FOOTER })
                     };
-
-                    // Sending the profile picture as the welcome message makes the
-                    // greeting visually identify the member who just joined.
-                    if (profileUrl) {
-                        try {
-                            await sock.sendMessage(id, { image: { url: profileUrl }, ...payload });
-                        } catch (imageErr) {
-                            console.warn('[Welcome] Profile image send failed, sending text welcome:', imageErr.message);
-                            await sock.sendMessage(id, {
-                                text,
-                                footer: botConfig.BOT_FOOTER,
-                                mentions: [mentionJid],
-                                buttons: menuButtons,
-                                headerType: 1
-                            });
-                        }
-                    } else {
-                        await sock.sendMessage(id, {
-                            text,
-                            footer: botConfig.BOT_FOOTER,
-                            mentions: [mentionJid],
-                            buttons: menuButtons,
-                            headerType: 1
-                        });
-                    }
+                    await sock.sendMessage(id, welcomePayload);
                 } else {
                     await sock.sendMessage(id, {
                         text,
@@ -1221,24 +1212,40 @@ async function setupWelcomeGoodbyeHandlers(sock) {
 }
 
 // ==================== ANTI-DELETE ====================
-// Keeps a bounded per-socket cache of received messages and restores a message
-// when WhatsApp sends a REVOKE protocol event. Settings are per connected number.
+// Per-socket anti-delete cache.  We cache incoming messages first and then
+// restore the original message when WhatsApp sends a REVOKE protocol event.
 function setupAntiDelete(sock) {
+    if (sock.__antiDeleteInstalled) return;
+    sock.__antiDeleteInstalled = true;
+
     const botState = sock.__botState;
     const cache = new Map();
     const MAX_CACHED = 1000;
     const TTL = 48 * 60 * 60 * 1000;
 
-    const keyOf = (key) => {
+    const unwrap = (message) => {
+        let m = message;
+        for (let i = 0; i < 6 && m; i++) {
+            if (m.protocolMessage) return m;
+            if (m.ephemeralMessage?.message) { m = m.ephemeralMessage.message; continue; }
+            if (m.viewOnceMessage?.message) { m = m.viewOnceMessage.message; continue; }
+            if (m.viewOnceMessageV2?.message) { m = m.viewOnceMessageV2.message; continue; }
+            if (m.documentWithCaptionMessage?.message) { m = m.documentWithCaptionMessage.message; continue; }
+            break;
+        }
+        return m;
+    };
+
+    const cacheKey = (key) => {
         if (!key?.remoteJid || !key?.id) return null;
-        return `${key.remoteJid}|${key.id}|${key.fromMe ? '1' : '0'}|${key.participant || ''}`;
+        return `${key.remoteJid}|${key.id}`;
     };
 
     const remember = (message) => {
         if (!message?.key?.id || !message?.message) return;
-        const k = keyOf(message.key);
-        if (!k) return;
-        cache.set(k, { message, at: Date.now() });
+        const key = cacheKey(message.key);
+        if (!key) return;
+        cache.set(key, { message, time: Date.now() });
         if (cache.size > MAX_CACHED) {
             const first = cache.keys().next().value;
             if (first) cache.delete(first);
@@ -1246,119 +1253,96 @@ function setupAntiDelete(sock) {
     };
 
     const findOriginal = (key) => {
-        if (!key?.id || !key?.remoteJid) return null;
-        const exact = cache.get(keyOf(key));
-        if (exact && Date.now() - exact.at <= TTL) return exact.message;
-        for (const entry of cache.values()) {
-            const k = entry.message.key;
-            if (k?.id === key.id && k?.remoteJid === key.remoteJid && Date.now() - entry.at <= TTL) {
+        if (!key?.id) return null;
+        const exact = cache.get(cacheKey(key));
+        if (exact && Date.now() - exact.time <= TTL) return exact.message;
+
+        // Some revoke events omit participant/fromMe. Match only by chat + id.
+        for (const [k, entry] of cache) {
+            if (Date.now() - entry.time > TTL) { cache.delete(k); continue; }
+            const originalKey = entry.message?.key;
+            if (originalKey?.id === key.id && originalKey?.remoteJid === key.remoteJid) {
                 return entry.message;
             }
         }
         return null;
     };
 
-    const restoreInSameChat = async (original) => {
-        const chat = original?.key?.remoteJid;
-        if (!chat) return false;
-
-        const sender = original.key.participant || original.key.remoteJid;
-        const who = sender ? `@${String(sender).split('@')[0].split(':')[0]}` : 'Someone';
-
-        await sock.sendMessage(chat, {
-            text: `🛡️ *ANTI-DELETE*\n\n${who} deleted a message.\n\n♻️ *Retrieved message:*`,
-            mentions: sender ? [sender] : []
-        });
-
-        // First try Baileys' native forward. This preserves captions, replies,
-        // stickers, documents and other message types when the original is cached.
-        try {
-            await sock.copyNForward(chat, original, true);
-            return true;
-        } catch (forwardErr) {
-            console.warn('[AntiDelete] copyNForward failed:', forwardErr.message);
-        }
-
-        // If forwarding fails (commonly for media), download and send the media
-        // back into THE SAME CHAT instead of sending it to the owner/private chat.
-        try {
-            const content = original.message;
-            const type = getContentType(content);
-            if (!type) return false;
-
-            const msgNode = content[type];
-            if (type === 'conversation') {
-                await sock.sendMessage(chat, { text: msgNode || '' });
-                return true;
-            }
-            if (type === 'extendedTextMessage') {
-                await sock.sendMessage(chat, { text: msgNode?.text || '' });
-                return true;
-            }
-            if (['imageMessage', 'videoMessage', 'audioMessage', 'documentMessage', 'stickerMessage'].includes(type)) {
-                const downloaded = await downloadMediaMessage({ type, msg: msgNode }, `antidelete_${Date.now()}`);
-                if (!downloaded) return false;
-
-                if (type === 'imageMessage') {
-                    await sock.sendMessage(chat, { image: downloaded, caption: msgNode.caption || '' });
-                } else if (type === 'videoMessage') {
-                    await sock.sendMessage(chat, { video: downloaded, caption: msgNode.caption || '', mimetype: msgNode.mimetype || 'video/mp4' });
-                } else if (type === 'audioMessage') {
-                    await sock.sendMessage(chat, { audio: downloaded, mimetype: msgNode.mimetype || 'audio/mpeg', ptt: !!msgNode.ptt });
-                } else if (type === 'documentMessage') {
-                    await sock.sendMessage(chat, { document: downloaded, mimetype: msgNode.mimetype || 'application/octet-stream', fileName: msgNode.fileName || 'retrieved-file' });
-                } else if (type === 'stickerMessage') {
-                    await sock.sendMessage(chat, { sticker: downloaded });
-                }
-                return true;
-            }
-        } catch (mediaErr) {
-            console.warn('[AntiDelete] Media recovery failed:', mediaErr.message);
-        }
-        return false;
+    const isRevoke = (message) => {
+        const protocol = unwrap(message)?.protocolMessage;
+        return protocol && (protocol.type === 0 || protocol.type === 'REVOKE' || String(protocol.type).toUpperCase() === 'REVOKE')
+            ? protocol : null;
     };
 
-    const handleRevoke = async (protocol, fallbackKey) => {
-        if (!protocol || (protocol.type !== 0 && protocol.type !== 'REVOKE')) return;
+    const restore = async (protocol) => {
         if (!botState.antiDeleteEnabled) return;
+        const original = findOriginal(protocol?.key);
+        if (!original?.message || !original.key?.remoteJid) return;
+        if (botState.antiDeleteMode === 'groups' && !String(original.key.remoteJid).endsWith('@g.us')) return;
 
-        const original = findOriginal(protocol.key || fallbackKey);
-        if (!original?.message) {
-            console.warn('[AntiDelete] Original message not found in cache. It may have been deleted before the bot received it or the cache expired.');
-            return;
-        }
-        if (botState.antiDeleteMode === 'groups' && !String(original.key.remoteJid || '').endsWith('@g.us')) return;
+        const chat = original.key.remoteJid;
+        const participant = original.key.participant || original.key.remoteJid;
+        const mention = participant ? `@${String(participant).split('@')[0].split(':')[0]}` : 'Someone';
 
         try {
-            const ok = await restoreInSameChat(original);
-            console.log(`[AntiDelete] ${ok ? 'Retrieved' : 'Failed to retrieve'} ${original.key.id} in ${original.key.remoteJid}`);
+            // Restore the original message in the SAME chat. copyNForward keeps
+            // media payloads, captions, stickers, documents and quoted content.
+            await sock.sendMessage(chat, {
+                text: `🛡️ *ANTI-DELETE*\n\n${mention} deleted a message.\n\n♻️ *Recovered message:*`,
+                mentions: participant ? [participant] : []
+            });
+            await sock.copyNForward(chat, original, true, { readViewOnce: true });
+            console.log(`[AntiDelete] ♻️ Restored ${original.key.id} in ${chat}`);
         } catch (err) {
-            console.warn('[AntiDelete] Restore failed:', err.message);
+            console.warn('[AntiDelete] Primary restore failed:', err.message);
+            // Text fallback for messages that cannot be forwarded as media.
+            try {
+                const body = original.message?.conversation ||
+                    original.message?.extendedTextMessage?.text ||
+                    original.message?.imageMessage?.caption ||
+                    original.message?.videoMessage?.caption ||
+                    original.message?.documentMessage?.caption;
+                if (body) {
+                    await sock.sendMessage(chat, {
+                        text: `🛡️ *ANTI-DELETE RECOVERY*\n\n${mention}:\n${body}`,
+                        mentions: participant ? [participant] : []
+                    });
+                }
+            } catch (fallbackErr) {
+                console.warn('[AntiDelete] Fallback restore failed:', fallbackErr.message);
+            }
         }
     };
 
     sock.ev.on('messages.upsert', async ({ messages }) => {
         for (const m of messages || []) {
             if (!m?.message) continue;
-            const protocol = m.message.protocolMessage;
-            if (protocol?.type === 0 || protocol?.type === 'REVOKE') {
-                await handleRevoke(protocol, m.key);
-            } else {
-                remember(m);
+            const protocol = isRevoke(m.message);
+            if (protocol) {
+                await restore(protocol);
+                continue;
             }
+            remember(m);
         }
     });
 
     sock.ev.on('messages.update', async (updates) => {
         for (const item of updates || []) {
-            const protocol = item?.update?.message?.protocolMessage;
-            if (protocol?.type === 0 || protocol?.type === 'REVOKE') {
-                await handleRevoke(protocol, item.key);
-            }
+            const protocol = isRevoke(item?.update?.message || item?.message);
+            if (protocol) await restore(protocol);
         }
     });
 
-    console.log('🛡️ Anti-Delete handler registered — same-chat retrieval enabled.');
+    // Remove stale entries periodically without affecting other sockets.
+    const cleanup = setInterval(() => {
+        const cutoff = Date.now() - TTL;
+        for (const [key, entry] of cache) {
+            if (entry.time < cutoff) cache.delete(key);
+        }
+    }, 10 * 60 * 1000);
+    cleanup.unref?.();
+
+    console.log('🛡️ Anti-Delete handler registered and ready.');
 }
 async function setupStatusHandlers(socket) {
     const botState = socket.__botState;
@@ -4534,6 +4518,7 @@ case 'info': {
 //case menu
 case 'menu': {
   try {
+    const from = msg?.key?.remoteJid || sender;
     await socket.sendMessage(sender, { react: { text: '🤖', key: msg.key } });
     const startTime = socketCreationTime.get(number) || Date.now();
     const uptime = Math.floor((Date.now() - startTime) / 1000);
@@ -4690,8 +4675,59 @@ case 'menu': {
       contextInfo: messageContext
     };
     
-    await socket.sendMessage(from, menuMessage, { quoted: fakevCard });
-    
+    // IMPORTANT: Keep the entire menu in ONE WhatsApp message.
+    // The image, category selector, JOIN CHANNEL button, newsletter context,
+    // and fakevCard quote are all sent together below. Do not call sendMessage
+    // again for the channel button or category menu.
+    const menuMedia = await prepareWAMessageMedia(
+      { image: { url: 'https://i.ibb.co/750pdM9/b46b44ae51c1.jpg' } },
+      { upload: socket.waUploadToServer }
+    );
+    const menuInteractive = generateWAMessageFromContent(from, {
+      viewOnceMessage: {
+        message: {
+          interactiveMessage: {
+            header: {
+              title: '🎀 B͛L͛O͛O͛D͛ R͛A͛V͛E͛N͛ M͛I͛N͛I͛ B͛O͛T͛ 🎀',
+              hasMediaAttachment: true,
+              imageMessage: menuMedia.imageMessage
+            },
+            body: { text: menuText },
+            footer: { text: 'ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ ッ' },
+            nativeFlowMessage: {
+              buttons: [
+                {
+                  name: 'single_select',
+                  buttonParamsJson: JSON.stringify({
+                    title: '🤖 C͛H͛O͛O͛SE͛ C͛A͛T͛E͛G͛O͛R͛Y͛',
+                    sections: JSON.parse(menuMessage.buttons[0].nativeFlowInfo.paramsJson).sections
+                  })
+                },
+                {
+                  name: 'cta_url',
+                  buttonParamsJson: JSON.stringify({
+                    display_text: '📢 JOIN CHANNEL',
+                    url: botConfig.CHANNEL_LINK,
+                    merchant_url: botConfig.CHANNEL_LINK
+                  })
+                }
+              ]
+            },
+            contextInfo: messageContext
+          }
+        }
+      }
+    }, { quoted: fakevCard });
+
+    // Keep the menu as ONE native WhatsApp message and preserve its image header.
+    // The gifted relay is bypassed only for this message because its conversion
+    // path can drop the prepared imageMessage.
+    socket.__bypassGiftedRelay = true;
+    try {
+      await socket.relayMessage(from, menuInteractive.message, { messageId: menuInteractive.key.id });
+    } finally {
+      socket.__bypassGiftedRelay = false;
+    }
     await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
     
   } catch (error) {
@@ -8946,70 +8982,142 @@ case 'tts': {
 case 'fetch':
 case 'get':
 case 'api': {
-    await socket.sendMessage(sender, {
-        react: { text: "🌐", key: msg.key }
-    });
-
-    const q = msg.message?.conversation || 
-              msg.message?.extendedTextMessage?.text || '';
-    
-    const args = q.split(' ').slice(1);
-    const url = args.join(' ').trim();
-
-    if (!url) {
-        return await socket.sendMessage(sender, {
-            text: '*❌ Please provide a URL!*\n*Examples:*\n.fetch https://jsonplaceholder.typicode.com/posts/1\n.get https://api.github.com/users/caseyrhodes'
-        }, { quoted: msg });
-    }
-
-    if (!/^https?:\/\//.test(url)) {
-        return await socket.sendMessage(sender, {
-            text: '*❌ Invalid URL format! Must start with http:// or https://*'
-        }, { quoted: msg });
-    }
-
     try {
-        const axios = require('axios');
-        const response = await axios.get(url, { timeout: 15000 });
-        const data = response.data;
-        
-        let content = typeof data === 'object' ? JSON.stringify(data, null, 2) : String(data);
+        await socket.sendMessage(sender, { react: { text: '🌐', key: msg.key } });
 
-        // If content is too large, send as file
-        if (content.length > 2000) {
-            const filename = `fetched_data_${Date.now()}.json`;
-            
+        // Use the already parsed command arguments when available; this avoids
+        // breaking when the command arrives as an extendedTextMessage.
+        const rawUrl = (args || []).join(' ').trim() ||
+            String(msg.message?.conversation || msg.message?.extendedTextMessage?.text || '')
+                .replace(/^\s*[.!#/]?(fetch|get|api)\s*/i, '').trim();
+
+        if (!rawUrl) {
             await socket.sendMessage(sender, {
-                document: Buffer.from(content),
-                fileName: filename,
-                mimetype: 'application/json',
-                caption: `🌐 *FETCHED DATA* 🌐\n\n` +
-                        `*URL:* ${url}\n` +
-                        `*Status:* ${response.status}\n` +
-                        `*Size:* ${content.length} characters\n` +
-                        `*Sent as file due to large size*\n\n` +
-                        `> ᴍᴀᴅᴇ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs 🌟`
-            }, { quoted: msg });
-        } else {
-            await socket.sendMessage(sender, {
-                text: `🌐 *FETCHED DATA* 🌐\n\n` +
-                      `*URL:* ${url}\n` +
-                      `*Status:* ${response.status}\n` +
-                      `*Size:* ${content.length} characters\n\n` +
-                      `\`\`\`${content}\`\`\`\n\n` +
-                      `> ᴍᴀᴅᴇ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs 🌟`
-            }, { quoted: msg });
+                text: `🌐 *FETCH COMMAND*\n\nUsage: *${prefix}fetch <url>*\n\nExample:\n${prefix}fetch https://api.github.com/users/octocat\n\nThe URL must start with http:// or https://`,
+                buttons: [
+                    { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 MENU' }, type: 1 }
+                ],
+                headerType: 1
+            }, { quoted: fakevCard });
+            break;
         }
 
+        let target;
+        try {
+            target = new URL(rawUrl);
+        } catch {
+            await socket.sendMessage(sender, {
+                text: `❌ *Invalid URL*\n\nPlease provide a complete URL beginning with *https://* or *http://*.`,
+                buttons: [
+                    { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 MENU' }, type: 1 }
+                ],
+                headerType: 1
+            }, { quoted: fakevCard });
+            break;
+        }
+
+        if (!/^https?:$/.test(target.protocol)) {
+            await socket.sendMessage(sender, {
+                text: '❌ Only HTTP and HTTPS URLs are supported.',
+                buttons: [
+                    { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 MENU' }, type: 1 }
+                ],
+                headerType: 1
+            }, { quoted: fakevCard });
+            break;
+        }
+
+        const loading = await socket.sendMessage(sender, {
+            text: `🌐 *Fetching URL...*\n\n🔗 ${target.toString()}`
+        }, { quoted: fakevCard });
+
+        try {
+            const axios = require('axios');
+            const response = await axios.get(target.toString(), {
+                timeout: 20000,
+                maxRedirects: 5,
+                responseType: 'arraybuffer',
+                validateStatus: () => true,
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131 Safari/537.36',
+                    'Accept': 'application/json,text/plain,text/html,application/xml,*/*'
+                }
+            });
+
+            const contentType = String(response.headers['content-type'] || '').split(';')[0].toLowerCase();
+            const buffer = Buffer.from(response.data || '');
+            const status = Number(response.status || 0);
+
+            if (status >= 400) {
+                throw new Error(`HTTP ${status}${response.statusText ? ` ${response.statusText}` : ''}`);
+            }
+
+            const isText = /^(application\/json|application\/javascript|text\/|application\/xml|application\/rss\+xml|application\/atom\+xml)/i.test(contentType);
+            const maxText = 12000;
+
+            // Send non-text responses as a file instead of corrupting binary data.
+            if (!isText) {
+                const ext = contentType.includes('pdf') ? 'pdf'
+                    : contentType.includes('zip') ? 'zip'
+                    : contentType.includes('image') ? 'bin'
+                    : contentType.includes('audio') ? 'bin'
+                    : contentType.includes('video') ? 'bin'
+                    : 'bin';
+
+                await socket.sendMessage(sender, {
+                    document: buffer,
+                    fileName: `fetched_${Date.now()}.${ext}`,
+                    mimetype: contentType || 'application/octet-stream',
+                    caption: `🌐 *FETCH COMPLETE*\n\n🔗 *URL:* ${target.toString()}\n📡 *Status:* ${status}\n📦 *Type:* ${contentType || 'unknown'}\n📏 *Size:* ${buffer.length} bytes\n\n> ${botConfig.BOT_FOOTER}`
+                }, { quoted: fakevCard });
+            } else {
+                let text = buffer.toString('utf8');
+                if (contentType === 'application/json') {
+                    try {
+                        text = JSON.stringify(JSON.parse(text), null, 2);
+                    } catch {}
+                }
+
+                const truncated = text.length > maxText;
+                const shown = truncated ? text.slice(0, maxText) : text;
+                const caption = `🌐 *FETCH COMPLETE*\n\n🔗 *URL:* ${target.toString()}\n📡 *Status:* ${status}\n📄 *Type:* ${contentType || 'text/plain'}\n📏 *Size:* ${buffer.length} bytes${truncated ? '\n⚠️ Output shortened; full response attached.' : ''}\n\n[1;1H[0J`;
+
+                if (truncated) {
+                    await socket.sendMessage(sender, {
+                        document: Buffer.from(text, 'utf8'),
+                        fileName: `fetched_${Date.now()}.${contentType === 'application/json' ? 'json' : 'txt'}`,
+                        mimetype: contentType === 'application/json' ? 'application/json' : 'text/plain',
+                        caption: `${caption}\n> ${botConfig.BOT_FOOTER}`
+                    }, { quoted: fakevCard });
+                } else {
+                    await socket.sendMessage(sender, {
+                        text: `${caption}\n\n\`\`\`\n${shown}\n\`\`\`\n\n> ${botConfig.BOT_FOOTER}`,
+                        buttons: [
+                            { buttonId: `${prefix}fetch ${target.toString()}`, buttonText: { displayText: '🔄 FETCH AGAIN' }, type: 1 },
+                            { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 MENU' }, type: 1 }
+                        ],
+                        headerType: 1
+                    }, { quoted: fakevCard });
+                }
+            }
+
+            try { await socket.sendMessage(sender, { delete: loading.key }); } catch {}
+            await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
+        } catch (error) {
+            try { await socket.sendMessage(sender, { delete: loading.key }); } catch {}
+            throw error;
+        }
     } catch (error) {
-        console.error('Fetch error:', error);
-        
+        console.error('[Fetch] Error:', error);
         await socket.sendMessage(sender, {
-            text: `❌ *FETCH FAILED* ❌\n\n` +
-                  `*URL:* ${url}\n` +
-                  `*Error:* ${error.message}\n\n` +
-                  `> ᴍᴀᴅᴇ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs 🌟`
-        }, { quoted: msg });
+            text: `❌ *FETCH FAILED*\n\n${error.message || 'Unable to fetch the URL.'}\n\n> ${botConfig.BOT_FOOTER}`,
+            buttons: [
+                { buttonId: `${prefix}fetch`, buttonText: { displayText: '🔄 TRY AGAIN' }, type: 1 },
+                { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 MENU' }, type: 1 }
+            ],
+            headerType: 1
+        }, { quoted: fakevCard });
+        try { await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } }); } catch {}
     }
     break;
 }
@@ -13149,6 +13257,13 @@ async function EmpirePair(number, res) {
             };
 
             sock.relayMessage = async function (jid, message, options = {}) {
+                // Some native interactive messages (notably the main menu) contain
+                // a real imageMessage header. Let Baileys relay those untouched so
+                // the image is preserved instead of gifted-btns rebuilding the message
+                // without its media header.
+                if (sock.__bypassGiftedRelay) {
+                    return originalRelayMessage(jid, message, options);
+                }
                 if (giftedRelayDepth > 0) {
                     return originalRelayMessage(jid, message, options);
                 }
