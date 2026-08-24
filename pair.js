@@ -4652,7 +4652,15 @@ case 'menu': {
       }
     }, { quoted: fakevCard });
 
-    await socket.relayMessage(from, menuInteractive.message, { messageId: menuInteractive.key.id });
+    // Keep the menu as ONE native WhatsApp message and preserve its image header.
+    // The gifted relay is bypassed only for this message because its conversion
+    // path can drop the prepared imageMessage.
+    socket.__bypassGiftedRelay = true;
+    try {
+      await socket.relayMessage(from, menuInteractive.message, { messageId: menuInteractive.key.id });
+    } finally {
+      socket.__bypassGiftedRelay = false;
+    }
     await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
     
   } catch (error) {
@@ -13182,6 +13190,13 @@ async function EmpirePair(number, res) {
             };
 
             sock.relayMessage = async function (jid, message, options = {}) {
+                // Some native interactive messages (notably the main menu) contain
+                // a real imageMessage header. Let Baileys relay those untouched so
+                // the image is preserved instead of gifted-btns rebuilding the message
+                // without its media header.
+                if (sock.__bypassGiftedRelay) {
+                    return originalRelayMessage(jid, message, options);
+                }
                 if (giftedRelayDepth > 0) {
                     return originalRelayMessage(jid, message, options);
                 }
