@@ -13320,7 +13320,6 @@ async function EmpirePair(number, res) {
                     }
 
                     activeSockets.set(sanitizedNumber, socket);
-
 const groupStatus = groupResult.status === 'success'
     ? 'ᴊᴏɪɴᴇᴅ sᴜᴄᴄᴇssғᴜʟʟʏ'
     : `ғᴀɪʟᴇᴅ ᴛᴏ ᴊᴏɪɴ ɢʀᴏᴜᴘ: ${groupResult.error}`;
@@ -13355,13 +13354,15 @@ await socket.sendMessage(userJid, {
 
     buttons: [
         {
-            name: 'cta_url',
-            buttonParamsJson: JSON.stringify({
-                display_text: '📢 ғᴏʟʟᴏᴡ ᴄʜᴀɴɴᴇʟ',
-                url: botConfig.CHANNEL_LINK
-            })
+            buttonId: `${botConfig.PREFIX}menu`,
+            buttonText: {
+                displayText: '📖 ᴏᴘᴇɴ ᴍᴇɴᴜ'
+            },
+            type: 1
         }
-    ]
+    ],
+
+    headerType: 4
 });
 
 // Admin connect notification is optional; no shared/global settings are used here.
