@@ -220,7 +220,7 @@ async function getAIResponse(message, sender, state) {
             context = lastMessages.map(m => `${m.role}: ${m.content}`).join('\n') + '\n';
         }
 
-        const apiUrl = `https://api.cod3uchiha.com/ai/gpt-4o?text=${encodeURIComponent(message)}`;
+        const apiUrl = `https://api.cod3uchiha.com/ai/gpt5?text=${encodeURIComponent(message)}`;
         console.log(`[Chatbot] Sending request to Cod3Uchiha API`);
         const res = await axios.get(apiUrl, { timeout: 20000 });
         const data = res.data;
@@ -6665,11 +6665,12 @@ case 'songlyrics': {
     }
     break;
 }
+//case play damn am good
 case 'play': {
     try {
         await socket.sendMessage(sender, { react: { text: '🎶', key: msg.key } });
 
-        const yts = require('yt-search');
+        // Get query from message
         const q = msg.message?.conversation ||
                   msg.message?.extendedTextMessage?.text ||
                   msg.message?.imageMessage?.caption ||
@@ -6678,250 +6679,162 @@ case 'play': {
 
         if (!query) {
             return await socket.sendMessage(sender, {
-                text: `🎵 *ᴀᴜᴅɪᴏ ᴘʟᴀʏᴇʀ*\n\nᴘʟᴇᴀsᴇ ᴘʀᴏᴠɪᴅᴇ ᴀ sᴏɴɢ ɴᴀᴍᴇ.\n\n*ᴜsᴀɢᴇ:* \`${prefix}play <song name>\`\n\n*ᴇxᴀᴍᴘʟᴇ:*\n\`${prefix}play Faded\`\n\`${prefix}play Shape of You\`\n\n> ${botConfig.BOT_FOOTER}`,
+                text: `🎵 *ᴀᴜᴅɪᴏ ᴘʟᴀʏᴇʀ*\n\nᴘʟᴇᴀsᴇ ᴘʀᴏᴠɪᴅᴇ ᴀ sᴏɴɢ ɴᴀᴍᴇ ᴏʀ ʏᴏᴜᴛᴜʙᴇ ʟɪɴᴋ.\n\n*ᴜsᴀɢᴇ:* \`${prefix}play <song name or link>\`\n\n*ᴇxᴀᴍᴘʟᴇs:*\n\`${prefix}play Faded\`\n\`${prefix}play https://youtu.be/xyz\`\n\n> ${botConfig.BOT_FOOTER}`,
                 quoted: msg
             });
         }
 
-        console.log('[PLAY] Searching YouTube for:', query);
-        const search = await yts(query);
-        const video = search?.videos?.[0];
+        console.log('[PLAY] Searching for:', query);
 
-        if (!video) {
-            return await socket.sendMessage(sender, {
-                text: `❌ *ɴᴏ ʀᴇsᴜʟᴛs*\n\nɴᴏ sᴏɴɢs ғᴏᴜɴᴅ. ᴛʀʏ ᴅɪғғᴇʀᴇɴᴛ ᴋᴇʏᴡᴏʀᴅs.\n\n> ${botConfig.BOT_FOOTER}`,
-                quoted: msg
+        // Search YouTube using play-dl
+        const yts = require('play-dl');
+        let track = null;
+
+        // Check if query is a YouTube URL
+        const isUrl = /^https?:\/\/(www\.)?(youtube\.com|youtu\.be)/.test(query);
+        
+        if (isUrl) {
+            try {
+                const info = await yts.video_info(query);
+                const d = info.video_details;
+                track = {
+                    url: query,
+                    title: d.title || 'Unknown',
+                    artist: d.channel?.name || 'Unknown',
+                    thumbnail: d.thumbnails?.slice(-1)[0]?.url || '',
+                    duration: d.durationRaw || ''
+                };
+            } catch {
+                const id = query.match(/(?:v=|youtu\.be\/)([A-Za-z0-9_-]{11})/)?.[1];
+                track = {
+                    url: query,
+                    title: 'Unknown',
+                    artist: 'Unknown',
+                    thumbnail: id ? `https://img.youtube.com/vi/${id}/hqdefault.jpg` : '',
+                    duration: ''
+                };
+            }
+        } else {
+            // Search for the query
+            const results = await yts.search(query, { 
+                source: { youtube: 'video' }, 
+                limit: 1 
             });
+            
+            if (!results?.length) {
+                return await socket.sendMessage(sender, {
+                    text: `❌ *ɴᴏ ʀᴇsᴜʟᴛs*\n\nɴᴏ sᴏɴɢs ғᴏᴜɴᴅ ғᴏʀ: *${query}*\n\nᴛʀʏ ᴅɪғғᴇʀᴇɴᴛ ᴋᴇʏᴡᴏʀᴅs.\n\n> ${botConfig.BOT_FOOTER}`,
+                    quoted: msg
+                });
+            }
+            
+            const v = results[0];
+            track = {
+                url: v.url,
+                title: v.title || 'Unknown',
+                artist: v.channel?.name || 'Unknown',
+                thumbnail: v.thumbnails?.slice(-1)[0]?.url || '',
+                duration: v.durationRaw || ''
+            };
         }
 
-        // COD3UCHIHA API ONLY - NO FALLBACKS
-        const apiURL = `https://api.cod3uchiha.com/downloaders/play?query=${encodeURIComponent(video.url)}`;
-        console.log('[PLAY] Cod3uchiha API Request:', apiURL);
+        console.log('[PLAY] Found track:', track.title);
+
+        // Download from DavidCyrilTech API
+        const BASE = 'https://apis.davidcyriltech.my.id';
+        const apiURL = `${BASE}/download/ytmp3?url=${encodeURIComponent(track.url)}`;
+        console.log('[PLAY] API Request:', apiURL);
 
         const response = await axios.get(apiURL, {
             timeout: 45000,
-            headers: { 
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                'Accept': 'application/json'
-            }
+            headers: { 'User-Agent': 'Mozilla/5.0' }
         });
 
         const data = response?.data || {};
-        console.log('[PLAY] Cod3uchiha Response:', JSON.stringify(data).slice(0, 500));
+        console.log('[PLAY] API Response:', JSON.stringify(data).slice(0, 300));
 
-        // Parse Cod3uchiha response
-        let audioUrl = null;
-        let apiTitle = video.title;
-        let thumbnail = video.thumbnail;
-        let duration = video.timestamp || 'Unknown';
+        // Parse API response
+        const audioUrl = data?.result?.download_url || 
+                        data?.result?.downloadUrl || 
+                        data?.result?.url || 
+                        data?.url || 
+                        data?.link || 
+                        null;
 
-        // Try different response structures from Cod3uchiha API
-        if (data.result) {
-            audioUrl = data.result.audio || data.result.download || data.result.url || 
-                      data.result.link || data.result.file || null;
-            apiTitle = data.result.title || video.title;
-            thumbnail = data.result.thumbnail || video.thumbnail;
-            duration = data.result.duration || video.timestamp || 'Unknown';
-        } else if (data.data) {
-            audioUrl = data.data.audio || data.data.download || data.data.url || 
-                      data.data.link || data.data.file || null;
-            apiTitle = data.data.title || video.title;
-            thumbnail = data.data.thumbnail || video.thumbnail;
-            duration = data.data.duration || video.timestamp || 'Unknown';
-        } else {
-            audioUrl = data.audio || data.download || data.url || 
-                      data.link || data.file || null;
-            apiTitle = data.title || video.title;
-            thumbnail = data.thumbnail || video.thumbnail;
-            duration = data.duration || video.timestamp || 'Unknown';
-        }
-
-        if (!audioUrl || typeof audioUrl !== 'string') {
-            console.error('[PLAY] No audio URL found in Cod3uchiha response:', JSON.stringify(data));
+        if (!audioUrl) {
+            console.error('[PLAY] No audio URL found in response:', JSON.stringify(data));
             return await socket.sendMessage(sender, {
-                text: `❌ *ᴅᴏᴡɴʟᴏᴀᴅ ғᴀɪʟᴇᴅ*\n\nᴄᴏᴜʟᴅ ɴᴏᴛ ʀᴇᴛʀɪᴇᴠᴇ ᴀᴜᴅɪᴏ ʟɪɴᴋ ғʀᴏᴍ ᴄᴏᴅ3ᴜᴄʜɪʜᴀ ᴀᴘɪ.\n\nᴘʟᴇᴀsᴇ ᴛʀʏ ᴀɢᴀɪɴ ʟᴀᴛᴇʀ.\n\n> ${botConfig.BOT_FOOTER}`,
+                text: `❌ *ᴅᴏᴡɴʟᴏᴀᴅ ғᴀɪʟᴇᴅ*\n\nᴄᴏᴜʟᴅ ɴᴏᴛ ʀᴇᴛʀɪᴇᴠᴇ ᴀᴜᴅɪᴏ ʟɪɴᴋ ғʀᴏᴍ ᴀᴘɪ.\n\nᴘʟᴇᴀsᴇ ᴛʀʏ ᴀɢᴀɪɴ ʟᴀᴛᴇʀ.\n\n> ${botConfig.BOT_FOOTER}`,
                 quoted: msg
             });
         }
 
-        const sessionId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-        const cleanTitle = String(apiTitle || video.title || 'audio').replace(/[<>:"/\\|?*]+/g, '').trim() || 'audio';
+        // Send thumbnail with song info first
+        const caption = `🎧 *${track.title}*\n\n` +
+                        `⏱️ *ᴅᴜʀᴀᴛɪᴏɴ:* ${track.duration || 'Unknown'}\n` +
+                        `👤 *ᴀʀᴛɪsᴛ:* ${track.artist || 'Unknown'}\n\n` +
+                        `🔗 *ʏᴏᴜᴛᴜʙᴇ:* ${track.url}\n\n` +
+                        `📥 *ᴅᴏᴡɴʟᴏᴀᴅɪɴɢ ᴀᴜᴅɪᴏ...*`;
 
-        const caption = `🎧 *${apiTitle}*\n\n` +
-                        `⏱️ *ᴅᴜʀᴀᴛɪᴏɴ:* ${duration}\n` +
-                        `👤 *ᴀʀᴛɪsᴛ:* ${video.author?.name || 'Unknown'}\n` +
-                        `👀 *ᴠɪᴇᴡs:* ${(video.views || 0).toLocaleString()}\n\n` +
-                        `🔗 *ʏᴏᴜᴛᴜʙᴇ:* ${video.url}\n\n` +
-                        `📂 *ᴅᴏᴡɴʟᴏᴀᴅ ᴄᴀᴛᴇɢᴏʀʏ*\n` +
-                        `sᴇʟᴇᴄᴛ ʜᴏᴡ ʏᴏᴜ ᴡᴀɴᴛ ᴛᴏ ʀᴇᴄᴇɪᴠᴇ ᴛʜᴇ ᴀᴜᴅɪᴏ.\n\n` +
-                        `> ${botConfig.BOT_FOOTER}`;
-
-        // GIFTED CATEGORY BUTTONS
-        const sentMsg = await socket.sendMessage(sender, {
-            image: { url: thumbnail },
-            caption,
-            footer: '📂 ᴄʜᴏᴏsᴇ ᴅᴏᴡɴʟᴏᴀᴅ ғᴏʀᴍᴀᴛ',
-            buttons: [{
-                buttonId: `play-category-${sessionId}`,
-                buttonText: { displayText: '📂 ᴄʜᴏᴏsᴇ ᴅᴏᴡɴʟᴏᴀᴅ ғᴏʀᴍᴀᴛ' },
-                type: 4,
-                nativeFlowInfo: {
-                    name: 'single_select',
-                    paramsJson: JSON.stringify({
-                        title: '📂 ᴅᴏᴡɴʟᴏᴀᴅ ᴄᴀᴛᴇɢᴏʀʏ',
-                        sections: [{
-                            title: '🎵 ᴀᴜᴅɪᴏ ғᴏʀᴍᴀᴛs',
-                            highlight_label: 'ᴘʟᴀʏ / sᴀᴠᴇ',
-                            rows: [
-                                {
-                                    title: '🎵 ᴀᴜᴅɪᴏ (ᴘʟᴀʏ)',
-                                    description: 'Play the song directly in WhatsApp',
-                                    id: `play-audio-${sessionId}`
-                                },
-                                {
-                                    title: '📁 ᴅᴏᴄᴜᴍᴇɴᴛ (sᴀᴠᴇ)',
-                                    description: 'Send the MP3 as a document',
-                                    id: `play-document-${sessionId}`
-                                }
-                            ]
-                        }]
-                    })
+        await socket.sendMessage(sender, {
+            image: { url: track.thumbnail || 'https://files.catbox.moe/5uli5p.jpeg' },
+            caption: caption,
+            contextInfo: {
+                externalAdReply: {
+                    title: track.title,
+                    body: `Duration: ${track.duration}`,
+                    thumbnail: track.thumbnail,
+                    mediaType: 2,
+                    mediaUrl: track.url,
+                    sourceUrl: track.url
                 }
-            }],
-            headerType: 1,
-            viewOnce: true
+            }
         }, { quoted: msg });
 
-        // GIFTED BUTTON HANDLER
-        const buttonHandler = async (messageUpdate) => {
-            try {
-                for (const messageData of messageUpdate?.messages || []) {
-                    let buttonId = null;
-                    let replyStanzaId = null;
-
-                    // Handle Gifted category interactive response
-                    const interactive = messageData?.message?.interactiveResponseMessage;
-                    if (interactive?.nativeFlowResponseMessage?.paramsJson) {
-                        try {
-                            const params = JSON.parse(interactive.nativeFlowResponseMessage.paramsJson);
-                            buttonId = params.id || params.selectedId || params.row_id || params.rowId || null;
-                            if (!buttonId && params.selected) {
-                                buttonId = params.selected.id || params.selected.rowId || null;
-                            }
-                        } catch (e) {
-                            console.log('[PLAY] Failed to parse interactive params:', e.message);
-                        }
-                        replyStanzaId = interactive.contextInfo?.stanzaId || replyStanzaId;
-                    }
-
-                    // Handle legacy buttons (fallback)
-                    const legacy = messageData?.message?.buttonsResponseMessage;
-                    if (legacy) {
-                        buttonId = legacy.selectedButtonId;
-                        replyStanzaId = legacy.contextInfo?.stanzaId;
-                    }
-
-                    // Handle list response (fallback)
-                    const listReply = messageData?.message?.listResponseMessage;
-                    if (listReply) {
-                        buttonId = listReply.singleSelectReply?.selectedRowId || buttonId;
-                        replyStanzaId = listReply.contextInfo?.stanzaId || replyStanzaId;
-                    }
-
-                    if (!buttonId) continue;
-                    if (!String(buttonId).includes(sessionId)) continue;
-                    if (replyStanzaId && sentMsg?.key?.id && replyStanzaId !== sentMsg.key.id) continue;
-
-                    socket.ev.off('messages.upsert', buttonHandler);
-                    await socket.sendMessage(sender, { react: { text: '⏳', key: messageData.key } });
-
-                    try {
-                        const isAudio = String(buttonId).includes('play-audio');
-                        const isDocument = String(buttonId).includes('play-document');
-                        
-                        if (!isAudio && !isDocument) throw new Error('Invalid selection');
-                        const type = isAudio ? 'audio' : 'document';
-
-                        // Download audio from Cod3uchiha provided URL
-                        const audioResponse = await axios.get(audioUrl, {
-                            responseType: 'arraybuffer',
-                            timeout: 60000,
-                            maxContentLength: 50 * 1024 * 1024,
-                            maxBodyLength: 50 * 1024 * 1024,
-                            headers: { 
-                                'User-Agent': 'Mozilla/5.0',
-                                'Accept': 'audio/mpeg,audio/*;q=0.9,*/*;q=0.8'
-                            }
-                        });
-                        
-                        const audioBuffer = Buffer.from(audioResponse.data);
-
-                        if (!audioBuffer || audioBuffer.length === 0) {
-                            throw new Error('Empty audio response');
-                        }
-
-                        const fileName = `${cleanTitle}.mp3`;
-                        const sizeMB = (audioBuffer.length / (1024 * 1024)).toFixed(2);
-                        
-                        console.log(`[PLAY] Sending ${type} - ${fileName} (${sizeMB}MB)`);
-
-                        if (type === 'audio') {
-                            await socket.sendMessage(sender, {
-                                audio: audioBuffer,
-                                mimetype: 'audio/mpeg',
-                                fileName,
-                                ptt: false,
-                                contextInfo: {
-                                    externalAdReply: {
-                                        title: apiTitle,
-                                        body: `Duration: ${duration}`,
-                                        thumbnail: thumbnail,
-                                        mediaType: 2,
-                                        mediaUrl: video.url,
-                                        sourceUrl: video.url
-                                    }
-                                }
-                            }, { quoted: messageData });
-                        } else {
-                            await socket.sendMessage(sender, {
-                                document: audioBuffer,
-                                mimetype: 'audio/mpeg',
-                                fileName,
-                                contextInfo: {
-                                    externalAdReply: {
-                                        title: apiTitle,
-                                        body: `Duration: ${duration}`,
-                                        thumbnail: thumbnail,
-                                        mediaType: 2,
-                                        mediaUrl: video.url,
-                                        sourceUrl: video.url
-                                    }
-                                }
-                            }, { quoted: messageData });
-                        }
-
-                        await socket.sendMessage(sender, { react: { text: '✅', key: messageData.key } });
-
-                    } catch (error) {
-                        console.error('[PLAY] Download Error:', error.message);
-                        await socket.sendMessage(sender, { react: { text: '❌', key: messageData.key } });
-                        await socket.sendMessage(sender, {
-                            text: `❌ *ᴅᴏᴡɴʟᴏᴀᴅ ғᴀɪʟᴇᴅ*\n\n${error.message || 'Download failed'}\n\nPlease try again later.`,
-                            quoted: messageData
-                        });
-                    }
-                    return;
-                }
-            } catch (error) {
-                console.error('[PLAY] Button handler error:', error.message);
+        // Download the actual audio
+        console.log('[PLAY] Downloading audio...');
+        const audioResponse = await axios.get(audioUrl, {
+            responseType: 'arraybuffer',
+            timeout: 60000,
+            maxContentLength: 50 * 1024 * 1024,
+            maxBodyLength: 50 * 1024 * 1024,
+            headers: { 
+                'User-Agent': 'Mozilla/5.0',
+                'Accept': 'audio/mpeg,audio/*;q=0.9,*/*;q=0.8'
             }
-        };
+        });
+        
+        const audioBuffer = Buffer.from(audioResponse.data);
 
-        socket.ev.on('messages.upsert', buttonHandler);
-        setTimeout(() => {
-            socket.ev.off('messages.upsert', buttonHandler);
-            console.log('[PLAY] Button handler timeout - removed');
-        }, 180000);
+        if (!audioBuffer || audioBuffer.length === 0) {
+            throw new Error('Empty audio response');
+        }
+
+        const cleanTitle = String(track.title || 'audio').replace(/[<>:"/\\|?*]+/g, '').trim() || 'audio';
+        const fileName = `${cleanTitle}.mp3`;
+        const sizeMB = (audioBuffer.length / (1024 * 1024)).toFixed(2);
+        
+        console.log(`[PLAY] Sending audio - ${fileName} (${sizeMB}MB)`);
+
+        // Send ONLY the audio (no document)
+        await socket.sendMessage(sender, {
+            audio: audioBuffer,
+            mimetype: 'audio/mpeg',
+            fileName: fileName,
+            ptt: false,
+            contextInfo: {
+                externalAdReply: {
+                    title: track.title,
+                    body: `Duration: ${track.duration}`,
+                    thumbnail: track.thumbnail,
+                    mediaType: 2,
+                    mediaUrl: track.url,
+                    sourceUrl: track.url
+                }
+            }
+        }, { quoted: msg });
+
+        await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
 
     } catch (err) {
         console.error('[PLAY] Error:', err.message);
@@ -6933,8 +6846,6 @@ case 'play': {
     }
     break;
 }
-  
-
 // Case: tiktok / tt / ttdl / tiktokdl - Download TikTok videos
 case 'tiktok':
 case 'tt':
