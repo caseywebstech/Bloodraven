@@ -220,8 +220,8 @@ async function getAIResponse(message, sender, state) {
             context = lastMessages.map(m => `${m.role}: ${m.content}`).join('\n') + '\n';
         }
 
-        const apiUrl = `https://api.cod3uchiha.com/ai/gpt5?text=${encodeURIComponent(message)}`;
-        console.log(`[Chatbot] Sending request to Cod3Uchiha API`);
+        const apiUrl = `https://apis.davidcyriltech.my.id/ai/gpt-5?prompt=${encodeURIComponent(message)}`;
+        console.log(`[Chatbot] Sending request`);
         const res = await axios.get(apiUrl, { timeout: 20000 });
         const data = res.data;
         let response = data?.result || data?.response || data?.answer || data?.data || data?.reply;
