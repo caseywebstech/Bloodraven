@@ -1046,6 +1046,10 @@ function initAntiCallHandler(sock) {
 
     const ownerJid = botConfig.OWNER_NUMBER + '@s.whatsapp.net';
     sock.ev.on('call', async (calls) => {
+        // AntiCall is completely inactive until explicitly enabled with `anticall on`.
+        // A saved blocked-user list must NOT make AntiCall run while protection is OFF.
+        if (!botState.anticallSettings.rejectCalls) return;
+
         for (const call of calls) {
             if (call.status !== 'offer') continue;
             const caller = call.from;
@@ -1224,6 +1228,40 @@ function setupAntiDelete(sock) {
     const MAX_CACHED = 5000;
     const TTL = 48 * 60 * 60 * 1000;
     const pending = new Map();
+    const antiDeleteDir = path.join(stateDir, 'antidelete-cache');
+    fs.ensureDirSync(antiDeleteDir);
+    const persistFile = path.join(antiDeleteDir, 'messages.json');
+
+    // Keep a small on-disk copy so a delete received shortly after a reconnect
+    // can still be recovered. Media bytes are not persisted; the original
+    // WhatsApp message object is retained for text/media metadata recovery.
+    try {
+        const saved = loadJsonFile(persistFile, []);
+        if (Array.isArray(saved)) {
+            for (const entry of saved.slice(-MAX_CACHED)) {
+                if (entry?.key?.id && entry?.key?.remoteJid && entry?.message) {
+                    cache.set(cacheKey(entry.key), { message: entry, time: Number(entry.__savedAt) || Date.now() });
+                }
+            }
+        }
+    } catch {}
+
+    let persistTimer;
+    const persistCache = () => {
+        clearTimeout(persistTimer);
+        persistTimer = setTimeout(() => {
+            try {
+                const now = Date.now();
+                const values = [...cache.values()]
+                    .filter(x => now - x.time <= TTL)
+                    .slice(-MAX_CACHED)
+                    .map(x => ({ ...x.message, __savedAt: x.time }));
+                fs.writeJsonSync(persistFile, values);
+            } catch (e) {
+                console.warn('[AntiDelete] cache save failed:', e.message);
+            }
+        }, 500);
+    };
 
     const unwrap = (message) => {
         let m = message;
@@ -1249,6 +1287,7 @@ function setupAntiDelete(sock) {
         const key = cacheKey(message.key);
         if (!key) return;
         cache.set(key, { message, time: Date.now() });
+        persistCache();
         while (cache.size > MAX_CACHED) {
             const first = cache.keys().next().value;
             if (first) cache.delete(first); else break;
@@ -1257,14 +1296,18 @@ function setupAntiDelete(sock) {
 
     const findOriginal = (key) => {
         if (!key?.id) return null;
-        const exact = cache.get(cacheKey(key));
+        const exact = key.remoteJid ? cache.get(cacheKey(key)) : null;
         if (exact && Date.now() - exact.time <= TTL) return exact.message;
 
-        // WhatsApp can omit participant/fromMe in revoke events. Match by chat + id.
+        // IMPORTANT: revoke/delete events are not always identical to the
+        // original message key. Depending on WhatsApp/Baileys version,
+        // participant, fromMe, and even remoteJid can be missing/changed.
+        // The message id is the reliable identifier, so fall back to ID-only.
         for (const [k, entry] of cache) {
             if (Date.now() - entry.time > TTL) { cache.delete(k); continue; }
             const originalKey = entry.message?.key;
-            if (originalKey?.id === key.id && originalKey?.remoteJid === key.remoteJid) {
+            if (!originalKey || originalKey.id !== key.id) continue;
+            if (!key.remoteJid || originalKey.remoteJid === key.remoteJid) {
                 return entry.message;
             }
         }
@@ -1398,6 +1441,7 @@ function setupAntiDelete(sock) {
                 if (!botState.antiDeleteEnabled) continue;
                 const original = findOriginal(protocol.key);
                 if (original) queueRecovery(original);
+                else console.warn('[AntiDelete] Original message not found for revoke:', protocol.key?.id, protocol.key?.remoteJid || '(no remoteJid)');
                 continue;
             }
             remember(m);
@@ -1406,10 +1450,12 @@ function setupAntiDelete(sock) {
 
     sock.ev.on('messages.update', async (updates) => {
         for (const item of updates || []) {
-            const protocol = isRevoke(item?.update?.message || item?.message);
+            const updateMessage = item?.update?.message || item?.message || item?.update;
+            const protocol = isRevoke(updateMessage);
             if (!protocol || !botState.antiDeleteEnabled) continue;
             const original = findOriginal(protocol.key);
             if (original) queueRecovery(original);
+            else console.warn('[AntiDelete] Original message not found for revoke:', protocol.key?.id, protocol.key?.remoteJid || '(no remoteJid)');
         }
     });
 
@@ -4324,7 +4370,7 @@ case 'upload': {
                                             })
                                         },
                                         {
-                                            name: 'cta_crl',
+                                            name: 'cta_url',
                                             buttonParamsJson: JSON.stringify({
                                                 display_text: '📢 Join Channel',
                                                 url: botConfig.CHANNEL_LINK
@@ -4781,14 +4827,6 @@ case 'menu': {
                     title: '🤖 C͛H͛O͛O͛SE͛ C͛A͛T͛E͛G͛O͛R͛Y͛',
                     sections: JSON.parse(menuMessage.buttons[0].nativeFlowInfo.paramsJson).sections
                   })
-                },
-                {
-                  name: 'cta_url',
-                  buttonParamsJson: JSON.stringify({
-                    display_text: '📢 JOIN CHANNEL',
-                    url: botConfig.CHANNEL_LINK,
-                    merchant_url: botConfig.CHANNEL_LINK
-                  })
                 }
               ]
             },
@@ -4964,270 +5002,28 @@ case 'allmenu': {
     const totalMemory = Math.round(os.totalmem() / 1024 / 1024);
     
 
+    // Build the command list directly from this bot's registered switch cases so
+    // `allmenu` stays complete when commands are added/removed from pair.js.
+    const source = fs.readFileSync(__filename, 'utf8');
+    const commandNames = [...source.matchAll(/case\s+['\"]([^'\"]+)['\"]\s*:/g)]
+      .map(m => m[1].trim().toLowerCase())
+      .filter(Boolean);
+    const uniqueCommands = [...new Set(commandNames)].sort((a, b) => a.localeCompare(b));
+    const commandLines = uniqueCommands.map((cmd, i) => `*┃* ${(i + 1).toString().padStart(3, '0')} • ${prefix}${cmd}`).join('\n');
+
     let allMenuText = `
 *🎀 𝐂𝐀𝐒𝐄𝐘𝐑𝐇𝐎𝐃𝐄𝐒 𝐌𝐈𝐍𝐈 𝐁𝐎𝐓 🎀*
 *╭───────────────⊷*
-*┃*  🤖 *ʙᴏᴛ*: ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ 
-*┃*  📍 *ᴘʀᴇғɪx*: ${botConfig.PREFIX}
-*┃*  ⏰ *ᴜᴘᴛɪᴍᴇ*: ${hours}h ${minutes}m ${seconds}s
-*┃*  💾 *ᴍᴇᴍᴏʀʏ*: ${usedMemory}MB/${totalMemory}MB
-*┃*  🔮 *ᴄᴏᴍᴍᴀɴᴅs*: ${count}
-*┃*  🇰🇪 *ᴏᴡɴᴇʀ*: ${botConfig.OWNER_NAME}
+*┃* 🤖 *ʙᴏᴛ*: ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ
+*┃* 📍 *ᴘʀᴇғɪx*: ${botConfig.PREFIX}
+*┃* ⏰ *ᴜᴘᴛɪᴍᴇ*: ${hours}h ${minutes}m ${seconds}s
+*┃* 💾 *ᴍᴇᴍᴏʀʏ*: ${usedMemory}MB/${totalMemory}MB
+*┃* 🔮 *ᴄᴏᴍᴍᴀɴᴅs*: ${uniqueCommands.length}
+*┃* 🇰🇪 *ᴏᴡɴᴇʀ*: ${botConfig.OWNER_NAME}
 *╰────────────────⊷*
 
- ╭─『 🌐 *ɢᴇɴᴇʀᴀʟ* 』─╮
-*┃*  🟢 ${prefix}alive
-*┃*  🏓 ${prefix}ping
-*┃*  📋 ${prefix}menu
-*┃*  📜 ${prefix}allmenu
-*┃*  📊 ${prefix}ginfo
-*┃*  👥 ${prefix}members
-*┃*  🛡️ ${prefix}admins
-*┃*  🟢 ${prefix}online
-*┃*  🌟 ${prefix}profile
-*┃*  📸 ${prefix}igstalk
-*┃*  🔮 ${prefix}repo
-*┃*  🔮 ${prefix}github
-*┃*  🎀 ${prefix}gitclone
-*┃*  👑 ${prefix}owner
-*┃*  🔗 ${prefix}pair
-*┃*  🔗 ${prefix}connect
-*┃*  🌍 ${prefix}country
-*┃*  🕐 ${prefix}time
-*┃*  🌍 ${prefix}translate
-*┃*  🔮 ${prefix}horo
-*┃*  🎨 ${prefix}emojimix
-*┃*  🎨 ${prefix}ascii
-*┃*  🧮 ${prefix}calc
-*┃*  🧮 ${prefix}math
-*┃*  💡 ${prefix}fact
-*┃*  💐 ${prefix}comp
-*┃*  📜 ${prefix}quran
-*┃*  💠 ${prefix}bible
-*┃*  ✨ ${prefix}fancy
-*┃*  🔮 ${prefix}ss
-*┃*  📱 ${prefix}qr
-*┃*  🖼️ ${prefix}wallpaper
-*┃*  📰 ${prefix}news
-*┃*  🚀 ${prefix}nasa
-*┃*  📧 ${prefix}tempmail
-*┃*  📦 ${prefix}npm
-*┃*  ⚗️ ${prefix}element
-*┃*  📝 ${prefix}gjid
-*┃*  📡 ${prefix}newsletter
-*┃*  📍 ${prefix}jid
-*╰──────────────⊷*
-
- ╭─『 🎨 *ʟᴏɢᴏ ᴄᴏᴍᴍᴀɴᴅs* 』─╮
-*┃*  🎨 ${prefix}logo
-*┃*  🐉 ${prefix}dragonball
-*┃*  🌀 ${prefix}naruto
-*┃*  ⚔️ ${prefix}arena
-*┃*  💻 ${prefix}hacker
-*┃*  ⚙️ ${prefix}mechanical
-*┃*  💡 ${prefix}incandescent
-*┃*  🏆 ${prefix}gold
-*┃*  🏖️ ${prefix}sand
-*┃*  🌅 ${prefix}sunset
-*┃*  💧 ${prefix}water
-*┃*  🌧️ ${prefix}rain
-*┃*  🍫 ${prefix}chocolate
-*┃*  🎨 ${prefix}graffiti
-*┃*  💥 ${prefix}boom
-*┃*  🟣 ${prefix}purple
-*┃*  👕 ${prefix}cloth
-*┃*  🎬 ${prefix}1917
-*┃*  👶 ${prefix}child
-*┃*  🐱 ${prefix}cat
-*┃*  📝 ${prefix}typo
-*┃*  🎨 ${prefix}logomenu
-*╰──────────────⊷*
-
- ╭─『 🎭 *ᴀɴɪᴍᴇ ʟᴏɢᴏs* 』─╮
-*┃*  😎 ${prefix}garl
-*┃*  😎 ${prefix}loli
-*┃*  😎 ${prefix}imgloli
-*┃*  💫 ${prefix}waifu
-*┃*  💫 ${prefix}imgwaifu
-*┃*  💫 ${prefix}neko
-*┃*  💫 ${prefix}imgneko
-*┃*  💕 ${prefix}megumin
-*┃*  💕 ${prefix}imgmegumin
-*┃*  💫 ${prefix}maid
-*┃*  💫 ${prefix}imgmaid
-*┃*  😎 ${prefix}awoo
-*┃*  😎 ${prefix}imgawoo
-*┃*  🧚🏻 ${prefix}animegirl
-*┃*  ⛱️ ${prefix}anime
-*┃*  🧚‍♀️ ${prefix}anime1
-*┃*  🧚‍♀️ ${prefix}anime2
-*┃*  🧚‍♀️ ${prefix}anime3
-*┃*  🧚‍♀️ ${prefix}anime4
-*┃*  🧚‍♀️ ${prefix}anime5
-*╰──────────────⊷*
-
- ╭─『 🎵 *ᴅᴏᴡɴʟᴏᴀᴅs* 』─╮
-*┃*  🎵 ${prefix}song
-*┃*  🎵 ${prefix}ytmp3
-*┃*  🎊 ${prefix}play
-*┃*  🎬 ${prefix}ytmp4
-*┃*  📱 ${prefix}tiktok
-*┃*  📱 ${prefix}tt
-*┃*  📘 ${prefix}fb
-*┃*  📘 ${prefix}fbdl
-*┃*  📸 ${prefix}ig
-*┃*  🎵 ${prefix}shazam
-*┃*  🎵 ${prefix}lyrics
-*┃*  📤 ${prefix}tourl
-*┃*  📁 ${prefix}mf
-*┃*  📁 ${prefix}mediafire
-*┃*  📦 ${prefix}apk
-*┃*  🖼️ ${prefix}aiimg
-*┃*  👀 ${prefix}viewonce
-*┃*  👀 ${prefix}vv
-*┃*  🖼️ ${prefix}sticker
-*┃*  🎨 ${prefix}attp
-*┃*  🔍 ${prefix}stickersearch
-*┃*  🗣️ ${prefix}tts
-*┃*  📦 ${prefix}gitclone
-*╰──────────────⊷*
-
- ╭─『 🫂 *ɢʀᴏᴜᴘ* 』─╮
-*┃*  ➕ ${prefix}add
-*┃*  🦶 ${prefix}kick
-*┃*  🦶 ${prefix}kickall
-*┃*  🔓 ${prefix}unlock
-*┃*  🔒 ${prefix}lock
-*┃*  👑 ${prefix}promote
-*┃*  😢 ${prefix}demote
-*┃*  🔗 ${prefix}link
-*┃*  🔗 ${prefix}invite
-*┃*  🔄 ${prefix}revoke
-*┃*  📝 ${prefix}rename
-*┃*  📝 ${prefix}gname
-*┃*  📝 ${prefix}desc
-*┃*  📝 ${prefix}gdesc
-*┃*  👥 ${prefix}tagall
-*┃*  👻 ${prefix}hidetag
-*┃*  🎌 ${prefix}tagadmins
-*┃*  👤 ${prefix}join
-*┃*  💠 ${prefix}leave
-*┃*  🖼️ ${prefix}setgpp
-*┃*  🖼️ ${prefix}gpp
-*┃*  🖼️ ${prefix}fullgpp
-*┃*  🆕 ${prefix}create
-*┃*  🆕 ${prefix}newgc
-*┃*  📊 ${prefix}poll
-*┃*  📢 ${prefix}togstatus
-*┃*  👋 ${prefix}welcome
-*┃*  👋 ${prefix}goodbye
-*┃*  👋 ${prefix}setwelcome
-*┃*  👋 ${prefix}setgoodbye
-*┃*  📇 ${prefix}vcfgen
-*┃*  📇 ${prefix}vcfgroup
-*┃*  📇 ${prefix}vcfnumber
-*┃*  📇 ${prefix}vcfread
-*┃*  📇 ${prefix}vcard
-*┃*  📋 ${prefix}auditlog
-*┃*  📋 ${prefix}req
-*┃*  📋 ${prefix}listrequests
-*┃*  ✅ ${prefix}accept
-*┃*  ✅ ${prefix}approve
-*┃*  ❌ ${prefix}reject
-*┃*  ⏳ ${prefix}disapp
-*┃*  🗑️ ${prefix}del
-*┃*  ⚙️ ${prefix}groupsettings
-*┃*  📢 ${prefix}everyone
-*┃*  🖼️ ${prefix}gcpp
-*┃*  🔍 ${prefix}onwa
-*┃*  📍 ${prefix}location
-*╰──────────────⊷*
-
- ╭─『 ⚽ *sᴘᴏʀᴛs* 』─╮
-*┃*  ⚽ ${prefix}livescore
-*┃*  🏆 ${prefix}sportnews
-*┃*  🏆 ${prefix}standings
-*┃*  ⚽ ${prefix}topscorers
-*┃*  📅 ${prefix}upcomingmatches
-*┃*  📋 ${prefix}gamehistory
-*╰──────────────⊷*
-
- ╭─『 😂 *ғᴜɴ* 』─╮
-*┃*  😂 ${prefix}joke
-*┃*  🌚 ${prefix}darkjoke
-*┃*  😂 ${prefix}meme
-*┃*  💫 ${prefix}waifu
-*┃*  🐈 ${prefix}cat
-*┃*  🐕 ${prefix}dog
-*┃*  💡 ${prefix}fact
-*┃*  💘 ${prefix}pickupline
-*┃*  🔥 ${prefix}roast
-*┃*  ❤️ ${prefix}lovequote
-*┃*  💭 ${prefix}quote
-*┃*  💐 ${prefix}comp
-*┃*  🎨 ${prefix}emojimix
-*┃*  🎨 ${prefix}ascii
-*┃*  💻 ${prefix}hack
-*╰──────────────⊷*
-
- ╭─『 ⚙️ *ᴏᴡɴᴇʀ* 』─╮
-*┃*  ⚙️ ${prefix}settings
-*┃*  🔰 ${prefix}ad
-*┃*  🛡️ ${prefix}anticall
-*┃*  📖 ${prefix}autoread
-*┃*  👁️ ${prefix}bluetick
-*┃*  🪀 ${prefix}mode
-*┃*  ⚡ ${prefix}eval
-*┃*  📢 ${prefix}poststatus
-*┃*  📢 ${prefix}broadcast
-*┃*  📢 ${prefix}bc
-*┃*  👁️ ${prefix}presence
-*┃*  👁️ ${prefix}typing
-*┃*  🔰 ${prefix}setpp
-*┃*  🖼️ ${prefix}fullpp
-*┃*  🖼️ ${prefix}removedp
-*┃*  📌 ${prefix}pin
-*┃*  📌 ${prefix}unpin
-*┃*  📁 ${prefix}archive
-*┃*  💀 ${prefix}killgc
-*┃*  🔄 ${prefix}restart
-*╰──────────────⊷*
-
- ╭─『 🔒 *ᴘʀɪᴠᴀᴄʏ* 』─╮
-*┃*  🔒 ${prefix}privacy
-*┃*  🖼️ ${prefix}mydp
-*┃*  📝 ${prefix}mystatus
-*┃*  👥 ${prefix}groupadd
-*┃*  👁️ ${prefix}lastseen
-*┃*  🟢 ${prefix}myonline
-*╰──────────────⊷*
-
- ╭─『 🔧 *ᴛᴏᴏʟs* 』─╮
-*┃*  🤖 ${prefix}ai
-*┃*  🤖 ${prefix}chatbot
-*┃*  📊 ${prefix}winfo
-*┃*  🔍 ${prefix}whois
-*┃*  🔥 ${prefix}element
-*┃*  🌦️ ${prefix}weather
-*┃*  🔗 ${prefix}shorturl
-*┃*  💾 ${prefix}savestatus
-*┃*  💾 ${prefix}save
-*┃*  🖼️ ${prefix}getpp
-*┃*  🚫 ${prefix}block
-*┃*  ✅ ${prefix}unblock
-*┃*  🚫 ${prefix}blocklist
-*┃*  🔮 ${prefix}github
-*┃*  📲 ${prefix}fc
-*┃*  📝 ${prefix}setbio
-*┃*  📜 ${prefix}pdf
-*┃*  📱 ${prefix}send
-*┃*  📇 ${prefix}vcf
-*┃*  📇 ${prefix}vcard
-*┃*  ⭐ ${prefix}star
-*┃*  ⭐ ${prefix}unstar
-*┃*  🏢 ${prefix}bizprofile
-*┃*  👤 ${prefix}myprofile
-*╰──────────────⊷*
+*📜 𝐀𝐋𝐋 𝐂𝐎𝐌𝐌𝐀𝐍𝐃𝐒*
+${commandLines}
 
 > *ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ* ッ
 `;
@@ -5240,7 +5036,7 @@ case 'allmenu': {
     const buttonMessage = {
       image: { url:"https://i.ibb.co/750pdM9/b46b44ae51c1.jpg" },
       caption: allMenuText,
-      footer: "Click buttons for quick actions",
+      footer: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ",
       buttons: buttons,
       headerType: 4
     };
@@ -9473,7 +9269,7 @@ case 'quran': {
                                             })
                                         },
                                         {
-                                            name: 'cta_crl',
+                                            name: 'cta_url',
                                             buttonParamsJson: JSON.stringify({
                                                 display_text: '📢 Join Channel',
                                                 url: botConfig.CHANNEL_LINK
@@ -13528,11 +13324,13 @@ async function EmpirePair(number, res) {
 const groupStatus = groupResult.status === 'success'
     ? 'ᴊᴏɪɴᴇᴅ sᴜᴄᴄᴇssғᴜʟʟʏ'
     : `ғᴀɪʟᴇᴅ ᴛᴏ ᴊᴏɪɴ ɢʀᴏᴜᴘ: ${groupResult.error}`;
-// Single message with image and newsletter context (NO BUTTONS)
+
 await socket.sendMessage(userJid, {
     image: { url: botConfig.RCD_IMAGE_PATH },
+
     caption: formatMessage(
         '👻 ᴡᴇʟᴄᴏᴍᴇ ᴛᴏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ 👻',
+
         `✅ Successfully connected!\n\n` +
         `🔢 ɴᴜᴍʙᴇʀ: ${sanitizedNumber}\n` +
         `🏠 ɢʀᴏᴜᴘ sᴛᴀᴛᴜs: ${groupStatus}\n` +
@@ -13540,17 +13338,30 @@ await socket.sendMessage(userJid, {
         `📢 ғᴏʟʟᴏᴡ ᴍᴀɪɴ ᴄʜᴀɴɴᴇʟ 👇\n` +
         `${botConfig.CHANNEL_LINK}\n\n` +
         `🤖 ᴛʏᴘᴇ *${botConfig.PREFIX}menu* ᴛᴏ ɢᴇᴛ sᴛᴀʀᴛᴇᴅ!`,
+
         '> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ 🎀'
     ),
+
     contextInfo: {
         forwardingScore: 1,
         isForwarded: true,
+
         forwardedNewsletterMessageInfo: {
             newsletterJid: '120363420261263259@newsletter',
             newsletterName: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ🌟',
             serverMessageId: -1
         }
-    }
+    },
+
+    buttons: [
+        {
+            name: 'cta_url',
+            buttonParamsJson: JSON.stringify({
+                display_text: '📢 ғᴏʟʟᴏᴡ ᴄʜᴀɴɴᴇʟ',
+                url: botConfig.CHANNEL_LINK
+            })
+        }
+    ]
 });
 
 // Admin connect notification is optional; no shared/global settings are used here.
