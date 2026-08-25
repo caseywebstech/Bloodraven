@@ -1042,43 +1042,69 @@ function setupNewsletterHandlers(socket) {
 
 function initAntiCallHandler(sock) {
     const botState = sock.__botState;
-    const botConfig = sock.__botConfig;
+    const botConfig = sock.__botConfig || {};
+    if (!botState || !botState.anticallSettings) return;
 
-    const ownerJid = botConfig.OWNER_NUMBER + '@s.whatsapp.net';
-    sock.ev.on('call', async (calls) => {
-        // AntiCall is completely inactive until explicitly enabled with `anticall on`.
-        // A saved blocked-user list must NOT make AntiCall run while protection is OFF.
-        if (!botState.anticallSettings.rejectCalls) return;
+    // Per-socket call protection. It only reacts to real incoming call offers,
+    // so it does not touch the pairing-code flow.
+    const seenCalls = new Set();
+    const ownerJid = botConfig.OWNER_NUMBER
+        ? jidNormalizedUser(`${String(botConfig.OWNER_NUMBER).replace(/\D/g, '')}@s.whatsapp.net`)
+        : null;
 
-        for (const call of calls) {
-            if (call.status !== 'offer') continue;
-            const caller = call.from;
-            if (botState.anticallSettings.blockedUsers.includes(caller) || botState.anticallSettings.rejectCalls) {
-                try {
-                    await sock.rejectCall(call.id, caller);
-                    console.log(`📞 Call rejected from: ${caller}`);
-                } catch {}
+    const cleanCaller = (jid) => {
+        try { return jidNormalizedUser(jid); } catch { return String(jid || ''); }
+    };
+
+    sock.ev.on('call', async (events) => {
+        for (const call of Array.isArray(events) ? events : []) {
+            if (!call || call.status !== 'offer' || !call.id || !call.from) continue;
+            const caller = cleanCaller(call.from);
+            if (!caller || caller === cleanCaller(sock.user?.id)) continue;
+
+            const callKey = `${caller}:${call.id}`;
+            if (seenCalls.has(callKey)) continue;
+            seenCalls.add(callKey);
+            setTimeout(() => seenCalls.delete(callKey), 60_000);
+
+            const settings = botState.anticallSettings;
+            const blocked = Array.isArray(settings.blockedUsers)
+                && settings.blockedUsers.map(cleanCaller).includes(caller);
+            const shouldReject = Boolean(settings.rejectCalls || blocked);
+
+            if (shouldReject) {
+                try { await sock.rejectCall(call.id, caller); }
+                catch (err) { console.warn(`[AntiCall:${botState.number}] Reject failed:`, err.message); }
             }
-            if (botState.anticallSettings.autoReply) {
-                try {
-                    await sock.sendMessage(caller, { text: botState.anticallSettings.autoReply });
-                } catch {}
+
+            if (settings.autoReply) {
+                try { await sock.sendMessage(caller, { text: String(settings.autoReply) }); }
+                catch (err) { console.warn(`[AntiCall:${botState.number}] Auto-reply failed:`, err.message); }
             }
-            if (botState.anticallSettings.notifyAdmin && ownerJid) {
+
+            if (settings.blockCaller && !blocked) {
+                settings.blockedUsers = Array.isArray(settings.blockedUsers) ? settings.blockedUsers : [];
+                settings.blockedUsers.push(caller);
+                settings.blockedUsers = [...new Set(settings.blockedUsers.map(cleanCaller))];
+                botState.saveAnticallSettings();
+                try { await sock.updateBlockStatus(caller, 'block'); }
+                catch (err) { console.warn(`[AntiCall:${botState.number}] Block failed:`, err.message); }
+            }
+
+            if (settings.notifyAdmin && ownerJid && ownerJid !== caller) {
                 try {
                     await sock.sendMessage(ownerJid, {
-                        text: `📞 *Anti-Call Alert*\n\nCaller: ${caller}\nType: ${call.isVideo ? 'video' : 'voice'}\nStatus: Rejected`
+                        text: `📞 *ANTI-CALL ALERT*\n\n👤 Caller: @${caller.split('@')[0].split(':')[0]}\n📱 Type: ${call.isVideo ? 'Video' : 'Voice'}\n🛡️ Action: ${shouldReject ? 'Rejected' : 'Allowed'}`,
+                        mentions: [caller]
                     });
-                } catch {}
-            }
-            if (botState.anticallSettings.blockCaller && !botState.anticallSettings.blockedUsers.includes(caller)) {
-                botState.anticallSettings.blockedUsers.push(caller);
-                botState.saveAnticallSettings();
-                console.log(`🚫 Auto-blocked caller: ${caller}`);
+                } catch (err) {
+                    console.warn(`[AntiCall:${botState.number}] Admin notification failed:`, err.message);
+                }
             }
         }
     });
-    console.log('🛡️ Anti-Call handler registered.');
+
+    console.log(`🛡️ Anti-Call handler registered for ${botState.number}.`);
 }
 
 function getParticipantJid(participant) {
@@ -1228,7 +1254,7 @@ function setupAntiDelete(sock) {
     const MAX_CACHED = 5000;
     const TTL = 48 * 60 * 60 * 1000;
     const pending = new Map();
-    const antiDeleteDir = path.join(stateDir, 'antidelete-cache');
+    const antiDeleteDir = path.join(botState.dir, 'antidelete-cache');
     fs.ensureDirSync(antiDeleteDir);
     const persistFile = path.join(antiDeleteDir, 'messages.json');
 
@@ -4827,7 +4853,8 @@ case 'menu': {
                     title: '🤖 C͛H͛O͛O͛SE͛ C͛A͛T͛E͛G͛O͛R͛Y͛',
                     sections: JSON.parse(menuMessage.buttons[0].nativeFlowInfo.paramsJson).sections
                   })
-                }
+                },
+
               ]
             },
             contextInfo: messageContext
@@ -5002,28 +5029,293 @@ case 'allmenu': {
     const totalMemory = Math.round(os.totalmem() / 1024 / 1024);
     
 
-    // Build the command list directly from this bot's registered switch cases so
-    // `allmenu` stays complete when commands are added/removed from pair.js.
-    const source = fs.readFileSync(__filename, 'utf8');
-    const commandNames = [...source.matchAll(/case\s+['\"]([^'\"]+)['\"]\s*:/g)]
-      .map(m => m[1].trim().toLowerCase())
-      .filter(Boolean);
-    const uniqueCommands = [...new Set(commandNames)].sort((a, b) => a.localeCompare(b));
-    const commandLines = uniqueCommands.map((cmd, i) => `*┃* ${(i + 1).toString().padStart(3, '0')} • ${prefix}${cmd}`).join('\n');
+    // Keep ALLMENU synchronized with the actual command router.
+    let liveCommands = [];
+    try {
+      const source = await fs.readFile(path.join(__dirname, 'pair.js'), 'utf8');
+      const seen = new Set();
+      for (const match of source.matchAll(/\\bcase\\s+['"]([^'"]+)['"]\\s*:/g)) {
+        const cmd = String(match[1]).trim().toLowerCase();
+        if (cmd && !seen.has(cmd)) {
+          seen.add(cmd);
+          liveCommands.push(cmd);
+        }
+      }
+    } catch (e) {
+      console.warn('[AllMenu] Could not build live command list:', e.message);
+    }
+    const liveCommandLines = liveCommands.length
+      ? liveCommands.map((cmd, i) => `*┃* ${String(i + 1).padStart(3, '0')} • ${prefix}${cmd}`).join('\\n')
+      : `*┃* ${prefix}menu`;
 
     let allMenuText = `
 *🎀 𝐂𝐀𝐒𝐄𝐘𝐑𝐇𝐎𝐃𝐄𝐒 𝐌𝐈𝐍𝐈 𝐁𝐎𝐓 🎀*
 *╭───────────────⊷*
-*┃* 🤖 *ʙᴏᴛ*: ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ
-*┃* 📍 *ᴘʀᴇғɪx*: ${botConfig.PREFIX}
-*┃* ⏰ *ᴜᴘᴛɪᴍᴇ*: ${hours}h ${minutes}m ${seconds}s
-*┃* 💾 *ᴍᴇᴍᴏʀʏ*: ${usedMemory}MB/${totalMemory}MB
-*┃* 🔮 *ᴄᴏᴍᴍᴀɴᴅs*: ${uniqueCommands.length}
-*┃* 🇰🇪 *ᴏᴡɴᴇʀ*: ${botConfig.OWNER_NAME}
+*┃*  🤖 *ʙᴏᴛ*: ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ 
+*┃*  📍 *ᴘʀᴇғɪx*: ${botConfig.PREFIX}
+*┃*  ⏰ *ᴜᴘᴛɪᴍᴇ*: ${hours}h ${minutes}m ${seconds}s
+*┃*  💾 *ᴍᴇᴍᴏʀʏ*: ${usedMemory}MB/${totalMemory}MB
+*┃*  🔮 *ᴄᴏᴍᴍᴀɴᴅs*: ${count}
+*┃*  🇰🇪 *ᴏᴡɴᴇʀ*: ${botConfig.OWNER_NAME}
 *╰────────────────⊷*
 
-*📜 𝐀𝐋𝐋 𝐂𝐎𝐌𝐌𝐀𝐍𝐃𝐒*
-${commandLines}
+ ╭─『 🌐 *ɢᴇɴᴇʀᴀʟ* 』─╮
+*┃*  🟢 ${prefix}alive
+*┃*  🏓 ${prefix}ping
+*┃*  📋 ${prefix}menu
+*┃*  📜 ${prefix}allmenu
+*┃*  📊 ${prefix}ginfo
+*┃*  👥 ${prefix}members
+*┃*  🛡️ ${prefix}admins
+*┃*  🟢 ${prefix}online
+*┃*  🌟 ${prefix}profile
+*┃*  📸 ${prefix}igstalk
+*┃*  🔮 ${prefix}repo
+*┃*  🔮 ${prefix}github
+*┃*  🎀 ${prefix}gitclone
+*┃*  👑 ${prefix}owner
+*┃*  🔗 ${prefix}pair
+*┃*  🔗 ${prefix}connect
+*┃*  🌍 ${prefix}country
+*┃*  🕐 ${prefix}time
+*┃*  🌍 ${prefix}translate
+*┃*  🔮 ${prefix}horo
+*┃*  🎨 ${prefix}emojimix
+*┃*  🎨 ${prefix}ascii
+*┃*  🧮 ${prefix}calc
+*┃*  🧮 ${prefix}math
+*┃*  💡 ${prefix}fact
+*┃*  💐 ${prefix}comp
+*┃*  📜 ${prefix}quran
+*┃*  💠 ${prefix}bible
+*┃*  ✨ ${prefix}fancy
+*┃*  🔮 ${prefix}ss
+*┃*  📱 ${prefix}qr
+*┃*  🖼️ ${prefix}wallpaper
+*┃*  📰 ${prefix}news
+*┃*  🚀 ${prefix}nasa
+*┃*  📧 ${prefix}tempmail
+*┃*  📦 ${prefix}npm
+*┃*  ⚗️ ${prefix}element
+*┃*  📝 ${prefix}gjid
+*┃*  📡 ${prefix}newsletter
+*┃*  📍 ${prefix}jid
+*╰──────────────⊷*
+
+ ╭─『 🎨 *ʟᴏɢᴏ ᴄᴏᴍᴍᴀɴᴅs* 』─╮
+*┃*  🎨 ${prefix}logo
+*┃*  🐉 ${prefix}dragonball
+*┃*  🌀 ${prefix}naruto
+*┃*  ⚔️ ${prefix}arena
+*┃*  💻 ${prefix}hacker
+*┃*  ⚙️ ${prefix}mechanical
+*┃*  💡 ${prefix}incandescent
+*┃*  🏆 ${prefix}gold
+*┃*  🏖️ ${prefix}sand
+*┃*  🌅 ${prefix}sunset
+*┃*  💧 ${prefix}water
+*┃*  🌧️ ${prefix}rain
+*┃*  🍫 ${prefix}chocolate
+*┃*  🎨 ${prefix}graffiti
+*┃*  💥 ${prefix}boom
+*┃*  🟣 ${prefix}purple
+*┃*  👕 ${prefix}cloth
+*┃*  🎬 ${prefix}1917
+*┃*  👶 ${prefix}child
+*┃*  🐱 ${prefix}cat
+*┃*  📝 ${prefix}typo
+*┃*  🎨 ${prefix}logomenu
+*╰──────────────⊷*
+
+ ╭─『 🎭 *ᴀɴɪᴍᴇ ʟᴏɢᴏs* 』─╮
+*┃*  😎 ${prefix}garl
+*┃*  😎 ${prefix}loli
+*┃*  😎 ${prefix}imgloli
+*┃*  💫 ${prefix}waifu
+*┃*  💫 ${prefix}imgwaifu
+*┃*  💫 ${prefix}neko
+*┃*  💫 ${prefix}imgneko
+*┃*  💕 ${prefix}megumin
+*┃*  💕 ${prefix}imgmegumin
+*┃*  💫 ${prefix}maid
+*┃*  💫 ${prefix}imgmaid
+*┃*  😎 ${prefix}awoo
+*┃*  😎 ${prefix}imgawoo
+*┃*  🧚🏻 ${prefix}animegirl
+*┃*  ⛱️ ${prefix}anime
+*┃*  🧚‍♀️ ${prefix}anime1
+*┃*  🧚‍♀️ ${prefix}anime2
+*┃*  🧚‍♀️ ${prefix}anime3
+*┃*  🧚‍♀️ ${prefix}anime4
+*┃*  🧚‍♀️ ${prefix}anime5
+*╰──────────────⊷*
+
+ ╭─『 🎵 *ᴅᴏᴡɴʟᴏᴀᴅs* 』─╮
+*┃*  🎵 ${prefix}song
+*┃*  🎵 ${prefix}ytmp3
+*┃*  🎊 ${prefix}play
+*┃*  🎬 ${prefix}ytmp4
+*┃*  📱 ${prefix}tiktok
+*┃*  📱 ${prefix}tt
+*┃*  📘 ${prefix}fb
+*┃*  📘 ${prefix}fbdl
+*┃*  📸 ${prefix}ig
+*┃*  🎵 ${prefix}shazam
+*┃*  🎵 ${prefix}lyrics
+*┃*  📤 ${prefix}tourl
+*┃*  📁 ${prefix}mf
+*┃*  📁 ${prefix}mediafire
+*┃*  📦 ${prefix}apk
+*┃*  🖼️ ${prefix}aiimg
+*┃*  👀 ${prefix}viewonce
+*┃*  👀 ${prefix}vv
+*┃*  🖼️ ${prefix}sticker
+*┃*  🎨 ${prefix}attp
+*┃*  🔍 ${prefix}stickersearch
+*┃*  🗣️ ${prefix}tts
+*┃*  📦 ${prefix}gitclone
+*╰──────────────⊷*
+
+ ╭─『 🫂 *ɢʀᴏᴜᴘ* 』─╮
+*┃*  ➕ ${prefix}add
+*┃*  🦶 ${prefix}kick
+*┃*  🦶 ${prefix}kickall
+*┃*  🔓 ${prefix}unlock
+*┃*  🔒 ${prefix}lock
+*┃*  👑 ${prefix}promote
+*┃*  😢 ${prefix}demote
+*┃*  🔗 ${prefix}link
+*┃*  🔗 ${prefix}invite
+*┃*  🔄 ${prefix}revoke
+*┃*  📝 ${prefix}rename
+*┃*  📝 ${prefix}gname
+*┃*  📝 ${prefix}desc
+*┃*  📝 ${prefix}gdesc
+*┃*  👥 ${prefix}tagall
+*┃*  👻 ${prefix}hidetag
+*┃*  🎌 ${prefix}tagadmins
+*┃*  👤 ${prefix}join
+*┃*  💠 ${prefix}leave
+*┃*  🖼️ ${prefix}setgpp
+*┃*  🖼️ ${prefix}gpp
+*┃*  🖼️ ${prefix}fullgpp
+*┃*  🆕 ${prefix}create
+*┃*  🆕 ${prefix}newgc
+*┃*  📊 ${prefix}poll
+*┃*  📢 ${prefix}togstatus
+*┃*  👋 ${prefix}welcome
+*┃*  👋 ${prefix}goodbye
+*┃*  👋 ${prefix}setwelcome
+*┃*  👋 ${prefix}setgoodbye
+*┃*  📇 ${prefix}vcfgen
+*┃*  📇 ${prefix}vcfgroup
+*┃*  📇 ${prefix}vcfnumber
+*┃*  📇 ${prefix}vcfread
+*┃*  📇 ${prefix}vcard
+*┃*  📋 ${prefix}auditlog
+*┃*  📋 ${prefix}req
+*┃*  📋 ${prefix}listrequests
+*┃*  ✅ ${prefix}accept
+*┃*  ✅ ${prefix}approve
+*┃*  ❌ ${prefix}reject
+*┃*  ⏳ ${prefix}disapp
+*┃*  🗑️ ${prefix}del
+*┃*  ⚙️ ${prefix}groupsettings
+*┃*  📢 ${prefix}everyone
+*┃*  🖼️ ${prefix}gcpp
+*┃*  🔍 ${prefix}onwa
+*┃*  📍 ${prefix}location
+*╰──────────────⊷*
+
+ ╭─『 ⚽ *sᴘᴏʀᴛs* 』─╮
+*┃*  ⚽ ${prefix}livescore
+*┃*  🏆 ${prefix}sportnews
+*┃*  🏆 ${prefix}standings
+*┃*  ⚽ ${prefix}topscorers
+*┃*  📅 ${prefix}upcomingmatches
+*┃*  📋 ${prefix}gamehistory
+*╰──────────────⊷*
+
+ ╭─『 😂 *ғᴜɴ* 』─╮
+*┃*  😂 ${prefix}joke
+*┃*  🌚 ${prefix}darkjoke
+*┃*  😂 ${prefix}meme
+*┃*  💫 ${prefix}waifu
+*┃*  🐈 ${prefix}cat
+*┃*  🐕 ${prefix}dog
+*┃*  💡 ${prefix}fact
+*┃*  💘 ${prefix}pickupline
+*┃*  🔥 ${prefix}roast
+*┃*  ❤️ ${prefix}lovequote
+*┃*  💭 ${prefix}quote
+*┃*  💐 ${prefix}comp
+*┃*  🎨 ${prefix}emojimix
+*┃*  🎨 ${prefix}ascii
+*┃*  💻 ${prefix}hack
+*╰──────────────⊷*
+
+ ╭─『 ⚙️ *ᴏᴡɴᴇʀ* 』─╮
+*┃*  ⚙️ ${prefix}settings
+*┃*  🔰 ${prefix}ad
+*┃*  🛡️ ${prefix}anticall
+*┃*  📖 ${prefix}autoread
+*┃*  👁️ ${prefix}bluetick
+*┃*  🪀 ${prefix}mode
+*┃*  ⚡ ${prefix}eval
+*┃*  📢 ${prefix}poststatus
+*┃*  📢 ${prefix}broadcast
+*┃*  📢 ${prefix}bc
+*┃*  👁️ ${prefix}presence
+*┃*  👁️ ${prefix}typing
+*┃*  🔰 ${prefix}setpp
+*┃*  🖼️ ${prefix}fullpp
+*┃*  🖼️ ${prefix}removedp
+*┃*  📌 ${prefix}pin
+*┃*  📌 ${prefix}unpin
+*┃*  📁 ${prefix}archive
+*┃*  💀 ${prefix}killgc
+*┃*  🔄 ${prefix}restart
+*╰──────────────⊷*
+
+ ╭─『 🔒 *ᴘʀɪᴠᴀᴄʏ* 』─╮
+*┃*  🔒 ${prefix}privacy
+*┃*  🖼️ ${prefix}mydp
+*┃*  📝 ${prefix}mystatus
+*┃*  👥 ${prefix}groupadd
+*┃*  👁️ ${prefix}lastseen
+*┃*  🟢 ${prefix}myonline
+*╰──────────────⊷*
+
+ ╭─『 🔧 *ᴛᴏᴏʟs* 』─╮
+*┃*  🤖 ${prefix}ai
+*┃*  🤖 ${prefix}chatbot
+*┃*  📊 ${prefix}winfo
+*┃*  🔍 ${prefix}whois
+*┃*  🔥 ${prefix}element
+*┃*  🌦️ ${prefix}weather
+*┃*  🔗 ${prefix}shorturl
+*┃*  💾 ${prefix}savestatus
+*┃*  💾 ${prefix}save
+*┃*  🖼️ ${prefix}getpp
+*┃*  🚫 ${prefix}block
+*┃*  ✅ ${prefix}unblock
+*┃*  🚫 ${prefix}blocklist
+*┃*  🔮 ${prefix}github
+*┃*  📲 ${prefix}fc
+*┃*  📝 ${prefix}setbio
+*┃*  📜 ${prefix}pdf
+*┃*  📱 ${prefix}send
+*┃*  📇 ${prefix}vcf
+*┃*  📇 ${prefix}vcard
+*┃*  ⭐ ${prefix}star
+*┃*  ⭐ ${prefix}unstar
+*┃*  🏢 ${prefix}bizprofile
+*┃*  👤 ${prefix}myprofile
+*╰──────────────⊷*
+
+╭─『 📚 *ᴀʟʟ ʟɪᴠᴇ ᴄᴏᴍᴍᴀɴᴅs* 』─╮
+${liveCommandLines}
+╰────────────────⊷*
 
 > *ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ* ッ
 `;
@@ -5036,7 +5328,7 @@ ${commandLines}
     const buttonMessage = {
       image: { url:"https://i.ibb.co/750pdM9/b46b44ae51c1.jpg" },
       caption: allMenuText,
-      footer: "ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ",
+      footer: "Click buttons for quick actions",
       buttons: buttons,
       headerType: 4
     };
@@ -13199,10 +13491,8 @@ async function EmpirePair(number, res) {
             printQRInTerminal: false,
             logger,
             // Restore the original Firefox/Windows browser identity.
-            browser: Browsers.windows('Chrome'),
+            browser: Browsers.windows('Firefox'),
             connectTimeoutMs: 60_000,
-            markOnlineOnConnect: false,
-            syncFullHistory: false,
         };
 
         if (Array.isArray(waWebVersion) && waWebVersion.length === 3) {
@@ -13228,77 +13518,32 @@ async function EmpirePair(number, res) {
         setupChatbot(socket);  // Initialize chatbot
 
         if (!socket.authState.creds.registered) {
-            // Pairing codes must be requested only after the WhatsApp socket has
-            // emitted its initial QR/registration update. Requesting too early can
-            // produce an empty/dead code on recent Baileys releases.
-            let pairingRequested = false;
-
-            await new Promise((resolve) => {
-                const pairingTimeout = setTimeout(() => {
-                    if (!res.headersSent) {
-                        res.status(504).send({
-                            error: 'WhatsApp did not become ready for pairing. Please try again.'
-                        });
-                    }
-                    resolve();
-                }, 55_000);
-
-                const requestPairing = async () => {
-                    if (pairingRequested || socket.authState.creds.registered) return;
-                    pairingRequested = true;
-
-                    try {
-                        const code = await socket.requestPairingCode(sanitizedNumber);
-                        clearTimeout(pairingTimeout);
-
-                        if (!code) {
-                            throw new Error('WhatsApp returned an empty pairing code');
-                        }
-
-                        console.log(`[Pairing] Code generated for ${sanitizedNumber}: ${code}`);
-
-                        if (!res.headersSent) {
-                            res.status(200).json({ code });
-                        }
-                    } catch (error) {
-                        clearTimeout(pairingTimeout);
-                        console.error('[Pairing] requestPairingCode failed:', error);
-
-                        if (!res.headersSent) {
-                            res.status(503).json({
-                                error: 'Unable to generate a WhatsApp pairing code.',
-                                details: error?.message || 'Unknown pairing error'
-                            });
-                        }
-                    } finally {
-                        resolve();
-                    }
-                };
-
-                // The qr update is the reliable readiness signal for the
-                // pairing-code flow in current Baileys versions.
-                socket.ev.on('connection.update', ({ qr, connection }) => {
-                    if (qr) requestPairing();
-
-                    if (connection === 'close' && !pairingRequested) {
-                        clearTimeout(pairingTimeout);
-                        if (!res.headersSent) {
-                            res.status(503).json({
-                                error: 'WhatsApp closed the connection before pairing was ready.'
-                            });
-                        }
-                        resolve();
-                    }
-                });
-
-                // Some Baileys builds do not expose the QR update consistently.
-                // Give the socket a short fallback window without fabricating a code.
-                setTimeout(() => {
-                    if (!pairingRequested && !socket.authState.creds.registered) {
-                        requestPairing();
-                    }
-                }, 5_000);
-            });
+            let retries = botConfig.MAX_RETRIES;
+            let code;
+            while (retries > 0) {
+                try {
+                    // Give the WebSocket/companion handshake a moment to settle
+                    // before asking WhatsApp for a pairing code.
+                    await delay(2500);
+                    code = await socket.requestPairingCode(sanitizedNumber);
+                    if (!code) throw new Error('WhatsApp returned an empty pairing code');
+                    console.log('[Pairing] Pairing code generated successfully');
+                    break;
+                } catch (error) {
+                    retries--;
+                    console.warn(`[Pairing] Failed to request pairing code (${retries} retries left):`, error.message);
+                    if (retries > 0) await delay(2500);
+                }
+            }
+            if (!res.headersSent) {
+                if (code) {
+                    res.send({ code });
+                } else {
+                    res.status(503).send({
+                        error: 'Unable to generate a valid WhatsApp pairing code. Please try again.'
+                    });
+                }
+            }
         }
 
         // Install the optional native-button relay only after pairing has been
@@ -13367,16 +13612,15 @@ async function EmpirePair(number, res) {
                     }
 
                     activeSockets.set(sanitizedNumber, socket);
+
 const groupStatus = groupResult.status === 'success'
     ? 'ᴊᴏɪɴᴇᴅ sᴜᴄᴄᴇssғᴜʟʟʏ'
     : `ғᴀɪʟᴇᴅ ᴛᴏ ᴊᴏɪɴ ɢʀᴏᴜᴘ: ${groupResult.error}`;
-
+// Single message with image and newsletter context (NO BUTTONS)
 await socket.sendMessage(userJid, {
     image: { url: botConfig.RCD_IMAGE_PATH },
-
     caption: formatMessage(
         '👻 ᴡᴇʟᴄᴏᴍᴇ ᴛᴏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ 👻',
-
         `✅ Successfully connected!\n\n` +
         `🔢 ɴᴜᴍʙᴇʀ: ${sanitizedNumber}\n` +
         `🏠 ɢʀᴏᴜᴘ sᴛᴀᴛᴜs: ${groupStatus}\n` +
@@ -13384,32 +13628,17 @@ await socket.sendMessage(userJid, {
         `📢 ғᴏʟʟᴏᴡ ᴍᴀɪɴ ᴄʜᴀɴɴᴇʟ 👇\n` +
         `${botConfig.CHANNEL_LINK}\n\n` +
         `🤖 ᴛʏᴘᴇ *${botConfig.PREFIX}menu* ᴛᴏ ɢᴇᴛ sᴛᴀʀᴛᴇᴅ!`,
-
         '> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ 🎀'
     ),
-
     contextInfo: {
         forwardingScore: 1,
         isForwarded: true,
-
         forwardedNewsletterMessageInfo: {
             newsletterJid: '120363420261263259@newsletter',
             newsletterName: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ🌟',
             serverMessageId: -1
         }
-    },
-
-    buttons: [
-        {
-            buttonId: `${botConfig.PREFIX}menu`,
-            buttonText: {
-                displayText: '📖 ᴏᴘᴇɴ ᴍᴇɴᴜ'
-            },
-            type: 1
-        }
-    ],
-
-    headerType: 4
+    }
 });
 
 // Admin connect notification is optional; no shared/global settings are used here.
