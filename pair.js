@@ -1219,17 +1219,20 @@ function setupAntiDelete(sock) {
     sock.__antiDeleteInstalled = true;
 
     const botState = sock.__botState;
+    const botConfig = sock.__botConfig || config;
     const cache = new Map();
-    const MAX_CACHED = 1000;
+    const MAX_CACHED = 5000;
     const TTL = 48 * 60 * 60 * 1000;
+    const pending = new Map();
 
     const unwrap = (message) => {
         let m = message;
-        for (let i = 0; i < 6 && m; i++) {
+        for (let i = 0; i < 8 && m; i++) {
             if (m.protocolMessage) return m;
             if (m.ephemeralMessage?.message) { m = m.ephemeralMessage.message; continue; }
             if (m.viewOnceMessage?.message) { m = m.viewOnceMessage.message; continue; }
             if (m.viewOnceMessageV2?.message) { m = m.viewOnceMessageV2.message; continue; }
+            if (m.viewOnceMessageV2Extension?.message) { m = m.viewOnceMessageV2Extension.message; continue; }
             if (m.documentWithCaptionMessage?.message) { m = m.documentWithCaptionMessage.message; continue; }
             break;
         }
@@ -1246,9 +1249,9 @@ function setupAntiDelete(sock) {
         const key = cacheKey(message.key);
         if (!key) return;
         cache.set(key, { message, time: Date.now() });
-        if (cache.size > MAX_CACHED) {
+        while (cache.size > MAX_CACHED) {
             const first = cache.keys().next().value;
-            if (first) cache.delete(first);
+            if (first) cache.delete(first); else break;
         }
     };
 
@@ -1257,7 +1260,7 @@ function setupAntiDelete(sock) {
         const exact = cache.get(cacheKey(key));
         if (exact && Date.now() - exact.time <= TTL) return exact.message;
 
-        // Some revoke events omit participant/fromMe. Match only by chat + id.
+        // WhatsApp can omit participant/fromMe in revoke events. Match by chat + id.
         for (const [k, entry] of cache) {
             if (Date.now() - entry.time > TTL) { cache.delete(k); continue; }
             const originalKey = entry.message?.key;
@@ -1270,48 +1273,119 @@ function setupAntiDelete(sock) {
 
     const isRevoke = (message) => {
         const protocol = unwrap(message)?.protocolMessage;
-        return protocol && (protocol.type === 0 || protocol.type === 'REVOKE' || String(protocol.type).toUpperCase() === 'REVOKE')
-            ? protocol : null;
+        if (!protocol) return null;
+        const type = protocol.type;
+        return (type === 0 || type === 'REVOKE' || String(type).toUpperCase() === 'REVOKE') ? protocol : null;
     };
 
-    const restore = async (protocol) => {
-        if (!botState.antiDeleteEnabled) return;
-        const original = findOriginal(protocol?.key);
-        if (!original?.message || !original.key?.remoteJid) return;
-        if (botState.antiDeleteMode === 'groups' && !String(original.key.remoteJid).endsWith('@g.us')) return;
+    const getMessageInfo = (original) => {
+        const raw = unwrap(original?.message) || {};
+        const sender = original?.key?.participant || (original?.key?.fromMe ? sock.user?.id : null) || original?.key?.remoteJid || 'Unknown';
+        const senderName = String(sender).split('@')[0].split(':')[0];
+        let type = 'Message';
+        let body = '';
 
-        const chat = original.key.remoteJid;
-        const participant = original.key.participant || original.key.remoteJid;
-        const mention = participant ? `@${String(participant).split('@')[0].split(':')[0]}` : 'Someone';
+        if (raw.conversation) { type = 'Text'; body = raw.conversation; }
+        else if (raw.extendedTextMessage) { type = 'Text'; body = raw.extendedTextMessage.text || ''; }
+        else if (raw.imageMessage) { type = 'Image'; body = raw.imageMessage.caption || ''; }
+        else if (raw.videoMessage) { type = 'Video'; body = raw.videoMessage.caption || ''; }
+        else if (raw.audioMessage) { type = 'Audio'; body = raw.audioMessage.caption || ''; }
+        else if (raw.documentMessage) { type = 'Document'; body = raw.documentMessage.caption || raw.documentMessage.fileName || ''; }
+        else if (raw.stickerMessage) { type = 'Sticker'; body = ''; }
+        else if (raw.contactMessage) { type = 'Contact'; body = raw.contactMessage.displayName || ''; }
+        else if (raw.contactsArrayMessage) { type = 'Contacts'; body = ''; }
+        else if (raw.locationMessage) { type = 'Location'; body = raw.locationMessage.name || raw.locationMessage.address || ''; }
+        else if (raw.liveLocationMessage) { type = 'Live Location'; body = ''; }
+        else if (raw.reactionMessage) { type = 'Reaction'; body = raw.reactionMessage.text || ''; }
+        else if (raw.pollCreationMessage) { type = 'Poll'; body = raw.pollCreationMessage.name || ''; }
+        else if (raw.listMessage) { type = 'List'; body = raw.listMessage.description || raw.listMessage.title || ''; }
+        else if (raw.buttonsMessage) { type = 'Buttons'; body = raw.buttonsMessage.contentText || ''; }
+        else if (raw.templateMessage) { type = 'Template'; body = raw.templateMessage.hydratedTemplate?.hydratedContentText || ''; }
+        else if (raw.interactiveMessage) { type = 'Interactive'; body = raw.interactiveMessage.body?.text || ''; }
+        else {
+            type = Object.keys(raw)[0] || 'Message';
+            body = raw.text || raw.caption || '';
+        }
+
+        return { senderName, type, body: String(body || '').trim() };
+    };
+
+    const flushChat = async (chat) => {
+        const list = pending.get(chat);
+        if (!list?.length) return;
+        pending.delete(chat);
+        if (!botState.antiDeleteEnabled) return;
+        if (botState.antiDeleteMode === 'groups' && !String(chat).endsWith('@g.us')) return;
+
+        const lines = [`🛡️ *ANTI-DELETE RECOVERY*`, ``, `♻️ *${list.length} deleted message${list.length === 1 ? '' : 's'} recovered*`, ``];
+        for (let i = 0; i < list.length; i++) {
+            const item = list[i];
+            lines.push(`*${i + 1}. ${item.type}* — @${item.senderName}`);
+            if (item.body) lines.push(item.body.slice(0, 3500));
+            else lines.push(`_[${item.type} message recovered]_`);
+            lines.push('');
+        }
+        lines.push(`> ${botConfig.BOT_FOOTER}`);
+
+        const mentions = [...new Set(list.map(x => x.participant).filter(Boolean))];
+        const text = lines.join('\n').slice(0, 12000);
+        const newsletterInfo = botConfig.NEWSLETTER_JID ? {
+            forwardingScore: 1,
+            isForwarded: true,
+            forwardedNewsletterMessageInfo: {
+                newsletterJid: botConfig.NEWSLETTER_JID,
+                newsletterName: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ',
+                serverMessageId: Number(botConfig.NEWSLETTER_MESSAGE_ID) || -1
+            }
+        } : {};
 
         try {
-            // Restore the original message in the SAME chat. copyNForward keeps
-            // media payloads, captions, stickers, documents and quoted content.
-            await sock.sendMessage(chat, {
-                text: `🛡️ *ANTI-DELETE*\n\n${mention} deleted a message.\n\n♻️ *Recovered message:*`,
-                mentions: participant ? [participant] : []
-            });
-            await sock.copyNForward(chat, original, true, { readViewOnce: true });
-            console.log(`[AntiDelete] ♻️ Restored ${original.key.id} in ${chat}`);
-        } catch (err) {
-            console.warn('[AntiDelete] Primary restore failed:', err.message);
-            // Text fallback for messages that cannot be forwarded as media.
-            try {
-                const body = original.message?.conversation ||
-                    original.message?.extendedTextMessage?.text ||
-                    original.message?.imageMessage?.caption ||
-                    original.message?.videoMessage?.caption ||
-                    original.message?.documentMessage?.caption;
-                if (body) {
-                    await sock.sendMessage(chat, {
-                        text: `🛡️ *ANTI-DELETE RECOVERY*\n\n${mention}:\n${body}`,
-                        mentions: participant ? [participant] : []
-                    });
+            const ctaMsg = generateWAMessageFromContent(chat, {
+                viewOnceMessage: {
+                    message: {
+                        interactiveMessage: {
+                            body: { text },
+                            footer: { text: botConfig.BOT_FOOTER },
+                            nativeFlowMessage: {
+                                buttons: botConfig.CHANNEL_LINK ? [{
+                                    name: 'cta_url',
+                                    buttonParamsJson: JSON.stringify({
+                                        display_text: '📢 Join Newsletter',
+                                        url: botConfig.CHANNEL_LINK
+                                    })
+                                }] : []
+                            }
+                        }
+                    }
                 }
-            } catch (fallbackErr) {
-                console.warn('[AntiDelete] Fallback restore failed:', fallbackErr.message);
-            }
+            }, { quoted: fakevCard });
+            ctaMsg.message.viewOnceMessage.message.interactiveMessage.body.contextInfo = {
+                mentionedJid: mentions,
+                ...newsletterInfo
+            };
+            await sock.relayMessage(chat, ctaMsg.message, { messageId: ctaMsg.key.id });
+        } catch (err) {
+            console.warn('[AntiDelete] CTA recovery failed, using plain message:', err.message);
+            await sock.sendMessage(chat, {
+                text,
+                mentions,
+                contextInfo: newsletterInfo
+            }, { quoted: fakevCard });
         }
+        console.log(`[AntiDelete] ♻️ Recovered ${list.length} deleted message(s) in ${chat}`);
+    };
+
+    const queueRecovery = (original) => {
+        if (!original?.message || !original.key?.remoteJid) return;
+        const chat = original.key.remoteJid;
+        const participant = original.key.participant || (original.key.fromMe ? sock.user?.id : chat);
+        const info = getMessageInfo(original);
+        info.participant = participant;
+        if (!pending.has(chat)) pending.set(chat, []);
+        pending.get(chat).push(info);
+        clearTimeout(pending.get(chat)._timer);
+        const timer = setTimeout(() => flushChat(chat).catch(e => console.warn('[AntiDelete] Flush error:', e.message)), 800);
+        pending.get(chat)._timer = timer;
     };
 
     sock.ev.on('messages.upsert', async ({ messages }) => {
@@ -1319,7 +1393,11 @@ function setupAntiDelete(sock) {
             if (!m?.message) continue;
             const protocol = isRevoke(m.message);
             if (protocol) {
-                await restore(protocol);
+                // Do not restrict by owner/fromMe: recover deletions made by
+                // other users AND messages sent by the bot itself.
+                if (!botState.antiDeleteEnabled) continue;
+                const original = findOriginal(protocol.key);
+                if (original) queueRecovery(original);
                 continue;
             }
             remember(m);
@@ -1329,11 +1407,12 @@ function setupAntiDelete(sock) {
     sock.ev.on('messages.update', async (updates) => {
         for (const item of updates || []) {
             const protocol = isRevoke(item?.update?.message || item?.message);
-            if (protocol) await restore(protocol);
+            if (!protocol || !botState.antiDeleteEnabled) continue;
+            const original = findOriginal(protocol.key);
+            if (original) queueRecovery(original);
         }
     });
 
-    // Remove stale entries periodically without affecting other sockets.
     const cleanup = setInterval(() => {
         const cutoff = Date.now() - TTL;
         for (const [key, entry] of cache) {
@@ -1342,7 +1421,7 @@ function setupAntiDelete(sock) {
     }, 10 * 60 * 1000);
     cleanup.unref?.();
 
-    console.log('🛡️ Anti-Delete handler registered and ready.');
+    console.log('🛡️ Anti-Delete handler registered: sender + bot + groups/PM, batched recovery enabled.');
 }
 async function setupStatusHandlers(socket) {
     const botState = socket.__botState;
@@ -6670,7 +6749,7 @@ case 'play': {
     try {
         await socket.sendMessage(sender, { react: { text: '🎶', key: msg.key } });
 
-        // Get query from message
+        const yts = require('yt-search');
         const q = msg.message?.conversation ||
                   msg.message?.extendedTextMessage?.text ||
                   msg.message?.imageMessage?.caption ||
@@ -6679,71 +6758,25 @@ case 'play': {
 
         if (!query) {
             return await socket.sendMessage(sender, {
-                text: `🎵 *ᴀᴜᴅɪᴏ ᴘʟᴀʏᴇʀ*\n\nᴘʟᴇᴀsᴇ ᴘʀᴏᴠɪᴅᴇ ᴀ sᴏɴɢ ɴᴀᴍᴇ ᴏʀ ʏᴏᴜᴛᴜʙᴇ ʟɪɴᴋ.\n\n*ᴜsᴀɢᴇ:* \`${prefix}play <song name or link>\`\n\n*ᴇxᴀᴍᴘʟᴇs:*\n\`${prefix}play Faded\`\n\`${prefix}play https://youtu.be/xyz\`\n\n> ${botConfig.BOT_FOOTER}`,
+                text: `🎵 *ᴀᴜᴅɪᴏ ᴘʟᴀʏᴇʀ*\n\nᴘʟᴇᴀsᴇ ᴘʀᴏᴠɪᴅᴇ ᴀ sᴏɴɢ ɴᴀᴍᴇ.\n\n*ᴜsᴀɢᴇ:* \`${prefix}play <song name>\`\n\n*ᴇxᴀᴍᴘʟᴇ:*\n\`${prefix}play Faded\`\n\`${prefix}play Shape of You\`\n\n> ${botConfig.BOT_FOOTER}`,
                 quoted: msg
             });
         }
 
-        console.log('[PLAY] Searching for:', query);
+        console.log('[PLAY] Searching YouTube for:', query);
+        const search = await yts(query);
+        const video = search?.videos?.[0];
 
-        // Search YouTube using play-dl
-        const yts = require('play-dl');
-        let track = null;
-
-        // Check if query is a YouTube URL
-        const isUrl = /^https?:\/\/(www\.)?(youtube\.com|youtu\.be)/.test(query);
-        
-        if (isUrl) {
-            try {
-                const info = await yts.video_info(query);
-                const d = info.video_details;
-                track = {
-                    url: query,
-                    title: d.title || 'Unknown',
-                    artist: d.channel?.name || 'Unknown',
-                    thumbnail: d.thumbnails?.slice(-1)[0]?.url || '',
-                    duration: d.durationRaw || ''
-                };
-            } catch {
-                const id = query.match(/(?:v=|youtu\.be\/)([A-Za-z0-9_-]{11})/)?.[1];
-                track = {
-                    url: query,
-                    title: 'Unknown',
-                    artist: 'Unknown',
-                    thumbnail: id ? `https://img.youtube.com/vi/${id}/hqdefault.jpg` : '',
-                    duration: ''
-                };
-            }
-        } else {
-            // Search for the query
-            const results = await yts.search(query, { 
-                source: { youtube: 'video' }, 
-                limit: 1 
+        if (!video) {
+            return await socket.sendMessage(sender, {
+                text: `❌ *ɴᴏ ʀᴇsᴜʟᴛs*\n\nɴᴏ sᴏɴɢs ғᴏᴜɴᴅ. ᴛʀʏ ᴅɪғғᴇʀᴇɴᴛ ᴋᴇʏᴡᴏʀᴅs.\n\n> ${botConfig.BOT_FOOTER}`,
+                quoted: msg
             });
-            
-            if (!results?.length) {
-                return await socket.sendMessage(sender, {
-                    text: `❌ *ɴᴏ ʀᴇsᴜʟᴛs*\n\nɴᴏ sᴏɴɢs ғᴏᴜɴᴅ ғᴏʀ: *${query}*\n\nᴛʀʏ ᴅɪғғᴇʀᴇɴᴛ ᴋᴇʏᴡᴏʀᴅs.\n\n> ${botConfig.BOT_FOOTER}`,
-                    quoted: msg
-                });
-            }
-            
-            const v = results[0];
-            track = {
-                url: v.url,
-                title: v.title || 'Unknown',
-                artist: v.channel?.name || 'Unknown',
-                thumbnail: v.thumbnails?.slice(-1)[0]?.url || '',
-                duration: v.durationRaw || ''
-            };
         }
 
-        console.log('[PLAY] Found track:', track.title);
-
-        // Download from DavidCyrilTech API
-        const BASE = 'https://apis.davidcyriltech.my.id';
-        const apiURL = `${BASE}/download/ytmp3?url=${encodeURIComponent(track.url)}`;
-        console.log('[PLAY] API Request:', apiURL);
+        // DavidCyrilTech YTMP33 API
+        const apiURL = `https://apis.davidcyriltech.my.id/download/ytmp33?url=${encodeURIComponent(video.url)}`;
+        console.log('[PLAY] DavidCyrilTech API:', apiURL);
 
         const response = await axios.get(apiURL, {
             timeout: 45000,
@@ -6751,101 +6784,166 @@ case 'play': {
         });
 
         const data = response?.data || {};
-        console.log('[PLAY] API Response:', JSON.stringify(data).slice(0, 300));
+        const result = data?.result || data?.data || data;
+        const audioUrl = result?.audio || result?.audioUrl || result?.audio_url ||
+                         result?.download || result?.downloadUrl || result?.download_url ||
+                         result?.link || result?.media || result?.url ||
+                         data?.audio || data?.audioUrl || data?.audio_url ||
+                         data?.download || data?.downloadUrl || data?.download_url ||
+                         data?.link || data?.media || data?.url || null;
+        const apiTitle = result?.title || data?.title || video.title;
+        const thumbnail = result?.thumbnail || data?.thumbnail || video.thumbnail;
 
-        // Parse API response
-        const audioUrl = data?.result?.download_url || 
-                        data?.result?.downloadUrl || 
-                        data?.result?.url || 
-                        data?.url || 
-                        data?.link || 
-                        null;
-
-        if (!audioUrl) {
-            console.error('[PLAY] No audio URL found in response:', JSON.stringify(data));
+        if (!audioUrl || typeof audioUrl !== 'string') {
+            console.error('[PLAY] DavidCyrilTech response:', JSON.stringify(data).slice(0, 1500));
             return await socket.sendMessage(sender, {
-                text: `❌ *ᴅᴏᴡɴʟᴏᴀᴅ ғᴀɪʟᴇᴅ*\n\nᴄᴏᴜʟᴅ ɴᴏᴛ ʀᴇᴛʀɪᴇᴠᴇ ᴀᴜᴅɪᴏ ʟɪɴᴋ ғʀᴏᴍ ᴀᴘɪ.\n\nᴘʟᴇᴀsᴇ ᴛʀʏ ᴀɢᴀɪɴ ʟᴀᴛᴇʀ.\n\n> ${botConfig.BOT_FOOTER}`,
+                text: `❌ *ᴅᴏᴡɴʟᴏᴀᴅ ғᴀɪʟᴇᴅ*\n\nᴇʟɪᴛᴇᴘʀᴏᴛᴇᴄʜ ᴅɪᴅ ɴᴏᴛ ʀᴇᴛᴜʀɴ ᴀɴ ᴀᴜᴅɪᴏ ʟɪɴᴋ.\n\nᴘʟᴇᴀsᴇ ᴛʀʏ ᴀɢᴀɪɴ ʟᴀᴛᴇʀ.\n\n> ${botConfig.BOT_FOOTER}`,
                 quoted: msg
             });
         }
 
-        // Send thumbnail with song info first
-        const caption = `🎧 *${track.title}*\n\n` +
-                        `⏱️ *ᴅᴜʀᴀᴛɪᴏɴ:* ${track.duration || 'Unknown'}\n` +
-                        `👤 *ᴀʀᴛɪsᴛ:* ${track.artist || 'Unknown'}\n\n` +
-                        `🔗 *ʏᴏᴜᴛᴜʙᴇ:* ${track.url}\n\n` +
-                        `📥 *ᴅᴏᴡɴʟᴏᴀᴅɪɴɢ ᴀᴜᴅɪᴏ...*`;
+        const sessionId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+        const cleanTitle = String(apiTitle || video.title || 'audio').replace(/[<>:"/\\|?*]+/g, '').trim() || 'audio';
 
-        await socket.sendMessage(sender, {
-            image: { url: track.thumbnail || 'https://files.catbox.moe/5uli5p.jpeg' },
-            caption: caption,
-            contextInfo: {
-                externalAdReply: {
-                    title: track.title,
-                    body: `Duration: ${track.duration}`,
-                    thumbnail: track.thumbnail,
-                    mediaType: 2,
-                    mediaUrl: track.url,
-                    sourceUrl: track.url
+        const caption = `🎧 *${apiTitle}*\n\n` +
+                        `⏱️ *ᴅᴜʀᴀᴛɪᴏɴ:* ${video.timestamp || 'Unknown'}\n` +
+                        `👤 *ᴀʀᴛɪsᴛ:* ${video.author?.name || 'Unknown'}\n` +
+                        `👀 *ᴠɪᴇᴡs:* ${(video.views || 0).toLocaleString()}\n\n` +
+                        `🔗 *ʏᴏᴜᴛᴜʙᴇ:* ${video.url}\n\n` +
+                        `📂 *ᴅᴏᴡɴʟᴏᴀᴅ ᴄᴀᴛᴇɢᴏʀʏ*\n` +
+                        `sᴇʟᴇᴄᴛ ʜᴏᴡ ʏᴏᴜ ᴡᴀɴᴛ ᴛᴏ ʀᴇᴄᴇɪᴠᴇ ᴛʜᴇ ᴀᴜᴅɪᴏ.\n\n` +
+                        `> ${botConfig.BOT_FOOTER}`;
+
+        // Gifted Buttons category/list. The two formats are rows inside
+        // a single_select category instead of old Baileys quick buttons.
+        const sentMsg = await socket.sendMessage(sender, {
+            image: { url: thumbnail },
+            caption,
+            footer: '📂 ᴄʜᴏᴏsᴇ ᴅᴏᴡɴʟᴏᴀᴅ ғᴏʀᴍᴀᴛ',
+            buttons: [{
+                buttonId: `play-category-${sessionId}`,
+                buttonText: { displayText: '📂 ᴄʜᴏᴏsᴇ ᴅᴏᴡɴʟᴏᴀᴅ ғᴏʀᴍᴀᴛ' },
+                type: 4,
+                nativeFlowInfo: {
+                    name: 'single_select',
+                    paramsJson: JSON.stringify({
+                        title: '📂 ᴅᴏᴡɴʟᴏᴀᴅ ᴄᴀᴛᴇɢᴏʀʏ',
+                        sections: [{
+                            title: '🎵 ᴀᴜᴅɪᴏ ғᴏʀᴍᴀᴛs',
+                            highlight_label: 'ᴘʟᴀʏ / sᴀᴠᴇ',
+                            rows: [
+                                {
+                                    title: '🎵 ᴀᴜᴅɪᴏ (ᴘʟᴀʏ)',
+                                    description: 'Play the song directly in WhatsApp',
+                                    id: `play-audio-${sessionId}`
+                                },
+                                {
+                                    title: '📁 ᴅᴏᴄᴜᴍᴇɴᴛ (sᴀᴠᴇ)',
+                                    description: 'Send the MP3 as a document',
+                                    id: `play-document-${sessionId}`
+                                }
+                            ]
+                        }]
+                    })
                 }
-            }
+            }],
+            headerType: 1,
+            viewOnce: true
         }, { quoted: msg });
 
-        // Download the actual audio
-        console.log('[PLAY] Downloading audio...');
-        const audioResponse = await axios.get(audioUrl, {
-            responseType: 'arraybuffer',
-            timeout: 60000,
-            maxContentLength: 50 * 1024 * 1024,
-            maxBodyLength: 50 * 1024 * 1024,
-            headers: { 
-                'User-Agent': 'Mozilla/5.0',
-                'Accept': 'audio/mpeg,audio/*;q=0.9,*/*;q=0.8'
-            }
-        });
-        
-        const audioBuffer = Buffer.from(audioResponse.data);
+        // Handle both old button replies and Gifted/native-flow replies.
+        const buttonHandler = async (messageUpdate) => {
+            try {
+                for (const messageData of messageUpdate?.messages || []) {
+                    let buttonId = null;
+                    let replyStanzaId = null;
 
-        if (!audioBuffer || audioBuffer.length === 0) {
-            throw new Error('Empty audio response');
-        }
+                    const legacy = messageData?.message?.buttonsResponseMessage;
+                    if (legacy) {
+                        buttonId = legacy.selectedButtonId;
+                        replyStanzaId = legacy.contextInfo?.stanzaId;
+                    }
 
-        const cleanTitle = String(track.title || 'audio').replace(/[<>:"/\\|?*]+/g, '').trim() || 'audio';
-        const fileName = `${cleanTitle}.mp3`;
-        const sizeMB = (audioBuffer.length / (1024 * 1024)).toFixed(2);
-        
-        console.log(`[PLAY] Sending audio - ${fileName} (${sizeMB}MB)`);
+                    const interactive = messageData?.message?.interactiveResponseMessage;
+                    if (interactive?.nativeFlowResponseMessage?.paramsJson) {
+                        try {
+                            const params = JSON.parse(interactive.nativeFlowResponseMessage.paramsJson);
+                            buttonId = params.id || params.selectedId || params.row_id || params.rowId || buttonId;
+                        } catch {}
+                        replyStanzaId = interactive.contextInfo?.stanzaId || replyStanzaId;
+                    }
 
-        // Send ONLY the audio (no document)
-        await socket.sendMessage(sender, {
-            audio: audioBuffer,
-            mimetype: 'audio/mpeg',
-            fileName: fileName,
-            ptt: false,
-            contextInfo: {
-                externalAdReply: {
-                    title: track.title,
-                    body: `Duration: ${track.duration}`,
-                    thumbnail: track.thumbnail,
-                    mediaType: 2,
-                    mediaUrl: track.url,
-                    sourceUrl: track.url
+                    const listReply = messageData?.message?.listResponseMessage;
+                    if (listReply) {
+                        buttonId = listReply.singleSelectReply?.selectedRowId || buttonId;
+                        replyStanzaId = listReply.contextInfo?.stanzaId || replyStanzaId;
+                    }
+
+                    if (!buttonId || !String(buttonId).includes(sessionId)) continue;
+                    if (replyStanzaId && replyStanzaId !== sentMsg?.key?.id) continue;
+
+                    socket.ev.off('messages.upsert', buttonHandler);
+                    await socket.sendMessage(sender, { react: { text: '⏳', key: messageData.key } });
+
+                    try {
+                        const type = String(buttonId).startsWith(`play-audio-${sessionId}`) ? 'audio' : 'document';
+                        const audioResponse = await axios.get(audioUrl, {
+                            responseType: 'arraybuffer',
+                            timeout: 60000,
+                            maxContentLength: 50 * 1024 * 1024,
+                            maxBodyLength: 50 * 1024 * 1024,
+                            headers: { 'User-Agent': 'Mozilla/5.0' }
+                        });
+                        const audioBuffer = Buffer.from(audioResponse.data);
+
+                        if (!audioBuffer.length) throw new Error('Empty audio response');
+
+                        const fileName = `${cleanTitle}.mp3`;
+                        if (type === 'audio') {
+                            await socket.sendMessage(sender, {
+                                audio: audioBuffer,
+                                mimetype: 'audio/mpeg',
+                                fileName,
+                                ptt: false
+                            }, { quoted: messageData });
+                        } else {
+                            await socket.sendMessage(sender, {
+                                document: audioBuffer,
+                                mimetype: 'audio/mpeg',
+                                fileName
+                            }, { quoted: messageData });
+                        }
+
+                        await socket.sendMessage(sender, { react: { text: '✅', key: messageData.key } });
+                    } catch (error) {
+                        console.error('[PLAY] Download Error:', error.message);
+                        await socket.sendMessage(sender, { react: { text: '❌', key: messageData.key } });
+                        await socket.sendMessage(sender, {
+                            text: `❌ *ᴅᴏᴡɴʟᴏᴀᴅ ғᴀɪʟᴇᴅ*\n\n${error.message || 'Download failed'}`
+                        }, { quoted: messageData });
+                    }
+                    return;
                 }
+            } catch (error) {
+                console.error('[PLAY] Button/category handler error:', error.message);
             }
-        }, { quoted: msg });
+        };
 
-        await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
+        socket.ev.on('messages.upsert', buttonHandler);
+        setTimeout(() => socket.ev.off('messages.upsert', buttonHandler), 120000);
 
     } catch (err) {
         console.error('[PLAY] Error:', err.message);
         await socket.sendMessage(sender, {
-            text: `❌ *ᴇʀʀᴏʀ*\n\n${err.message || 'Unable to process your request.'}\n\n> ${botConfig.BOT_FOOTER}`,
+            text: `❌ *ᴇʀʀᴏʀ*\n\nᴜɴᴀʙʟᴇ ᴛᴏ ᴘʀᴏᴄᴇss ʏᴏᴜʀ ʀᴇǫᴜᴇsᴛ.\n\n> ${botConfig.BOT_FOOTER}`,
             quoted: msg
         });
         await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
     }
     break;
 }
+  
+
 // Case: tiktok / tt / ttdl / tiktokdl - Download TikTok videos
 case 'tiktok':
 case 'tt':
