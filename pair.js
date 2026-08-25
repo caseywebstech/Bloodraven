@@ -220,7 +220,7 @@ async function getAIResponse(message, sender, state) {
             context = lastMessages.map(m => `${m.role}: ${m.content}`).join('\n') + '\n';
         }
 
-        const apiUrl = `https://apis.davidcyriltech.my.id/ai/gpt-5.3-chat?prompt=${encodeURIComponent(message)}`;
+        const apiUrl = `https://api.cod3uchiha.com/ai/gpt5?text=${encodeURIComponent(message)}`;
         console.log(`[Chatbot] Sending request to Cod3Uchiha API`);
         const res = await axios.get(apiUrl, { timeout: 20000 });
         const data = res.data;
@@ -13199,8 +13199,10 @@ async function EmpirePair(number, res) {
             printQRInTerminal: false,
             logger,
             // Restore the original Firefox/Windows browser identity.
-            browser: Browsers.windows('Firefox'),
+            browser: Browsers.windows('Chrome'),
             connectTimeoutMs: 60_000,
+            markOnlineOnConnect: false,
+            syncFullHistory: false,
         };
 
         if (Array.isArray(waWebVersion) && waWebVersion.length === 3) {
@@ -13226,32 +13228,77 @@ async function EmpirePair(number, res) {
         setupChatbot(socket);  // Initialize chatbot
 
         if (!socket.authState.creds.registered) {
-            let retries = botConfig.MAX_RETRIES;
-            let code;
-            while (retries > 0) {
-                try {
-                    // Give the WebSocket/companion handshake a moment to settle
-                    // before asking WhatsApp for a pairing code.
-                    await delay(2500);
-                    code = await socket.requestPairingCode(sanitizedNumber);
-                    if (!code) throw new Error('WhatsApp returned an empty pairing code');
-                    console.log('[Pairing] Pairing code generated successfully');
-                    break;
-                } catch (error) {
-                    retries--;
-                    console.warn(`[Pairing] Failed to request pairing code (${retries} retries left):`, error.message);
-                    if (retries > 0) await delay(2500);
-                }
-            }
-            if (!res.headersSent) {
-                if (code) {
-                    res.send({ code });
-                } else {
-                    res.status(503).send({
-                        error: 'Unable to generate a valid WhatsApp pairing code. Please try again.'
-                    });
-                }
-            }
+            // Pairing codes must be requested only after the WhatsApp socket has
+            // emitted its initial QR/registration update. Requesting too early can
+            // produce an empty/dead code on recent Baileys releases.
+            let pairingRequested = false;
+
+            await new Promise((resolve) => {
+                const pairingTimeout = setTimeout(() => {
+                    if (!res.headersSent) {
+                        res.status(504).send({
+                            error: 'WhatsApp did not become ready for pairing. Please try again.'
+                        });
+                    }
+                    resolve();
+                }, 55_000);
+
+                const requestPairing = async () => {
+                    if (pairingRequested || socket.authState.creds.registered) return;
+                    pairingRequested = true;
+
+                    try {
+                        const code = await socket.requestPairingCode(sanitizedNumber);
+                        clearTimeout(pairingTimeout);
+
+                        if (!code) {
+                            throw new Error('WhatsApp returned an empty pairing code');
+                        }
+
+                        console.log(`[Pairing] Code generated for ${sanitizedNumber}: ${code}`);
+
+                        if (!res.headersSent) {
+                            res.status(200).json({ code });
+                        }
+                    } catch (error) {
+                        clearTimeout(pairingTimeout);
+                        console.error('[Pairing] requestPairingCode failed:', error);
+
+                        if (!res.headersSent) {
+                            res.status(503).json({
+                                error: 'Unable to generate a WhatsApp pairing code.',
+                                details: error?.message || 'Unknown pairing error'
+                            });
+                        }
+                    } finally {
+                        resolve();
+                    }
+                };
+
+                // The qr update is the reliable readiness signal for the
+                // pairing-code flow in current Baileys versions.
+                socket.ev.on('connection.update', ({ qr, connection }) => {
+                    if (qr) requestPairing();
+
+                    if (connection === 'close' && !pairingRequested) {
+                        clearTimeout(pairingTimeout);
+                        if (!res.headersSent) {
+                            res.status(503).json({
+                                error: 'WhatsApp closed the connection before pairing was ready.'
+                            });
+                        }
+                        resolve();
+                    }
+                });
+
+                // Some Baileys builds do not expose the QR update consistently.
+                // Give the socket a short fallback window without fabricating a code.
+                setTimeout(() => {
+                    if (!pairingRequested && !socket.authState.creds.registered) {
+                        requestPairing();
+                    }
+                }, 5_000);
+            });
         }
 
         // Install the optional native-button relay only after pairing has been
