@@ -68,7 +68,9 @@ const config = {
     OWNER_NUMBER: '254117312277',
     OWNER_NAME: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs🎀',
     BOT_FOOTER: 'ᴍᴀᴅᴇ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs',
-    CHANNEL_LINK: 'https://whatsapp.com/channel/0029Vb7ycBQ4yltMfeegLF1m'
+    CHANNEL_LINK: 'https://whatsapp.com/channel/0029Vb7ycBQ4yltMfeegLF1m',
+    // Per-socket UI preference: true = Gifted/native buttons, false = plain text.
+    BUTTON_MODE: true
 };
 
 // =========================================================
@@ -4666,11 +4668,89 @@ case 'info': {
     }
     break;
 }
+// Button UI mode: each connected bot has its own persisted preference.
+case 'buttonbot':
+case 'buttonmode': {
+    try {
+        if (!isOwner) {
+            await socket.sendMessage(sender, { text: '❌ *ᴏᴡɴᴇʀ ᴏɴʟʏ*\n\nᴏɴʟʏ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴄʜᴀɴɢᴇ ᴛʜᴇ ʙᴜᴛᴛᴏɴ ᴍᴏᴅᴇ.', quoted: msg });
+            break;
+        }
+        botConfig.BUTTON_MODE = true;
+        botState.saveConfig();
+        await socket.sendMessage(sender, {
+            text: `✅ *ʙᴜᴛᴛᴏɴ ʙᴏᴛ ᴇɴᴀʙʟᴇᴅ*\n\nᴛʜᴇ ᴍᴇɴᴜ ᴀɴᴅ ʙᴜᴛᴛᴏɴ-ᴇɴᴀʙʟᴇᴅ ᴄᴏᴍᴍᴀɴᴅs ᴡɪʟʟ ᴜsᴇ *ɢɪғᴛᴇᴅ ʙᴜᴛᴛᴏɴs*.\n\nᴜsᴇ *${prefix}nonbuttonbot* ᴛᴏ sᴡɪᴛᴄʜ ʙᴀᴄᴋ.\n\n> ${botConfig.BOT_FOOTER}`,
+            buttons: [{ buttonId: `${prefix}nonbuttonbot`, buttonText: { displayText: '❌ ɴᴏɴ-ʙᴜᴛᴛᴏɴ ʙᴏᴛ' }, type: 1 }]
+        }, { quoted: msg });
+    } catch (error) {
+        console.error('[ButtonMode] Error:', error.message);
+        await socket.sendMessage(sender, { text: '❌ Failed to enable button mode.', quoted: msg });
+    }
+    break;
+}
+
+case 'nonbuttonbot':
+case 'nonbuttonmode': {
+    try {
+        if (!isOwner) {
+            await socket.sendMessage(sender, { text: '❌ *ᴏᴡɴᴇʀ ᴏɴʟʏ*\n\nᴏɴʟʏ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴄʜᴀɴɢᴇ ᴛʜᴇ ʙᴜᴛᴛᴏɴ ᴍᴏᴅᴇ.', quoted: msg });
+            break;
+        }
+        botConfig.BUTTON_MODE = false;
+        botState.saveConfig();
+        await socket.sendMessage(sender, {
+            text: `✅ *ɴᴏɴ-ʙᴜᴛᴛᴏɴ ʙᴏᴛ ᴇɴᴀʙʟᴇᴅ*\n\nᴍᴇɴᴜs ᴡɪʟʟ ʙᴇ sᴇɴᴛ ᴀs ᴘʟᴀɪɴ ᴛᴇxᴛ ᴡɪᴛʜᴏᴜᴛ ɢɪғᴛᴇᴅ ʙᴜᴛᴛᴏɴs.\n\nᴜsᴇ *${prefix}buttonbot* ᴛᴏ sᴡɪᴛᴄʜ ʙᴀᴄᴋ.\n\n> ${botConfig.BOT_FOOTER}`
+        }, { quoted: msg });
+    } catch (error) {
+        console.error('[ButtonMode] Error:', error.message);
+        await socket.sendMessage(sender, { text: '❌ Failed to enable non-button mode.', quoted: msg });
+    }
+    break;
+}
+
 //case menu
 case 'menu': {
   try {
     const from = msg?.key?.remoteJid || sender;
     await socket.sendMessage(sender, { react: { text: '🤖', key: msg.key } });
+
+    // Non-button mode: deliberately send a plain menu. This is per socket and
+    // never touches the pairing flow or another connected bot.
+    if (botConfig.BUTTON_MODE === false) {
+      const startTime = socketCreationTime.get(number) || Date.now();
+      const uptime = Math.floor((Date.now() - startTime) / 1000);
+      const hours = Math.floor(uptime / 3600);
+      const minutes = Math.floor((uptime % 3600) / 60);
+      const seconds = Math.floor(uptime % 60);
+      const usedMemory = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
+      const totalMemory = Math.round(os.totalmem() / 1024 / 1024);
+      const plainMenu = `*🎀 B͛L͛O͛O͛D͛ R͛A͛V͛E͛N͛ M͛I͛N͛I͛ B͛O͛T͛ 🎀*\n\n` +
+        `*╭─────────────────⊷*\n` +
+        `*┃* 🌟 *ʙᴏᴛ:* ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ\n` +
+        `*┃* 📍 *ᴘʀᴇғɪx:* ${botConfig.PREFIX}\n` +
+        `*┃* ⏰ *ᴜᴘᴛɪᴍᴇ:* ${hours}h ${minutes}m ${seconds}s\n` +
+        `*┃* 💾 *ᴍᴇᴍᴏʀʏ:* ${usedMemory}MB/${totalMemory}MB\n` +
+        `*┃* 🔮 *ᴄᴏᴍᴍᴀɴᴅs:* ${count}\n` +
+        `*┃* 🔘 *ᴍᴏᴅᴇ:* ɴᴏɴ-ʙᴜᴛᴛᴏɴ\n` +
+        `*╰──────────────────⊷*\n\n` +
+        `*🌐 ɢᴇɴᴇʀᴀʟ*\n` +
+        `${prefix}alive • ${prefix}ping • ${prefix}info • ${prefix}owner • ${prefix}settings\n\n` +
+        `*🎵 ᴍᴇᴅɪᴀ*\n` +
+        `${prefix}play • ${prefix}song • ${prefix}tiktok • ${prefix}ig • ${prefix}fb • ${prefix}sticker • ${prefix}tourl\n\n` +
+        `*🫂 ɢʀᴏᴜᴘ*\n` +
+        `${prefix}add • ${prefix}kick • ${prefix}tagall • ${prefix}hidetag • ${prefix}ginfo • ${prefix}members • ${prefix}welcome • ${prefix}goodbye\n\n` +
+        `*🔧 ᴛᴏᴏʟs*\n` +
+        `${prefix}ai • ${prefix}lyrics • ${prefix}weather • ${prefix}autoread • ${prefix}anticall\n\n` +
+        `*📜 ᴀʟʟ ᴄᴏᴍᴍᴀɴᴅs:* ${prefix}allmenu\n\n> ${botConfig.BOT_FOOTER}`;
+      await socket.sendMessage(from, {
+        image: { url: "https://i.ibb.co/750pdM9/b46b44ae51c1.jpg" },
+        caption: plainMenu,
+        contextInfo: messageContext
+      }, { quoted: fakevCard });
+      await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
+      break;
+    }
+
     const startTime = socketCreationTime.get(number) || Date.now();
     const uptime = Math.floor((Date.now() - startTime) / 1000);
     const hours = Math.floor(uptime / 3600);
@@ -4863,15 +4943,9 @@ case 'menu': {
       }
     }, { quoted: fakevCard });
 
-    // Keep the menu as ONE native WhatsApp message and preserve its image header.
-    // The gifted relay is bypassed only for this message because its conversion
-    // path can drop the prepared imageMessage.
-    socket.__bypassGiftedRelay = true;
-    try {
-      await socket.relayMessage(from, menuInteractive.message, { messageId: menuInteractive.key.id });
-    } finally {
-      socket.__bypassGiftedRelay = false;
-    }
+    // Button mode: send through the installed gifted-btns adapter so the
+    // category selector uses the same button implementation as other commands.
+    await socket.sendMessage(from, menuMessage, { quoted: fakevCard });
     await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
     
   } catch (error) {
@@ -13392,6 +13466,16 @@ async function EmpirePair(number, res) {
 
             sock.sendMessage = async function (jid, content, options = {}) {
                 if (content && Array.isArray(content.buttons) && content.buttons.length) {
+                    // Non-button mode strips UI controls and sends the underlying
+                    // text/media normally. This preference belongs to this socket.
+                    if (botConfig.BUTTON_MODE === false) {
+                        const plainContent = { ...content };
+                        delete plainContent.buttons;
+                        delete plainContent.headerType;
+                        delete plainContent.viewOnce;
+                        return originalSendMessage(jid, plainContent, options);
+                    }
+
                     const interactiveButtons = normalizeGiftedButtons(content.buttons);
 
                     const giftedContent = {
