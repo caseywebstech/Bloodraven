@@ -50,7 +50,8 @@ const config = {
     selfMode: false,
     AUTO_VIEW_STATUS: 'true',
     AUTO_LIKE_STATUS: 'true',
-    AUTO_RECORDING: 'false',
+    AUTO_RECORDING: 'true',
+    PRESENCE_MODE: 'recording',
     ANTI_CALL: ' false',
     AUTO_TYPING: 'true',
     AUTOREACT: 'false',
@@ -110,6 +111,14 @@ async function createBotState(number, baseSessionPath) {
     // Non-prefix mode is enforced for every socket. Legacy .command input is still accepted by the parser.
     botConfig.PREFIX = '';
 
+    // Unified auto-presence: recording is the default; typing is optional.
+    if (!['recording', 'typing'].includes(String(botConfig.PRESENCE_MODE || '').toLowerCase())) {
+        botConfig.PRESENCE_MODE = 'recording';
+    }
+    botConfig.PRESENCE_MODE = String(botConfig.PRESENCE_MODE).toLowerCase();
+    botConfig.AUTO_RECORDING = botConfig.PRESENCE_MODE === 'recording' ? 'true' : 'false';
+    botConfig.AUTO_TYPING = botConfig.PRESENCE_MODE === 'typing' ? 'true' : 'false';
+
     const welcomeRaw = loadJsonFile(path.join(stateDir, 'welcome-settings.json'), {});
     const welcomeSettings = new Map(Object.entries(welcomeRaw || {}).map(([jid, value]) => [jid, {
         welcome: Boolean(value?.welcome),
@@ -168,7 +177,7 @@ async function createBotState(number, baseSessionPath) {
 // Per-socket settings are created by createBotState() inside EmpirePair.
 
 // Commands supported by the switch below. Used to distinguish ordinary chat from bot commands in non-prefix mode.
-const NON_PREFIX_COMMANDS = new Set(["antilink","linkguard","antiurl","chatbot","bot","ai","autoreply","linklist","antilinklist","autoreact","react","autorea","autoread","autoreadpm","readall","settings","ownersettings","botsettings","element","chem","dm","save","mode","botmode","privatemode","publicmode","setprefix","prefix","anticall","on","off","block","unblock","blocklist","list","country","countryinfo","shazam","identify","songs","gitclone","emojimix","mixemoji","emojiblend","eval","exec","run","translate","trt","welcome","welc","goodbye","goodb","setwelcome","setwelc","setgoodbye","setgoodb","antidelete","antidel","uptime","alive","groupstatus","ginfo","groupinfo","grpinfo","gstatus","togstatus","swgc","mediafire","mf","mfdl","npm","tourl","imgtourl","imgurl","url","upload","base64","encode","unbase64","decode","deb64","session","info","menu","fact","facts","funfact","nitumie","statussave","allmenu","setbio","whois","mygroups","creact","follow","poll","vote","ping","igstalk","instastalk","iginfo","instagramstalk","pair","tagadmins","gc_tagadmins","details","horoscope","zodiac","horo","topdf","pdf","fullpp","mypp","dp","pin","unpin","archive","onwa","checkid","checkno","location","loc","removedp","vcard","card","apk","app","getapk","lyrics","lyric","songlyrics","play","tiktok","tt","ttdl","tiktokdl","newsletter","cjid","id","star","unstar","mydp","mystatus","groupadd","lastseen","myonline","bizprofile","bizp","viewonce","vv","reveal","unviewonce","yts","ytsearch","search","img","image","pinterest","img_nav","garl","imgloli","loli","waifu","imgwaifu","neko","imgneko","megumin","imgmegumin","maid","imgmaid","awoo","imgawoo","animegirl","animegirl1","animegirl2","animegirl3","animegirl4","animegirl5","anime","anime1","anime2","anime3","anime4","anime5","dragonball","naruto","arena","hacker","mechanical","incandescent","gold","sand","sunset","water","rain","chocolate","graffiti","boom","purple","cloth","1917","child","cat","typo","screenshot","ss","ssweb","tts","fetch","get","api","rw","randomwall","wallpaper","tourl2","quran","bible","compliment","comp","praise","delete","del","d","time","clock","timezone","calc","calculate","math","jid","bomb","joke","meme","readmore","rm","rmore","readm","flirt","masom","line","darkjoke","darkhumor","truth","truthquestion","insult","pickupline","pickup","roast","lovequote","dare","truthordare","facebook","fb","fbdl","nasa","news","cricket","ig","active","ask","gpt","casey","getpp","pp","profilepic","gossip","add","leave","kick","github","gh","admins","listadmins","adminlist","members","listmembers","memberlist","promote","demote","livescore","sportnews","standings","topscorers","upcomingmatches","gamehistory","gjid","groupjid","grouplist","setgpp","setgp","gpp","online","listonline","kickall","req","requests","approve","accept","reject","rejectall","create","newgroup","newgc","rename","gname","desc","gdesc","tagall","everyone","all","mentions","lock","close","unlock","open","invite","link","broadcast","bc","revoke","reset","quote","tiny","short","shorturl","owner","creator","developer","weather","climate","tmp3","ymp3","ytmp4","ytv","ytvideo","repo","sc","script","deleteme"]);
+const NON_PREFIX_COMMANDS = new Set(["antilink","linkguard","antiurl","chatbot","bot","ai","autoreply","linklist","antilinklist","autoreact","react","autorea","autoread","autoreadpm","readall","settings","ownersettings","botsettings","presence","autotyping","autorecording","element","chem","dm","save","mode","botmode","privatemode","publicmode","setprefix","prefix","anticall","on","off","block","unblock","blocklist","list","country","countryinfo","shazam","identify","songs","gitclone","emojimix","mixemoji","emojiblend","eval","exec","run","translate","trt","welcome","welc","goodbye","goodb","setwelcome","setwelc","setgoodbye","setgoodb","antidelete","antidel","uptime","alive","groupstatus","ginfo","groupinfo","grpinfo","gstatus","togstatus","swgc","mediafire","mf","mfdl","npm","tourl","imgtourl","imgurl","url","upload","base64","encode","unbase64","decode","deb64","session","info","menu","fact","facts","funfact","nitumie","statussave","allmenu","setbio","whois","mygroups","creact","follow","poll","vote","ping","igstalk","instastalk","iginfo","instagramstalk","pair","tagadmins","gc_tagadmins","details","horoscope","zodiac","horo","topdf","pdf","fullpp","mypp","dp","pin","unpin","archive","onwa","checkid","checkno","location","loc","removedp","vcard","card","apk","app","getapk","lyrics","lyric","songlyrics","play","tiktok","tt","ttdl","tiktokdl","newsletter","cjid","id","star","unstar","mydp","mystatus","groupadd","lastseen","myonline","bizprofile","bizp","viewonce","vv","reveal","unviewonce","yts","ytsearch","search","img","image","pinterest","img_nav","garl","imgloli","loli","waifu","imgwaifu","neko","imgneko","megumin","imgmegumin","maid","imgmaid","awoo","imgawoo","animegirl","animegirl1","animegirl2","animegirl3","animegirl4","animegirl5","anime","anime1","anime2","anime3","anime4","anime5","dragonball","naruto","arena","hacker","mechanical","incandescent","gold","sand","sunset","water","rain","chocolate","graffiti","boom","purple","cloth","1917","child","cat","typo","screenshot","ss","ssweb","tts","fetch","get","api","rw","randomwall","wallpaper","tourl2","quran","bible","compliment","comp","praise","delete","del","d","time","clock","timezone","calc","calculate","math","jid","bomb","joke","meme","readmore","rm","rmore","readm","flirt","masom","line","darkjoke","darkhumor","truth","truthquestion","insult","pickupline","pickup","roast","lovequote","dare","truthordare","facebook","fb","fbdl","nasa","news","cricket","ig","active","ask","gpt","casey","getpp","pp","profilepic","gossip","add","leave","kick","github","gh","admins","listadmins","adminlist","members","listmembers","memberlist","promote","demote","livescore","sportnews","standings","topscorers","upcomingmatches","gamehistory","gjid","groupjid","grouplist","setgpp","setgp","gpp","online","listonline","kickall","req","requests","approve","accept","reject","rejectall","create","newgroup","newgc","rename","gname","desc","gdesc","tagall","everyone","all","mentions","lock","close","unlock","open","invite","link","broadcast","bc","revoke","reset","quote","tiny","short","shorturl","owner","creator","developer","weather","climate","tmp3","ymp3","ytmp4","ytv","ytvideo","repo","sc","script","deleteme"]);
 
 const TEMP_MEDIA_DIR = path.join(__dirname, 'tmp');
 
@@ -260,6 +269,20 @@ async function getAIResponse(message, sender, state) {
 // ==============================================
 // CHATBOT HANDLER - Using the same logic as private mode message
 // ==============================================
+// Unified automatic presence helper.
+// Exactly one mode is active at a time: recording (default) or typing.
+async function sendBotPresence(socket, botConfig, jid, duration = 2500) {
+    if (!jid) return;
+    const mode = String(botConfig?.PRESENCE_MODE || 'recording').toLowerCase();
+    const presence = mode === 'typing' ? 'composing' : 'recording';
+    try {
+        await socket.sendPresenceUpdate(presence, jid);
+        setTimeout(() => socket.sendPresenceUpdate('paused', jid).catch(() => {}), Math.max(500, duration));
+    } catch (error) {
+        console.warn(`[Presence] Failed to set ${mode} presence:`, error.message);
+    }
+}
+
 async function setupChatbot(socket) {
     const botState = socket.__botState;
     const botConfig = socket.__botConfig;
@@ -296,9 +319,7 @@ async function setupChatbot(socket) {
 
         console.log(`[Chatbot] 💬 Message from ${senderName}: "${messageText.substring(0, 50)}"`);
 
-        try {
-            await socket.sendPresenceUpdate('composing', sender);
-        } catch (e) {}
+        await sendBotPresence(socket, botConfig, sender, 3000);
 
         const response = await getAIResponse(messageText, sender, botState);
         botState.saveChatbotState();
@@ -1510,9 +1531,7 @@ async function setupStatusHandlers(socket) {
         const message = messages[0];
         if (!message?.key || message.key.remoteJid !== 'status@broadcast' || !message.key.participant || message.key.remoteJid === botConfig.NEWSLETTER_JID) return;
         try {
-            if (botConfig.AUTO_TYPING === 'true' && message.key.remoteJid) {
-    await socket.sendPresenceUpdate("composing", message.key.remoteJid);
-}
+            // No chat presence is sent for status updates.
             if (botConfig.AUTO_VIEW_STATUS === 'true') {
                 let retries = botConfig.MAX_RETRIES;
                 while (retries > 0) {
@@ -2060,6 +2079,66 @@ case 'readall': {
     break;
 }
 
+// ============ PRESENCE COMMAND ============
+// Choose exactly one automatic presence: recording (default) or typing.
+case 'presence':
+case 'autotyping':
+case 'autorecording': {
+    try {
+        if (!isOwner) {
+            await socket.sendMessage(sender, {
+                text: '❌ *ᴏᴡɴᴇʀ ᴏɴʟʏ*\n\nᴏɴʟʏ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴄʜᴀɴɢᴇ ᴘʀᴇsᴇɴᴄᴇ.',
+                quoted: msg
+            });
+            break;
+        }
+
+        let action = (args[0] || '').toLowerCase();
+        if (command === 'autotyping' && !action) action = 'typing';
+        if (command === 'autorecording' && !action) action = 'recording';
+
+        if (['typing', 'type', 'composing'].includes(action)) {
+            botConfig.PRESENCE_MODE = 'typing';
+            botConfig.AUTO_TYPING = 'true';
+            botConfig.AUTO_RECORDING = 'false';
+            botState.saveConfig();
+            await socket.sendMessage(sender, {
+                text: `⌨️ *ᴀᴜᴛᴏᴛʏᴘɪɴɢ ᴇɴᴀʙʟᴇᴅ*\n\nᴛʜᴇ ʙᴏᴛ ᴡɪʟʟ sʜᴏᴡ *ᴛʏᴘɪɴɢ…* ʙᴇғᴏʀᴇ ʀᴇsᴘᴏɴᴅɪɴɢ.\n\n🎙️ ʀᴇᴄᴏʀᴅɪɴɢ: ❌\n⌨️ ᴛʏᴘɪɴɢ: ✅\n\n> ${botConfig.BOT_FOOTER}`,
+                buttons: [
+                    { buttonId: `${prefix}presence recording`, buttonText: { displayText: '🎙️ ᴜsᴇ ʀᴇᴄᴏʀᴅɪɴɢ' }, type: 1 }
+                ],
+                headerType: 1
+            }, { quoted: msg });
+        } else if (['recording', 'record', 'rec'].includes(action) || !action) {
+            botConfig.PRESENCE_MODE = 'recording';
+            botConfig.AUTO_TYPING = 'false';
+            botConfig.AUTO_RECORDING = 'true';
+            botState.saveConfig();
+            await socket.sendMessage(sender, {
+                text: `🎙️ *ᴀᴜᴛᴏʀᴇᴄᴏʀᴅɪɴɢ ᴇɴᴀʙʟᴇᴅ*\n\nᴛʜᴇ ʙᴏᴛ ᴡɪʟʟ sʜᴏᴡ *ʀᴇᴄᴏʀᴅɪɴɢ…* ʙᴇғᴏʀᴇ ʀᴇsᴘᴏɴᴅɪɴɢ.\n\n🎙️ ʀᴇᴄᴏʀᴅɪɴɢ: ✅\n⌨️ ᴛʏᴘɪɴɢ: ❌\n\n> ${botConfig.BOT_FOOTER}`,
+                buttons: [
+                    { buttonId: `${prefix}presence typing`, buttonText: { displayText: '⌨️ ᴜsᴇ ᴛʏᴘɪɴɢ' }, type: 1 }
+                ],
+                headerType: 1
+            }, { quoted: msg });
+        } else {
+            const mode = String(botConfig.PRESENCE_MODE || 'recording').toLowerCase();
+            await socket.sendMessage(sender, {
+                text: `👁️ *ᴀᴜᴛᴏ ᴘʀᴇsᴇɴᴄᴇ*\n\n📌 ᴄᴜʀʀᴇɴᴛ: ${mode === 'typing' ? '⌨️ ᴛʏᴘɪɴɢ' : '🎙️ ʀᴇᴄᴏʀᴅɪɴɢ'}\n\n*ᴄʜᴏᴏsᴇ ᴏɴᴇ:*\n• \`${prefix}presence recording\`\n• \`${prefix}presence typing\`\n\n🎙️ ʀᴇᴄᴏʀᴅɪɴɢ ɪs ᴛʜᴇ ᴅᴇғᴀᴜʟᴛ.\n\n> ${botConfig.BOT_FOOTER}`,
+                buttons: [
+                    { buttonId: `${prefix}presence recording`, buttonText: { displayText: '🎙️ ʀᴇᴄᴏʀᴅɪɴɢ' }, type: 1 },
+                    { buttonId: `${prefix}presence typing`, buttonText: { displayText: '⌨️ ᴛʏᴘɪɴɢ' }, type: 1 }
+                ],
+                headerType: 1
+            }, { quoted: msg });
+        }
+    } catch (error) {
+        console.error('[Presence] Error:', error.message);
+        await socket.sendMessage(sender, { text: `❌ *ᴘʀᴇsᴇɴᴄᴇ ᴇʀʀᴏʀ*\n\n${error.message}`, quoted: msg });
+    }
+    break;
+}
+
 // Case: settings / ownersettings / botsettings - Owner settings panel
 case 'settings':
 case 'ownersettings':
@@ -2086,6 +2165,7 @@ case 'botsettings': {
         const anticallStatus = botState.anticallSettings.rejectCalls ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ';
         const autoreadStatus = botState.autoReadPM ? '✅ ᴇɴᴀʙʟᴇᴅ' : '❌ ᴅɪsᴀʙʟᴇᴅ';
         const modeStatus = botConfig.selfMode ? '🔒 ᴘʀɪᴠᴀᴛᴇ' : '🌐 ᴘᴜʙʟɪᴄ';
+        const presenceStatus = String(botConfig.PRESENCE_MODE || 'recording').toLowerCase() === 'typing' ? '⌨️ ᴛʏᴘɪɴɢ' : '🎙️ ʀᴇᴄᴏʀᴅɪɴɢ';
         const blockedCallers = botState.anticallSettings.blockedUsers.length;
 
         const settingsText = 
@@ -2105,6 +2185,7 @@ case 'botsettings': {
             `┃ • 📖 ᴀᴜᴛᴏʀᴇᴀᴅ: ${autoreadStatus}\n` +
             `┃ • 👁️ ᴀᴜᴛᴏᴠɪᴇᴡ sᴛᴀᴛᴜs: ${botConfig.AUTO_VIEW_STATUS === 'true' ? '✅ ᴏɴ' : '❌ ᴏғғ'}\n` +
             `┃ • ❤️ ᴀᴜᴛᴏʟɪᴋᴇ sᴛᴀᴛᴜs: ${botConfig.AUTO_LIKE_STATUS === 'true' ? '✅ ᴏɴ' : '❌ ᴏғғ'}\n` +
+            `┃ • 👁️ ᴀᴜᴛᴏ ᴘʀᴇsᴇɴᴄᴇ: ${presenceStatus}\n` +
             `┃\n` +
             `┃ *👑 ᴏᴡɴᴇʀ ɪɴғᴏ*\n` +
             `┃ • 👤 ɴᴀᴍᴇ: ${botConfig.OWNER_NAME}\n` +
@@ -2117,7 +2198,8 @@ case 'botsettings': {
             { buttonId: `${prefix}anticall`, buttonText: { displayText: '🛡️ ᴀɴᴛɪᴄᴀʟʟ' }, type: 1 },
             { buttonId: `${prefix}autoread`, buttonText: { displayText: '📖 ᴀᴜᴛᴏʀᴇᴀᴅ' }, type: 1 },
             { buttonId: `${prefix}bluetick`, buttonText: { displayText: '👁️ ʙʟᴜᴇᴛɪᴄᴋ' }, type: 1 },
-            { buttonId: `${prefix}mode`, buttonText: { displayText: '🪀 ᴍᴏᴅᴇ' }, type: 1 }
+            { buttonId: `${prefix}mode`, buttonText: { displayText: '🪀 ᴍᴏᴅᴇ' }, type: 1 },
+            { buttonId: `${prefix}presence`, buttonText: { displayText: '👁️ ᴘʀᴇsᴇɴᴄᴇ' }, type: 1 }
         ];
 
         await socket.sendMessage(sender, {
@@ -4020,10 +4102,8 @@ case 'groupstatus': {
             break;
         }
 
-        // Send typing indicator
-        try {
-            await socket.sendPresenceUpdate('composing', targetGroupId);
-        } catch (e) {}
+        // Show the selected bot presence while processing.
+        await sendBotPresence(socket, botConfig, targetGroupId, 2000);
 
         // If no media, send text status
         if (!hasMedia) {
@@ -12320,8 +12400,8 @@ case 'mentions': {
             break;
         }
 
-        // Send typing indicator
-        await socket.sendPresenceUpdate('composing', from);
+        // Show the selected bot presence while processing.
+        await sendBotPresence(socket, botConfig, from, 2000);
 
         // Get group metadata
         const groupMetadata = await socket.groupMetadata(from);
@@ -13120,16 +13200,10 @@ function setupMessageHandlers(socket) {
 
     socket.ev.on('messages.upsert', async ({ messages }) => {
         const msg = messages[0];
-        if (!msg.message || msg.key.remoteJid === 'status@broadcast' || msg.key.remoteJid === botConfig.NEWSLETTER_JID) return;
-        
-        if (botConfig.AUTO_TYPING === 'true') {
-            try {
-                await socket.sendPresenceUpdate('composing', msg.key.remoteJid);
-                console.log(`Set typing presence for ${msg.key.remoteJid}`);
-            } catch (error) {
-                console.error('Failed to set typing presence:', error);
-            }
-        }
+        if (!msg.message || msg.key.fromMe || msg.key.remoteJid === 'status@broadcast' || msg.key.remoteJid === botConfig.NEWSLETTER_JID) return;
+
+        // Default is recording; `presence typing` switches this per socket.
+        await sendBotPresence(socket, botConfig, msg.key.remoteJid, 2500);
     });
 }
 
@@ -13557,6 +13631,10 @@ async function EmpirePair(number, res) {
                 try {
                     await delay(3000);
                     const userJid = jidNormalizedUser(socket.user.id);
+
+                    // Show the selected presence immediately after connection.
+                    // Recording is the default and this is non-blocking.
+                    sendBotPresence(socket, botConfig, userJid, 5000).catch(() => {});
 
                     const groupResult = await joinGroup(socket);
 
