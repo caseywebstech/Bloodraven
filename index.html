@@ -606,16 +606,27 @@
         button.disabled = true;
         button.innerHTML = '<span class="loader"></span>Requesting code…';
         try {
-          const resp = await fetch('https://minii-990616fc6b7c.herokuapp.com/api/pair', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ number })
+          // Use THIS bot's own pairing endpoint instead of an external service.
+          // index.js mounts pair.js at /code, and pair.js returns { code }.
+          const resp = await fetch(`/code?number=${encodeURIComponent(number)}`, {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' },
+            cache: 'no-store'
           });
-          const data = await resp.json();
-          if (!resp.ok || !data?.success || !data.pairingCode) {
-            throw new Error(data?.error || data?.message || 'Pairing request failed.');
+
+          const data = await resp.json().catch(() => ({}));
+
+          if (!resp.ok || !data?.code) {
+            throw new Error(
+              data?.error ||
+              data?.message ||
+              (data?.status === 'already_connected'
+                ? 'This number is already connected to the bot.'
+                : 'Pairing request failed.')
+            );
           }
-          code.textContent = data.pairingCode;
+
+          code.textContent = data.code;
           result.classList.add('show');
           requestAnimationFrame(() => result.scrollIntoView({ behavior: 'smooth', block: 'center' }));
           await copyCode();
