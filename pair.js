@@ -70,11 +70,6 @@ const config = {
     BOT_FOOTER: 'ᴍᴀᴅᴇ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs',
     CHANNEL_LINK: 'https://whatsapp.com/channel/0029Vb7ycBQ4yltMfeegLF1m'
 };
-// ============ NON-PREFIX COMMAND REGISTRY ============
-// Commands are recognized by their first word, so commands work without '.'
-// while normal chat messages can still be handled by the chatbot listener.
-const NON_PREFIX_COMMANDS = new Set(["1917", "accept", "active", "add", "adminlist", "admins", "ai", "alive", "all", "allmenu", "anime", "anime1", "anime2", "anime3", "anime4", "anime5", "animegirl", "animegirl1", "animegirl2", "animegirl3", "animegirl4", "animegirl5", "anticall", "antidel", "antidelete", "antilink", "antilinklist", "antiurl", "api", "apk", "app", "approve", "archive", "arena", "ask", "autorea", "autoreact", "autoread", "autoreadpm", "autoreply", "awoo", "base64", "bc", "bible", "bizp", "bizprofile", "block", "blocklist", "bomb", "boom", "bot", "botmode", "botsettings", "broadcast", "calc", "calculate", "card", "casey", "cat", "chatbot", "checkid", "checkno", "chem", "child", "chocolate", "cjid", "climate", "clock", "close", "cloth", "comp", "compliment", "country", "countryinfo", "creact", "create", "creator", "cricket", "d", "dare", "darkhumor", "darkjoke", "deb64", "decode", "del", "delete", "deleteme", "demote", "desc", "details", "developer", "dm", "dp", "dragonball", "element", "emojiblend", "emojimix", "encode", "eval", "everyone", "exec", "facebook", "fact", "facts", "fb", "fbdl", "fetch", "flirt", "follow", "fullpp", "funfact", "gamehistory", "garl", "gc_tagadmins", "gdesc", "get", "getapk", "getpp", "gh", "ginfo", "gitclone", "github", "gjid", "gname", "gold", "goodb", "goodbye", "gossip", "gpp", "gpt", "graffiti", "groupadd", "groupinfo", "groupjid", "grouplist", "groupstatus", "grpinfo", "gstatus", "hacker", "horo", "horoscope", "id", "identify", "ig", "iginfo", "igstalk", "image", "img", "img_nav", "imgawoo", "imgloli", "imgmaid", "imgmegumin", "imgneko", "imgtourl", "imgurl", "imgwaifu", "incandescent", "info", "instagramstalk", "instastalk", "insult", "invite", "jid", "joke", "kick", "kickall", "lastseen", "leave", "line", "link", "linkguard", "linklist", "list", "listadmins", "listmembers", "listonline", "livescore", "loc", "location", "lock", "loli", "lovequote", "lyric", "lyrics", "maid", "masom", "math", "mechanical", "mediafire", "megumin", "memberlist", "members", "meme", "mentions", "menu", "mf", "mfdl", "mixemoji", "mode", "mydp", "mygroups", "myonline", "mypp", "mystatus", "naruto", "nasa", "neko", "newgc", "newgroup", "news", "newsletter", "nitumie", "npm", "off", "on", "online", "onwa", "open", "owner", "ownersettings", "pair", "pdf", "pickup", "pickupline", "pin", "ping", "pinterest", "play", "poll", "pp", "praise", "prefix", "privatemode", "profilepic", "promote", "publicmode", "purple", "quote", "quran", "rain", "randomwall", "react", "readall", "readm", "readmore", "reject", "rejectall", "removedp", "rename", "repo", "req", "requests", "reset", "reveal", "revoke", "rm", "rmore", "roast", "run", "rw", "sand", "save", "sc", "screenshot", "script", "search", "session", "setbio", "setgoodb", "setgoodbye", "setgp", "setgpp", "setprefix", "settings", "setwelc", "setwelcome", "shazam", "short", "shorturl", "songlyrics", "songs", "sportnews", "ss", "ssweb", "standings", "star", "statussave", "sunset", "swgc", "tagadmins", "tagall", "tiktok", "tiktokdl", "time", "timezone", "tiny", "tmp3", "togstatus", "topdf", "topscorers", "tourl", "tourl2", "translate", "trt", "truth", "truthordare", "truthquestion", "tt", "ttdl", "tts", "typo", "unbase64", "unblock", "unlock", "unpin", "unstar", "unviewonce", "upcomingmatches", "upload", "uptime", "url", "vcard", "viewonce", "vote", "vv", "waifu", "wallpaper", "water", "weather", "welc", "welcome", "whois", "ymp3", "ytmp4", "yts", "ytsearch", "ytv", "ytvideo", "zodiac"]);
-// =====================================================
 
 // =========================================================
 // 🔒 PER-SOCKET BOT STATE
@@ -112,6 +107,8 @@ async function createBotState(number, baseSessionPath) {
     const localConfigPath = path.join(stateDir, 'config.json');
     const localConfig = loadJsonFile(localConfigPath, cloneDefaultConfig());
     const botConfig = { ...cloneDefaultConfig(), ...(localConfig || {}) };
+    // Non-prefix mode is enforced for every socket. Legacy .command input is still accepted by the parser.
+    botConfig.PREFIX = '';
 
     const welcomeRaw = loadJsonFile(path.join(stateDir, 'welcome-settings.json'), {});
     const welcomeSettings = new Map(Object.entries(welcomeRaw || {}).map(([jid, value]) => [jid, {
@@ -169,6 +166,9 @@ async function createBotState(number, baseSessionPath) {
 }
 
 // Per-socket settings are created by createBotState() inside EmpirePair.
+
+// Commands supported by the switch below. Used to distinguish ordinary chat from bot commands in non-prefix mode.
+const NON_PREFIX_COMMANDS = new Set(["antilink","linkguard","antiurl","chatbot","bot","ai","autoreply","linklist","antilinklist","autoreact","react","autorea","autoread","autoreadpm","readall","settings","ownersettings","botsettings","element","chem","dm","save","mode","botmode","privatemode","publicmode","setprefix","prefix","anticall","on","off","block","unblock","blocklist","list","country","countryinfo","shazam","identify","songs","gitclone","emojimix","mixemoji","emojiblend","eval","exec","run","translate","trt","welcome","welc","goodbye","goodb","setwelcome","setwelc","setgoodbye","setgoodb","antidelete","antidel","uptime","alive","groupstatus","ginfo","groupinfo","grpinfo","gstatus","togstatus","swgc","mediafire","mf","mfdl","npm","tourl","imgtourl","imgurl","url","upload","base64","encode","unbase64","decode","deb64","session","info","menu","fact","facts","funfact","nitumie","statussave","allmenu","setbio","whois","mygroups","creact","follow","poll","vote","ping","igstalk","instastalk","iginfo","instagramstalk","pair","tagadmins","gc_tagadmins","details","horoscope","zodiac","horo","topdf","pdf","fullpp","mypp","dp","pin","unpin","archive","onwa","checkid","checkno","location","loc","removedp","vcard","card","apk","app","getapk","lyrics","lyric","songlyrics","play","tiktok","tt","ttdl","tiktokdl","newsletter","cjid","id","star","unstar","mydp","mystatus","groupadd","lastseen","myonline","bizprofile","bizp","viewonce","vv","reveal","unviewonce","yts","ytsearch","search","img","image","pinterest","img_nav","garl","imgloli","loli","waifu","imgwaifu","neko","imgneko","megumin","imgmegumin","maid","imgmaid","awoo","imgawoo","animegirl","animegirl1","animegirl2","animegirl3","animegirl4","animegirl5","anime","anime1","anime2","anime3","anime4","anime5","dragonball","naruto","arena","hacker","mechanical","incandescent","gold","sand","sunset","water","rain","chocolate","graffiti","boom","purple","cloth","1917","child","cat","typo","screenshot","ss","ssweb","tts","fetch","get","api","rw","randomwall","wallpaper","tourl2","quran","bible","compliment","comp","praise","delete","del","d","time","clock","timezone","calc","calculate","math","jid","bomb","joke","meme","readmore","rm","rmore","readm","flirt","masom","line","darkjoke","darkhumor","truth","truthquestion","insult","pickupline","pickup","roast","lovequote","dare","truthordare","facebook","fb","fbdl","nasa","news","cricket","ig","active","ask","gpt","casey","getpp","pp","profilepic","gossip","add","leave","kick","github","gh","admins","listadmins","adminlist","members","listmembers","memberlist","promote","demote","livescore","sportnews","standings","topscorers","upcomingmatches","gamehistory","gjid","groupjid","grouplist","setgpp","setgp","gpp","online","listonline","kickall","req","requests","approve","accept","reject","rejectall","create","newgroup","newgc","rename","gname","desc","gdesc","tagall","everyone","all","mentions","lock","close","unlock","open","invite","link","broadcast","bc","revoke","reset","quote","tiny","short","shorturl","owner","creator","developer","weather","climate","tmp3","ymp3","ytmp4","ytv","ytvideo","repo","sc","script","deleteme"]);
 
 const TEMP_MEDIA_DIR = path.join(__dirname, 'tmp');
 
@@ -288,13 +288,7 @@ async function setupChatbot(socket) {
         }
 
         if (!messageText) return;
-
-        // In non-prefix mode, don't let the chatbot answer bot commands.
-        const chatbotText = messageText.trim();
-        const chatbotWithoutPrefix = chatbotText.startsWith('.')
-            ? chatbotText.slice(1).trim()
-            : chatbotText;
-        const chatbotCommand = chatbotWithoutPrefix.split(/\s+/)[0].toLowerCase();
+        const chatbotCommand = messageText.trim().replace(/^\./, '').split(/\s+/)[0].toLowerCase();
         if (NON_PREFIX_COMMANDS.has(chatbotCommand)) return;
 
         const sender = msg.key.participant || jid;
@@ -1654,26 +1648,17 @@ function setupCommandHandlers(socket, number) {
         const botNumber = socket.user.id.split(':')[0];
         const isbot = botNumber.includes(senderNumber);
         const isOwner = isbot ? isbot : developers.includes(senderNumber);
-        var prefix = botConfig.PREFIX;
+        var prefix = botConfig.PREFIX || '';
         const from = msg.key.remoteJid;
         const isGroup = from.endsWith("@g.us");
 
-        // Non-prefix mode:
-        //   menu
-        //   play despacito
-        //   tagall
-        // Prefix compatibility is also kept:
-        //   .menu
-        //   .play despacito
-        const rawBody = (body || '').trim();
-        const withoutPrefix = prefix && rawBody.startsWith(prefix)
-            ? rawBody.slice(prefix.length).trim()
-            : (rawBody.startsWith('.') ? rawBody.slice(1).trim() : rawBody);
-
-        const firstWord = withoutPrefix.split(/\s+/)[0].toLowerCase();
-        const isCmd = NON_PREFIX_COMMANDS.has(firstWord);
-        const command = isCmd ? firstWord : '';
-        var args = withoutPrefix.split(/\s+/).slice(1);
+        // NON-PREFIX MODE: commands are recognized by the first word.
+        // Examples: menu, play song, tagall. Legacy .menu/.play are also accepted.
+        const rawBody = String(body || '').trim();
+        const commandBody = rawBody.startsWith('.') ? rawBody.slice(1).trim() : rawBody;
+        const command = commandBody.split(/\s+/).shift().toLowerCase();
+        const isCmd = NON_PREFIX_COMMANDS.has(command);
+        var args = commandBody.split(/\s+/).slice(1);
 
         async function isGroupAdmin(jid, user) {
             try {
@@ -4853,52 +4838,15 @@ case 'menu': {
       contextInfo: messageContext
     };
     
-    // IMPORTANT: Keep the entire menu in ONE WhatsApp message.
-    // The image, category selector, JOIN CHANNEL button, newsletter context,
-    // and fakevCard quote are all sent together below. Do not call sendMessage
-    // again for the channel button or category menu.
-    const menuMedia = await prepareWAMessageMedia(
-      { image: { url: 'https://i.ibb.co/750pdM9/b46b44ae51c1.jpg' } },
-      { upload: socket.waUploadToServer }
-    );
-    const menuInteractive = generateWAMessageFromContent(from, {
-      viewOnceMessage: {
-        message: {
-          interactiveMessage: {
-            header: {
-              title: '🎀 B͛L͛O͛O͛D͛ R͛A͛V͛E͛N͛ M͛I͛N͛I͛ B͛O͛T͛ 🎀',
-              hasMediaAttachment: true,
-              imageMessage: menuMedia.imageMessage
-            },
-            body: { text: menuText },
-            footer: { text: 'ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ ッ' },
-            nativeFlowMessage: {
-              buttons: [
-                {
-                  name: 'single_select',
-                  buttonParamsJson: JSON.stringify({
-                    title: '🤖 C͛H͛O͛O͛SE͛ C͛A͛T͛E͛G͛O͛R͛Y͛',
-                    sections: JSON.parse(menuMessage.buttons[0].nativeFlowInfo.paramsJson).sections
-                  })
-                },
-
-              ]
-            },
-            contextInfo: messageContext
-          }
-        }
-      }
+    // Send the menu through gifted-btns so the category selector is rendered correctly.
+    // This keeps the image, newsletter context, fakevCard quote, and category button in ONE message.
+    await socket.sendMessage(from, {
+      image: { url: 'https://i.ibb.co/750pdM9/b46b44ae51c1.jpg' },
+      caption: `*🎀 B͛L͛O͛O͛D͛ R͛A͛V͛E͛N͛ M͛I͛N͛I͛ B͛O͛T͛ 🎀*\n${menuText}`,
+      footer: 'ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ ッ',
+      buttons: menuMessage.buttons,
+      contextInfo: messageContext
     }, { quoted: fakevCard });
-
-    // Keep the menu as ONE native WhatsApp message and preserve its image header.
-    // The gifted relay is bypassed only for this message because its conversion
-    // path can drop the prepared imageMessage.
-    socket.__bypassGiftedRelay = true;
-    try {
-      await socket.relayMessage(from, menuInteractive.message, { messageId: menuInteractive.key.id });
-    } finally {
-      socket.__bypassGiftedRelay = false;
-    }
     await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
     
   } catch (error) {
