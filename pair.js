@@ -56,7 +56,7 @@ const config = {
     AUTOREACT: 'false',
     AUTO_READ: 'false',
     AUTO_LIKE_EMOJI: ['💋', '😶', '💫', '💗', '🎈', '🎉', '🥳', '❤️', '🧫', '🐭'],
-    PREFIX: '.',
+    PREFIX: '',
     MAX_RETRIES: 3,
     GROUP_INVITE_LINK: '',
     ADMIN_LIST_PATH: './admin.json',
@@ -68,10 +68,13 @@ const config = {
     OWNER_NUMBER: '254117312277',
     OWNER_NAME: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs🎀',
     BOT_FOOTER: 'ᴍᴀᴅᴇ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs',
-    CHANNEL_LINK: 'https://whatsapp.com/channel/0029Vb7ycBQ4yltMfeegLF1m',
-    // Per-socket UI preference: true = Gifted/native buttons, false = plain text.
-    BUTTON_MODE: true
+    CHANNEL_LINK: 'https://whatsapp.com/channel/0029Vb7ycBQ4yltMfeegLF1m'
 };
+// ============ NON-PREFIX COMMAND REGISTRY ============
+// Commands are recognized by their first word, so commands work without '.'
+// while normal chat messages can still be handled by the chatbot listener.
+const NON_PREFIX_COMMANDS = new Set(["1917", "accept", "active", "add", "adminlist", "admins", "ai", "alive", "all", "allmenu", "anime", "anime1", "anime2", "anime3", "anime4", "anime5", "animegirl", "animegirl1", "animegirl2", "animegirl3", "animegirl4", "animegirl5", "anticall", "antidel", "antidelete", "antilink", "antilinklist", "antiurl", "api", "apk", "app", "approve", "archive", "arena", "ask", "autorea", "autoreact", "autoread", "autoreadpm", "autoreply", "awoo", "base64", "bc", "bible", "bizp", "bizprofile", "block", "blocklist", "bomb", "boom", "bot", "botmode", "botsettings", "broadcast", "calc", "calculate", "card", "casey", "cat", "chatbot", "checkid", "checkno", "chem", "child", "chocolate", "cjid", "climate", "clock", "close", "cloth", "comp", "compliment", "country", "countryinfo", "creact", "create", "creator", "cricket", "d", "dare", "darkhumor", "darkjoke", "deb64", "decode", "del", "delete", "deleteme", "demote", "desc", "details", "developer", "dm", "dp", "dragonball", "element", "emojiblend", "emojimix", "encode", "eval", "everyone", "exec", "facebook", "fact", "facts", "fb", "fbdl", "fetch", "flirt", "follow", "fullpp", "funfact", "gamehistory", "garl", "gc_tagadmins", "gdesc", "get", "getapk", "getpp", "gh", "ginfo", "gitclone", "github", "gjid", "gname", "gold", "goodb", "goodbye", "gossip", "gpp", "gpt", "graffiti", "groupadd", "groupinfo", "groupjid", "grouplist", "groupstatus", "grpinfo", "gstatus", "hacker", "horo", "horoscope", "id", "identify", "ig", "iginfo", "igstalk", "image", "img", "img_nav", "imgawoo", "imgloli", "imgmaid", "imgmegumin", "imgneko", "imgtourl", "imgurl", "imgwaifu", "incandescent", "info", "instagramstalk", "instastalk", "insult", "invite", "jid", "joke", "kick", "kickall", "lastseen", "leave", "line", "link", "linkguard", "linklist", "list", "listadmins", "listmembers", "listonline", "livescore", "loc", "location", "lock", "loli", "lovequote", "lyric", "lyrics", "maid", "masom", "math", "mechanical", "mediafire", "megumin", "memberlist", "members", "meme", "mentions", "menu", "mf", "mfdl", "mixemoji", "mode", "mydp", "mygroups", "myonline", "mypp", "mystatus", "naruto", "nasa", "neko", "newgc", "newgroup", "news", "newsletter", "nitumie", "npm", "off", "on", "online", "onwa", "open", "owner", "ownersettings", "pair", "pdf", "pickup", "pickupline", "pin", "ping", "pinterest", "play", "poll", "pp", "praise", "prefix", "privatemode", "profilepic", "promote", "publicmode", "purple", "quote", "quran", "rain", "randomwall", "react", "readall", "readm", "readmore", "reject", "rejectall", "removedp", "rename", "repo", "req", "requests", "reset", "reveal", "revoke", "rm", "rmore", "roast", "run", "rw", "sand", "save", "sc", "screenshot", "script", "search", "session", "setbio", "setgoodb", "setgoodbye", "setgp", "setgpp", "setprefix", "settings", "setwelc", "setwelcome", "shazam", "short", "shorturl", "songlyrics", "songs", "sportnews", "ss", "ssweb", "standings", "star", "statussave", "sunset", "swgc", "tagadmins", "tagall", "tiktok", "tiktokdl", "time", "timezone", "tiny", "tmp3", "togstatus", "topdf", "topscorers", "tourl", "tourl2", "translate", "trt", "truth", "truthordare", "truthquestion", "tt", "ttdl", "tts", "typo", "unbase64", "unblock", "unlock", "unpin", "unstar", "unviewonce", "upcomingmatches", "upload", "uptime", "url", "vcard", "viewonce", "vote", "vv", "waifu", "wallpaper", "water", "weather", "welc", "welcome", "whois", "ymp3", "ytmp4", "yts", "ytsearch", "ytv", "ytvideo", "zodiac"]);
+// =====================================================
 
 // =========================================================
 // 🔒 PER-SOCKET BOT STATE
@@ -284,7 +287,15 @@ async function setupChatbot(socket) {
             messageText = msg.message.videoMessage?.caption || '';
         }
 
-        if (!messageText || messageText.startsWith(botConfig.PREFIX)) return;
+        if (!messageText) return;
+
+        // In non-prefix mode, don't let the chatbot answer bot commands.
+        const chatbotText = messageText.trim();
+        const chatbotWithoutPrefix = chatbotText.startsWith('.')
+            ? chatbotText.slice(1).trim()
+            : chatbotText;
+        const chatbotCommand = chatbotWithoutPrefix.split(/\s+/)[0].toLowerCase();
+        if (NON_PREFIX_COMMANDS.has(chatbotCommand)) return;
 
         const sender = msg.key.participant || jid;
         const senderName = sender.split('@')[0];
@@ -1644,11 +1655,25 @@ function setupCommandHandlers(socket, number) {
         const isbot = botNumber.includes(senderNumber);
         const isOwner = isbot ? isbot : developers.includes(senderNumber);
         var prefix = botConfig.PREFIX;
-        var isCmd = body.startsWith(prefix);
         const from = msg.key.remoteJid;
         const isGroup = from.endsWith("@g.us");
-        const command = isCmd ? body.slice(prefix.length).trim().split(' ').shift().toLowerCase() : '';
-        var args = body.trim().split(/ +/).slice(1);
+
+        // Non-prefix mode:
+        //   menu
+        //   play despacito
+        //   tagall
+        // Prefix compatibility is also kept:
+        //   .menu
+        //   .play despacito
+        const rawBody = (body || '').trim();
+        const withoutPrefix = prefix && rawBody.startsWith(prefix)
+            ? rawBody.slice(prefix.length).trim()
+            : (rawBody.startsWith('.') ? rawBody.slice(1).trim() : rawBody);
+
+        const firstWord = withoutPrefix.split(/\s+/)[0].toLowerCase();
+        const isCmd = NON_PREFIX_COMMANDS.has(firstWord);
+        const command = isCmd ? firstWord : '';
+        var args = withoutPrefix.split(/\s+/).slice(1);
 
         async function isGroupAdmin(jid, user) {
             try {
@@ -4668,89 +4693,11 @@ case 'info': {
     }
     break;
 }
-// Button UI mode: each connected bot has its own persisted preference.
-case 'buttonbot':
-case 'buttonmode': {
-    try {
-        if (!isOwner) {
-            await socket.sendMessage(sender, { text: '❌ *ᴏᴡɴᴇʀ ᴏɴʟʏ*\n\nᴏɴʟʏ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴄʜᴀɴɢᴇ ᴛʜᴇ ʙᴜᴛᴛᴏɴ ᴍᴏᴅᴇ.', quoted: msg });
-            break;
-        }
-        botConfig.BUTTON_MODE = true;
-        botState.saveConfig();
-        await socket.sendMessage(sender, {
-            text: `✅ *ʙᴜᴛᴛᴏɴ ʙᴏᴛ ᴇɴᴀʙʟᴇᴅ*\n\nᴛʜᴇ ᴍᴇɴᴜ ᴀɴᴅ ʙᴜᴛᴛᴏɴ-ᴇɴᴀʙʟᴇᴅ ᴄᴏᴍᴍᴀɴᴅs ᴡɪʟʟ ᴜsᴇ *ɢɪғᴛᴇᴅ ʙᴜᴛᴛᴏɴs*.\n\nᴜsᴇ *${prefix}nonbuttonbot* ᴛᴏ sᴡɪᴛᴄʜ ʙᴀᴄᴋ.\n\n> ${botConfig.BOT_FOOTER}`,
-            buttons: [{ buttonId: `${prefix}nonbuttonbot`, buttonText: { displayText: '❌ ɴᴏɴ-ʙᴜᴛᴛᴏɴ ʙᴏᴛ' }, type: 1 }]
-        }, { quoted: msg });
-    } catch (error) {
-        console.error('[ButtonMode] Error:', error.message);
-        await socket.sendMessage(sender, { text: '❌ Failed to enable button mode.', quoted: msg });
-    }
-    break;
-}
-
-case 'nonbuttonbot':
-case 'nonbuttonmode': {
-    try {
-        if (!isOwner) {
-            await socket.sendMessage(sender, { text: '❌ *ᴏᴡɴᴇʀ ᴏɴʟʏ*\n\nᴏɴʟʏ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴄʜᴀɴɢᴇ ᴛʜᴇ ʙᴜᴛᴛᴏɴ ᴍᴏᴅᴇ.', quoted: msg });
-            break;
-        }
-        botConfig.BUTTON_MODE = false;
-        botState.saveConfig();
-        await socket.sendMessage(sender, {
-            text: `✅ *ɴᴏɴ-ʙᴜᴛᴛᴏɴ ʙᴏᴛ ᴇɴᴀʙʟᴇᴅ*\n\nᴍᴇɴᴜs ᴡɪʟʟ ʙᴇ sᴇɴᴛ ᴀs ᴘʟᴀɪɴ ᴛᴇxᴛ ᴡɪᴛʜᴏᴜᴛ ɢɪғᴛᴇᴅ ʙᴜᴛᴛᴏɴs.\n\nᴜsᴇ *${prefix}buttonbot* ᴛᴏ sᴡɪᴛᴄʜ ʙᴀᴄᴋ.\n\n> ${botConfig.BOT_FOOTER}`
-        }, { quoted: msg });
-    } catch (error) {
-        console.error('[ButtonMode] Error:', error.message);
-        await socket.sendMessage(sender, { text: '❌ Failed to enable non-button mode.', quoted: msg });
-    }
-    break;
-}
-
 //case menu
 case 'menu': {
   try {
     const from = msg?.key?.remoteJid || sender;
     await socket.sendMessage(sender, { react: { text: '🤖', key: msg.key } });
-
-    // Non-button mode: deliberately send a plain menu. This is per socket and
-    // never touches the pairing flow or another connected bot.
-    if (botConfig.BUTTON_MODE === false) {
-      const startTime = socketCreationTime.get(number) || Date.now();
-      const uptime = Math.floor((Date.now() - startTime) / 1000);
-      const hours = Math.floor(uptime / 3600);
-      const minutes = Math.floor((uptime % 3600) / 60);
-      const seconds = Math.floor(uptime % 60);
-      const usedMemory = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
-      const totalMemory = Math.round(os.totalmem() / 1024 / 1024);
-      const plainMenu = `*🎀 B͛L͛O͛O͛D͛ R͛A͛V͛E͛N͛ M͛I͛N͛I͛ B͛O͛T͛ 🎀*\n\n` +
-        `*╭─────────────────⊷*\n` +
-        `*┃* 🌟 *ʙᴏᴛ:* ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ\n` +
-        `*┃* 📍 *ᴘʀᴇғɪx:* ${botConfig.PREFIX}\n` +
-        `*┃* ⏰ *ᴜᴘᴛɪᴍᴇ:* ${hours}h ${minutes}m ${seconds}s\n` +
-        `*┃* 💾 *ᴍᴇᴍᴏʀʏ:* ${usedMemory}MB/${totalMemory}MB\n` +
-        `*┃* 🔮 *ᴄᴏᴍᴍᴀɴᴅs:* ${count}\n` +
-        `*┃* 🔘 *ᴍᴏᴅᴇ:* ɴᴏɴ-ʙᴜᴛᴛᴏɴ\n` +
-        `*╰──────────────────⊷*\n\n` +
-        `*🌐 ɢᴇɴᴇʀᴀʟ*\n` +
-        `${prefix}alive • ${prefix}ping • ${prefix}info • ${prefix}owner • ${prefix}settings\n\n` +
-        `*🎵 ᴍᴇᴅɪᴀ*\n` +
-        `${prefix}play • ${prefix}song • ${prefix}tiktok • ${prefix}ig • ${prefix}fb • ${prefix}sticker • ${prefix}tourl\n\n` +
-        `*🫂 ɢʀᴏᴜᴘ*\n` +
-        `${prefix}add • ${prefix}kick • ${prefix}tagall • ${prefix}hidetag • ${prefix}ginfo • ${prefix}members • ${prefix}welcome • ${prefix}goodbye\n\n` +
-        `*🔧 ᴛᴏᴏʟs*\n` +
-        `${prefix}ai • ${prefix}lyrics • ${prefix}weather • ${prefix}autoread • ${prefix}anticall\n\n` +
-        `*📜 ᴀʟʟ ᴄᴏᴍᴍᴀɴᴅs:* ${prefix}allmenu\n\n> ${botConfig.BOT_FOOTER}`;
-      await socket.sendMessage(from, {
-        image: { url: "https://i.ibb.co/750pdM9/b46b44ae51c1.jpg" },
-        caption: plainMenu,
-        contextInfo: messageContext
-      }, { quoted: fakevCard });
-      await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
-      break;
-    }
-
     const startTime = socketCreationTime.get(number) || Date.now();
     const uptime = Math.floor((Date.now() - startTime) / 1000);
     const hours = Math.floor(uptime / 3600);
@@ -4762,7 +4709,7 @@ case 'menu': {
     let menuText = `*╭─────────────────⊷*  
 *┃* *🌟ʙᴏᴛ ɴᴀᴍᴇ*: ᴄᴀsᴇʀʜᴏᴅᴇs ᴍɪɴɪ
 *┃* *🌸ᴜsᴇʀ*: ɢᴜᴇsᴛ
-*┃* *📍ᴘʀᴇғɪx*: .
+*┃* *📍ᴘʀᴇғɪx*: ɴᴏɴᴇ
 *┃* *⏰ᴜᴘᴛɪᴍᴇ* : ${hours}h ${minutes}m ${seconds}s
 *┃* *📂sᴛᴏʀᴀɢᴇ* : ${usedMemory}MB/${totalMemory}MB
 *┃*  🔮 *ᴄᴏᴍᴍᴀɴᴅs*: ${count}
@@ -4943,9 +4890,15 @@ case 'menu': {
       }
     }, { quoted: fakevCard });
 
-    // Button mode: send through the installed gifted-btns adapter so the
-    // category selector uses the same button implementation as other commands.
-    await socket.sendMessage(from, menuMessage, { quoted: fakevCard });
+    // Keep the menu as ONE native WhatsApp message and preserve its image header.
+    // The gifted relay is bypassed only for this message because its conversion
+    // path can drop the prepared imageMessage.
+    socket.__bypassGiftedRelay = true;
+    try {
+      await socket.relayMessage(from, menuInteractive.message, { messageId: menuInteractive.key.id });
+    } finally {
+      socket.__bypassGiftedRelay = false;
+    }
     await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
     
   } catch (error) {
@@ -13466,16 +13419,6 @@ async function EmpirePair(number, res) {
 
             sock.sendMessage = async function (jid, content, options = {}) {
                 if (content && Array.isArray(content.buttons) && content.buttons.length) {
-                    // Non-button mode strips UI controls and sends the underlying
-                    // text/media normally. This preference belongs to this socket.
-                    if (botConfig.BUTTON_MODE === false) {
-                        const plainContent = { ...content };
-                        delete plainContent.buttons;
-                        delete plainContent.headerType;
-                        delete plainContent.viewOnce;
-                        return originalSendMessage(jid, plainContent, options);
-                    }
-
                     const interactiveButtons = normalizeGiftedButtons(content.buttons);
 
                     const giftedContent = {
