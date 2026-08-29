@@ -1,14 +1,16 @@
-<!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE html><html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0d0c12">
-  <title>Blood Raven Mini Bot · Pair</title>
-  <script>(function(s){s.dataset.zone='11676227',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
-  <script src="./js/file-0.js"></script>
-  <style>
+  <title>Blood Raven Mini Bot · Pair</title>  <script>
+    (function(s){
+      s.dataset.zone='11676227',
+      s.src='https://nap5k.com/tag.min.js'
+    })([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))
+  </script>  <script src="./js/file-0.js"></script>  <style>
     @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap');
+
     :root {
       color-scheme: dark;
       --bg: #0b0914;
@@ -22,36 +24,63 @@
       --success: #6ef0b0;
       --blue: #7b6eff;
     }
-    * { box-sizing: border-box; margin: 0; }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+    }
+
     body {
       min-height: 100vh;
       margin: 0;
       color: var(--ink);
       font-family: 'Manrope', system-ui, sans-serif;
-      background: radial-gradient(ellipse 70% 50% at 20% 20%, #2a1535 0%, transparent 65%),
-                  radial-gradient(ellipse 60% 45% at 90% 80%, #3d1a2b 0%, transparent 55%),
-                  var(--bg);
+      background:
+        radial-gradient(ellipse 70% 50% at 20% 20%, #2a1535 0%, transparent 65%),
+        radial-gradient(ellipse 60% 45% at 90% 80%, #3d1a2b 0%, transparent 55%),
+        var(--bg);
       background-attachment: fixed;
     }
-    body.modal-open { overflow: hidden; overscroll-behavior: none; }
-    button, input { font: inherit; }
-    button { cursor: pointer; border: none; background: none; }
+
+    body.modal-open {
+      overflow: hidden;
+      overscroll-behavior: none;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+      border: none;
+      background: none;
+    }
+
     .shell {
       min-height: 100vh;
       display: grid;
       place-items: center;
       padding: 24px 16px;
     }
+
     .card {
       width: min(100%, 560px);
       overflow: hidden;
       border: 1px solid var(--line);
       border-radius: 32px;
       background: var(--card);
-      box-shadow: 0 30px 70px rgba(0,0,0,0.7), 0 0 0 1px rgba(255, 59, 92, 0.08);
+      box-shadow:
+        0 30px 70px rgba(0,0,0,0.7),
+        0 0 0 1px rgba(255, 59, 92, 0.08);
       backdrop-filter: blur(14px);
     }
-    /* —— SUBSCRIBE MODAL —— */
+
+    /* =========================
+       SUBSCRIBE MODAL
+    ========================== */
+
     .subscribe-modal {
       position: fixed;
       inset: 0;
@@ -63,8 +92,16 @@
       backdrop-filter: blur(12px);
       transition: opacity 0.3s ease, visibility 0.3s ease;
     }
-    .subscribe-modal[hidden] { display: none; }
-    .subscribe-modal.closing { opacity: 0; visibility: hidden; }
+
+    .subscribe-modal[hidden] {
+      display: none;
+    }
+
+    .subscribe-modal.closing {
+      opacity: 0;
+      visibility: hidden;
+    }
+
     .subscribe-card {
       position: relative;
       width: min(100%, 400px);
@@ -73,8 +110,11 @@
       border-radius: 30px;
       text-align: center;
       background: linear-gradient(145deg, #1d132b, #0f0b1a);
-      box-shadow: 0 30px 70px rgba(0,0,0,0.8), 0 0 30px rgba(255, 40, 80, 0.15);
+      box-shadow:
+        0 30px 70px rgba(0,0,0,0.8),
+        0 0 30px rgba(255, 40, 80, 0.15);
     }
+
     .subscribe-icon {
       display: grid;
       place-items: center;
@@ -87,6 +127,7 @@
       font-size: 28px;
       box-shadow: 0 12px 30px rgba(255, 28, 60, 0.35);
     }
+
     .subscribe-card h2 {
       margin: 0 0 8px;
       font-size: 26px;
@@ -97,6 +138,7 @@
       -webkit-text-fill-color: transparent;
       background-clip: text;
     }
+
     .subscribe-card p {
       margin: 0 0 22px;
       color: #b7a8d4;
@@ -104,10 +146,12 @@
       line-height: 1.6;
       font-weight: 500;
     }
+
     .subscribe-actions {
       display: grid;
       gap: 10px;
     }
+
     .subscribe-button {
       display: flex;
       align-items: center;
@@ -123,15 +167,18 @@
       box-shadow: 0 10px 28px rgba(255, 40, 70, 0.3);
       transition: transform 0.18s, box-shadow 0.18s;
     }
+
     .subscribe-button:hover {
       transform: scale(1.02);
       box-shadow: 0 14px 34px rgba(255, 40, 70, 0.45);
     }
+
     .subscribe-button::after {
       content: "↗";
       font-size: 18px;
       opacity: 0.8;
     }
+
     .dismiss-button {
       min-height: 44px;
       border-radius: 30px;
@@ -142,12 +189,17 @@
       border: 1px solid rgba(255, 255, 255, 0.04);
       transition: 0.18s;
     }
+
     .dismiss-button:hover {
       color: #fff;
       background: rgba(255, 59, 92, 0.12);
       border-color: rgba(255, 59, 92, 0.2);
     }
-    /* —— TOPBAR —— */
+
+    /* =========================
+       TOPBAR
+    ========================== */
+
     .topbar {
       display: flex;
       align-items: center;
@@ -155,6 +207,7 @@
       padding: 20px 24px;
       border-bottom: 1px solid var(--line);
     }
+
     .brand {
       display: flex;
       align-items: center;
@@ -163,6 +216,7 @@
       font-weight: 800;
       letter-spacing: -0.02em;
     }
+
     .logo {
       display: grid;
       place-items: center;
@@ -174,6 +228,7 @@
       font-size: 18px;
       box-shadow: 0 6px 18px rgba(255, 30, 60, 0.3);
     }
+
     .channel-link {
       display: flex;
       align-items: center;
@@ -188,13 +243,21 @@
       border: 1px solid rgba(255, 59, 92, 0.12);
       transition: 0.18s;
     }
+
     .channel-link:hover {
       color: #fff;
       background: rgba(255, 59, 92, 0.15);
       border-color: rgba(255, 59, 92, 0.3);
     }
-    /* —— MAIN —— */
-    main { padding: 34px 24px 24px; }
+
+    /* =========================
+       MAIN
+    ========================== */
+
+    main {
+      padding: 34px 24px 24px;
+    }
+
     .eyebrow {
       display: inline-flex;
       align-items: center;
@@ -205,6 +268,7 @@
       letter-spacing: 0.12em;
       text-transform: uppercase;
     }
+
     .status-dot {
       width: 8px;
       height: 8px;
@@ -212,6 +276,7 @@
       background: var(--success);
       box-shadow: 0 0 0 4px rgba(110, 240, 176, 0.15);
     }
+
     h1 {
       margin: 12px 0 8px;
       font-size: clamp(30px, 8vw, 42px);
@@ -219,7 +284,14 @@
       letter-spacing: -0.045em;
       font-weight: 800;
     }
-    h1 span { background: linear-gradient(135deg, #ff6b8a, #f73b5e); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+
+    h1 span {
+      background: linear-gradient(135deg, #ff6b8a, #f73b5e);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
     .intro {
       max-width: 430px;
       margin: 0 0 28px;
@@ -228,6 +300,7 @@
       line-height: 1.7;
       font-weight: 500;
     }
+
     label {
       display: block;
       margin-bottom: 8px;
@@ -235,9 +308,11 @@
       font-size: 13px;
       font-weight: 700;
     }
+
     .number-wrap {
       position: relative;
     }
+
     .prefix {
       position: absolute;
       inset: 1px auto 1px 1px;
@@ -253,13 +328,18 @@
       pointer-events: none;
       border-right: 1px solid rgba(255, 255, 255, 0.05);
     }
-    .prefix.visible { display: flex; }
+
+    .prefix.visible {
+      display: flex;
+    }
+
     .flag {
       width: 22px;
       height: 15px;
       object-fit: cover;
       border-radius: 4px;
     }
+
     input {
       width: 100%;
       min-height: 60px;
@@ -272,9 +352,16 @@
       letter-spacing: 0.04em;
       background: rgba(8, 4, 18, 0.6);
       backdrop-filter: blur(4px);
-      transition: border-color 0.2s, box-shadow 0.2s, padding 0.2s;
+      transition:
+        border-color 0.2s,
+        box-shadow 0.2s,
+        padding 0.2s;
     }
-    input.with-prefix { padding-left: 100px; }
+
+    input.with-prefix {
+      padding-left: 100px;
+    }
+
     input::placeholder {
       color: #6b5a81;
       font-family: 'Manrope', sans-serif;
@@ -282,14 +369,17 @@
       letter-spacing: 0;
       font-weight: 500;
     }
+
     input:focus {
       border-color: var(--blood);
       box-shadow: 0 0 0 4px rgba(255, 59, 92, 0.15);
     }
+
     input.invalid {
       border-color: #ff4b6e;
       box-shadow: 0 0 0 4px rgba(255, 59, 92, 0.2);
     }
+
     .helper-row {
       min-height: 24px;
       display: flex;
@@ -299,13 +389,24 @@
       font-size: 11px;
       font-weight: 700;
     }
-    .helper { color: #a088b6; }
-    .helper.error { color: #ff6b8a; }
+
+    .helper {
+      color: #a088b6;
+    }
+
+    .helper.error {
+      color: #ff6b8a;
+    }
+
     .counter {
       color: #8d79b0;
       font-family: 'DM Mono', monospace;
     }
-    .counter.ready { color: var(--success); }
+
+    .counter.ready {
+      color: var(--success);
+    }
+
     .primary {
       width: 100%;
       min-height: 56px;
@@ -316,10 +417,22 @@
       font-weight: 800;
       background: linear-gradient(135deg, #e62e52, #b4123a);
       box-shadow: 0 12px 30px rgba(255, 30, 60, 0.25);
-      transition: transform 0.18s, filter 0.18s, opacity 0.18s;
+      transition:
+        transform 0.18s,
+        filter 0.18s,
+        opacity 0.18s;
     }
-    .primary:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-2px); }
-    .primary:disabled { opacity: 0.6; cursor: wait; }
+
+    .primary:hover:not(:disabled) {
+      filter: brightness(1.1);
+      transform: translateY(-2px);
+    }
+
+    .primary:disabled {
+      opacity: 0.6;
+      cursor: wait;
+    }
+
     .loader {
       display: inline-block;
       width: 16px;
@@ -330,7 +443,13 @@
       border-radius: 50%;
       animation: spin 0.7s linear infinite;
     }
-    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
     .notice {
       display: none;
       margin-top: 16px;
@@ -343,7 +462,11 @@
       font-size: 13px;
       font-weight: 600;
     }
-    .notice.show { display: block; }
+
+    .notice.show {
+      display: block;
+    }
+
     .result {
       display: none;
       margin-top: 28px;
@@ -354,14 +477,30 @@
       backdrop-filter: blur(4px);
       animation: reveal 0.3s ease-out;
     }
-    .result.show { display: block; }
-    @keyframes reveal { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+    .result.show {
+      display: block;
+    }
+
+    @keyframes reveal {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: none;
+      }
+    }
+
     .result-head {
       display: flex;
       align-items: center;
       justify-content: space-between;
       margin-bottom: 14px;
     }
+
     .result-title {
       display: flex;
       align-items: center;
@@ -373,6 +512,7 @@
       letter-spacing: 0.08em;
       text-transform: uppercase;
     }
+
     .code {
       overflow: auto;
       padding: 16px;
@@ -385,6 +525,7 @@
       background: rgba(0, 0, 0, 0.3);
       backdrop-filter: blur(4px);
     }
+
     .copy {
       width: 100%;
       min-height: 44px;
@@ -397,12 +538,17 @@
       font-weight: 800;
       transition: 0.18s;
     }
-    .copy:hover { background: rgba(110, 240, 176, 0.18); }
+
+    .copy:hover {
+      background: rgba(110, 240, 176, 0.18);
+    }
+
     .steps {
       margin-top: 30px;
       padding-top: 24px;
       border-top: 1px solid var(--line);
     }
+
     .steps h2 {
       margin: 0 0 14px;
       font-size: 14px;
@@ -410,6 +556,7 @@
       letter-spacing: -0.01em;
       color: #d4c6f0;
     }
+
     ol {
       display: grid;
       gap: 12px;
@@ -418,6 +565,7 @@
       list-style: none;
       counter-reset: steps;
     }
+
     li {
       display: grid;
       grid-template-columns: 24px minmax(0, 1fr);
@@ -429,6 +577,7 @@
       font-weight: 500;
       counter-increment: steps;
     }
+
     li::before {
       content: counter(steps);
       display: grid;
@@ -441,7 +590,11 @@
       font: 600 12px 'DM Mono', monospace;
       background: rgba(255, 59, 92, 0.04);
     }
-    li strong { color: #f0e5ff; }
+
+    li strong {
+      color: #f0e5ff;
+    }
+
     footer {
       padding: 16px 24px;
       border-top: 1px solid var(--line);
@@ -451,78 +604,332 @@
       text-align: center;
       letter-spacing: 0.03em;
     }
-    @media (max-width: 440px) {
-      .shell { padding: 0; }
-      .card { min-height: 100vh; border-radius: 0; border-inline: 0; }
-      .topbar { padding: 16px 18px; }
-      main { padding: 28px 18px 20px; }
-      footer { padding: 14px 18px; }
-    }
-    @media (prefers-reduced-motion: reduce) {
-      *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
-    }
-  </style>
-</head>
-<body class="modal-open">
-  <!-- SUBSCRIBE MODAL – BLOOD RAVEN STYLE -->
-  <div id="subscribeModal" class="subscribe-modal" role="dialog" aria-modal="true" aria-labelledby="subscribeTitle">
-    <div class="subscribe-card">
-      <div class="subscribe-icon" aria-hidden="true">⚔</div>
-      <h2 id="subscribeTitle">Blood Raven</h2>
-      <p>Subscribe for Mini Bot updates, pairing guides, and exclusive tools. <br> <span style="color:#ff6b8a;">Caseyrhodestech</span></p>
-      <div class="subscribe-actions">
-        <a id="subscribeLink" class="subscribe-button" href="https://www.youtube.com/@Caseyrhodestech" target="_blank" rel="noopener noreferrer">Subscribe on YouTube</a>
-        <button id="dismissSubscribe" class="dismiss-button" type="button">Continue to Mini Bot</button>
-      </div>
-    </div>
-  </div>
 
-  <div class="shell">
-    <section class="card" aria-labelledby="page-title">
-      <header class="topbar">
-        <div class="brand">
-          <span class="logo" aria-hidden="true">🩸</span>
-          Blood Raven <span style="color:#9a84b5; font-weight:600;">/ Mini Bot</span>
-        </div>
-        <a class="channel-link" href="https://www.youtube.com/@Caseyrhodestech" target="_blank" rel="noopener noreferrer">📺 Caseyrhodestech</a>
-      </header>
-      <main>
-        <div class="eyebrow"><span class="status-dot"></span> Pair a device</div>
-        <h1>Get your <span>WhatsApp</span> bot.</h1>
-        <p class="intro">Enter the full international number, no plus sign or spaces. <br> Example: 2347063956321</p>
-        <form id="pairingForm" novalidate>
-          <label for="phoneNumber">WhatsApp number</label>
-          <div class="number-wrap">
-            <span id="prefix" class="prefix"><img id="flag" class="flag" alt=""><span id="countryCode"></span></span>
-            <input id="phoneNumber" inputmode="numeric" autocomplete="tel" placeholder="e.g. 2347063956321" aria-describedby="inputHelp inputError" maxlength="15">
-          </div>
-          <div class="helper-row">
-            <span id="inputHelp" class="helper">Country code required</span>
-            <span id="inputError" class="helper error" role="alert"></span>
-            <span id="counter" class="counter">0 / 15</span>
-          </div>
-          <button id="requestButton" class="primary" type="submit">Request pairing code</button>
-        </form>
-        <div id="notice" class="notice" role="alert"></div>
-        <section id="result" class="result" aria-live="polite" aria-labelledby="resultTitle">
-          <div class="result-head"><h2 id="resultTitle" class="result-title"><span class="status-dot"></span> Pairing code ready</h2></div>
-          <div id="pairingCode" class="code">--------</div>
-          <button id="copyButton" class="copy" type="button">Copy code</button>
-        </section>
-        <section class="steps" aria-labelledby="howTitle">
-          <h2 id="howTitle">Finish in WhatsApp</h2>
-          <ol>
-            <li><span>Open WhatsApp → <strong>Settings → Linked Devices</strong>.</span></li>
-            <li><span>Tap <strong>Link a device</strong> and select the phone number option.</span></li>
-            <li><span>Paste the code above to complete the connection.</span></li>
-          </ol>
-        </section>
-      </main>
-      <footer>Blood Raven · Secure pairing request</footer>
-    </section>
-  </div>
+    @media (max-width: 440px) {
+      .shell {
+        padding: 0;
+      }
+
+      .card {
+        min-height: 100vh;
+        border-radius: 0;
+        border-inline: 0;
+      }
+
+      .topbar {
+        padding: 16px 18px;
+      }
+
+      main {
+        padding: 28px 18px 20px;
+      }
+
+      footer {
+        padding: 14px 18px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style></head><body class="modal-open">  <!-- =========================
+       BLOOD RAVEN AUDIO
+  ========================== --><audio
+id="bloodRavenAudio"
+src="https://files.catbox.moe/lg45qk.mp3"
+preload="auto"
+loop
+playsinline>
+</audio>
+
   <script>
     (() => {
+      const audio = document.getElementById('bloodRavenAudio');
+
+      // Volume level
+      audio.volume = 0.7;
+
+      // Try autoplay immediately.
+      const startAudio = () => {
+        audio.play().catch(() => {
+          // Autoplay may be blocked by the browser.
+        });
+      };
+
+      // Attempt immediately when page loads.
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', startAudio, {
+          once: true
+        });
+      } else {
+        startAudio();
+      }
+
+      // If autoplay is blocked, start after the first interaction.
+      const unlockAudio = () => {
+        audio.play().catch(() => {});
+      };
+
+      document.addEventListener('click', unlockAudio, {
+        once: true,
+        passive: true
+      });
+
+      document.addEventListener('touchstart', unlockAudio, {
+        once: true,
+        passive: true
+      });
+
+      document.addEventListener('keydown', unlockAudio, {
+        once: true
+      });
+    })();
+  </script>  <!-- SUBSCRIBE MODAL – BLOOD RAVEN STYLE -->  <div
+    id="subscribeModal"
+    class="subscribe-modal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="subscribeTitle"><div class="subscribe-card">
+
+  <div class="subscribe-icon" aria-hidden="true">
+    ⚔
+  </div>
+
+  <h2 id="subscribeTitle">
+    Blood Raven
+  </h2>
+
+  <p>
+    Subscribe for Mini Bot updates, pairing guides, and exclusive tools.
+    <br>
+    <span style="color:#ff6b8a;">
+      Caseyrhodestech
+    </span>
+  </p>
+
+  <div class="subscribe-actions">
+
+    <a
+      id="subscribeLink"
+      class="subscribe-button"
+      href="https://www.youtube.com/@Caseyrhodestech"
+      target="_blank"
+      rel="noopener noreferrer">
+      Subscribe on YouTube
+    </a>
+
+    <button
+      id="dismissSubscribe"
+      class="dismiss-button"
+      type="button">
+      Continue to Mini Bot
+    </button>
+
+  </div>
+</div>
+
+  </div>  <div class="shell"><section
+  class="card"
+  aria-labelledby="page-title">
+
+  <header class="topbar">
+
+    <div class="brand">
+      <span
+        class="logo"
+        aria-hidden="true">
+        🩸
+      </span>
+
+      Blood Raven
+
+      <span
+        style="color:#9a84b5; font-weight:600;">
+        / Mini Bot
+      </span>
+    </div>
+
+    <a
+      class="channel-link"
+      href="https://www.youtube.com/@Caseyrhodestech"
+      target="_blank"
+      rel="noopener noreferrer">
+      📺 Caseyrhodestech
+    </a>
+
+  </header>
+
+  <main>
+
+    <div class="eyebrow">
+      <span class="status-dot"></span>
+      Pair a device
+    </div>
+
+    <h1>
+      Get your <span>WhatsApp</span> bot.
+    </h1>
+
+    <p class="intro">
+      Enter the full international number, no plus sign or spaces.
+      <br>
+      Example: 2347063956321
+    </p>
+
+    <form
+      id="pairingForm"
+      novalidate>
+
+      <label for="phoneNumber">
+        WhatsApp number
+      </label>
+
+      <div class="number-wrap">
+
+        <span
+          id="prefix"
+          class="prefix">
+
+          <img
+            id="flag"
+            class="flag"
+            alt="">
+
+          <span id="countryCode"></span>
+
+        </span>
+
+        <input
+          id="phoneNumber"
+          inputmode="numeric"
+          autocomplete="tel"
+          placeholder="e.g. 2347063956321"
+          aria-describedby="inputHelp inputError"
+          maxlength="15">
+
+      </div>
+
+      <div class="helper-row">
+
+        <span
+          id="inputHelp"
+          class="helper">
+          Country code required
+        </span>
+
+        <span
+          id="inputError"
+          class="helper error"
+          role="alert">
+        </span>
+
+        <span
+          id="counter"
+          class="counter">
+          0 / 15
+        </span>
+
+      </div>
+
+      <button
+        id="requestButton"
+        class="primary"
+        type="submit">
+        Request pairing code
+      </button>
+
+    </form>
+
+    <div
+      id="notice"
+      class="notice"
+      role="alert">
+    </div>
+
+    <section
+      id="result"
+      class="result"
+      aria-live="polite"
+      aria-labelledby="resultTitle">
+
+      <div class="result-head">
+
+        <h2
+          id="resultTitle"
+          class="result-title">
+
+          <span class="status-dot"></span>
+          Pairing code ready
+
+        </h2>
+
+      </div>
+
+      <div
+        id="pairingCode"
+        class="code">
+        --------
+      </div>
+
+      <button
+        id="copyButton"
+        class="copy"
+        type="button">
+        Copy code
+      </button>
+
+    </section>
+
+    <section
+      class="steps"
+      aria-labelledby="howTitle">
+
+      <h2 id="howTitle">
+        Finish in WhatsApp
+      </h2>
+
+      <ol>
+
+        <li>
+          <span>
+            Open WhatsApp →
+            <strong>Settings → Linked Devices</strong>.
+          </span>
+        </li>
+
+        <li>
+          <span>
+            Tap <strong>Link a device</strong>
+            and select the phone number option.
+          </span>
+        </li>
+
+        <li>
+          <span>
+            Paste the code above to complete the connection.
+          </span>
+        </li>
+
+      </ol>
+
+    </section>
+
+  </main>
+
+  <footer>
+    Blood Raven · Secure pairing request
+  </footer>
+
+</section>
+
+  </div>  <script>
+    (() => {
+
       const input = document.getElementById('phoneNumber');
       const form = document.getElementById('pairingForm');
       const prefix = document.getElementById('prefix');
@@ -537,107 +944,313 @@
       const copy = document.getElementById('copyButton');
       const subscribeModal = document.getElementById('subscribeModal');
       const dismissSubscribe = document.getElementById('dismissSubscribe');
+
       let detectedCountry = null;
       let subscriptionDismissed = false;
 
-      const onlyDigits = v => v.replace(/\D/g, '').slice(0, 15);
-      const showNotice = m => { notice.textContent = m; notice.classList.add('show'); };
-      const hideNotice = () => notice.classList.remove('show');
-      const setInputError = m => { inputError.textContent = m; input.classList.toggle('invalid', Boolean(m)); };
+      const onlyDigits = v =>
+        v.replace(/\D/g, '').slice(0, 15);
+
+      const showNotice = m => {
+        notice.textContent = m;
+        notice.classList.add('show');
+      };
+
+      const hideNotice = () =>
+        notice.classList.remove('show');
+
+      const setInputError = m => {
+        inputError.textContent = m;
+        input.classList.toggle(
+          'invalid',
+          Boolean(m)
+        );
+      };
 
       function dismissSubscriptionPrompt() {
+
         if (subscriptionDismissed) return;
+
         subscriptionDismissed = true;
+
+        // Make sure the audio is playing after the user taps.
+        const audio =
+          document.getElementById('bloodRavenAudio');
+
+        if (audio) {
+          audio.play().catch(() => {});
+        }
+
         subscribeModal.classList.add('closing');
+
         setTimeout(() => {
+
           subscribeModal.hidden = true;
-          document.body.classList.remove('modal-open');
+
+          document.body.classList.remove(
+            'modal-open'
+          );
+
           input.focus();
+
         }, 220);
       }
 
-      dismissSubscribe.addEventListener('click', dismissSubscriptionPrompt);
-      document.addEventListener('keydown', e => {
-        if (e.key === 'Escape' && !subscribeModal.hidden) dismissSubscriptionPrompt();
-      });
+      dismissSubscribe.addEventListener(
+        'click',
+        dismissSubscriptionPrompt
+      );
+
+      document.addEventListener(
+        'keydown',
+        e => {
+
+          if (
+            e.key === 'Escape' &&
+            !subscribeModal.hidden
+          ) {
+            dismissSubscriptionPrompt();
+          }
+
+        }
+      );
 
       function refreshInput() {
-        input.value = onlyDigits(input.value);
+
+        input.value =
+          onlyDigits(input.value);
+
         const val = input.value;
+
         detectedCountry = null;
-        if (val.length >= 4 && window.libphonenumber) {
+
+        if (
+          val.length >= 4 &&
+          window.libphonenumber
+        ) {
+
           try {
-            const parsed = libphonenumber.parsePhoneNumberWithError(`+${val}`);
+
+            const parsed =
+              libphonenumber.parsePhoneNumberWithError(
+                `+${val}`
+              );
+
             if (parsed.country) {
-              detectedCountry = parsed.country;
-              countryCode.textContent = parsed.country;
-              flag.src = `https://flagsapi.com/${parsed.country}/flat/64.png`;
-              flag.alt = `${parsed.country} flag`;
-              prefix.classList.add('visible');
-              input.classList.add('with-prefix');
+
+              detectedCountry =
+                parsed.country;
+
+              countryCode.textContent =
+                parsed.country;
+
+              flag.src =
+                `https://flagsapi.com/${parsed.country}/flat/64.png`;
+
+              flag.alt =
+                `${parsed.country} flag`;
+
+              prefix.classList.add(
+                'visible'
+              );
+
+              input.classList.add(
+                'with-prefix'
+              );
             }
+
           } catch (_) {}
+
         }
-        if (!detectedCountry) { prefix.classList.remove('visible'); input.classList.remove('with-prefix'); }
-        counter.textContent = `${val.length} / 15`;
-        counter.classList.toggle('ready', val.length >= 10);
+
+        if (!detectedCountry) {
+
+          prefix.classList.remove(
+            'visible'
+          );
+
+          input.classList.remove(
+            'with-prefix'
+          );
+
+        }
+
+        counter.textContent =
+          `${val.length} / 15`;
+
+        counter.classList.toggle(
+          'ready',
+          val.length >= 10
+        );
+
         setInputError('');
         hideNotice();
-        result.classList.remove('show');
+
+        result.classList.remove(
+          'show'
+        );
       }
 
       async function copyCode() {
+
         try {
-          await navigator.clipboard.writeText(code.textContent);
-          copy.textContent = 'Copied ✓';
-          setTimeout(() => { copy.textContent = 'Copy code'; }, 1800);
-        } catch (_) { showNotice('Copy failed. Select and copy manually.'); }
+
+          await navigator.clipboard.writeText(
+            code.textContent
+          );
+
+          copy.textContent =
+            'Copied ✓';
+
+          setTimeout(() => {
+
+            copy.textContent =
+              'Copy code';
+
+          }, 1800);
+
+        } catch (_) {
+
+          showNotice(
+            'Copy failed. Select and copy manually.'
+          );
+
+        }
       }
 
-      input.addEventListener('input', refreshInput);
-      copy.addEventListener('click', copyCode);
-      form.addEventListener('submit', async e => {
-        e.preventDefault();
-        const number = onlyDigits(input.value);
-        if (number.length < 10) { setInputError('Enter at least 10 digits'); input.focus(); return; }
-        setInputError('');
-        hideNotice();
-        result.classList.remove('show');
-        button.disabled = true;
-        button.innerHTML = '<span class="loader"></span>Requesting code…';
-        try {
-          // Use THIS bot's own pairing endpoint instead of an external service.
-          // index.js mounts pair.js at /code, and pair.js returns { code }.
-          const resp = await fetch(`/code?number=${encodeURIComponent(number)}`, {
-            method: 'GET',
-            headers: { 'Accept': 'application/json' },
-            cache: 'no-store'
-          });
+      input.addEventListener(
+        'input',
+        refreshInput
+      );
 
-          const data = await resp.json().catch(() => ({}));
+      copy.addEventListener(
+        'click',
+        copyCode
+      );
 
-          if (!resp.ok || !data?.code) {
-            throw new Error(
-              data?.error ||
-              data?.message ||
-              (data?.status === 'already_connected'
-                ? 'This number is already connected to the bot.'
-                : 'Pairing request failed.')
+      form.addEventListener(
+        'submit',
+        async e => {
+
+          e.preventDefault();
+
+          // Start audio because the user has interacted.
+          const audio =
+            document.getElementById(
+              'bloodRavenAudio'
             );
+
+          if (audio) {
+            audio.play().catch(() => {});
           }
 
-          code.textContent = data.code;
-          result.classList.add('show');
-          requestAnimationFrame(() => result.scrollIntoView({ behavior: 'smooth', block: 'center' }));
-          await copyCode();
-        } catch (err) {
-          showNotice(err.message || 'Service unavailable. Try again shortly.');
-        } finally {
-          button.disabled = false;
-          button.textContent = 'Request pairing code';
+          const number =
+            onlyDigits(input.value);
+
+          if (number.length < 10) {
+
+            setInputError(
+              'Enter at least 10 digits'
+            );
+
+            input.focus();
+
+            return;
+          }
+
+          setInputError('');
+          hideNotice();
+
+          result.classList.remove(
+            'show'
+          );
+
+          button.disabled = true;
+
+          button.innerHTML =
+            '<span class="loader"></span>Requesting code…';
+
+          try {
+
+            /*
+             * IMPORTANT:
+             * The pairing request now goes to
+             * THIS website/bot server.
+             *
+             * No external pairing API is used.
+             */
+            const resp =
+              await fetch(
+                `/code?number=${encodeURIComponent(number)}`,
+                {
+                  method: 'GET',
+                  headers: {
+                    'Accept':
+                      'application/json'
+                  },
+                  cache: 'no-store'
+                }
+              );
+
+            const data =
+              await resp.json()
+                .catch(() => ({}));
+
+            if (
+              !resp.ok ||
+              !data?.code
+            ) {
+
+              throw new Error(
+                data?.error ||
+                data?.message ||
+                (
+                  data?.status ===
+                  'already_connected'
+                    ? 'This number is already connected to the bot.'
+                    : 'Pairing request failed.'
+                )
+              );
+
+            }
+
+            code.textContent =
+              data.code;
+
+            result.classList.add(
+              'show'
+            );
+
+            requestAnimationFrame(() => {
+
+              result.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center'
+              });
+
+            });
+
+            await copyCode();
+
+          } catch (err) {
+
+            showNotice(
+              err.message ||
+              'Service unavailable. Try again shortly.'
+            );
+
+          } finally {
+
+            button.disabled = false;
+
+            button.textContent =
+              'Request pairing code';
+
+          }
+
         }
-      });
+      );
+
     })();
-  </script>
-</body>
+  </script></body>
 </html>
