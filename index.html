@@ -1,26 +1,46 @@
-<!DOCTYPE html><html lang="en">
+<!DOCTYPE html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0d0c12">
-  <title>Blood Raven Mini Bot · Pair</title>  <script>
+
+  <meta property="og:title" content="BLOOD RAVEN · PAIR">
+  <meta property="og:description" content="BLOOD RAVEN by Caseyrhodestech">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <title>Blood Raven Mini Bot · Pair</title>
+
+  <script>
     (function(s){
-      s.dataset.zone='11676227',
-      s.src='https://nap5k.com/tag.min.js'
-    })([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))
-  </script>  <script src="./js/file-0.js"></script>  <style>
+      s.dataset.zone='11676227';
+      s.src='https://nap5k.com/tag.min.js';
+    })([document.documentElement, document.body]
+      .filter(Boolean)
+      .pop()
+      .appendChild(document.createElement('script'))
+    );
+  </script>
+
+  <script src="./js/file-0.js"></script>
+
+  <style>
     @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap');
 
     :root {
       color-scheme: dark;
+
       --bg: #0b0914;
       --card: rgba(18, 15, 30, 0.86);
       --line: rgba(172, 136, 255, 0.18);
+
       --ink: #f0edff;
       --muted: #a79bc2;
+
       --blood: #ff3b5c;
       --blood2: #b71c3a;
       --glow: #f23b6b;
+
       --success: #6ef0b0;
       --blue: #7b6eff;
     }
@@ -30,15 +50,30 @@
       margin: 0;
     }
 
+    html {
+      min-height: 100%;
+      background: var(--bg);
+    }
+
     body {
       min-height: 100vh;
       margin: 0;
       color: var(--ink);
       font-family: 'Manrope', system-ui, sans-serif;
+
       background:
-        radial-gradient(ellipse 70% 50% at 20% 20%, #2a1535 0%, transparent 65%),
-        radial-gradient(ellipse 60% 45% at 90% 80%, #3d1a2b 0%, transparent 55%),
+        radial-gradient(
+          ellipse 70% 50% at 20% 20%,
+          #2a1535 0%,
+          transparent 65%
+        ),
+        radial-gradient(
+          ellipse 60% 45% at 90% 80%,
+          #3d1a2b 0%,
+          transparent 55%
+        ),
         var(--bg);
+
       background-attachment: fixed;
     }
 
@@ -58,6 +93,14 @@
       background: none;
     }
 
+    a {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* =========================
+       MAIN SHELL
+    ========================== */
+
     .shell {
       min-height: 100vh;
       display: grid;
@@ -68,13 +111,18 @@
     .card {
       width: min(100%, 560px);
       overflow: hidden;
+
       border: 1px solid var(--line);
       border-radius: 32px;
+
       background: var(--card);
+
       box-shadow:
         0 30px 70px rgba(0,0,0,0.7),
-        0 0 0 1px rgba(255, 59, 92, 0.08);
+        0 0 0 1px rgba(255,59,92,0.08);
+
       backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
     }
 
     /* =========================
@@ -84,13 +132,24 @@
     .subscribe-modal {
       position: fixed;
       inset: 0;
-      z-index: 20;
+      z-index: 9999;
+
       display: grid;
       place-items: center;
+
       padding: 20px;
-      background: rgba(8, 5, 16, 0.82);
-      backdrop-filter: blur(12px);
-      transition: opacity 0.3s ease, visibility 0.3s ease;
+
+      background: rgba(8,5,16,0.84);
+
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+
+      opacity: 1;
+      visibility: visible;
+
+      transition:
+        opacity .3s ease,
+        visibility .3s ease;
     }
 
     .subscribe-modal[hidden] {
@@ -104,36 +163,173 @@
 
     .subscribe-card {
       position: relative;
-      width: min(100%, 400px);
-      padding: 34px 28px 28px;
-      border: 1px solid rgba(255, 59, 92, 0.35);
+
+      width: min(100%, 410px);
+
+      padding: 32px 26px 26px;
+
+      border: 1px solid rgba(255,59,92,.32);
       border-radius: 30px;
+
       text-align: center;
-      background: linear-gradient(145deg, #1d132b, #0f0b1a);
+
+      background:
+        radial-gradient(
+          circle at 50% 0%,
+          rgba(255,59,92,.15),
+          transparent 43%
+        ),
+        linear-gradient(
+          145deg,
+          #1d132b,
+          #0d0916
+        );
+
       box-shadow:
-        0 30px 70px rgba(0,0,0,0.8),
-        0 0 30px rgba(255, 40, 80, 0.15);
+        0 35px 90px rgba(0,0,0,.85),
+        0 0 45px rgba(255,40,80,.12);
+
+      animation:
+        popupIn .38s
+        cubic-bezier(.2,.8,.2,1);
     }
 
-    .subscribe-icon {
+    @keyframes popupIn {
+      from {
+        opacity: 0;
+        transform:
+          translateY(18px)
+          scale(.94);
+      }
+
+      to {
+        opacity: 1;
+        transform:
+          translateY(0)
+          scale(1);
+      }
+    }
+
+    /* =========================
+       POPUP CLOSE BUTTON
+    ========================== */
+
+    .subscribe-close {
+      position: absolute;
+
+      top: 13px;
+      right: 13px;
+
+      width: 39px;
+      height: 39px;
+
       display: grid;
       place-items: center;
-      width: 64px;
-      height: 64px;
-      margin: 0 auto 14px;
-      border-radius: 20px;
-      background: linear-gradient(135deg, #ff2d55, #b0123a);
-      color: #fff;
-      font-size: 28px;
-      box-shadow: 0 12px 30px rgba(255, 28, 60, 0.35);
+
+      border-radius: 50%;
+
+      color: #bcaed0;
+
+      background:
+        rgba(255,255,255,.055);
+
+      border:
+        1px solid
+        rgba(255,255,255,.08);
+
+      font-size: 24px;
+      font-weight: 400;
+      line-height: 1;
+
+      transition:
+        background .18s,
+        color .18s,
+        transform .18s;
     }
+
+    .subscribe-close:hover {
+      color: #fff;
+
+      background:
+        rgba(255,59,92,.18);
+
+      border-color:
+        rgba(255,59,92,.3);
+
+      transform:
+        rotate(90deg);
+    }
+
+    .subscribe-close:active {
+      transform:
+        scale(.92)
+        rotate(90deg);
+    }
+
+    /* =========================
+       BLOOD RAVEN ICON
+    ========================== */
+
+    .subscribe-icon {
+      position: relative;
+
+      width: 74px;
+      height: 74px;
+
+      margin: 0 auto 16px;
+
+      display: grid;
+      place-items: center;
+
+      border-radius: 22px;
+
+      background:
+        linear-gradient(
+          145deg,
+          #ff365e,
+          #9e1234
+        );
+
+      box-shadow:
+        0 14px 35px
+        rgba(255,28,60,.3),
+
+        inset 0 1px 0
+        rgba(255,255,255,.2);
+
+      overflow: hidden;
+    }
+
+    .subscribe-icon svg {
+      width: 47px;
+      height: 47px;
+
+      filter:
+        drop-shadow(
+          0 5px 10px
+          rgba(0,0,0,.3)
+        );
+    }
+
+    /* =========================
+       POPUP TITLE
+    ========================== */
 
     .subscribe-card h2 {
       margin: 0 0 8px;
-      font-size: 26px;
+
+      font-size: 27px;
       font-weight: 800;
-      letter-spacing: -0.02em;
-      background: linear-gradient(135deg, #ff7b9c, #ff3b5c);
+
+      letter-spacing: -.025em;
+
+      background:
+        linear-gradient(
+          135deg,
+          #ff8ba5,
+          #ff365d
+        );
+
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
@@ -141,59 +337,193 @@
 
     .subscribe-card p {
       margin: 0 0 22px;
+
       color: #b7a8d4;
+
       font-size: 14px;
       line-height: 1.6;
       font-weight: 500;
     }
 
+    /* =========================
+       POPUP ACTIONS
+    ========================== */
+
     .subscribe-actions {
       display: grid;
-      gap: 10px;
+      gap: 11px;
     }
 
     .subscribe-button {
+      position: relative;
+
       display: flex;
       align-items: center;
-      justify-content: center;
-      gap: 10px;
-      min-height: 52px;
-      border-radius: 40px;
+
+      gap: 13px;
+
+      min-height: 61px;
+
+      padding:
+        8px 17px;
+
+      border-radius: 17px;
+
       color: #fff;
-      font-size: 15px;
-      font-weight: 800;
       text-decoration: none;
-      background: linear-gradient(135deg, #e62e52, #b71a3a);
-      box-shadow: 0 10px 28px rgba(255, 40, 70, 0.3);
-      transition: transform 0.18s, box-shadow 0.18s;
+
+      text-align: left;
+
+      background:
+        linear-gradient(
+          135deg,
+          #e82f52,
+          #a91437
+        );
+
+      box-shadow:
+        0 12px 28px
+        rgba(255,40,70,.25);
+
+      transition:
+        transform .18s,
+        box-shadow .18s,
+        filter .18s;
     }
 
     .subscribe-button:hover {
-      transform: scale(1.02);
-      box-shadow: 0 14px 34px rgba(255, 40, 70, 0.45);
+      transform:
+        translateY(-2px);
+
+      filter:
+        brightness(1.08);
+
+      box-shadow:
+        0 16px 35px
+        rgba(255,40,70,.38);
     }
 
-    .subscribe-button::after {
-      content: "↗";
-      font-size: 18px;
-      opacity: 0.8;
+    .subscribe-button:active {
+      transform:
+        scale(.98);
     }
+
+    /* =========================
+       SOCIAL ICON BOX
+    ========================== */
+
+    .social-icon {
+      flex:
+        0 0 44px;
+
+      width: 44px;
+      height: 44px;
+
+      display: grid;
+      place-items: center;
+
+      border-radius: 13px;
+
+      background:
+        rgba(255,255,255,.13);
+
+      border:
+        1px solid
+        rgba(255,255,255,.16);
+
+      box-shadow:
+        inset 0 1px 0
+        rgba(255,255,255,.16);
+    }
+
+    .social-icon svg {
+      width: 26px;
+      height: 26px;
+
+      display: block;
+    }
+
+    .social-text {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+
+      min-width: 0;
+    }
+
+    .social-title {
+      font-size: 14px;
+      font-weight: 800;
+
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .social-subtitle {
+      font-size: 11px;
+
+      color:
+        rgba(255,255,255,.7);
+
+      font-weight: 600;
+    }
+
+    /* =========================
+       WHATSAPP CHANNEL BUTTON
+    ========================== */
+
+    .channel-button {
+      background:
+        linear-gradient(
+          135deg,
+          #168d55,
+          #086c3d
+        );
+
+      box-shadow:
+        0 12px 28px
+        rgba(18,160,91,.2);
+    }
+
+    .channel-button:hover {
+      box-shadow:
+        0 16px 35px
+        rgba(18,160,91,.34);
+    }
+
+    /* =========================
+       CONTINUE BUTTON
+    ========================== */
 
     .dismiss-button {
-      min-height: 44px;
-      border-radius: 30px;
+      min-height: 47px;
+
+      border-radius: 15px;
+
       color: #b8a6d6;
+
       font-size: 13px;
       font-weight: 700;
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid rgba(255, 255, 255, 0.04);
-      transition: 0.18s;
+
+      background:
+        rgba(255,255,255,.035);
+
+      border:
+        1px solid
+        rgba(255,255,255,.07);
+
+      transition: .18s;
     }
 
     .dismiss-button:hover {
       color: #fff;
-      background: rgba(255, 59, 92, 0.12);
-      border-color: rgba(255, 59, 92, 0.2);
+
+      background:
+        rgba(255,59,92,.1);
+
+      border-color:
+        rgba(255,59,92,.2);
     }
 
     /* =========================
@@ -204,50 +534,85 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
+
       padding: 20px 24px;
-      border-bottom: 1px solid var(--line);
+
+      border-bottom:
+        1px solid var(--line);
     }
 
     .brand {
       display: flex;
       align-items: center;
+
       gap: 12px;
+
       font-size: 15px;
       font-weight: 800;
-      letter-spacing: -0.02em;
+
+      letter-spacing: -.02em;
     }
 
     .logo {
       display: grid;
       place-items: center;
+
       width: 34px;
       height: 34px;
+
       border-radius: 12px;
-      background: linear-gradient(135deg, #ff4b6e, #b81a3e);
+
+      background:
+        linear-gradient(
+          135deg,
+          #ff4b6e,
+          #b81a3e
+        );
+
       color: #fff;
+
       font-size: 18px;
-      box-shadow: 0 6px 18px rgba(255, 30, 60, 0.3);
+
+      box-shadow:
+        0 6px 18px
+        rgba(255,30,60,.3);
     }
 
     .channel-link {
       display: flex;
       align-items: center;
+
       gap: 6px;
+
       color: #c6b5e6;
+
       font-size: 12px;
       font-weight: 700;
+
       text-decoration: none;
+
       padding: 6px 12px;
+
       border-radius: 30px;
-      background: rgba(255, 59, 92, 0.06);
-      border: 1px solid rgba(255, 59, 92, 0.12);
-      transition: 0.18s;
+
+      background:
+        rgba(255,59,92,.06);
+
+      border:
+        1px solid
+        rgba(255,59,92,.12);
+
+      transition: .18s;
     }
 
     .channel-link:hover {
       color: #fff;
-      background: rgba(255, 59, 92, 0.15);
-      border-color: rgba(255, 59, 92, 0.3);
+
+      background:
+        rgba(255,59,92,.15);
+
+      border-color:
+        rgba(255,59,92,.3);
     }
 
     /* =========================
@@ -261,32 +626,55 @@
     .eyebrow {
       display: inline-flex;
       align-items: center;
+
       gap: 8px;
+
       color: #b8a5da;
+
       font-size: 11px;
       font-weight: 800;
-      letter-spacing: 0.12em;
+
+      letter-spacing: .12em;
+
       text-transform: uppercase;
     }
 
     .status-dot {
       width: 8px;
       height: 8px;
+
       border-radius: 50%;
-      background: var(--success);
-      box-shadow: 0 0 0 4px rgba(110, 240, 176, 0.15);
+
+      background:
+        var(--success);
+
+      box-shadow:
+        0 0 0 4px
+        rgba(110,240,176,.15);
     }
 
     h1 {
-      margin: 12px 0 8px;
-      font-size: clamp(30px, 8vw, 42px);
+      margin:
+        12px 0 8px;
+
+      font-size:
+        clamp(30px,8vw,42px);
+
       line-height: 1.1;
-      letter-spacing: -0.045em;
+
+      letter-spacing: -.045em;
+
       font-weight: 800;
     }
 
     h1 span {
-      background: linear-gradient(135deg, #ff6b8a, #f73b5e);
+      background:
+        linear-gradient(
+          135deg,
+          #ff6b8a,
+          #f73b5e
+        );
+
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
@@ -294,8 +682,12 @@
 
     .intro {
       max-width: 430px;
-      margin: 0 0 28px;
+
+      margin:
+        0 0 28px;
+
       color: var(--muted);
+
       font-size: 14px;
       line-height: 1.7;
       font-weight: 500;
@@ -303,8 +695,11 @@
 
     label {
       display: block;
+
       margin-bottom: 8px;
+
       color: #ddd1f5;
+
       font-size: 13px;
       font-weight: 700;
     }
@@ -315,18 +710,39 @@
 
     .prefix {
       position: absolute;
-      inset: 1px auto 1px 1px;
+
+      inset:
+        1px auto 1px 1px;
+
       display: none;
       align-items: center;
+
       gap: 8px;
-      padding: 0 12px 0 10px;
-      border-radius: 40px 0 0 40px;
+
+      padding:
+        0 12px 0 10px;
+
+      border-radius:
+        40px 0 0 40px;
+
       color: #ddd1f5;
-      font: 500 13px 'DM Mono', monospace;
-      background: rgba(20, 12, 40, 0.7);
-      backdrop-filter: blur(4px);
+
+      font:
+        500 13px
+        'DM Mono',
+        monospace;
+
+      background:
+        rgba(20,12,40,.7);
+
+      backdrop-filter:
+        blur(4px);
+
       pointer-events: none;
-      border-right: 1px solid rgba(255, 255, 255, 0.05);
+
+      border-right:
+        1px solid
+        rgba(255,255,255,.05);
     }
 
     .prefix.visible {
@@ -336,26 +752,46 @@
     .flag {
       width: 22px;
       height: 15px;
+
       object-fit: cover;
+
       border-radius: 4px;
     }
 
     input {
       width: 100%;
+
       min-height: 60px;
-      padding: 0 18px;
-      border: 1px solid #3d2a56;
+
+      padding:
+        0 18px;
+
+      border:
+        1px solid #3d2a56;
+
       border-radius: 40px;
+
       outline: none;
+
       color: #fff;
-      font: 500 16px 'DM Mono', monospace;
-      letter-spacing: 0.04em;
-      background: rgba(8, 4, 18, 0.6);
-      backdrop-filter: blur(4px);
+
+      font:
+        500 16px
+        'DM Mono',
+        monospace;
+
+      letter-spacing: .04em;
+
+      background:
+        rgba(8,4,18,.6);
+
+      backdrop-filter:
+        blur(4px);
+
       transition:
-        border-color 0.2s,
-        box-shadow 0.2s,
-        padding 0.2s;
+        border-color .2s,
+        box-shadow .2s,
+        padding .2s;
     }
 
     input.with-prefix {
@@ -364,29 +800,50 @@
 
     input::placeholder {
       color: #6b5a81;
-      font-family: 'Manrope', sans-serif;
+
+      font-family:
+        'Manrope',
+        sans-serif;
+
       font-size: 14px;
+
       letter-spacing: 0;
+
       font-weight: 500;
     }
 
     input:focus {
-      border-color: var(--blood);
-      box-shadow: 0 0 0 4px rgba(255, 59, 92, 0.15);
+      border-color:
+        var(--blood);
+
+      box-shadow:
+        0 0 0 4px
+        rgba(255,59,92,.15);
     }
 
     input.invalid {
-      border-color: #ff4b6e;
-      box-shadow: 0 0 0 4px rgba(255, 59, 92, 0.2);
+      border-color:
+        #ff4b6e;
+
+      box-shadow:
+        0 0 0 4px
+        rgba(255,59,92,.2);
     }
 
     .helper-row {
       min-height: 24px;
+
       display: flex;
+
       justify-content: space-between;
+
       gap: 10px;
-      padding: 8px 4px 0;
+
+      padding:
+        8px 4px 0;
+
       font-size: 11px;
+
       font-weight: 700;
     }
 
@@ -400,48 +857,79 @@
 
     .counter {
       color: #8d79b0;
-      font-family: 'DM Mono', monospace;
+
+      font-family:
+        'DM Mono',
+        monospace;
     }
 
     .counter.ready {
-      color: var(--success);
+      color:
+        var(--success);
     }
 
     .primary {
       width: 100%;
+
       min-height: 56px;
+
       margin-top: 20px;
+
       border-radius: 40px;
+
       color: #fff;
+
       font-size: 15px;
       font-weight: 800;
-      background: linear-gradient(135deg, #e62e52, #b4123a);
-      box-shadow: 0 12px 30px rgba(255, 30, 60, 0.25);
+
+      background:
+        linear-gradient(
+          135deg,
+          #e62e52,
+          #b4123a
+        );
+
+      box-shadow:
+        0 12px 30px
+        rgba(255,30,60,.25);
+
       transition:
-        transform 0.18s,
-        filter 0.18s,
-        opacity 0.18s;
+        transform .18s,
+        filter .18s,
+        opacity .18s;
     }
 
     .primary:hover:not(:disabled) {
       filter: brightness(1.1);
-      transform: translateY(-2px);
+
+      transform:
+        translateY(-2px);
     }
 
     .primary:disabled {
-      opacity: 0.6;
+      opacity: .6;
       cursor: wait;
     }
 
     .loader {
       display: inline-block;
+
       width: 16px;
       height: 16px;
+
       margin-right: 10px;
-      border: 2.5px solid rgba(255,255,255,0.25);
-      border-top-color: #fff;
+
+      border:
+        2.5px solid
+        rgba(255,255,255,.25);
+
+      border-top-color:
+        #fff;
+
       border-radius: 50%;
-      animation: spin 0.7s linear infinite;
+
+      animation:
+        spin .7s linear infinite;
     }
 
     @keyframes spin {
@@ -452,13 +940,26 @@
 
     .notice {
       display: none;
+
       margin-top: 16px;
-      padding: 12px 16px;
-      border: 1px solid rgba(255, 59, 92, 0.25);
+
+      padding:
+        12px 16px;
+
+      border:
+        1px solid
+        rgba(255,59,92,.25);
+
       border-radius: 30px;
+
       color: #ffccd6;
-      background: rgba(100, 20, 40, 0.2);
-      backdrop-filter: blur(4px);
+
+      background:
+        rgba(100,20,40,.2);
+
+      backdrop-filter:
+        blur(4px);
+
       font-size: 13px;
       font-weight: 600;
     }
@@ -469,13 +970,26 @@
 
     .result {
       display: none;
+
       margin-top: 28px;
-      padding: 22px 20px 20px;
-      border: 1px solid rgba(110, 240, 176, 0.2);
+
+      padding:
+        22px 20px 20px;
+
+      border:
+        1px solid
+        rgba(110,240,176,.2);
+
       border-radius: 28px;
-      background: rgba(20, 60, 50, 0.08);
-      backdrop-filter: blur(4px);
-      animation: reveal 0.3s ease-out;
+
+      background:
+        rgba(20,60,50,.08);
+
+      backdrop-filter:
+        blur(4px);
+
+      animation:
+        reveal .3s ease-out;
     }
 
     .result.show {
@@ -485,7 +999,8 @@
     @keyframes reveal {
       from {
         opacity: 0;
-        transform: translateY(10px);
+        transform:
+          translateY(10px);
       }
 
       to {
@@ -498,97 +1013,163 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
+
       margin-bottom: 14px;
     }
 
     .result-title {
       display: flex;
       align-items: center;
+
       gap: 8px;
+
       margin: 0;
+
       color: #bcf5dc;
+
       font-size: 12px;
       font-weight: 800;
-      letter-spacing: 0.08em;
+
+      letter-spacing: .08em;
+
       text-transform: uppercase;
     }
 
     .code {
       overflow: auto;
+
       padding: 16px;
-      border: 1px solid rgba(110, 240, 176, 0.15);
+
+      border:
+        1px solid
+        rgba(110,240,176,.15);
+
       border-radius: 40px;
+
       color: #f0edff;
-      font: 700 clamp(24px, 8vw, 36px) 'DM Mono', monospace;
-      letter-spacing: 0.1em;
+
+      font:
+        700 clamp(24px,8vw,36px)
+        'DM Mono',
+        monospace;
+
+      letter-spacing: .1em;
+
       text-align: center;
-      background: rgba(0, 0, 0, 0.3);
-      backdrop-filter: blur(4px);
+
+      background:
+        rgba(0,0,0,.3);
+
+      backdrop-filter:
+        blur(4px);
     }
 
     .copy {
       width: 100%;
+
       min-height: 44px;
+
       margin-top: 14px;
+
       border-radius: 40px;
+
       color: #d6f7ea;
-      background: rgba(110, 240, 176, 0.08);
-      border: 1px solid rgba(110, 240, 176, 0.15);
+
+      background:
+        rgba(110,240,176,.08);
+
+      border:
+        1px solid
+        rgba(110,240,176,.15);
+
       font-size: 13px;
       font-weight: 800;
-      transition: 0.18s;
+
+      transition: .18s;
     }
 
     .copy:hover {
-      background: rgba(110, 240, 176, 0.18);
+      background:
+        rgba(110,240,176,.18);
     }
 
     .steps {
       margin-top: 30px;
+
       padding-top: 24px;
-      border-top: 1px solid var(--line);
+
+      border-top:
+        1px solid var(--line);
     }
 
     .steps h2 {
-      margin: 0 0 14px;
+      margin:
+        0 0 14px;
+
       font-size: 14px;
       font-weight: 800;
-      letter-spacing: -0.01em;
+
+      letter-spacing: -.01em;
+
       color: #d4c6f0;
     }
 
     ol {
       display: grid;
+
       gap: 12px;
+
       padding: 0;
       margin: 0;
+
       list-style: none;
+
       counter-reset: steps;
     }
 
     li {
       display: grid;
-      grid-template-columns: 24px minmax(0, 1fr);
+
+      grid-template-columns:
+        24px minmax(0,1fr);
+
       gap: 12px;
+
       align-items: start;
+
       color: #b2a2cc;
+
       font-size: 13px;
       line-height: 1.55;
+
       font-weight: 500;
+
       counter-increment: steps;
     }
 
     li::before {
       content: counter(steps);
+
       display: grid;
       place-items: center;
+
       width: 24px;
       height: 24px;
-      border: 1px solid #4e3a6b;
+
+      border:
+        1px solid #4e3a6b;
+
       border-radius: 40px;
+
       color: #f0d6ff;
-      font: 600 12px 'DM Mono', monospace;
-      background: rgba(255, 59, 92, 0.04);
+
+      font:
+        600 12px
+        'DM Mono',
+        monospace;
+
+      background:
+        rgba(255,59,92,.04);
     }
 
     li strong {
@@ -596,472 +1177,1073 @@
     }
 
     footer {
-      padding: 16px 24px;
-      border-top: 1px solid var(--line);
+      padding:
+        16px 24px;
+
+      border-top:
+        1px solid var(--line);
+
       color: #7b699b;
+
       font-size: 11px;
       font-weight: 600;
+
       text-align: center;
-      letter-spacing: 0.03em;
+
+      letter-spacing: .03em;
     }
 
+    /* =========================
+       MOBILE
+    ========================== */
+
     @media (max-width: 440px) {
+
       .shell {
         padding: 0;
       }
 
       .card {
         min-height: 100vh;
+
         border-radius: 0;
+
         border-inline: 0;
       }
 
       .topbar {
-        padding: 16px 18px;
+        padding:
+          16px 18px;
       }
 
       main {
-        padding: 28px 18px 20px;
+        padding:
+          28px 18px 20px;
       }
 
       footer {
-        padding: 14px 18px;
+        padding:
+          14px 18px;
+      }
+
+      .subscribe-modal {
+        padding: 16px;
+      }
+
+      .subscribe-card {
+        padding:
+          30px 20px 22px;
+
+        border-radius: 27px;
+      }
+
+      .subscribe-icon {
+        width: 68px;
+        height: 68px;
+      }
+
+      .social-title {
+        font-size: 13px;
       }
     }
 
     @media (prefers-reduced-motion: reduce) {
+
       *,
       *::before,
       *::after {
-        animation-duration: 0.01ms !important;
-        transition-duration: 0.01ms !important;
+        animation-duration: .01ms !important;
+        transition-duration: .01ms !important;
       }
     }
-  </style></head><body class="modal-open">  <!-- =========================
+  </style>
+</head>
+
+<body class="modal-open">
+
+  <!-- =========================
        BLOOD RAVEN AUDIO
-  ========================== --><audio
-id="bloodRavenAudio"
-src="https://files.catbox.moe/lg45qk.mp3"
-preload="auto"
-loop
-playsinline>
-</audio>
+  ========================== -->
+
+  <audio
+    id="bloodRavenAudio"
+    src="https://files.catbox.moe/lg45qk.mp3"
+    preload="auto"
+    loop
+    playsinline>
+  </audio>
+
 
   <script>
     (() => {
-      const audio = document.getElementById('bloodRavenAudio');
 
-      // Volume level
+      const audio =
+        document.getElementById(
+          'bloodRavenAudio'
+        );
+
       audio.volume = 0.7;
 
-      // Try autoplay immediately.
       const startAudio = () => {
-        audio.play().catch(() => {
-          // Autoplay may be blocked by the browser.
-        });
+        audio.play().catch(() => {});
       };
 
-      // Attempt immediately when page loads.
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', startAudio, {
-          once: true
-        });
+      if (
+        document.readyState ===
+        'loading'
+      ) {
+
+        document.addEventListener(
+          'DOMContentLoaded',
+          startAudio,
+          { once: true }
+        );
+
       } else {
+
         startAudio();
+
       }
 
-      // If autoplay is blocked, start after the first interaction.
       const unlockAudio = () => {
         audio.play().catch(() => {});
       };
 
-      document.addEventListener('click', unlockAudio, {
-        once: true,
-        passive: true
-      });
+      document.addEventListener(
+        'click',
+        unlockAudio,
+        {
+          once: true,
+          passive: true
+        }
+      );
 
-      document.addEventListener('touchstart', unlockAudio, {
-        once: true,
-        passive: true
-      });
+      document.addEventListener(
+        'touchstart',
+        unlockAudio,
+        {
+          once: true,
+          passive: true
+        }
+      );
 
-      document.addEventListener('keydown', unlockAudio, {
-        once: true
-      });
+      document.addEventListener(
+        'keydown',
+        unlockAudio,
+        {
+          once: true
+        }
+      );
+
     })();
-  </script>  <!-- SUBSCRIBE MODAL – BLOOD RAVEN STYLE -->  <div
+  </script>
+
+
+  <!-- =========================
+       BLOOD RAVEN SUBSCRIBE POPUP
+  ========================== -->
+
+  <div
     id="subscribeModal"
     class="subscribe-modal"
     role="dialog"
     aria-modal="true"
-    aria-labelledby="subscribeTitle"><div class="subscribe-card">
+    aria-labelledby="subscribeTitle"
+  >
 
-  <div class="subscribe-icon" aria-hidden="true">
-    ⚔
-  </div>
+    <div class="subscribe-card">
 
-  <h2 id="subscribeTitle">
-    Blood Raven
-  </h2>
-
-  <p>
-    Subscribe for Mini Bot updates, pairing guides, and exclusive tools.
-    <br>
-    <span style="color:#ff6b8a;">
-      Caseyrhodestech
-    </span>
-  </p>
-
-  <div class="subscribe-actions">
-
-    <a
-      id="subscribeLink"
-      class="subscribe-button"
-      href="https://www.youtube.com/@Caseyrhodestech"
-      target="_blank"
-      rel="noopener noreferrer">
-      Subscribe on YouTube
-    </a>
-
-    <button
-      id="dismissSubscribe"
-      class="dismiss-button"
-      type="button">
-      Continue to Mini Bot
-    </button>
-
-  </div>
-</div>
-
-  </div>  <div class="shell"><section
-  class="card"
-  aria-labelledby="page-title">
-
-  <header class="topbar">
-
-    <div class="brand">
-      <span
-        class="logo"
-        aria-hidden="true">
-        🤖
-      </span>
-
-      Blood Raven
-
-      <span
-        style="color:#9a84b5; font-weight:600;">
-        / Mini Bot
-      </span>
-    </div>
-
-    <a
-      class="channel-link"
-      href="https://www.youtube.com/@Caseyrhodestech"
-      target="_blank"
-      rel="noopener noreferrer">
-      BLOOD RAVEN.
-    </a>
-
-  </header>
-
-  <main>
-
-    <div class="eyebrow">
-      <span class="status-dot"></span>
-      Pair a device
-    </div>
-
-    <h1>
-      Get your <span>WhatsApp</span> bot.
-    </h1>
-
-    <p class="intro">
-      Enter the full international number, no plus sign or spaces.
-      <br>
-      Example: 2547063956321
-    </p>
-
-    <form
-      id="pairingForm"
-      novalidate>
-
-      <label for="phoneNumber">
-        WhatsApp number
-      </label>
-
-      <div class="number-wrap">
-
-        <span
-          id="prefix"
-          class="prefix">
-
-          <img
-            id="flag"
-            class="flag"
-            alt="">
-
-          <span id="countryCode"></span>
-
-        </span>
-
-        <input
-          id="phoneNumber"
-          inputmode="numeric"
-          autocomplete="tel"
-          placeholder="e.g. 2547063956321"
-          aria-describedby="inputHelp inputError"
-          maxlength="15">
-
-      </div>
-
-      <div class="helper-row">
-
-        <span
-          id="inputHelp"
-          class="helper">
-          Country code required
-        </span>
-
-        <span
-          id="inputError"
-          class="helper error"
-          role="alert">
-        </span>
-
-        <span
-          id="counter"
-          class="counter">
-          0 / 15
-        </span>
-
-      </div>
+      <!-- CLOSE X -->
 
       <button
-        id="requestButton"
-        class="primary"
-        type="submit">
-        Request pairing code
+        id="closeSubscribe"
+        class="subscribe-close"
+        type="button"
+        aria-label="Close popup"
+      >
+        ×
       </button>
 
-    </form>
 
-    <div
-      id="notice"
-      class="notice"
-      role="alert">
-    </div>
-
-    <section
-      id="result"
-      class="result"
-      aria-live="polite"
-      aria-labelledby="resultTitle">
-
-      <div class="result-head">
-
-        <h2
-          id="resultTitle"
-          class="result-title">
-
-          <span class="status-dot"></span>
-          Pairing code ready
-
-        </h2>
-
-      </div>
+      <!-- BLOOD RAVEN LOGO -->
 
       <div
-        id="pairingCode"
-        class="code">
-        --------
+        class="subscribe-icon"
+        aria-hidden="true"
+      >
+
+        <svg
+          viewBox="0 0 64 64"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+
+          <!-- Raven head -->
+          <path
+            d="
+              M14 45
+              C18 37 17 27 23 20
+              C29 13 40 12 48 17
+              L42 23
+              C49 24 54 29 55 35
+              C50 33 46 33 42 35
+              C39 43 32 49 22 51
+              C18 51 15 49 14 45Z
+            "
+            fill="#fff"
+          />
+
+          <!-- Beak -->
+          <path
+            d="
+              M43 23
+              L59 26
+              L47 31
+              L41 29Z
+            "
+            fill="#f7d8df"
+          />
+
+          <!-- Eye -->
+          <circle
+            cx="42"
+            cy="23"
+            r="2.7"
+            fill="#ff3158"
+          />
+
+          <!-- Wing -->
+          <path
+            d="
+              M18 41
+              C25 37 31 35 38 35
+              C34 43 27 48 19 48
+              C17 47 16 44 18 41Z
+            "
+            fill="#d9d2df"
+          />
+
+          <!-- Raven feather -->
+          <path
+            d="
+              M28 18
+              C23 13 18 12 13 13
+              C18 16 20 21 21 25
+              Z
+            "
+            fill="#eee8f3"
+          />
+
+        </svg>
+
       </div>
 
-      <button
-        id="copyButton"
-        class="copy"
-        type="button">
-        Copy code
-      </button>
 
-    </section>
-
-    <section
-      class="steps"
-      aria-labelledby="howTitle">
-
-      <h2 id="howTitle">
-        Finish in WhatsApp
+      <h2 id="subscribeTitle">
+        Blood Raven
       </h2>
 
-      <ol>
 
-        <li>
-          <span>
-            Open WhatsApp →
-            <strong>Settings → Linked Devices</strong>.
+      <p>
+        Follow our channels for Mini Bot
+        updates, pairing guides and new tools.
+        <br>
+
+        <span style="color:#ff6b8a;">
+          Caseyrhodestech
+        </span>
+      </p>
+
+
+      <div class="subscribe-actions">
+
+
+        <!-- =========================
+             YOUTUBE
+        ========================== -->
+
+        <a
+          class="subscribe-button"
+          href="https://www.youtube.com/@Caseyrhodestech"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Follow Blood Raven on YouTube"
+        >
+
+          <span
+            class="social-icon"
+            aria-hidden="true"
+          >
+
+            <svg
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+
+              <!-- YouTube body -->
+
+              <path
+                fill="#fff"
+                d="
+                  M23.5 6.2
+                  A3.1 3.1 0 0 0 21.3 4
+                  C19.4 3.5 12 3.5 12 3.5
+                  S4.6 3.5 2.7 4
+                  A3.1 3.1 0 0 0 .5 6.2
+                  C0 8.1 0 12 0 12
+                  S0 15.9 .5 17.8
+                  A3.1 3.1 0 0 0 2.7 20
+                  C4.6 20.5 12 20.5 12 20.5
+                  S19.4 20.5 21.3 20
+                  A3.1 3.1 0 0 0 23.5 17.8
+                  C24 15.9 24 12 24 12
+                  S24 8.1 23.5 6.2Z
+                "
+              />
+
+              <!-- Play -->
+
+              <path
+                fill="#e82f52"
+                d="
+                  M9.6 8.2
+                  L16.5 12
+                  L9.6 15.8
+                  Z
+                "
+              />
+
+            </svg>
+
           </span>
-        </li>
 
-        <li>
-          <span>
-            Tap <strong>Link a device</strong>
-            and select the phone number option.
+
+          <span class="social-text">
+
+            <span class="social-title">
+              Follow on YouTube
+            </span>
+
+            <span class="social-subtitle">
+              Caseyrhodestech
+            </span>
+
           </span>
-        </li>
 
-        <li>
-          <span>
-            Paste the code above to complete the connection.
+        </a>
+
+
+        <!-- =========================
+             WHATSAPP CHANNEL
+        ========================== -->
+
+        <a
+          class="subscribe-button channel-button"
+          href="YOUR_WHATSAPP_CHANNEL_LINK"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Follow Blood Raven WhatsApp Channel"
+        >
+
+          <span
+            class="social-icon"
+            aria-hidden="true"
+          >
+
+            <svg
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+
+              <!-- WhatsApp circle -->
+
+              <path
+                fill="#fff"
+                d="
+                  M20.5 3.5
+                  A11.9 11.9 0 0 0 12.05 0
+                  C5.47 0 .12 5.34 .12 11.92
+                  C.12 14.02 .67 16.07 1.72 17.87
+                  L.02 24
+                  L6.29 22.36
+                  A11.9 11.9 0 0 0 12.05 23.83
+                  H12.06
+                  C18.64 23.83 23.99 18.48 23.99 11.91
+                  C23.99 8.73 22.75 5.74 20.5 3.5Z
+                "
+              />
+
+              <!-- Phone -->
+
+              <path
+                fill="#086c3d"
+                d="
+                  M17.84 14.43
+                  C17.53 14.27 16.01 13.53 15.73 13.43
+                  C15.45 13.33 15.24 13.27 15.03 13.59
+                  C14.82 13.9 14.23 14.59 14.05 14.79
+                  C13.87 15
+                  C13.69 15.03 13.51 15.07 13.2 14.91
+                  C12.89 14.75 11.88 14.42 10.69 13.35
+                  C9.76 12.52 9.13 11.5 8.95 11.19
+                  C8.77 10.88 8.93 10.71 9.09 10.55
+                  C9.23 10.41 9.4 10.19 9.56 10.01
+                  C9.72 9.83 9.77 9.7 9.87 9.49
+                  C9.97 9.28 9.92 9.1 9.84 8.94
+                  C9.76 8.78 9.14 7.25 8.88 6.62
+                  C8.63 6.01 8.38 6.09 8.18 6.08
+                  H7.58
+                  C7.37 6.08 7.03 6.16 6.75 6.47
+                  C6.47 6.78 5.66 7.53 5.66 9.05
+                  C5.66 10.57 6.78 12.04 6.93 12.25
+                  C7.09 12.46 9.13 15.61 12.26 16.96
+                  C13.01 17.28 13.59 17.47 14.04 17.61
+                  C14.79 17.85 15.47 17.82 16.01 17.74
+                  C16.61 17.65 17.84 16.99 18.1 16.26
+                  C18.36 15.53 18.36 14.91 18.28 14.78
+                  C18.2 14.65 18.15 14.59 17.84 14.43Z
+                "
+              />
+
+            </svg>
+
           </span>
-        </li>
 
-      </ol>
+
+          <span class="social-text">
+
+            <span class="social-title">
+              Follow WhatsApp Channel
+            </span>
+
+            <span class="social-subtitle">
+              Blood Raven Updates
+            </span>
+
+          </span>
+
+        </a>
+
+
+        <!-- CONTINUE -->
+
+        <button
+          id="dismissSubscribe"
+          class="dismiss-button"
+          type="button"
+        >
+          Continue to Mini Bot
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <!-- =========================
+       MAIN PAIRING CARD
+  ========================== -->
+
+  <div class="shell">
+
+    <section
+      class="card"
+      aria-labelledby="page-title"
+    >
+
+      <header class="topbar">
+
+        <div class="brand">
+
+          <span
+            class="logo"
+            aria-hidden="true"
+          >
+            🤖
+          </span>
+
+          Blood Raven
+
+          <span
+            style="
+              color:#9a84b5;
+              font-weight:600;
+            "
+          >
+            / Mini Bot
+          </span>
+
+        </div>
+
+
+        <a
+          class="channel-link"
+          href="https://www.youtube.com/@Caseyrhodestech"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          BLOOD RAVEN.
+        </a>
+
+      </header>
+
+
+      <main>
+
+        <div class="eyebrow">
+
+          <span class="status-dot"></span>
+
+          Pair a device
+
+        </div>
+
+
+        <h1 id="page-title">
+
+          Get your
+          <span>WhatsApp</span>
+          bot.
+
+        </h1>
+
+
+        <p class="intro">
+
+          Enter the full international number,
+          no plus sign or spaces.
+
+          <br>
+
+          Example:
+          2547063956321
+
+        </p>
+
+
+        <form
+          id="pairingForm"
+          novalidate
+        >
+
+          <label for="phoneNumber">
+            WhatsApp number
+          </label>
+
+
+          <div class="number-wrap">
+
+            <span
+              id="prefix"
+              class="prefix"
+            >
+
+              <img
+                id="flag"
+                class="flag"
+                alt=""
+              >
+
+              <span id="countryCode"></span>
+
+            </span>
+
+
+            <input
+              id="phoneNumber"
+              inputmode="numeric"
+              autocomplete="tel"
+              placeholder="e.g. 2547063956321"
+              aria-describedby="inputHelp inputError"
+              maxlength="15"
+            >
+
+          </div>
+
+
+          <div class="helper-row">
+
+            <span
+              id="inputHelp"
+              class="helper"
+            >
+              Country code required
+            </span>
+
+
+            <span
+              id="inputError"
+              class="helper error"
+              role="alert"
+            ></span>
+
+
+            <span
+              id="counter"
+              class="counter"
+            >
+              0 / 15
+            </span>
+
+          </div>
+
+
+          <button
+            id="requestButton"
+            class="primary"
+            type="submit"
+          >
+            Request pairing code
+          </button>
+
+        </form>
+
+
+        <div
+          id="notice"
+          class="notice"
+          role="alert"
+        ></div>
+
+
+        <section
+          id="result"
+          class="result"
+          aria-live="polite"
+          aria-labelledby="resultTitle"
+        >
+
+          <div class="result-head">
+
+            <h2
+              id="resultTitle"
+              class="result-title"
+            >
+
+              <span class="status-dot"></span>
+
+              Pairing code ready
+
+            </h2>
+
+          </div>
+
+
+          <div
+            id="pairingCode"
+            class="code"
+          >
+            --------
+          </div>
+
+
+          <button
+            id="copyButton"
+            class="copy"
+            type="button"
+          >
+            Copy code
+          </button>
+
+        </section>
+
+
+        <section
+          class="steps"
+          aria-labelledby="howTitle"
+        >
+
+          <h2 id="howTitle">
+            Finish in WhatsApp
+          </h2>
+
+
+          <ol>
+
+            <li>
+
+              <span>
+
+                Open WhatsApp →
+                <strong>
+                  Settings → Linked Devices
+                </strong>.
+
+              </span>
+
+            </li>
+
+
+            <li>
+
+              <span>
+
+                Tap
+                <strong>
+                  Link a device
+                </strong>
+
+                and select the phone number option.
+
+              </span>
+
+            </li>
+
+
+            <li>
+
+              <span>
+
+                Paste the code above to complete
+                the connection.
+
+              </span>
+
+            </li>
+
+          </ol>
+
+        </section>
+
+      </main>
+
+
+      <footer>
+
+        Blood Raven · Secure pairing request
+
+      </footer>
 
     </section>
 
-  </main>
+  </div>
 
-  <footer>
-    Blood Raven · Secure pairing request
-  </footer>
 
-</section>
+  <!-- =========================
+       PAGE JAVASCRIPT
+  ========================== -->
 
-  </div>  <script>
+  <script>
     (() => {
 
-      const input = document.getElementById('phoneNumber');
-      const form = document.getElementById('pairingForm');
-      const prefix = document.getElementById('prefix');
-      const flag = document.getElementById('flag');
-      const countryCode = document.getElementById('countryCode');
-      const counter = document.getElementById('counter');
-      const inputError = document.getElementById('inputError');
-      const notice = document.getElementById('notice');
-      const button = document.getElementById('requestButton');
-      const result = document.getElementById('result');
-      const code = document.getElementById('pairingCode');
-      const copy = document.getElementById('copyButton');
-      const subscribeModal = document.getElementById('subscribeModal');
-      const dismissSubscribe = document.getElementById('dismissSubscribe');
+      'use strict';
+
+
+      /* =========================
+         ELEMENTS
+      ========================== */
+
+      const input =
+        document.getElementById(
+          'phoneNumber'
+        );
+
+      const form =
+        document.getElementById(
+          'pairingForm'
+        );
+
+      const prefix =
+        document.getElementById(
+          'prefix'
+        );
+
+      const flag =
+        document.getElementById(
+          'flag'
+        );
+
+      const countryCode =
+        document.getElementById(
+          'countryCode'
+        );
+
+      const counter =
+        document.getElementById(
+          'counter'
+        );
+
+      const inputError =
+        document.getElementById(
+          'inputError'
+        );
+
+      const notice =
+        document.getElementById(
+          'notice'
+        );
+
+      const button =
+        document.getElementById(
+          'requestButton'
+        );
+
+      const result =
+        document.getElementById(
+          'result'
+        );
+
+      const code =
+        document.getElementById(
+          'pairingCode'
+        );
+
+      const copy =
+        document.getElementById(
+          'copyButton'
+        );
+
+      const subscribeModal =
+        document.getElementById(
+          'subscribeModal'
+        );
+
+      const dismissSubscribe =
+        document.getElementById(
+          'dismissSubscribe'
+        );
+
+      const closeSubscribe =
+        document.getElementById(
+          'closeSubscribe'
+        );
+
 
       let detectedCountry = null;
-      let subscriptionDismissed = false;
 
-      const onlyDigits = v =>
-        v.replace(/\D/g, '').slice(0, 15);
+      let subscriptionDismissed =
+        false;
 
-      const showNotice = m => {
-        notice.textContent = m;
-        notice.classList.add('show');
+
+      /* =========================
+         HELPERS
+      ========================== */
+
+      const onlyDigits = value =>
+        String(value || '')
+          .replace(/\D/g, '')
+          .slice(0, 15);
+
+
+      const showNotice = message => {
+
+        notice.textContent =
+          message;
+
+        notice.classList.add(
+          'show'
+        );
+
       };
 
-      const hideNotice = () =>
-        notice.classList.remove('show');
 
-      const setInputError = m => {
-        inputError.textContent = m;
+      const hideNotice = () => {
+
+        notice.classList.remove(
+          'show'
+        );
+
+      };
+
+
+      const setInputError = message => {
+
+        inputError.textContent =
+          message;
+
         input.classList.toggle(
           'invalid',
-          Boolean(m)
+          Boolean(message)
         );
+
       };
+
+
+      /* =========================
+         CLOSE POPUP
+      ========================== */
 
       function dismissSubscriptionPrompt() {
 
-        if (subscriptionDismissed) return;
-
-        subscriptionDismissed = true;
-
-        // Make sure the audio is playing after the user taps.
-        const audio =
-          document.getElementById('bloodRavenAudio');
-
-        if (audio) {
-          audio.play().catch(() => {});
+        if (
+          subscriptionDismissed
+        ) {
+          return;
         }
 
-        subscribeModal.classList.add('closing');
+        subscriptionDismissed =
+          true;
+
+
+        /* Unlock audio */
+
+        const audio =
+          document.getElementById(
+            'bloodRavenAudio'
+          );
+
+        if (audio) {
+
+          audio.play()
+            .catch(() => {});
+
+        }
+
+
+        /* Close animation */
+
+        subscribeModal.classList.add(
+          'closing'
+        );
+
 
         setTimeout(() => {
 
-          subscribeModal.hidden = true;
+          subscribeModal.hidden =
+            true;
 
           document.body.classList.remove(
             'modal-open'
           );
 
-          input.focus();
+          if (input) {
+            input.focus();
+          }
 
         }, 220);
+
       }
+
+
+      /* Continue button */
 
       dismissSubscribe.addEventListener(
         'click',
         dismissSubscriptionPrompt
       );
 
+
+      /* X button */
+
+      closeSubscribe.addEventListener(
+        'click',
+        dismissSubscriptionPrompt
+      );
+
+
+      /* Escape key */
+
       document.addEventListener(
         'keydown',
-        e => {
+        event => {
 
           if (
-            e.key === 'Escape' &&
+            event.key === 'Escape' &&
             !subscribeModal.hidden
           ) {
+
             dismissSubscriptionPrompt();
+
           }
 
         }
       );
 
+
+      /* Click outside card */
+
+      subscribeModal.addEventListener(
+        'click',
+        event => {
+
+          if (
+            event.target ===
+            subscribeModal
+          ) {
+
+            dismissSubscriptionPrompt();
+
+          }
+
+        }
+      );
+
+
+      /* =========================
+         COUNTRY DETECTION
+      ========================== */
+
       function refreshInput() {
 
         input.value =
-          onlyDigits(input.value);
+          onlyDigits(
+            input.value
+          );
 
-        const val = input.value;
 
-        detectedCountry = null;
+        const value =
+          input.value;
+
+
+        detectedCountry =
+          null;
+
 
         if (
-          val.length >= 4 &&
+          value.length >= 4 &&
           window.libphonenumber
         ) {
 
           try {
 
             const parsed =
-              libphonenumber.parsePhoneNumberWithError(
-                `+${val}`
-              );
+              libphonenumber
+                .parsePhoneNumberWithError(
+                  `+${value}`
+                );
 
-            if (parsed.country) {
+
+            if (
+              parsed &&
+              parsed.country
+            ) {
 
               detectedCountry =
                 parsed.country;
 
+
               countryCode.textContent =
                 parsed.country;
+
 
               flag.src =
                 `https://flagsapi.com/${parsed.country}/flat/64.png`;
 
+
               flag.alt =
                 `${parsed.country} flag`;
+
 
               prefix.classList.add(
                 'visible'
               );
 
+
               input.classList.add(
                 'with-prefix'
               );
+
             }
 
-          } catch (_) {}
+          } catch (_) {
+
+            /* Invalid/incomplete number */
+
+          }
 
         }
+
 
         if (!detectedCountry) {
 
@@ -1075,32 +2257,59 @@ playsinline>
 
         }
 
+
         counter.textContent =
-          `${val.length} / 15`;
+          `${value.length} / 15`;
+
 
         counter.classList.toggle(
           'ready',
-          val.length >= 10
+          value.length >= 10
         );
 
+
         setInputError('');
+
         hideNotice();
+
 
         result.classList.remove(
           'show'
         );
+
       }
 
+
+      /* =========================
+         COPY PAIRING CODE
+      ========================== */
+
       async function copyCode() {
+
+        const value =
+          code.textContent.trim();
+
+
+        if (
+          !value ||
+          value === '--------'
+        ) {
+
+          return;
+
+        }
+
 
         try {
 
           await navigator.clipboard.writeText(
-            code.textContent
+            value
           );
+
 
           copy.textContent =
             'Copied ✓';
+
 
           setTimeout(() => {
 
@@ -1109,6 +2318,7 @@ playsinline>
 
           }, 1800);
 
+
         } catch (_) {
 
           showNotice(
@@ -1116,38 +2326,59 @@ playsinline>
           );
 
         }
+
       }
+
 
       input.addEventListener(
         'input',
         refreshInput
       );
 
+
       copy.addEventListener(
         'click',
         copyCode
       );
 
+
+      /* =========================
+         PAIRING REQUEST
+      ========================== */
+
       form.addEventListener(
         'submit',
-        async e => {
+        async event => {
 
-          e.preventDefault();
+          event.preventDefault();
 
-          // Start audio because the user has interacted.
+
+          /* Start audio after interaction */
+
           const audio =
             document.getElementById(
               'bloodRavenAudio'
             );
 
           if (audio) {
-            audio.play().catch(() => {});
+
+            audio.play()
+              .catch(() => {});
+
           }
 
-          const number =
-            onlyDigits(input.value);
 
-          if (number.length < 10) {
+          const number =
+            onlyDigits(
+              input.value
+            );
+
+
+          /* Validate number */
+
+          if (
+            number.length < 10
+          ) {
 
             setInputError(
               'Enter at least 10 digits'
@@ -1156,48 +2387,64 @@ playsinline>
             input.focus();
 
             return;
+
           }
 
+
           setInputError('');
+
           hideNotice();
+
 
           result.classList.remove(
             'show'
           );
 
-          button.disabled = true;
+
+          button.disabled =
+            true;
+
 
           button.innerHTML =
             '<span class="loader"></span>Requesting code…';
+
 
           try {
 
             /*
              * IMPORTANT:
-             * The pairing request now goes to
-             * THIS website/bot server.
              *
-             * No external pairing API is used.
+             * Pairing still goes directly
+             * to your own website server.
+             *
+             * No external pairing API
+             * is used here.
              */
-            const resp =
+
+            const response =
               await fetch(
                 `/code?number=${encodeURIComponent(number)}`,
                 {
                   method: 'GET',
+
                   headers: {
                     'Accept':
                       'application/json'
                   },
+
                   cache: 'no-store'
                 }
               );
 
+
             const data =
-              await resp.json()
+              await response
+                .json()
                 .catch(() => ({}));
 
+
             if (
-              !resp.ok ||
+              !response.ok ||
               !data?.code
             ) {
 
@@ -1207,19 +2454,28 @@ playsinline>
                 (
                   data?.status ===
                   'already_connected'
+
                     ? 'This number is already connected to the bot.'
+
                     : 'Pairing request failed.'
                 )
               );
 
             }
 
+
+            /* Display pairing code */
+
             code.textContent =
               data.code;
+
 
             result.classList.add(
               'show'
             );
+
+
+            /* Scroll to code */
 
             requestAnimationFrame(() => {
 
@@ -1230,18 +2486,25 @@ playsinline>
 
             });
 
+
+            /* Automatically copy */
+
             await copyCode();
 
-          } catch (err) {
+
+          } catch (error) {
 
             showNotice(
-              err.message ||
+              error?.message ||
               'Service unavailable. Try again shortly.'
             );
 
+
           } finally {
 
-            button.disabled = false;
+            button.disabled =
+              false;
+
 
             button.textContent =
               'Request pairing code';
@@ -1251,6 +2514,15 @@ playsinline>
         }
       );
 
+
+      /* =========================
+         INITIAL STATE
+      ========================== */
+
+      refreshInput();
+
     })();
-  </script></body>
+  </script>
+
+</body>
 </html>
