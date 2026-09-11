@@ -1,1918 +1,1470 @@
-<!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE html><html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0d0c12">
-
-<meta property="og:title" content="BLOOD RAVEN · MINI BOT">
-<meta property="og:description" content="BLOOD RAVEN by Caseyrhodestech">
-<meta name="twitter:card" content="summary_large_image">
-
-<title>Blood Raven Mini Bot · Dashboard</title>
-
-<!-- Ads intentionally removed -->
-<script src="./js/file-0.js"></script>
-
-<style>
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&display=swap');
-
-:root{
-  color-scheme:dark;
-  --bg:#090711;
-  --card:rgba(19,15,31,.88);
-  --card2:rgba(25,18,39,.72);
-  --line:rgba(172,136,255,.16);
-  --ink:#f4efff;
-  --muted:#a79bbb;
-  --blood:#ff3b5c;
-  --blood2:#a91336;
-  --success:#6ef0b0;
-  --blue:#8175ff;
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#07050d">
+<meta name="description" content="BLOOD RAVEN MINI BOT — Secure WhatsApp device pairing.">
+<title>BLOOD RAVEN MINI · PAIR</title><script src="https://cdn.tailwindcss.com"></script><link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"><link rel="stylesheet"
+href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css"><style>
+* {
+    box-sizing: border-box;
 }
 
-*{
-  box-sizing:border-box;
-  margin:0;
+html {
+    scroll-behavior: smooth;
 }
 
-html{
-  min-height:100%;
-  scroll-behavior:smooth;
-  background:var(--bg);
+body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: 'Inter', sans-serif;
+    color: #f5f5f5;
+    background:
+        radial-gradient(circle at 20% 20%, rgba(236,72,153,.14), transparent 30%),
+        radial-gradient(circle at 80% 80%, rgba(99,102,241,.15), transparent 30%),
+        #050409;
+    overflow-x: hidden;
 }
 
-body{
-  min-height:100vh;
-  color:var(--ink);
-  font-family:'Manrope',system-ui,sans-serif;
-  background:
-    radial-gradient(ellipse 70% 50% at 10% 5%,#32162f 0%,transparent 62%),
-    radial-gradient(ellipse 60% 50% at 95% 90%,#35152b 0%,transparent 58%),
-    var(--bg);
-  background-attachment:fixed;
+/* Background */
+#particle-canvas {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    pointer-events: none;
 }
 
-body.modal-open{
-  overflow:hidden;
+.background-glow {
+    position: fixed;
+    width: 420px;
+    height: 420px;
+    border-radius: 50%;
+    filter: blur(100px);
+    opacity: .14;
+    pointer-events: none;
+    z-index: 0;
 }
 
-button,input{
-  font:inherit;
+.glow-one {
+    background: #ec4899;
+    top: -180px;
+    left: -160px;
 }
 
-button{
-  border:0;
-  cursor:pointer;
+.glow-two {
+    background: #6366f1;
+    bottom: -200px;
+    right: -160px;
 }
 
-a{
-  color:inherit;
-  text-decoration:none;
+/* Main */
+.page-wrapper {
+    position: relative;
+    z-index: 10;
+    width: 100%;
+    min-height: 100vh;
+    padding: 80px 16px 35px;
+    display: flex;
+    justify-content: center;
 }
 
-/* =========================
-   LOADING SCREEN
-========================= */
-
-#loadingScreen{
-  position:fixed;
-  inset:0;
-  z-index:20000;
-  display:grid;
-  place-items:center;
-  background:
-    radial-gradient(circle at 50% 35%,rgba(255,59,92,.16),transparent 35%),
-    #090711;
-  transition:opacity .55s ease,visibility .55s ease;
+.main-content {
+    width: 100%;
+    max-width: 520px;
 }
 
-#loadingScreen.hide{
-  opacity:0;
-  visibility:hidden;
-  pointer-events:none;
+/* Top navigation */
+.topbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 16px;
+    z-index: 1000;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    pointer-events: none;
 }
 
-.loading-box{
-  width:min(90%,390px);
-  text-align:center;
+.topbar a,
+.topbar button {
+    pointer-events: auto;
 }
 
-.loading-logo{
-  width:92px;
-  height:92px;
-  margin:0 auto 22px;
-  display:grid;
-  place-items:center;
-  border-radius:29px;
-  font-size:43px;
-  background:linear-gradient(145deg,#ff4164,#92132f);
-  box-shadow:
-    0 0 0 8px rgba(255,59,92,.06),
-    0 20px 55px rgba(255,30,60,.3);
-  animation:logoPulse 1.5s ease-in-out infinite;
+.owner-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #aaa;
+    font-size: 12px;
+    text-decoration: none;
+    transition: .25s;
 }
 
-@keyframes logoPulse{
-  50%{
-    transform:translateY(-5px) scale(1.035);
+.owner-link:hover {
+    color: #fff;
+}
+
+/* Refresh */
+.refresh-btn {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,.1);
+    background: rgba(15,15,20,.65);
+    backdrop-filter: blur(15px);
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 8px 25px rgba(0,0,0,.3);
+    transition: .25s;
+}
+
+.refresh-btn:hover {
+    transform: rotate(90deg) scale(1.05);
+    border-color: rgba(236,72,153,.5);
+}
+
+/* Brand */
+.brand {
+    text-align: center;
+    margin-bottom: 22px;
+}
+
+.brand-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+}
+
+.logo {
+    width: 48px;
+    height: 48px;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 2px solid rgba(236,72,153,.6);
     box-shadow:
-      0 0 0 14px rgba(255,59,92,.025),
-      0 25px 65px rgba(255,30,60,.42);
-  }
-}
-
-.loading-title{
-  font-size:28px;
-  font-weight:800;
-  letter-spacing:-.04em;
-}
-
-.loading-title span{
-  color:var(--blood);
-}
-
-.loading-sub{
-  margin-top:7px;
-  color:#9689ab;
-  font-size:12px;
-  font-weight:700;
-  letter-spacing:.12em;
-  text-transform:uppercase;
-}
-
-.loading-bar{
-  height:4px;
-  margin:27px auto 13px;
-  width:min(280px,75%);
-  overflow:hidden;
-  border-radius:20px;
-  background:rgba(255,255,255,.07);
-}
-
-.loading-progress{
-  width:0;
-  height:100%;
-  border-radius:20px;
-  background:linear-gradient(90deg,#b7193e,#ff526f);
-  animation:loadProgress 1.7s ease forwards;
-}
-
-@keyframes loadProgress{
-  to{width:100%}
-}
-
-.loading-status{
-  color:#796b8d;
-  font:500 11px 'DM Mono',monospace;
-}
-
-/* =========================
-   APP
-========================= */
-
-.app{
-  width:min(100%,760px);
-  margin:auto;
-  padding:20px 16px 35px;
-}
-
-.card{
-  overflow:hidden;
-  border:1px solid var(--line);
-  border-radius:30px;
-  background:var(--card);
-  box-shadow:
-    0 30px 80px rgba(0,0,0,.65),
-    0 0 0 1px rgba(255,59,92,.045);
-  backdrop-filter:blur(16px);
-  -webkit-backdrop-filter:blur(16px);
-}
-
-/* =========================
-   TOPBAR
-========================= */
-
-.topbar{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:15px;
-  padding:18px 21px;
-  border-bottom:1px solid var(--line);
-}
-
-.brand{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  min-width:0;
-  font-size:14px;
-  font-weight:800;
-}
-
-.logo{
-  width:38px;
-  height:38px;
-  flex:0 0 38px;
-  display:grid;
-  place-items:center;
-  border-radius:13px;
-  background:linear-gradient(135deg,#ff4c6d,#a61538);
-  box-shadow:0 8px 23px rgba(255,30,60,.25);
-}
-
-.brand small{
-  color:#9a8caf;
-  font-weight:600;
-}
-
-.channel-link{
-  padding:8px 12px;
-  border:1px solid rgba(255,59,92,.14);
-  border-radius:30px;
-  color:#cdbde5;
-  background:rgba(255,59,92,.06);
-  font-size:10px;
-  font-weight:800;
-  white-space:nowrap;
-}
-
-/* =========================
-   CONTENT
-========================= */
-
-main{
-  padding:27px 22px;
-}
-
-.hero{
-  position:relative;
-  padding:5px 0 24px;
-}
-
-.eyebrow{
-  display:inline-flex;
-  align-items:center;
-  gap:8px;
-  color:#b9a8d3;
-  font-size:10px;
-  font-weight:800;
-  letter-spacing:.14em;
-  text-transform:uppercase;
-}
-
-.status-dot{
-  width:8px;
-  height:8px;
-  border-radius:50%;
-  background:var(--success);
-  box-shadow:0 0 0 4px rgba(110,240,176,.1);
-}
-
-.hero h1{
-  margin-top:13px;
-  font-size:clamp(34px,8vw,50px);
-  line-height:1.03;
-  letter-spacing:-.055em;
-}
-
-.hero h1 span{
-  color:var(--blood);
-  text-shadow:0 0 30px rgba(255,59,92,.18);
-}
-
-.hero p{
-  max-width:580px;
-  margin-top:12px;
-  color:var(--muted);
-  font-size:14px;
-  line-height:1.7;
-}
-
-/* =========================
-   DASHBOARD
-========================= */
-
-.dashboard{
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:11px;
-  margin:3px 0 25px;
-}
-
-.stat{
-  min-height:105px;
-  padding:16px 13px;
-  border:1px solid rgba(172,136,255,.12);
-  border-radius:20px;
-  background:rgba(255,255,255,.025);
-}
-
-.stat-icon{
-  font-size:20px;
-}
-
-.stat-value{
-  margin-top:10px;
-  color:#f6efff;
-  font-size:18px;
-  font-weight:800;
-  letter-spacing:-.03em;
-}
-
-.stat-label{
-  margin-top:3px;
-  color:#897b9e;
-  font-size:10px;
-  font-weight:700;
-}
-
-.info-panel{
-  margin-bottom:24px;
-  padding:19px;
-  border:1px solid rgba(255,59,92,.13);
-  border-radius:23px;
-  background:
-    linear-gradient(135deg,rgba(255,59,92,.075),rgba(255,255,255,.015));
-}
-
-.info-head{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  margin-bottom:10px;
-}
-
-.info-icon{
-  width:38px;
-  height:38px;
-  display:grid;
-  place-items:center;
-  border-radius:12px;
-  background:rgba(255,59,92,.1);
-  border:1px solid rgba(255,59,92,.14);
-}
-
-.info-panel h2{
-  font-size:14px;
-  font-weight:800;
-}
-
-.info-panel p{
-  color:#9e91b4;
-  font-size:12px;
-  line-height:1.7;
-}
-
-.feature-grid{
-  display:grid;
-  grid-template-columns:repeat(2,1fr);
-  gap:10px;
-  margin-bottom:28px;
-}
-
-.feature{
-  padding:15px;
-  border:1px solid rgba(172,136,255,.11);
-  border-radius:19px;
-  background:rgba(255,255,255,.022);
-}
-
-.feature strong{
-  display:block;
-  margin-bottom:5px;
-  color:#e7ddf5;
-  font-size:12px;
-}
-
-.feature span{
-  color:#8f829f;
-  font-size:11px;
-  line-height:1.5;
-}
-
-/* =========================
-   NAVIGATION
-========================= */
-
-.nav-buttons{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:10px;
-  margin-bottom:28px;
-}
-
-.nav-btn{
-  min-height:53px;
-  border-radius:17px;
-  color:#d9cfea;
-  background:rgba(255,255,255,.035);
-  border:1px solid rgba(255,255,255,.07);
-  font-size:13px;
-  font-weight:800;
-  transition:.2s;
-}
-
-.nav-btn:hover{
-  transform:translateY(-2px);
-  background:rgba(255,59,92,.09);
-  border-color:rgba(255,59,92,.2);
-}
-
-.nav-btn.active{
-  color:#fff;
-  background:linear-gradient(135deg,#e72e52,#ad1239);
-  box-shadow:0 12px 30px rgba(255,30,60,.2);
-}
-
-/* =========================
-   PAIR SECTION
-========================= */
-
-.section{
-  display:none;
-}
-
-.section.active{
-  display:block;
-  animation:sectionIn .3s ease;
-}
-
-@keyframes sectionIn{
-  from{
-    opacity:0;
-    transform:translateY(8px);
-  }
-  to{
-    opacity:1;
-    transform:none;
-  }
-}
-
-.pair-head{
-  margin-bottom:20px;
-}
-
-.pair-head h2{
-  font-size:22px;
-  letter-spacing:-.035em;
-}
-
-.pair-head p{
-  margin-top:6px;
-  color:#9487a8;
-  font-size:12px;
-  line-height:1.6;
-}
-
-label{
-  display:block;
-  margin-bottom:8px;
-  color:#ddd2f2;
-  font-size:12px;
-  font-weight:800;
-}
-
-input{
-  width:100%;
-  min-height:58px;
-  padding:0 17px;
-  outline:none;
-  border:1px solid #3b2b50;
-  border-radius:40px;
-  color:#fff;
-  background:rgba(7,4,15,.65);
-  font:500 15px 'DM Mono',monospace;
-  letter-spacing:.04em;
-  transition:.2s;
-}
-
-input::placeholder{
-  color:#685b79;
-  font-family:Manrope,sans-serif;
-  letter-spacing:0;
-}
-
-input:focus{
-  border-color:var(--blood);
-  box-shadow:0 0 0 4px rgba(255,59,92,.12);
-}
-
-input.invalid{
-  border-color:#ff4b6e;
-}
-
-.helper-row{
-  min-height:25px;
-  display:flex;
-  justify-content:space-between;
-  gap:10px;
-  padding:7px 4px 0;
-  font-size:10px;
-  font-weight:700;
-}
-
-.helper{
-  color:#8d7da0;
-}
-
-.error{
-  color:#ff718b;
-}
-
-.counter{
-  color:#806f98;
-  font-family:'DM Mono',monospace;
-}
-
-.counter.ready{
-  color:var(--success);
-}
-
-.primary{
-  width:100%;
-  min-height:56px;
-  margin-top:18px;
-  border-radius:40px;
-  color:#fff;
-  background:linear-gradient(135deg,#e62e52,#ae1238);
-  box-shadow:0 13px 32px rgba(255,30,60,.22);
-  font-size:14px;
-  font-weight:800;
-  transition:.2s;
-}
-
-.primary:hover:not(:disabled){
-  transform:translateY(-2px);
-  filter:brightness(1.08);
-}
-
-.primary:disabled{
-  opacity:.6;
-  cursor:wait;
-}
-
-.loader{
-  display:inline-block;
-  width:15px;
-  height:15px;
-  margin-right:9px;
-  vertical-align:-3px;
-  border:2px solid rgba(255,255,255,.25);
-  border-top-color:#fff;
-  border-radius:50%;
-  animation:spin .7s linear infinite;
-}
-
-@keyframes spin{
-  to{transform:rotate(360deg)}
-}
-
-.notice{
-  display:none;
-  margin-top:15px;
-  padding:13px 15px;
-  border:1px solid rgba(255,59,92,.22);
-  border-radius:17px;
-  color:#ffcbd5;
-  background:rgba(100,20,40,.17);
-  font-size:12px;
-  font-weight:600;
-}
-
-.notice.show{
-  display:block;
-}
-
-.result{
-  display:none;
-  margin-top:22px;
-  padding:20px;
-  border:1px solid rgba(110,240,176,.18);
-  border-radius:24px;
-  background:rgba(20,70,55,.07);
-}
-
-.result.show{
-  display:block;
-  animation:sectionIn .3s ease;
-}
-
-.result-title{
-  margin-bottom:13px;
-  color:#bdf3d9;
-  font-size:11px;
-  font-weight:800;
-  letter-spacing:.08em;
-  text-transform:uppercase;
-}
-
-.code{
-  overflow:auto;
-  padding:16px;
-  border:1px solid rgba(110,240,176,.13);
-  border-radius:35px;
-  color:#f2edff;
-  background:rgba(0,0,0,.25);
-  text-align:center;
-  font:700 clamp(23px,7vw,34px) 'DM Mono',monospace;
-  letter-spacing:.1em;
-}
-
-.copy{
-  width:100%;
-  min-height:44px;
-  margin-top:12px;
-  border:1px solid rgba(110,240,176,.14);
-  border-radius:35px;
-  color:#c9f3df;
-  background:rgba(110,240,176,.07);
-  font-size:12px;
-  font-weight:800;
-}
-
-.steps{
-  margin-top:25px;
-  padding-top:21px;
-  border-top:1px solid var(--line);
-}
-
-.steps h3{
-  margin-bottom:14px;
-  font-size:13px;
-}
-
-ol{
-  display:grid;
-  gap:11px;
-  padding:0;
-  list-style:none;
-  counter-reset:step;
-}
-
-.steps li{
-  display:grid;
-  grid-template-columns:24px 1fr;
-  gap:10px;
-  color:#9e91b1;
-  font-size:11px;
-  line-height:1.6;
-  counter-increment:step;
-}
-
-.steps li::before{
-  content:counter(step);
-  width:24px;
-  height:24px;
-  display:grid;
-  place-items:center;
-  border:1px solid #49365f;
-  border-radius:50%;
-  color:#f2d8ff;
-  font:600 10px 'DM Mono',monospace;
-}
-
-.steps strong{
-  color:#eee4fb;
-}
-
-/* =========================
-   POPUP
-========================= */
-
-.subscribe-modal{
-  position:fixed;
-  inset:0;
-  z-index:10000;
-  display:grid;
-  place-items:center;
-  padding:18px;
-  background:rgba(7,4,14,.86);
-  backdrop-filter:blur(15px);
-  -webkit-backdrop-filter:blur(15px);
-}
-
-.subscribe-modal[hidden]{
-  display:none;
-}
-
-.subscribe-modal.closing{
-  opacity:0;
-  visibility:hidden;
-  transition:.22s;
-}
-
-.subscribe-card{
-  position:relative;
-  width:min(100%,410px);
-  padding:30px 23px 23px;
-  border:1px solid rgba(255,59,92,.3);
-  border-radius:29px;
-  text-align:center;
-  background:
-    radial-gradient(circle at 50% 0%,rgba(255,59,92,.15),transparent 43%),
-    linear-gradient(145deg,#1d132b,#0d0916);
-  box-shadow:
-    0 35px 90px rgba(0,0,0,.85),
-    0 0 45px rgba(255,40,80,.12);
-  animation:popupIn .38s cubic-bezier(.2,.8,.2,1);
-}
-
-@keyframes popupIn{
-  from{
-    opacity:0;
-    transform:translateY(18px) scale(.94);
-  }
-  to{
-    opacity:1;
-    transform:none;
-  }
-}
-
-.subscribe-close{
-  position:absolute;
-  top:12px;
-  right:12px;
-  width:38px;
-  height:38px;
-  display:grid;
-  place-items:center;
-  border-radius:50%;
-  color:#bcaed0;
-  background:rgba(255,255,255,.055);
-  border:1px solid rgba(255,255,255,.08);
-  font-size:23px;
-  transition:.18s;
-}
-
-.subscribe-close:hover{
-  color:#fff;
-  background:rgba(255,59,92,.18);
-  transform:rotate(90deg);
-}
-
-.subscribe-icon{
-  width:70px;
-  height:70px;
-  margin:0 auto 15px;
-  display:grid;
-  place-items:center;
-  border-radius:21px;
-  background:linear-gradient(145deg,#ff365e,#9e1234);
-  box-shadow:0 14px 35px rgba(255,28,60,.3);
-}
-
-.subscribe-icon svg{
-  width:45px;
-  height:45px;
-}
-
-.subscribe-card h2{
-  margin-bottom:8px;
-  font-size:26px;
-  font-weight:800;
-  background:linear-gradient(135deg,#ff8ba5,#ff365d);
-  -webkit-background-clip:text;
-  -webkit-text-fill-color:transparent;
-}
-
-.subscribe-card p{
-  margin-bottom:20px;
-  color:#b7a8d4;
-  font-size:13px;
-  line-height:1.6;
-}
-
-.subscribe-actions{
-  display:grid;
-  gap:10px;
-}
-
-.subscribe-button{
-  display:flex;
-  align-items:center;
-  gap:12px;
-  min-height:59px;
-  padding:8px 15px;
-  border-radius:17px;
-  color:#fff;
-  text-align:left;
-  background:linear-gradient(135deg,#e82f52,#a91437);
-  box-shadow:0 12px 28px rgba(255,40,70,.22);
-  transition:.18s;
-}
-
-.subscribe-button:hover{
-  transform:translateY(-2px);
-  filter:brightness(1.08);
-}
-
-.channel-button{
-  background:linear-gradient(135deg,#168d55,#086c3d);
-  box-shadow:0 12px 28px rgba(18,160,91,.2);
-}
-
-.social-icon{
-  width:43px;
-  height:43px;
-  flex:0 0 43px;
-  display:grid;
-  place-items:center;
-  border-radius:13px;
-  background:rgba(255,255,255,.13);
-  border:1px solid rgba(255,255,255,.16);
-}
-
-.social-icon svg{
-  width:25px;
-  height:25px;
-}
-
-.social-text{
-  display:flex;
-  flex-direction:column;
-  gap:2px;
-  min-width:0;
-}
-
-.social-title{
-  font-size:13px;
-  font-weight:800;
-}
-
-.social-subtitle{
-  color:rgba(255,255,255,.68);
-  font-size:10px;
-  font-weight:600;
-}
-
-.dismiss-button{
-  min-height:46px;
-  border:1px solid rgba(255,255,255,.07);
-  border-radius:15px;
-  color:#b8a6d6;
-  background:rgba(255,255,255,.035);
-  font-size:12px;
-  font-weight:800;
-}
-
-/* =========================
-   FOOTER
-========================= */
-
-footer{
-  padding:17px 22px;
-  border-top:1px solid var(--line);
-  color:#75668a;
-  font-size:10px;
-  font-weight:600;
-  text-align:center;
-  letter-spacing:.03em;
-}
-
-@media(max-width:560px){
-  .app{
-    padding:0;
-  }
-
-  .card{
-    min-height:100vh;
-    border-radius:0;
-    border-inline:0;
-  }
-
-  .topbar{
-    padding:15px 17px;
-  }
-
-  main{
-    padding:25px 17px;
-  }
-
-  .dashboard{
-    gap:8px;
-  }
-
-  .stat{
-    min-height:98px;
-    padding:13px 10px;
-  }
-
-  .feature-grid{
-    gap:8px;
-  }
-}
-
-@media(max-width:370px){
-  .dashboard{
-    grid-template-columns:1fr;
-  }
-
-  .stat{
-    min-height:auto;
-  }
-}
-
-@media(prefers-reduced-motion:reduce){
-  *,*::before,*::after{
-    animation-duration:.01ms!important;
-    transition-duration:.01ms!important;
-  }
-}
-</style>
-</head>
-
-<body class="modal-open">
-
-<!-- =========================
-     LOADING SCREEN
-========================= -->
-
-<div id="loadingScreen">
-  <div class="loading-box">
-
-    <div class="loading-logo">🤖</div>
-
-    <div class="loading-title">
-      BLOOD <span>RAVEN</span>
-    </div>
-
-    <div class="loading-sub">
-      Mini Bot
-    </div>
-
-    <div class="loading-bar">
-      <div class="loading-progress"></div>
-    </div>
-
-    <div class="loading-status">
-      Initializing secure dashboard...
-    </div>
-
-  </div>
-</div>
-
-<!-- =========================
-     AUDIO
-========================= -->
-
-<audio
-  id="bloodRavenAudio"
-  src="https://files.catbox.moe/lg45qk.mp3"
-  preload="auto"
-  loop
-  playsinline>
+        0 0 20px rgba(236,72,153,.25),
+        0 0 40px rgba(99,102,241,.15);
+}
+
+.brand-title {
+    font-size: clamp(19px, 5vw, 25px);
+    font-weight: 900;
+    letter-spacing: .5px;
+    background: linear-gradient(
+        120deg,
+        #fff,
+        #f9a8d4,
+        #c084fc,
+        #818cf8
+    );
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.brand-subtitle {
+    margin-top: 8px;
+    color: #888;
+    font-size: 12px;
+}
+
+/* Card */
+.pairing-card {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 28px;
+    padding: 24px;
+    background:
+        linear-gradient(
+            145deg,
+            rgba(255,255,255,.055),
+            rgba(255,255,255,.018)
+        );
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    box-shadow:
+        0 25px 80px rgba(0,0,0,.5),
+        0 0 50px rgba(236,72,153,.08);
+}
+
+.pairing-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        120deg,
+        transparent,
+        rgba(255,255,255,.035),
+        transparent
+    );
+    transform: translateX(-100%);
+    animation: card-shine 6s infinite;
+    pointer-events: none;
+}
+
+@keyframes card-shine {
+    50%,100% {
+        transform: translateX(100%);
+    }
+}
+
+/* Status */
+.status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 12px;
+    border-radius: 999px;
+    background: rgba(16,185,129,.08);
+    border: 1px solid rgba(16,185,129,.18);
+    color: #6ee7b7;
+    font-size: 11px;
+    font-weight: 600;
+    margin-bottom: 18px;
+}
+
+.status-dot {
+    width: 7px;
+    height: 7px;
+    background: #34d399;
+    border-radius: 50%;
+    box-shadow: 0 0 12px #34d399;
+    animation: statusPulse 1.7s infinite;
+}
+
+@keyframes statusPulse {
+    50% {
+        opacity: .4;
+        transform: scale(.75);
+    }
+}
+
+/* Headings */
+.section-title {
+    text-align: center;
+    font-size: 22px;
+    font-weight: 800;
+}
+
+.section-description {
+    text-align: center;
+    color: #8d8d98;
+    font-size: 13px;
+    margin-top: 7px;
+}
+
+/* Input */
+.input-label {
+    display: block;
+    color: #c8c8d0;
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.input-wrapper {
+    position: relative;
+}
+
+.phone-input {
+    width: 100%;
+    padding: 15px 16px 15px 46px;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,.1);
+    outline: none;
+    color: white;
+    background: rgba(0,0,0,.42);
+    font-size: 14px;
+    letter-spacing: .5px;
+    transition: .25s;
+}
+
+.phone-input:focus {
+    border-color: rgba(236,72,153,.65);
+    box-shadow:
+        0 0 0 3px rgba(236,72,153,.08),
+        0 0 25px rgba(236,72,153,.1);
+}
+
+.phone-icon {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #a855f7;
+}
+
+.helper-text {
+    margin-top: 7px;
+    color: #666;
+    font-size: 10px;
+}
+
+/* Buttons */
+.generate-btn {
+    width: 100%;
+    border: 0;
+    border-radius: 14px;
+    padding: 15px;
+    color: white;
+    font-weight: 800;
+    font-size: 14px;
+    cursor: pointer;
+    background: linear-gradient(
+        110deg,
+        #ec4899,
+        #a855f7,
+        #6366f1
+    );
+    background-size: 200% 200%;
+    box-shadow:
+        0 10px 35px rgba(236,72,153,.18),
+        inset 0 1px rgba(255,255,255,.2);
+    transition: .25s;
+    animation: gradientMove 5s ease infinite;
+}
+
+.generate-btn:hover {
+    transform: translateY(-2px);
+    box-shadow:
+        0 15px 40px rgba(236,72,153,.28);
+}
+
+.generate-btn:active {
+    transform: scale(.98);
+}
+
+@keyframes gradientMove {
+    0%,100% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+}
+
+/* Loading */
+.loader {
+    width: 48px;
+    height: 48px;
+    margin: auto;
+    border-radius: 50%;
+    border: 3px solid rgba(255,255,255,.08);
+    border-top-color: #ec4899;
+    border-right-color: #8b5cf6;
+    animation: loaderSpin .8s linear infinite;
+}
+
+@keyframes loaderSpin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Code */
+.code-box {
+    position: relative;
+    margin: 22px 0;
+    padding: 22px 55px 22px 18px;
+    border-radius: 17px;
+    background:
+        linear-gradient(
+            145deg,
+            rgba(16,185,129,.07),
+            rgba(0,0,0,.4)
+        );
+    border: 1px dashed rgba(16,185,129,.28);
+}
+
+.code {
+    color: #6ee7b7;
+    font-family: monospace;
+    font-size: clamp(28px, 9vw, 42px);
+    font-weight: 800;
+    letter-spacing: 7px;
+    text-shadow: 0 0 20px rgba(110,231,183,.2);
+}
+
+.copy-btn {
+    position: absolute;
+    top: 50%;
+    right: 12px;
+    transform: translateY(-50%);
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,.1);
+    color: white;
+    background: linear-gradient(135deg,#7c3aed,#ec4899);
+    cursor: pointer;
+    transition: .25s;
+}
+
+.copy-btn:hover {
+    transform: translateY(-50%) scale(1.06);
+}
+
+/* Steps */
+.steps {
+    margin-top: 24px;
+}
+
+.step {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 11px 0;
+    color: #9b9ba5;
+    font-size: 12px;
+    border-bottom: 1px solid rgba(255,255,255,.04);
+}
+
+.step:last-child {
+    border-bottom: 0;
+}
+
+.step-number {
+    flex-shrink: 0;
+    width: 25px;
+    height: 25px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    color: white;
+    font-size: 10px;
+    font-weight: 800;
+    background: linear-gradient(135deg,#ec4899,#6366f1);
+}
+
+/* Secondary button */
+.secondary-btn {
+    width: 100%;
+    margin-top: 20px;
+    padding: 13px;
+    border-radius: 13px;
+    border: 1px solid rgba(255,255,255,.08);
+    background: rgba(255,255,255,.04);
+    color: #ddd;
+    cursor: pointer;
+    transition: .25s;
+    font-weight: 600;
+    font-size: 12px;
+}
+
+.secondary-btn:hover {
+    background: rgba(255,255,255,.08);
+}
+
+/* Music */
+.music-player {
+    position: fixed;
+    left: 15px;
+    bottom: 18px;
+    z-index: 9999;
+}
+
+.music-btn {
+    width: 50px;
+    height: 50px;
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 50%;
+    color: white;
+    background: linear-gradient(135deg,#ec4899,#8b5cf6);
+    cursor: pointer;
+    box-shadow: 0 8px 30px rgba(236,72,153,.25);
+    transition: .25s;
+}
+
+.music-btn:hover {
+    transform: scale(1.08);
+}
+
+.music-btn.playing {
+    animation: musicPulse 1.8s infinite;
+}
+
+@keyframes musicPulse {
+    50% {
+        box-shadow:
+            0 0 0 8px rgba(236,72,153,.06),
+            0 8px 35px rgba(236,72,153,.35);
+    }
+}
+
+.music-label {
+    position: absolute;
+    left: 60px;
+    top: 50%;
+    transform: translateY(-50%);
+    white-space: nowrap;
+    font-size: 10px;
+    color: #777;
+    pointer-events: none;
+}
+
+/* Flowers */
+.flower-container {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 2;
+    overflow: hidden;
+}
+
+.falling-flower {
+    position: absolute;
+    top: -50px;
+    font-size: 23px;
+    animation: flowerFall linear forwards;
+    pointer-events: none;
+    filter: drop-shadow(0 5px 12px rgba(236,72,153,.25));
+}
+
+@keyframes flowerFall {
+    from {
+        transform: translateY(-50px) rotate(0deg);
+        opacity: 0;
+    }
+    10% {
+        opacity: .8;
+    }
+    to {
+        transform: translateY(110vh) rotate(360deg);
+        opacity: 0;
+    }
+}
+
+/* Footer */
+footer {
+    text-align: center;
+    margin-top: 18px;
+    color: #555;
+    font-size: 9px;
+}
+
+/* Toast */
+.toast {
+    position: fixed;
+    left: 50%;
+    bottom: -80px;
+    transform: translateX(-50%);
+    z-index: 99999;
+    padding: 11px 17px;
+    border-radius: 12px;
+    background: rgba(20,20,25,.95);
+    border: 1px solid rgba(110,231,183,.2);
+    color: #a7f3d0;
+    font-size: 12px;
+    box-shadow: 0 10px 35px rgba(0,0,0,.4);
+    transition: .35s;
+}
+
+.toast.show {
+    bottom: 25px;
+}
+
+/* Hide */
+.hidden {
+    display: none !important;
+}
+
+/* Mobile */
+@media (max-width: 480px) {
+    .page-wrapper {
+        padding-top: 75px;
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+
+    .pairing-card {
+        padding: 20px 17px;
+        border-radius: 23px;
+    }
+
+    .owner-link span {
+        display: none;
+    }
+
+    .brand-title {
+        font-size: 18px;
+    }
+
+    .logo {
+        width: 43px;
+        height: 43px;
+    }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+    }
+}
+</style></head><body><div class="background-glow glow-one"></div>
+<div class="background-glow glow-two"></div><canvas id="particle-canvas"></canvas>
+
+<div class="flower-container" id="flowerContainer"></div><!-- TOP BAR --><div class="topbar">
+    <a href="https://wa.me/+254762673217"
+       class="owner-link"
+       title="Contact Owner">
+        <i class="fas fa-chevron-left"></i>
+        <span>CONTACT OWNER 🧑‍💻</span>
+    </a><button
+    class="refresh-btn"
+    id="refreshBtn"
+    title="Refresh Website"
+    aria-label="Refresh Website">
+    <i class="fas fa-rotate-right"></i>
+</button>
+
+</div><!-- MUSIC --><div class="music-player">
+    <button
+        class="music-btn"
+        id="musicBtn"
+        title="Play / Pause Music">
+        <i class="fas fa-music"></i>
+    </button><span class="music-label" id="musicLabel">
+    Music
+</span>
+
+</div><audio
+id="bgMusic"
+preload="auto"
+loop
+playsinline>
 </audio>
 
-<!-- =========================
-     FOLLOW POPUP
-========================= -->
+<div class="page-wrapper"><main class="main-content"><!-- BRAND -->
+<section class="brand">
 
-<div
-  id="subscribeModal"
-  class="subscribe-modal"
-  role="dialog"
-  aria-modal="true"
-  aria-labelledby="subscribeTitle">
+    <div class="brand-row">
 
-  <div class="subscribe-card">
+        <img
+            src="https://i.ibb.co/DDd7WkwL/caseyweb.jpg"
+            alt="Blood Raven Logo"
+            class="logo">
 
-    <button
-      id="closeSubscribe"
-      class="subscribe-close"
-      type="button"
-      aria-label="Close popup">
-      ×
-    </button>
+        <div>
+            <div class="brand-title">
+                B͛L͛O͛O͛D͛ R͛ÀV͛E͛Ñ
+            </div>
 
-    <div class="subscribe-icon" aria-hidden="true">
-
-      <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-
-        <path
-          d="M14 45C18 37 17 27 23 20C29 13 40 12 48 17L42 23C49 24 54 29 55 35C50 33 46 33 42 35C39 43 32 49 22 51C18 51 15 49 14 45Z"
-          fill="#fff"/>
-
-        <path
-          d="M43 23L59 26L47 31L41 29Z"
-          fill="#f7d8df"/>
-
-        <circle
-          cx="42"
-          cy="23"
-          r="2.7"
-          fill="#ff3158"/>
-
-        <path
-          d="M18 41C25 37 31 35 38 35C34 43 27 48 19 48C17 47 16 44 18 41Z"
-          fill="#d9d2df"/>
-
-        <path
-          d="M28 18C23 13 18 12 13 13C18 16 20 21 21 25Z"
-          fill="#eee8f3"/>
-
-      </svg>
+            <div class="brand-title">
+                M͒I͒N͒I͒ P͒ÀI͒R͒ 🎀
+            </div>
+        </div>
 
     </div>
 
-    <h2 id="subscribeTitle">
-      Blood Raven
-    </h2>
-
-    <p>
-      Follow our channels for Mini Bot
-      updates, pairing guides and new tools.
-      <br>
-      <span style="color:#ff6b8a;">
-        Caseyrhodestech
-      </span>
+    <p class="brand-subtitle">
+        Secure WhatsApp device pairing
     </p>
-
-    <div class="subscribe-actions">
-
-      <a
-        class="subscribe-button"
-        href="https://www.youtube.com/@Caseyrhodestech"
-        target="_blank"
-        rel="noopener noreferrer">
-
-        <span class="social-icon">
-
-          <svg viewBox="0 0 24 24">
-
-            <path
-              fill="#fff"
-              d="M23.5 6.2A3.1 3.1 0 0 0 21.3 4C19.4 3.5 12 3.5 12 3.5S4.6 3.5 2.7 4A3.1 3.1 0 0 0 .5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8A3.1 3.1 0 0 0 2.7 20c1.9.5 9.3.5 9.3.5s7.4 0 9.3-.5a3.1 3.1 0 0 0 2.2-2.2C24 15.9 24 12 24 12s0-3.9-.5-5.8Z"/>
-
-            <path
-              fill="#e82f52"
-              d="M9.6 8.2L16.5 12l-6.9 3.8Z"/>
-
-          </svg>
-
-        </span>
-
-        <span class="social-text">
-          <span class="social-title">
-            Follow on YouTube
-          </span>
-          <span class="social-subtitle">
-            Caseyrhodestech
-          </span>
-        </span>
-
-      </a>
-
-      <a
-        class="subscribe-button channel-button"
-        href="https://whatsapp.com/channel/0029Vb8OqiTBA1f4o3LW9s1V"
-        target="_blank"
-        rel="noopener noreferrer">
-
-        <span class="social-icon">
-
-          <svg viewBox="0 0 24 24">
-
-            <path
-              fill="#fff"
-              d="M20.5 3.5A11.9 11.9 0 0 0 12.05 0C5.47 0 .12 5.34.12 11.92c0 2.1.55 4.15 1.6 5.95L.02 24l6.27-1.64a11.9 11.9 0 0 0 5.76 1.47h.01c6.58 0 11.93-5.35 11.93-11.92 0-3.18-1.24-6.17-3.49-8.41Z"/>
-
-            <path
-              fill="#086c3d"
-              d="M17.84 14.43c-.31-.16-1.83-.9-2.11-1-.28-.1-.49-.16-.7.16-.21.31-.8 1-0.98 1.2-.18.21-.36.24-.85.12-.31-.16-1.32-.49-2.51-1.56-.93-.83-1.56-1.85-1.74-2.16-.18-.31-.02-.48.14-.64.14-.14.31-.36.47-.54.16-.18.21-.31.31-.52.1-.21.05-.39-.03-.55-.08-.16-.7-1.69-.96-2.32-.25-.61-.5-.53-.7-.54h-.6c-.21 0-.55.08-.83.39-.28.31-1.09 1.06-1.09 2.58s1.12 2.99 1.27 3.2c.16.21 2.2 3.36 5.33 4.71.75.32 1.33.51 1.78.65.75.24 1.43.21 1.97.13.6-.09 1.83-.75 2.09-1.48.26-.73.26-1.35.18-1.48-.08-.13-.13-.19-.44-.35Z"/>
-
-          </svg>
-
-        </span>
-
-        <span class="social-text">
-          <span class="social-title">
-            Follow WhatsApp Channel
-          </span>
-          <span class="social-subtitle">
-            Blood Raven Updates
-          </span>
-        </span>
-
-      </a>
-
-      <button
-        id="dismissSubscribe"
-        class="dismiss-button"
-        type="button">
-        Continue to Mini Bot
-      </button>
-
-    </div>
-
-  </div>
-</div>
-
-<!-- =========================
-     APPLICATION
-========================= -->
-
-<div class="app">
-
-<section class="card">
-
-<header class="topbar">
-
-  <div class="brand">
-
-    <span class="logo">
-      🤖
-    </span>
-
-    <span>
-      Blood Raven
-      <small>/ Mini Bot</small>
-    </span>
-
-  </div>
-
-  <a
-    class="channel-link"
-    href="https://www.youtube.com/@Caseyrhodestech"
-    target="_blank"
-    rel="noopener noreferrer">
-    BLOOD RAVEN
-  </a>
-
-</header>
-
-<main>
-
-<!-- =========================
-     DASHBOARD SECTION
-========================= -->
-
-<section
-  id="dashboardSection"
-  class="section active">
-
-  <div class="hero">
-
-    <div class="eyebrow">
-      <span class="status-dot"></span>
-      System online
-    </div>
-
-    <h1>
-      Welcome to
-      <span>Blood Raven.</span>
-    </h1>
-
-    <p>
-      Your central hub for Blood Raven Mini Bot.
-      Pair a WhatsApp device, learn about the bot,
-      and stay connected with the latest updates.
-    </p>
-
-  </div>
-
-  <div class="dashboard">
-
-    <div class="stat">
-      <div class="stat-icon">⚡</div>
-      <div class="stat-value">Fast</div>
-      <div class="stat-label">Pairing system</div>
-    </div>
-
-    <div class="stat">
-      <div class="stat-icon">🟢</div>
-      <div class="stat-value">Online</div>
-      <div class="stat-label">Dashboard</div>
-    </div>
-
-    <div class="stat">
-      <div class="stat-icon">🤖</div>
-      <div class="stat-value">Mini</div>
-      <div class="stat-label">Bot edition</div>
-    </div>
-
-  </div>
-
-  <div class="info-panel">
-
-    <div class="info-head">
-
-      <div class="info-icon">
-        🩸
-      </div>
-
-      <h2>
-        About Blood Raven
-      </h2>
-
-    </div>
-
-    <p>
-      Blood Raven Mini Bot is a WhatsApp automation
-      project built for fast, useful and customizable
-      bot features. This website provides a simple
-      interface for connecting a WhatsApp device to
-      the bot through pairing codes.
-    </p>
-
-  </div>
-
-  <div class="feature-grid">
-
-    <div class="feature">
-      <strong>📱 WhatsApp Pairing</strong>
-      <span>
-        Request a pairing code using your
-        international WhatsApp number.
-      </span>
-    </div>
-
-    <div class="feature">
-      <strong>⚙️ Bot Features</strong>
-      <span>
-        Designed for automation, utilities,
-        group tools and entertainment commands.
-      </span>
-    </div>
-
-    <div class="feature">
-      <strong>🚀 Lightweight</strong>
-      <span>
-        A simple web interface designed to
-        stay fast on mobile devices.
-      </span>
-    </div>
-
-    <div class="feature">
-      <strong>🛡️ Secure Request</strong>
-      <span>
-        Pairing requests are sent directly to
-        the configured bot endpoint.
-      </span>
-    </div>
-
-  </div>
 
 </section>
 
-<!-- =========================
-     PAIR SECTION
-========================= -->
+<!-- CARD -->
+<div class="pairing-card">
 
-<section
-  id="pairSection"
-  class="section">
+    <div class="text-center">
 
-  <div class="pair-head">
-
-    <div class="eyebrow">
-      <span class="status-dot"></span>
-      Pair a device
-    </div>
-
-    <h2>
-      Connect your WhatsApp
-    </h2>
-
-    <p>
-      Enter your complete international number
-      without the plus sign or spaces.
-    </p>
-
-  </div>
-
-  <form
-    id="pairingForm"
-    novalidate>
-
-    <label for="phoneNumber">
-      WhatsApp number
-    </label>
-
-    <input
-      id="phoneNumber"
-      inputmode="numeric"
-      autocomplete="tel"
-      maxlength="15"
-      placeholder="e.g. 2547063956321"
-      aria-describedby="inputHelp inputError">
-
-    <div class="helper-row">
-
-      <span
-        id="inputHelp"
-        class="helper">
-        Country code required
-      </span>
-
-      <span
-        id="inputError"
-        class="error"
-        role="alert">
-      </span>
-
-      <span
-        id="counter"
-        class="counter">
-        0 / 15
-      </span>
+        <div class="status-pill">
+            <span class="status-dot"></span>
+            Pairing service ready
+        </div>
 
     </div>
 
-    <button
-      id="requestButton"
-      class="primary"
-      type="submit">
-      Request pairing code
-    </button>
+    <!-- FORM -->
+    <section id="form-section">
 
-  </form>
+        <h2 class="section-title">
+            Link a New Device
+        </h2>
 
-  <div
-    id="notice"
-    class="notice"
-    role="alert">
-  </div>
+        <p class="section-description">
+            Enter your WhatsApp number to generate a pairing code.
+        </p>
 
-  <section
-    id="result"
-    class="result"
-    aria-live="polite">
+        <div class="mt-7">
 
-    <div class="result-title">
-      🟢 Pairing code ready
-    </div>
+            <label
+                for="phone"
+                class="input-label">
+                WhatsApp Number
+            </label>
 
-    <div
-      id="pairingCode"
-      class="code">
-      --------
-    </div>
+            <div class="input-wrapper">
 
-    <button
-      id="copyButton"
-      class="copy"
-      type="button">
-      Copy code
-    </button>
+                <i class="fas fa-phone phone-icon"></i>
 
-  </section>
+                <input
+                    type="tel"
+                    id="phone"
+                    class="phone-input"
+                    placeholder="+2547606xxxx"
+                    autocomplete="tel"
+                    inputmode="tel"
+                    required>
 
-  <div class="steps">
+            </div>
 
-    <h3>
-      Finish in WhatsApp
-    </h3>
+            <p class="helper-text">
+                Include your country code, for example +254.
+            </p>
 
-    <ol>
+            <p
+                id="error-message"
+                class="text-red-400 text-xs mt-2 hidden">
+            </p>
 
-      <li>
-        <span>
-          Open WhatsApp and go to
-          <strong>Settings → Linked Devices</strong>.
-        </span>
-      </li>
+        </div>
 
-      <li>
-        <span>
-          Tap <strong>Link a device</strong>
-          and choose the phone-number option.
-        </span>
-      </li>
+        <div class="mt-6">
 
-      <li>
-        <span>
-          Enter the pairing code displayed here
-          to complete the connection.
-        </span>
-      </li>
+            <button
+                id="generate-btn"
+                class="generate-btn">
 
-    </ol>
+                <i class="fas fa-link mr-2"></i>
+                Generate Pairing Code
 
-  </div>
+            </button>
 
-</section>
+        </div>
 
-<!-- =========================
-     NAVIGATION
-========================= -->
+    </section>
 
-<div class="nav-buttons">
+    <!-- LOADING -->
+    <section
+        id="loading-section"
+        class="hidden text-center py-10">
 
-  <button
-    id="dashboardBtn"
-    class="nav-btn active"
-    type="button">
-    📊 Dashboard
-  </button>
+        <div class="loader"></div>
 
-  <button
-    id="pairBtn"
-    class="nav-btn"
-    type="button">
-    📱 Pair Device
-  </button>
+        <p class="mt-5 text-gray-300 font-semibold">
+            Generating your code...
+        </p>
+
+        <p class="mt-1 text-gray-500 text-xs">
+            Connecting securely to the pairing service.
+        </p>
+
+    </section>
+
+    <!-- CODE -->
+    <section
+        id="code-section"
+        class="hidden text-center">
+
+        <div class="status-pill">
+            <span class="status-dot"></span>
+            Code generated
+        </div>
+
+        <h2 class="section-title">
+            Your Pairing Code
+        </h2>
+
+        <p class="section-description">
+            Keep this code private.
+        </p>
+
+        <div class="code-box">
+
+            <p
+                id="pairing-code"
+                class="code">
+            </p>
+
+            <button
+                id="copy-btn"
+                class="copy-btn"
+                title="Copy Pairing Code">
+
+                <i class="far fa-copy"></i>
+
+            </button>
+
+        </div>
+
+        <div class="steps text-left">
+
+            <div class="step">
+                <span class="step-number">1</span>
+                <span>Open WhatsApp on your phone.</span>
+            </div>
+
+            <div class="step">
+                <span class="step-number">2</span>
+                <span>Open Settings and select Linked Devices.</span>
+            </div>
+
+            <div class="step">
+                <span class="step-number">3</span>
+                <span>Select Link a Device, then choose Link with phone number instead.</span>
+            </div>
+
+            <div class="step">
+                <span class="step-number">4</span>
+                <span>Enter the pairing code shown above.</span>
+            </div>
+
+        </div>
+
+        <button
+            id="reset-btn"
+            class="secondary-btn">
+
+            <i class="fas fa-plus mr-2"></i>
+            Pair Another Number
+
+        </button>
+
+    </section>
 
 </div>
-
-</main>
 
 <footer>
-  Blood Raven · Mini Bot · Secure pairing request
-  <br>
-  Created by Caseyrhodestech
+    © 2025-2030 CASEYRHODES BOT INC.
+    Created By Caseyrhodes Tech 🧑‍💻.
 </footer>
 
-</section>
+</main></div><div
+    id="toast"
+    class="toast">
+</div><script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.0.0-alpha.1/axios.min.js"></script><script>
+/* =========================================================
+   PARTICLES
+========================================================= */
 
-</div>
+const canvas = document.getElementById("particle-canvas");
+const ctx = canvas.getContext("2d");
 
-<script>
-(() => {
+let particles = [];
 
-'use strict';
-
-/* =========================
-   ELEMENTS
-========================= */
-
-const loadingScreen =
-  document.getElementById('loadingScreen');
-
-const audio =
-  document.getElementById('bloodRavenAudio');
-
-const subscribeModal =
-  document.getElementById('subscribeModal');
-
-const dismissSubscribe =
-  document.getElementById('dismissSubscribe');
-
-const closeSubscribe =
-  document.getElementById('closeSubscribe');
-
-const dashboardSection =
-  document.getElementById('dashboardSection');
-
-const pairSection =
-  document.getElementById('pairSection');
-
-const dashboardBtn =
-  document.getElementById('dashboardBtn');
-
-const pairBtn =
-  document.getElementById('pairBtn');
-
-const input =
-  document.getElementById('phoneNumber');
-
-const form =
-  document.getElementById('pairingForm');
-
-const counter =
-  document.getElementById('counter');
-
-const inputError =
-  document.getElementById('inputError');
-
-const notice =
-  document.getElementById('notice');
-
-const button =
-  document.getElementById('requestButton');
-
-const result =
-  document.getElementById('result');
-
-const code =
-  document.getElementById('pairingCode');
-
-const copy =
-  document.getElementById('copyButton');
-
-/* =========================
-   AUDIO
-========================= */
-
-if (audio) {
-
-  audio.volume = 0.7;
-
-  const playAudio = () => {
-    audio.play().catch(() => {});
-  };
-
-  document.addEventListener(
-    'click',
-    playAudio,
-    {
-      once:true,
-      passive:true
-    }
-  );
-
-  document.addEventListener(
-    'touchstart',
-    playAudio,
-    {
-      once:true,
-      passive:true
-    }
-  );
-
-  document.addEventListener(
-    'keydown',
-    playAudio,
-    {
-      once:true
-    }
-  );
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
 }
 
-/* =========================
-   LOADING
-========================= */
+resizeCanvas();
+window.addEventListener("resize", resizeCanvas);
 
-window.addEventListener('load', () => {
+class Particle {
 
-  setTimeout(() => {
+    constructor() {
 
-    loadingScreen.classList.add('hide');
+        this.x = Math.random() * canvas.width;
+        this.y = Math.random() * canvas.height;
 
-  }, 1850);
+        this.size = Math.random() * 2 + .4;
 
-});
+        this.speedX =
+            (Math.random() - .5) * .35;
 
-/* =========================
-   POPUP
-========================= */
+        this.speedY =
+            (Math.random() - .5) * .35;
 
-let popupClosed = false;
+        this.alpha =
+            Math.random() * .5 + .15;
+    }
 
-function closePopup(){
+    update() {
 
-  if (popupClosed) return;
+        this.x += this.speedX;
+        this.y += this.speedY;
 
-  popupClosed = true;
+        if (this.x < 0 || this.x > canvas.width)
+            this.speedX *= -1;
 
-  if (audio) {
-    audio.play().catch(() => {});
-  }
+        if (this.y < 0 || this.y > canvas.height)
+            this.speedY *= -1;
+    }
 
-  subscribeModal.classList.add('closing');
+    draw() {
 
-  setTimeout(() => {
+        ctx.beginPath();
 
-    subscribeModal.hidden = true;
+        ctx.arc(
+            this.x,
+            this.y,
+            this.size,
+            0,
+            Math.PI * 2
+        );
 
-    document.body.classList.remove(
-      'modal-open'
+        ctx.fillStyle =
+            `rgba(236,72,153,${this.alpha})`;
+
+        ctx.fill();
+    }
+}
+
+function initParticles() {
+
+    particles = [];
+
+    const count =
+        Math.min(90, Math.floor(
+            window.innerWidth / 12
+        ));
+
+    for (let i = 0; i < count; i++) {
+        particles.push(new Particle());
+    }
+}
+
+function animateParticles() {
+
+    ctx.clearRect(
+        0,
+        0,
+        canvas.width,
+        canvas.height
     );
 
-  }, 220);
+    particles.forEach(p => {
+        p.update();
+        p.draw();
+    });
 
+    requestAnimationFrame(animateParticles);
 }
 
-dismissSubscribe.addEventListener(
-  'click',
-  closePopup
-);
+initParticles();
+animateParticles();
 
-closeSubscribe.addEventListener(
-  'click',
-  closePopup
-);
+/* =========================================================
+   FLOWERS
+========================================================= */
 
-subscribeModal.addEventListener(
-  'click',
-  event => {
+const flowerContainer =
+    document.getElementById("flowerContainer");
 
-    if (
-      event.target === subscribeModal
-    ) {
-      closePopup();
-    }
+const flowers = [
+    "🌸",
+    "🌺",
+    "🌼",
+    "🌻",
+    "🌹",
+    "💐",
+    "🌷",
+    "🏵️"
+];
 
-  }
-);
+function createFlower() {
 
-document.addEventListener(
-  'keydown',
-  event => {
+    const flower =
+        document.createElement("div");
 
-    if (
-      event.key === 'Escape' &&
-      !subscribeModal.hidden
-    ) {
-      closePopup();
-    }
+    flower.className =
+        "falling-flower";
 
-  }
-);
+    flower.textContent =
+        flowers[
+            Math.floor(
+                Math.random() * flowers.length
+            )
+        ];
 
-/* =========================
-   SECTION NAVIGATION
-========================= */
+    flower.style.left =
+        Math.random() * 100 + "vw";
 
-function showSection(section){
+    flower.style.fontSize =
+        (16 + Math.random() * 13) + "px";
 
-  const dashboard =
-    section === 'dashboard';
+    flower.style.animationDuration =
+        (5 + Math.random() * 5) + "s";
 
-  dashboardSection.classList.toggle(
-    'active',
-    dashboard
-  );
-
-  pairSection.classList.toggle(
-    'active',
-    !dashboard
-  );
-
-  dashboardBtn.classList.toggle(
-    'active',
-    dashboard
-  );
-
-  pairBtn.classList.toggle(
-    'active',
-    !dashboard
-  );
-
-  window.scrollTo({
-    top:0,
-    behavior:'smooth'
-  });
-
-}
-
-dashboardBtn.addEventListener(
-  'click',
-  () => showSection('dashboard')
-);
-
-pairBtn.addEventListener(
-  'click',
-  () => {
-
-    showSection('pair');
+    flowerContainer.appendChild(flower);
 
     setTimeout(() => {
-      input.focus();
-    }, 250);
-
-  }
-);
-
-/* =========================
-   INPUT
-========================= */
-
-function onlyDigits(value){
-
-  return String(value || '')
-    .replace(/\D/g,'')
-    .slice(0,15);
-
+        flower.remove();
+    }, 11000);
 }
 
-function refreshInput(){
+setInterval(createFlower, 650);
 
-  input.value =
-    onlyDigits(input.value);
+/* =========================================================
+   MUSIC
+========================================================= */
 
-  const value =
-    input.value;
+const songs = [
+    "https://files.catbox.moe/x31ls3.mp3",
+    "https://files.catbox.moe/jydlzs.mp3",
+    "https://files.catbox.moe/2cbngz.mp3"
+];
 
-  counter.textContent =
-    `${value.length} / 15`;
+const bgMusic =
+    document.getElementById("bgMusic");
 
-  counter.classList.toggle(
-    'ready',
-    value.length >= 10
-  );
+const musicBtn =
+    document.getElementById("musicBtn");
 
-  inputError.textContent = '';
+const musicLabel =
+    document.getElementById("musicLabel");
 
-  input.classList.remove(
-    'invalid'
-  );
+let currentSong = -1;
+let musicPlaying = false;
 
-  notice.classList.remove(
-    'show'
-  );
+function chooseSong() {
 
-  result.classList.remove(
-    'show'
-  );
+    let next;
 
-}
-
-input.addEventListener(
-  'input',
-  refreshInput
-);
-
-/* =========================
-   NOTICE
-========================= */
-
-function showNotice(message){
-
-  notice.textContent =
-    message;
-
-  notice.classList.add(
-    'show'
-  );
-
-}
-
-/* =========================
-   COPY
-========================= */
-
-async function copyCode(){
-
-  const value =
-    code.textContent.trim();
-
-  if (
-    !value ||
-    value === '--------'
-  ) {
-    return;
-  }
-
-  try {
-
-    await navigator.clipboard.writeText(
-      value
+    do {
+        next =
+            Math.floor(
+                Math.random() * songs.length
+            );
+    } while (
+        songs.length > 1 &&
+        next === currentSong
     );
 
-    copy.textContent =
-      'Copied ✓';
-
-    setTimeout(() => {
-
-      copy.textContent =
-        'Copy code';
-
-    },1800);
-
-  } catch {
-
-    showNotice(
-      'Copy failed. Please select and copy the code manually.'
-    );
-
-  }
-
+    currentSong = next;
+    bgMusic.src = songs[currentSong];
 }
 
-copy.addEventListener(
-  'click',
-  copyCode
-);
+async function startMusic() {
 
-/* =========================
-   PAIRING
-========================= */
-
-form.addEventListener(
-  'submit',
-  async event => {
-
-    event.preventDefault();
-
-    if (audio) {
-      audio.play().catch(() => {});
+    if (!bgMusic.src) {
+        chooseSong();
     }
 
-    const number =
-      onlyDigits(input.value);
-
-    if (number.length < 10) {
-
-      inputError.textContent =
-        'Enter at least 10 digits';
-
-      input.classList.add(
-        'invalid'
-      );
-
-      input.focus();
-
-      return;
-
-    }
-
-    inputError.textContent =
-      '';
-
-    input.classList.remove(
-      'invalid'
-    );
-
-    notice.classList.remove(
-      'show'
-    );
-
-    result.classList.remove(
-      'show'
-    );
-
-    button.disabled = true;
-
-    button.innerHTML =
-      '<span class="loader"></span>Requesting code…';
+    bgMusic.volume = 0.30;
 
     try {
 
-      /*
-       * IMPORTANT:
-       * The original pairing endpoint is preserved.
-       * No dashboard code changes this request.
-       */
+        await bgMusic.play();
 
-      const response =
-        await fetch(
-          `/code?number=${encodeURIComponent(number)}`,
-          {
-            method:'GET',
-            headers:{
-              'Accept':
-                'application/json'
-            },
-            cache:'no-store'
-          }
-        );
+        musicPlaying = true;
 
-      const data =
-        await response
-          .json()
-          .catch(() => ({}));
+        musicBtn.classList.add("playing");
 
-      if (
-        !response.ok ||
-        !data?.code
-      ){
+        musicBtn.innerHTML =
+            '<i class="fas fa-pause"></i>';
 
-        throw new Error(
-          data?.error ||
-          data?.message ||
-          (
-            data?.status ===
-            'already_connected'
-              ? 'This number is already connected to the bot.'
-              : 'Pairing request failed.'
-          )
-        );
+        musicLabel.textContent =
+            "Music playing";
 
-      }
+    } catch (error) {
 
-      code.textContent =
-        data.code;
+        /*
+         Browser blocked audible autoplay.
+         The first user interaction will retry.
+        */
 
-      result.classList.add(
-        'show'
-      );
+        musicPlaying = false;
 
-      requestAnimationFrame(() => {
+        musicLabel.textContent =
+            "Tap to play";
+    }
+}
 
-        result.scrollIntoView({
-          behavior:'smooth',
-          block:'center'
-        });
+function stopMusic() {
 
-      });
+    bgMusic.pause();
 
-      await copyCode();
+    musicPlaying = false;
 
-    } catch(error){
+    musicBtn.classList.remove("playing");
 
-      showNotice(
-        error?.message ||
-        'Service unavailable. Try again shortly.'
-      );
+    musicBtn.innerHTML =
+        '<i class="fas fa-music"></i>';
 
-    } finally {
+    musicLabel.textContent =
+        "Music paused";
+}
 
-      button.disabled = false;
+musicBtn.addEventListener("click", () => {
 
-      button.textContent =
-        'Request pairing code';
-
+    if (musicPlaying) {
+        stopMusic();
+    } else {
+        startMusic();
     }
 
-  }
+});
+
+/*
+Try immediately when page opens.
+Browsers may block this.
+*/
+window.addEventListener("load", () => {
+
+    chooseSong();
+
+    setTimeout(() => {
+        startMusic();
+    }, 350);
+
+});
+
+/*
+If autoplay was blocked, the first interaction
+starts the song automatically.
+*/
+function firstInteraction() {
+
+    if (!musicPlaying) {
+        startMusic();
+    }
+
+    document.removeEventListener(
+        "click",
+        firstInteraction
+    );
+
+    document.removeEventListener(
+        "touchstart",
+        firstInteraction
+    );
+
+    document.removeEventListener(
+        "keydown",
+        firstInteraction
+    );
+}
+
+document.addEventListener(
+    "click",
+    firstInteraction,
+    { passive: true }
 );
 
-refreshInput();
+document.addEventListener(
+    "touchstart",
+    firstInteraction,
+    { passive: true }
+);
 
-})();
-</script>
+document.addEventListener(
+    "keydown",
+    firstInteraction,
+    { passive: true }
+);
 
-</body>
+bgMusic.addEventListener(
+    "ended",
+    () => {
+        chooseSong();
+        startMusic();
+    }
+);
+
+/* =========================================================
+   TOAST
+========================================================= */
+
+const toast =
+    document.getElementById("toast");
+
+let toastTimer;
+
+function showToast(message) {
+
+    toast.textContent = message;
+
+    toast.classList.add("show");
+
+    clearTimeout(toastTimer);
+
+    toastTimer = setTimeout(() => {
+        toast.classList.remove("show");
+    }, 2300);
+}
+
+/* =========================================================
+   PAIRING
+========================================================= */
+
+const generateBtn =
+    document.getElementById("generate-btn");
+
+const phoneInput =
+    document.getElementById("phone");
+
+const formSection =
+    document.getElementById("form-section");
+
+const loadingSection =
+    document.getElementById("loading-section");
+
+const codeSection =
+    document.getElementById("code-section");
+
+const pairingCode =
+    document.getElementById("pairing-code");
+
+const errorMessage =
+    document.getElementById("error-message");
+
+const copyBtn =
+    document.getElementById("copy-btn");
+
+const resetBtn =
+    document.getElementById("reset-btn");
+
+function resetPairing() {
+
+    codeSection.classList.add("hidden");
+
+    loadingSection.classList.add("hidden");
+
+    formSection.classList.remove("hidden");
+
+    pairingCode.textContent = "";
+
+    phoneInput.value = "";
+
+    errorMessage.classList.add("hidden");
+
+    generateBtn.disabled = false;
+
+    generateBtn.innerHTML =
+        '<i class="fas fa-link mr-2"></i> Generate Pairing Code';
+}
+
+generateBtn.addEventListener(
+    "click",
+    async () => {
+
+        const numberValue =
+            phoneInput.value.trim();
+
+        /*
+         Accept +254..., 254..., spaces and dashes.
+        */
+        const cleaned =
+            numberValue.replace(
+                /[\s()-]/g,
+                ""
+            );
+
+        const number =
+            cleaned.replace(
+                /^\+/,
+                ""
+            );
+
+        if (
+            !/^\d{10,15}$/.test(number)
+        ) {
+
+            errorMessage.textContent =
+                "Enter a valid WhatsApp number with country code, e.g. +2547606xxxx.";
+
+            errorMessage.classList.remove(
+                "hidden"
+            );
+
+            return;
+        }
+
+        errorMessage.classList.add(
+            "hidden"
+        );
+
+        generateBtn.disabled = true;
+
+        formSection.classList.add(
+            "hidden"
+        );
+
+        loadingSection.classList.remove(
+            "hidden"
+        );
+
+        try {
+
+            /*
+             REAL pairing endpoint.
+             This must exist on the same server:
+             /code?number=254xxxxxxxxx
+            */
+
+            const response =
+                await axios.get(
+                    `/code?number=${encodeURIComponent(number)}`,
+                    {
+                        timeout: 30000
+                    }
+                );
+
+            const data =
+                response.data || {};
+
+            const code =
+                data.code ||
+                data.pairingCode ||
+                data.pairing_code;
+
+            if (!code) {
+                throw new Error(
+                    "No pairing code returned by server."
+                );
+            }
+
+            pairingCode.textContent =
+                String(code)
+                    .replace(/\s+/g, "");
+
+            loadingSection.classList.add(
+                "hidden"
+            );
+
+            codeSection.classList.remove(
+                "hidden"
+            );
+
+            showToast(
+                "Pairing code generated successfully."
+            );
+
+        } catch (error) {
+
+            console.error(
+                "Pairing API error:",
+                error
+            );
+
+            loadingSection.classList.add(
+                "hidden"
+            );
+
+            formSection.classList.remove(
+                "hidden"
+            );
+
+            generateBtn.disabled = false;
+
+            generateBtn.innerHTML =
+                '<i class="fas fa-link mr-2"></i> Generate Pairing Code';
+
+            errorMessage.textContent =
+                "Unable to generate a pairing code right now. Please check the number and try again.";
+
+            errorMessage.classList.remove(
+                "hidden"
+            );
+
+        }
+
+    }
+);
+
+/* Enter key */
+phoneInput.addEventListener(
+    "keydown",
+    event => {
+
+        if (event.key === "Enter") {
+            generateBtn.click();
+        }
+
+    }
+);
+
+/* Copy */
+copyBtn.addEventListener(
+    "click",
+    async () => {
+
+        const code =
+            pairingCode.textContent.trim();
+
+        if (!code) return;
+
+        try {
+
+            await navigator.clipboard.writeText(
+                code
+            );
+
+            copyBtn.innerHTML =
+                '<i class="fas fa-check"></i>';
+
+            showToast(
+                "Pairing code copied!"
+            );
+
+            setTimeout(() => {
+
+                copyBtn.innerHTML =
+                    '<i class="far fa-copy"></i>';
+
+            }, 1600);
+
+        } catch (error) {
+
+            showToast(
+                "Could not copy the code."
+            );
+
+        }
+
+    }
+);
+
+/* Reset */
+resetBtn.addEventListener(
+    "click",
+    resetPairing
+);
+
+/* =========================================================
+   REFRESH BUTTON
+========================================================= */
+
+document
+    .getElementById("refreshBtn")
+    .addEventListener(
+        "click",
+        () => {
+
+            /*
+             Normal browser refresh.
+             This safely reloads the entire website.
+            */
+
+            window.location.reload();
+
+        }
+    );
+
+/* =========================================================
+   PAGE VISIBILITY
+========================================================= */
+
+document.addEventListener(
+    "visibilitychange",
+    () => {
+
+        if (
+            document.visibilityState === "visible" &&
+            !musicPlaying
+        ) {
+            /*
+             Try again when returning to page.
+             Browser may still require interaction.
+            */
+            startMusic();
+        }
+
+    }
+);
+</script></body>
 </html>
