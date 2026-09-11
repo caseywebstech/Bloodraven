@@ -1,1741 +1,1918 @@
-<!DOCTYPE html><html lang="en">
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0d0c12">  <meta property="og:title" content="BLOOD RAVEN · PAIR">
-  <meta property="og:description" content="BLOOD RAVEN by Caseyrhodestech">
-  <meta name="twitter:card" content="summary_large_image">  <title>Blood Raven Mini Bot · Pair</title>  <!-- Ad script removed -->  <script src="./js/file-0.js"></script>  <style>
-    @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap');
-
-    :root {
-      color-scheme: dark;
-      --bg: #0b0914;
-      --card: rgba(18, 15, 30, 0.86);
-      --line: rgba(172, 136, 255, 0.18);
-      --ink: #f0edff;
-      --muted: #a79bc2;
-      --blood: #ff3b5c;
-      --blood2: #b71c3a;
-      --glow: #f23b6b;
-      --success: #6ef0b0;
-      --blue: #7b6eff;
-    }
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-    }
-
-    html {
-      min-height: 100%;
-      background: var(--bg);
-    }
-
-    body {
-      min-height: 100vh;
-      margin: 0;
-      color: var(--ink);
-      font-family: 'Manrope', system-ui, sans-serif;
-      background:
-        radial-gradient(
-          ellipse 70% 50% at 20% 20%,
-          #2a1535 0%,
-          transparent 65%
-        ),
-        radial-gradient(
-          ellipse 60% 45% at 90% 80%,
-          #3d1a2b 0%,
-          transparent 55%
-        ),
-        var(--bg);
-      background-attachment: fixed;
-    }
-
-    body.modal-open {
-      overflow: hidden;
-      overscroll-behavior: none;
-    }
-
-    button,
-    input {
-      font: inherit;
-    }
-
-    button {
-      cursor: pointer;
-      border: none;
-      background: none;
-    }
-
-    a {
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    .shell {
-      min-height: 100vh;
-      display: grid;
-      place-items: center;
-      padding: 24px 16px;
-    }
-
-    .card {
-      width: min(100%, 560px);
-      overflow: hidden;
-      border: 1px solid var(--line);
-      border-radius: 32px;
-      background: var(--card);
-      box-shadow:
-        0 30px 70px rgba(0,0,0,0.7),
-        0 0 0 1px rgba(255,59,92,0.08);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
-    }
-
-    .subscribe-modal {
-      position: fixed;
-      inset: 0;
-      z-index: 9999;
-      display: grid;
-      place-items: center;
-      padding: 20px;
-      background: rgba(8,5,16,0.84);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
-      opacity: 1;
-      visibility: visible;
-      transition:
-        opacity .3s ease,
-        visibility .3s ease;
-    }
-
-    .subscribe-modal[hidden] {
-      display: none;
-    }
-
-    .subscribe-modal.closing {
-      opacity: 0;
-      visibility: hidden;
-    }
-
-    .subscribe-card {
-      position: relative;
-      width: min(100%, 410px);
-      padding: 32px 26px 26px;
-      border: 1px solid rgba(255,59,92,.32);
-      border-radius: 30px;
-      text-align: center;
-      background:
-        radial-gradient(
-          circle at 50% 0%,
-          rgba(255,59,92,.15),
-          transparent 43%
-        ),
-        linear-gradient(
-          145deg,
-          #1d132b,
-          #0d0916
-        );
-      box-shadow:
-        0 35px 90px rgba(0,0,0,.85),
-        0 0 45px rgba(255,40,80,.12);
-      animation:
-        popupIn .38s
-        cubic-bezier(.2,.8,.2,1);
-    }
-
-    @keyframes popupIn {
-      from {
-        opacity: 0;
-        transform:
-          translateY(18px)
-          scale(.94);
-      }
-
-      to {
-        opacity: 1;
-        transform:
-          translateY(0)
-          scale(1);
-      }
-    }
-
-    .subscribe-close {
-      position: absolute;
-      top: 13px;
-      right: 13px;
-      width: 39px;
-      height: 39px;
-      display: grid;
-      place-items: center;
-      border-radius: 50%;
-      color: #bcaed0;
-      background: rgba(255,255,255,.055);
-      border: 1px solid rgba(255,255,255,.08);
-      font-size: 24px;
-      font-weight: 400;
-      line-height: 1;
-      transition:
-        background .18s,
-        color .18s,
-        transform .18s;
-    }
-
-    .subscribe-close:hover {
-      color: #fff;
-      background: rgba(255,59,92,.18);
-      border-color: rgba(255,59,92,.3);
-      transform: rotate(90deg);
-    }
-
-    .subscribe-close:active {
-      transform:
-        scale(.92)
-        rotate(90deg);
-    }
-
-    .subscribe-icon {
-      position: relative;
-      width: 74px;
-      height: 74px;
-      margin: 0 auto 16px;
-      display: grid;
-      place-items: center;
-      border-radius: 22px;
-      background:
-        linear-gradient(
-          145deg,
-          #ff365e,
-          #9e1234
-        );
-      box-shadow:
-        0 14px 35px rgba(255,28,60,.3),
-        inset 0 1px 0 rgba(255,255,255,.2);
-      overflow: hidden;
-    }
-
-    .subscribe-icon svg {
-      width: 47px;
-      height: 47px;
-      filter:
-        drop-shadow(
-          0 5px 10px
-          rgba(0,0,0,.3)
-        );
-    }
-
-    .subscribe-card h2 {
-      margin: 0 0 8px;
-      font-size: 27px;
-      font-weight: 800;
-      letter-spacing: -.025em;
-      background:
-        linear-gradient(
-          135deg,
-          #ff8ba5,
-          #ff365d
-        );
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-
-    .subscribe-card p {
-      margin: 0 0 22px;
-      color: #b7a8d4;
-      font-size: 14px;
-      line-height: 1.6;
-      font-weight: 500;
-    }
-
-    .subscribe-actions {
-      display: grid;
-      gap: 11px;
-    }
-
-    .subscribe-button {
-      position: relative;
-      display: flex;
-      align-items: center;
-      gap: 13px;
-      min-height: 61px;
-      padding: 8px 17px;
-      border-radius: 17px;
-      color: #fff;
-      text-decoration: none;
-      text-align: left;
-      background:
-        linear-gradient(
-          135deg,
-          #e82f52,
-          #a91437
-        );
-      box-shadow:
-        0 12px 28px
-        rgba(255,40,70,.25);
-      transition:
-        transform .18s,
-        box-shadow .18s,
-        filter .18s;
-    }
-
-    .subscribe-button:hover {
-      transform: translateY(-2px);
-      filter: brightness(1.08);
-      box-shadow:
-        0 16px 35px
-        rgba(255,40,70,.38);
-    }
-
-    .subscribe-button:active {
-      transform: scale(.98);
-    }
-
-    .social-icon {
-      flex: 0 0 44px;
-      width: 44px;
-      height: 44px;
-      display: grid;
-      place-items: center;
-      border-radius: 13px;
-      background: rgba(255,255,255,.13);
-      border: 1px solid rgba(255,255,255,.16);
-      box-shadow:
-        inset 0 1px 0
-        rgba(255,255,255,.16);
-    }
-
-    .social-icon svg {
-      width: 26px;
-      height: 26px;
-      display: block;
-    }
-
-    .social-text {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      min-width: 0;
-    }
-
-    .social-title {
-      font-size: 14px;
-      font-weight: 800;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .social-subtitle {
-      font-size: 11px;
-      color: rgba(255,255,255,.7);
-      font-weight: 600;
-    }
-
-    .channel-button {
-      background:
-        linear-gradient(
-          135deg,
-          #168d55,
-          #086c3d
-        );
-      box-shadow:
-        0 12px 28px
-        rgba(18,160,91,.2);
-    }
-
-    .channel-button:hover {
-      box-shadow:
-        0 16px 35px
-        rgba(18,160,91,.34);
-    }
-
-    .dismiss-button {
-      min-height: 47px;
-      border-radius: 15px;
-      color: #b8a6d6;
-      font-size: 13px;
-      font-weight: 700;
-      background: rgba(255,255,255,.035);
-      border: 1px solid rgba(255,255,255,.07);
-      transition: .18s;
-    }
-
-    .dismiss-button:hover {
-      color: #fff;
-      background: rgba(255,59,92,.1);
-      border-color: rgba(255,59,92,.2);
-    }
-
-    .topbar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 20px 24px;
-      border-bottom: 1px solid var(--line);
-    }
-
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      font-size: 15px;
-      font-weight: 800;
-      letter-spacing: -.02em;
-    }
-
-    .logo {
-      display: grid;
-      place-items: center;
-      width: 34px;
-      height: 34px;
-      border-radius: 12px;
-      background:
-        linear-gradient(
-          135deg,
-          #ff4b6e,
-          #b81a3e
-        );
-      color: #fff;
-      font-size: 18px;
-      box-shadow:
-        0 6px 18px
-        rgba(255,30,60,.3);
-    }
-
-    .channel-link {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      color: #c6b5e6;
-      font-size: 12px;
-      font-weight: 700;
-      text-decoration: none;
-      padding: 6px 12px;
-      border-radius: 30px;
-      background: rgba(255,59,92,.06);
-      border: 1px solid rgba(255,59,92,.12);
-      transition: .18s;
-    }
-
-    .channel-link:hover {
-      color: #fff;
-      background: rgba(255,59,92,.15);
-      border-color: rgba(255,59,92,.3);
-    }
-
-    main {
-      padding: 34px 24px 24px;
-    }
-
-    .eyebrow {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      color: #b8a5da;
-      font-size: 11px;
-      font-weight: 800;
-      letter-spacing: .12em;
-      text-transform: uppercase;
-    }
-
-    .status-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--success);
-      box-shadow:
-        0 0 0 4px
-        rgba(110,240,176,.15);
-    }
-
-    h1 {
-      margin: 12px 0 8px;
-      font-size: clamp(30px,8vw,42px);
-      line-height: 1.1;
-      letter-spacing: -.045em;
-      font-weight: 800;
-    }
-
-    h1 span {
-      background:
-        linear-gradient(
-          135deg,
-          #ff6b8a,
-          #f73b5e
-        );
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-
-    .intro {
-      max-width: 430px;
-      margin: 0 0 28px;
-      color: var(--muted);
-      font-size: 14px;
-      line-height: 1.7;
-      font-weight: 500;
-    }
-
-    label {
-      display: block;
-      margin-bottom: 8px;
-      color: #ddd1f5;
-      font-size: 13px;
-      font-weight: 700;
-    }
-
-    .number-wrap {
-      position: relative;
-    }
-
-    .prefix {
-      position: absolute;
-      inset: 1px auto 1px 1px;
-      display: none;
-      align-items: center;
-      gap: 8px;
-      padding: 0 12px 0 10px;
-      border-radius: 40px 0 0 40px;
-      color: #ddd1f5;
-      font: 500 13px 'DM Mono', monospace;
-      background: rgba(20,12,40,.7);
-      backdrop-filter: blur(4px);
-      pointer-events: none;
-      border-right: 1px solid rgba(255,255,255,.05);
-    }
-
-    .prefix.visible {
-      display: flex;
-    }
-
-    .flag {
-      width: 22px;
-      height: 15px;
-      object-fit: cover;
-      border-radius: 4px;
-    }
-
-    input {
-      width: 100%;
-      min-height: 60px;
-      padding: 0 18px;
-      border: 1px solid #3d2a56;
-      border-radius: 40px;
-      outline: none;
-      color: #fff;
-      font: 500 16px 'DM Mono', monospace;
-      letter-spacing: .04em;
-      background: rgba(8,4,18,.6);
-      backdrop-filter: blur(4px);
-      transition:
-        border-color .2s,
-        box-shadow .2s,
-        padding .2s;
-    }
-
-    input.with-prefix {
-      padding-left: 100px;
-    }
-
-    input::placeholder {
-      color: #6b5a81;
-      font-family: 'Manrope', sans-serif;
-      font-size: 14px;
-      letter-spacing: 0;
-      font-weight: 500;
-    }
-
-    input:focus {
-      border-color: var(--blood);
-      box-shadow:
-        0 0 0 4px
-        rgba(255,59,92,.15);
-    }
-
-    input.invalid {
-      border-color: #ff4b6e;
-      box-shadow:
-        0 0 0 4px
-        rgba(255,59,92,.2);
-    }
-
-    .helper-row {
-      min-height: 24px;
-      display: flex;
-      justify-content: space-between;
-      gap: 10px;
-      padding: 8px 4px 0;
-      font-size: 11px;
-      font-weight: 700;
-    }
-
-    .helper {
-      color: #a088b6;
-    }
-
-    .helper.error {
-      color: #ff6b8a;
-    }
-
-    .counter {
-      color: #8d79b0;
-      font-family: 'DM Mono', monospace;
-    }
-
-    .counter.ready {
-      color: var(--success);
-    }
-
-    .primary {
-      width: 100%;
-      min-height: 56px;
-      margin-top: 20px;
-      border-radius: 40px;
-      color: #fff;
-      font-size: 15px;
-      font-weight: 800;
-      background:
-        linear-gradient(
-          135deg,
-          #e62e52,
-          #b4123a
-        );
-      box-shadow:
-        0 12px 30px
-        rgba(255,30,60,.25);
-      transition:
-        transform .18s,
-        filter .18s,
-        opacity .18s;
-    }
-
-    .primary:hover:not(:disabled) {
-      filter: brightness(1.1);
-      transform: translateY(-2px);
-    }
-
-    .primary:disabled {
-      opacity: .6;
-      cursor: wait;
-    }
-
-    .loader {
-      display: inline-block;
-      width: 16px;
-      height: 16px;
-      margin-right: 10px;
-      border: 2.5px solid rgba(255,255,255,.25);
-      border-top-color: #fff;
-      border-radius: 50%;
-      animation: spin .7s linear infinite;
-    }
-
-    @keyframes spin {
-      to {
-        transform: rotate(360deg);
-      }
-    }
-
-    .notice {
-      display: none;
-      margin-top: 16px;
-      padding: 12px 16px;
-      border: 1px solid rgba(255,59,92,.25);
-      border-radius: 30px;
-      color: #ffccd6;
-      background: rgba(100,20,40,.2);
-      backdrop-filter: blur(4px);
-      font-size: 13px;
-      font-weight: 600;
-    }
-
-    .notice.show {
-      display: block;
-    }
-
-    .result {
-      display: none;
-      margin-top: 28px;
-      padding: 22px 20px 20px;
-      border: 1px solid rgba(110,240,176,.2);
-      border-radius: 28px;
-      background: rgba(20,60,50,.08);
-      backdrop-filter: blur(4px);
-      animation: reveal .3s ease-out;
-    }
-
-    .result.show {
-      display: block;
-    }
-
-    @keyframes reveal {
-      from {
-        opacity: 0;
-        transform: translateY(10px);
-      }
-
-      to {
-        opacity: 1;
-        transform: none;
-      }
-    }
-
-    .result-head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 14px;
-    }
-
-    .result-title {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin: 0;
-      color: #bcf5dc;
-      font-size: 12px;
-      font-weight: 800;
-      letter-spacing: .08em;
-      text-transform: uppercase;
-    }
-
-    .code {
-      overflow: auto;
-      padding: 16px;
-      border: 1px solid rgba(110,240,176,.15);
-      border-radius: 40px;
-      color: #f0edff;
-      font: 700 clamp(24px,8vw,36px) 'DM Mono', monospace;
-      letter-spacing: .1em;
-      text-align: center;
-      background: rgba(0,0,0,.3);
-      backdrop-filter: blur(4px);
-    }
-
-    .copy {
-      width: 100%;
-      min-height: 44px;
-      margin-top: 14px;
-      border-radius: 40px;
-      color: #d6f7ea;
-      background: rgba(110,240,176,.08);
-      border: 1px solid rgba(110,240,176,.15);
-      font-size: 13px;
-      font-weight: 800;
-      transition: .18s;
-    }
-
-    .copy:hover {
-      background: rgba(110,240,176,.18);
-    }
-
-    .steps {
-      margin-top: 30px;
-      padding-top: 24px;
-      border-top: 1px solid var(--line);
-    }
-
-    .steps h2 {
-      margin: 0 0 14px;
-      font-size: 14px;
-      font-weight: 800;
-      letter-spacing: -.01em;
-      color: #d4c6f0;
-    }
-
-    ol {
-      display: grid;
-      gap: 12px;
-      padding: 0;
-      margin: 0;
-      list-style: none;
-      counter-reset: steps;
-    }
-
-    li {
-      display: grid;
-      grid-template-columns: 24px minmax(0,1fr);
-      gap: 12px;
-      align-items: start;
-      color: #b2a2cc;
-      font-size: 13px;
-      line-height: 1.55;
-      font-weight: 500;
-      counter-increment: steps;
-    }
-
-    li::before {
-      content: counter(steps);
-      display: grid;
-      place-items: center;
-      width: 24px;
-      height: 24px;
-      border: 1px solid #4e3a6b;
-      border-radius: 40px;
-      color: #f0d6ff;
-      font: 600 12px 'DM Mono', monospace;
-      background: rgba(255,59,92,.04);
-    }
-
-    li strong {
-      color: #f0e5ff;
-    }
-
-    footer {
-      padding: 16px 24px;
-      border-top: 1px solid var(--line);
-      color: #7b699b;
-      font-size: 11px;
-      font-weight: 600;
-      text-align: center;
-      letter-spacing: .03em;
-    }
-
-    @media (max-width: 440px) {
-      .shell {
-        padding: 0;
-      }
-
-      .card {
-        min-height: 100vh;
-        border-radius: 0;
-        border-inline: 0;
-      }
-
-      .topbar {
-        padding: 16px 18px;
-      }
-
-      main {
-        padding: 28px 18px 20px;
-      }
-
-      footer {
-        padding: 14px 18px;
-      }
-
-      .subscribe-modal {
-        padding: 16px;
-      }
-
-      .subscribe-card {
-        padding: 30px 20px 22px;
-        border-radius: 27px;
-      }
-
-      .subscribe-icon {
-        width: 68px;
-        height: 68px;
-      }
-
-      .social-title {
-        font-size: 13px;
-      }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      *,
-      *::before,
-      *::after {
-        animation-duration: .01ms !important;
-        transition-duration: .01ms !important;
-      }
-    }
-  </style></head><body class="modal-open"><audio
-id="bloodRavenAudio"
-src="https://files.catbox.moe/lg45qk.mp3"
-preload="auto"
-loop
-playsinline>
-</audio>
-
-  <script>
-    (() => {
-      const audio =
-        document.getElementById('bloodRavenAudio');
-
-      audio.volume = 0.7;
-
-      const startAudio = () => {
-        audio.play().catch(() => {});
-      };
-
-      if (document.readyState === 'loading') {
-        document.addEventListener(
-          'DOMContentLoaded',
-          startAudio,
-          { once: true }
-        );
-      } else {
-        startAudio();
-      }
-
-      const unlockAudio = () => {
-        audio.play().catch(() => {});
-      };
-
-      document.addEventListener(
-        'click',
-        unlockAudio,
-        {
-          once: true,
-          passive: true
-        }
-      );
-
-      document.addEventListener(
-        'touchstart',
-        unlockAudio,
-        {
-          once: true,
-          passive: true
-        }
-      );
-
-      document.addEventListener(
-        'keydown',
-        unlockAudio,
-        {
-          once: true
-        }
-      );
-    })();
-  </script>  <div
-    id="subscribeModal"
-    class="subscribe-modal"
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="subscribeTitle"><div class="subscribe-card">
-
-  <button
-    id="closeSubscribe"
-    class="subscribe-close"
-    type="button"
-    aria-label="Close popup">
-    ×
-  </button>
-
-  <div
-    class="subscribe-icon"
-    aria-hidden="true">
-
-    <svg
-      viewBox="0 0 64 64"
-      xmlns="http://www.w3.org/2000/svg">
-
-      <path
-        d="
-          M14 45
-          C18 37 17 27 23 20
-          C29 13 40 12 48 17
-          L42 23
-          C49 24 54 29 55 35
-          C50 33 46 33 42 35
-          C39 43 32 49 22 51
-          C18 51 15 49 14 45Z
-        "
-        fill="#fff"/>
-
-      <path
-        d="
-          M43 23
-          L59 26
-          L47 31
-          L41 29Z
-        "
-        fill="#f7d8df"/>
-
-      <circle
-        cx="42"
-        cy="23"
-        r="2.7"
-        fill="#ff3158"/>
-
-      <path
-        d="
-          M18 41
-          C25 37 31 35 38 35
-          C34 43 27 48 19 48
-          C17 47 16 44 18 41Z
-        "
-        fill="#d9d2df"/>
-
-      <path
-        d="
-          M28 18
-          C23 13 18 12 13 13
-          C18 16 20 21 21 25
-          Z
-        "
-        fill="#eee8f3"/>
-
-    </svg>
-  </div>
-
-  <h2 id="subscribeTitle">
-    Blood Raven
-  </h2>
-
-  <p>
-    Follow our channels for Mini Bot
-    updates, pairing guides and new tools.
-    <br>
-    <span style="color:#ff6b8a;">
-      Caseyrhodestech
-    </span>
-  </p>
-
-  <div class="subscribe-actions">
-
-    <a
-      class="subscribe-button"
-      href="https://www.youtube.com/@Caseyrhodestech"
-      target="_blank"
-      rel="noopener noreferrer"
-      aria-label="Follow Blood Raven on YouTube">
-
-      <span
-        class="social-icon"
-        aria-hidden="true">
-
-        <svg
-          viewBox="0 0 24 24"
-          xmlns="http://www.w3.org/2000/svg">
-
-          <path
-            fill="#fff"
-            d="
-              M23.5 6.2
-              A3.1 3.1 0 0 0 21.3 4
-              C19.4 3.5 12 3.5 12 3.5
-              S4.6 3.5 2.7 4
-              A3.1 3.1 0 0 0 .5 6.2
-              C0 8.1 0 12 0 12
-              S0 15.9 .5 17.8
-              A3.1 3.1 0 0 0 2.7 20
-              C4.6 20.5 12 20.5 12 20.5
-              S19.4 20.5 21.3 20
-              A3.1 3.1 0 0 0 23.5 17.8
-              C24 15.9 24 12 24 12
-              S24 8.1 23.5 6.2Z"/>
-
-          <path
-            fill="#e82f52"
-            d="
-              M9.6 8.2
-              L16.5 12
-              L9.6 15.8
-              Z"/>
-        </svg>
-      </span>
-
-      <span class="social-text">
-        <span class="social-title">
-          Follow on YouTube
-        </span>
-
-        <span class="social-subtitle">
-          Caseyrhodestech
-        </span>
-      </span>
-    </a>
-
-    <a
-      class="subscribe-button channel-button"
-      href="https://whatsapp.com/channel/0029Vb8OqiTBA1f4o3LW9s1V"
-      target="_blank"
-      rel="noopener noreferrer"
-      aria-label="Follow Blood Raven WhatsApp Channel">
-
-      <span
-        class="social-icon"
-        aria-hidden="true">
-
-        <svg
-          viewBox="0 0 24 24"
-          xmlns="http://www.w3.org/2000/svg">
-
-          <path
-            fill="#fff"
-            d="
-              M20.5 3.5
-              A11.9 11.9 0 0 0 12.05 0
-              C5.47 0 .12 5.34 .12 11.92
-              C.12 14.02 .67 16.07 1.72 17.87
-              L.02 24
-              L6.29 22.36
-              A11.9 11.9 0 0 0 12.05 23.83
-              H12.06
-              C18.64 23.83 23.99 18.48 23.99 11.91
-              C23.99 8.73 22.75 5.74 20.5 3.5Z"/>
-
-          <path
-            fill="#086c3d"
-            d="
-              M17.84 14.43
-              C17.53 14.27 16.01 13.53 15.73 13.43
-              C15.45 13.33 15.24 13.27 15.03 13.59
-              C14.82 13.9 14.23 14.59 14.05 14.79
-              C13.87 15 13.69 15.03 13.2 14.91
-              C12.89 14.75 11.88 14.42 10.69 13.35
-              C9.76 12.52 9.13 11.5 8.95 11.19
-              C8.77 10.88 8.93 10.71 9.09 10.55
-              C9.23 10.41 9.4 10.19 9.56 10.01
-              C9.72 9.83 9.77 9.7 9.87 9.49
-              C9.97 9.28 9.92 9.1 9.84 8.94
-              C9.76 8.78 9.14 7.25 8.88 6.62
-              C8.63 6.01 8.38 6.09 8.18 6.08
-              H7.58
-              C7.37 6.08 7.03 6.16 6.75 6.47
-              C6.47 6.78 5.66 7.53 5.66 9.05
-              C5.66 10.57 6.78 12.04 6.93 12.25
-              C7.09 12.46 9.13 15.61 12.26 16.96
-              C13.01 17.28 13.59 17.47 14.04 17.61
-              C14.79 17.85 15.47 17.82 16.01 17.74
-              C16.61 17.65 17.84 16.99 18.1 16.26
-              C18.36 15.53 18.36 14.91 18.28 14.78
-              C18.2 14.65 18.15 14.59 17.84 14.43Z"/>
-        </svg>
-      </span>
-
-      <span class="social-text">
-        <span class="social-title">
-          Follow WhatsApp Channel
-        </span>
-
-        <span class="social-subtitle">
-          Blood Raven Updates
-        </span>
-      </span>
-    </a>
-
-    <button
-      id="dismissSubscribe"
-      class="dismiss-button"
-      type="button">
-      Continue to Mini Bot
-    </button>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d0c12">
+
+<meta property="og:title" content="BLOOD RAVEN · MINI BOT">
+<meta property="og:description" content="BLOOD RAVEN by Caseyrhodestech">
+<meta name="twitter:card" content="summary_large_image">
+
+<title>Blood Raven Mini Bot · Dashboard</title>
+
+<!-- Ads intentionally removed -->
+<script src="./js/file-0.js"></script>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&display=swap');
+
+:root{
+  color-scheme:dark;
+  --bg:#090711;
+  --card:rgba(19,15,31,.88);
+  --card2:rgba(25,18,39,.72);
+  --line:rgba(172,136,255,.16);
+  --ink:#f4efff;
+  --muted:#a79bbb;
+  --blood:#ff3b5c;
+  --blood2:#a91336;
+  --success:#6ef0b0;
+  --blue:#8175ff;
+}
+
+*{
+  box-sizing:border-box;
+  margin:0;
+}
+
+html{
+  min-height:100%;
+  scroll-behavior:smooth;
+  background:var(--bg);
+}
+
+body{
+  min-height:100vh;
+  color:var(--ink);
+  font-family:'Manrope',system-ui,sans-serif;
+  background:
+    radial-gradient(ellipse 70% 50% at 10% 5%,#32162f 0%,transparent 62%),
+    radial-gradient(ellipse 60% 50% at 95% 90%,#35152b 0%,transparent 58%),
+    var(--bg);
+  background-attachment:fixed;
+}
+
+body.modal-open{
+  overflow:hidden;
+}
+
+button,input{
+  font:inherit;
+}
+
+button{
+  border:0;
+  cursor:pointer;
+}
+
+a{
+  color:inherit;
+  text-decoration:none;
+}
+
+/* =========================
+   LOADING SCREEN
+========================= */
+
+#loadingScreen{
+  position:fixed;
+  inset:0;
+  z-index:20000;
+  display:grid;
+  place-items:center;
+  background:
+    radial-gradient(circle at 50% 35%,rgba(255,59,92,.16),transparent 35%),
+    #090711;
+  transition:opacity .55s ease,visibility .55s ease;
+}
+
+#loadingScreen.hide{
+  opacity:0;
+  visibility:hidden;
+  pointer-events:none;
+}
+
+.loading-box{
+  width:min(90%,390px);
+  text-align:center;
+}
+
+.loading-logo{
+  width:92px;
+  height:92px;
+  margin:0 auto 22px;
+  display:grid;
+  place-items:center;
+  border-radius:29px;
+  font-size:43px;
+  background:linear-gradient(145deg,#ff4164,#92132f);
+  box-shadow:
+    0 0 0 8px rgba(255,59,92,.06),
+    0 20px 55px rgba(255,30,60,.3);
+  animation:logoPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes logoPulse{
+  50%{
+    transform:translateY(-5px) scale(1.035);
+    box-shadow:
+      0 0 0 14px rgba(255,59,92,.025),
+      0 25px 65px rgba(255,30,60,.42);
+  }
+}
+
+.loading-title{
+  font-size:28px;
+  font-weight:800;
+  letter-spacing:-.04em;
+}
+
+.loading-title span{
+  color:var(--blood);
+}
+
+.loading-sub{
+  margin-top:7px;
+  color:#9689ab;
+  font-size:12px;
+  font-weight:700;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+}
+
+.loading-bar{
+  height:4px;
+  margin:27px auto 13px;
+  width:min(280px,75%);
+  overflow:hidden;
+  border-radius:20px;
+  background:rgba(255,255,255,.07);
+}
+
+.loading-progress{
+  width:0;
+  height:100%;
+  border-radius:20px;
+  background:linear-gradient(90deg,#b7193e,#ff526f);
+  animation:loadProgress 1.7s ease forwards;
+}
+
+@keyframes loadProgress{
+  to{width:100%}
+}
+
+.loading-status{
+  color:#796b8d;
+  font:500 11px 'DM Mono',monospace;
+}
+
+/* =========================
+   APP
+========================= */
+
+.app{
+  width:min(100%,760px);
+  margin:auto;
+  padding:20px 16px 35px;
+}
+
+.card{
+  overflow:hidden;
+  border:1px solid var(--line);
+  border-radius:30px;
+  background:var(--card);
+  box-shadow:
+    0 30px 80px rgba(0,0,0,.65),
+    0 0 0 1px rgba(255,59,92,.045);
+  backdrop-filter:blur(16px);
+  -webkit-backdrop-filter:blur(16px);
+}
+
+/* =========================
+   TOPBAR
+========================= */
+
+.topbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:15px;
+  padding:18px 21px;
+  border-bottom:1px solid var(--line);
+}
+
+.brand{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  min-width:0;
+  font-size:14px;
+  font-weight:800;
+}
+
+.logo{
+  width:38px;
+  height:38px;
+  flex:0 0 38px;
+  display:grid;
+  place-items:center;
+  border-radius:13px;
+  background:linear-gradient(135deg,#ff4c6d,#a61538);
+  box-shadow:0 8px 23px rgba(255,30,60,.25);
+}
+
+.brand small{
+  color:#9a8caf;
+  font-weight:600;
+}
+
+.channel-link{
+  padding:8px 12px;
+  border:1px solid rgba(255,59,92,.14);
+  border-radius:30px;
+  color:#cdbde5;
+  background:rgba(255,59,92,.06);
+  font-size:10px;
+  font-weight:800;
+  white-space:nowrap;
+}
+
+/* =========================
+   CONTENT
+========================= */
+
+main{
+  padding:27px 22px;
+}
+
+.hero{
+  position:relative;
+  padding:5px 0 24px;
+}
+
+.eyebrow{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  color:#b9a8d3;
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+}
+
+.status-dot{
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background:var(--success);
+  box-shadow:0 0 0 4px rgba(110,240,176,.1);
+}
+
+.hero h1{
+  margin-top:13px;
+  font-size:clamp(34px,8vw,50px);
+  line-height:1.03;
+  letter-spacing:-.055em;
+}
+
+.hero h1 span{
+  color:var(--blood);
+  text-shadow:0 0 30px rgba(255,59,92,.18);
+}
+
+.hero p{
+  max-width:580px;
+  margin-top:12px;
+  color:var(--muted);
+  font-size:14px;
+  line-height:1.7;
+}
+
+/* =========================
+   DASHBOARD
+========================= */
+
+.dashboard{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:11px;
+  margin:3px 0 25px;
+}
+
+.stat{
+  min-height:105px;
+  padding:16px 13px;
+  border:1px solid rgba(172,136,255,.12);
+  border-radius:20px;
+  background:rgba(255,255,255,.025);
+}
+
+.stat-icon{
+  font-size:20px;
+}
+
+.stat-value{
+  margin-top:10px;
+  color:#f6efff;
+  font-size:18px;
+  font-weight:800;
+  letter-spacing:-.03em;
+}
+
+.stat-label{
+  margin-top:3px;
+  color:#897b9e;
+  font-size:10px;
+  font-weight:700;
+}
+
+.info-panel{
+  margin-bottom:24px;
+  padding:19px;
+  border:1px solid rgba(255,59,92,.13);
+  border-radius:23px;
+  background:
+    linear-gradient(135deg,rgba(255,59,92,.075),rgba(255,255,255,.015));
+}
+
+.info-head{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-bottom:10px;
+}
+
+.info-icon{
+  width:38px;
+  height:38px;
+  display:grid;
+  place-items:center;
+  border-radius:12px;
+  background:rgba(255,59,92,.1);
+  border:1px solid rgba(255,59,92,.14);
+}
+
+.info-panel h2{
+  font-size:14px;
+  font-weight:800;
+}
+
+.info-panel p{
+  color:#9e91b4;
+  font-size:12px;
+  line-height:1.7;
+}
+
+.feature-grid{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:10px;
+  margin-bottom:28px;
+}
+
+.feature{
+  padding:15px;
+  border:1px solid rgba(172,136,255,.11);
+  border-radius:19px;
+  background:rgba(255,255,255,.022);
+}
+
+.feature strong{
+  display:block;
+  margin-bottom:5px;
+  color:#e7ddf5;
+  font-size:12px;
+}
+
+.feature span{
+  color:#8f829f;
+  font-size:11px;
+  line-height:1.5;
+}
+
+/* =========================
+   NAVIGATION
+========================= */
+
+.nav-buttons{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+  margin-bottom:28px;
+}
+
+.nav-btn{
+  min-height:53px;
+  border-radius:17px;
+  color:#d9cfea;
+  background:rgba(255,255,255,.035);
+  border:1px solid rgba(255,255,255,.07);
+  font-size:13px;
+  font-weight:800;
+  transition:.2s;
+}
+
+.nav-btn:hover{
+  transform:translateY(-2px);
+  background:rgba(255,59,92,.09);
+  border-color:rgba(255,59,92,.2);
+}
+
+.nav-btn.active{
+  color:#fff;
+  background:linear-gradient(135deg,#e72e52,#ad1239);
+  box-shadow:0 12px 30px rgba(255,30,60,.2);
+}
+
+/* =========================
+   PAIR SECTION
+========================= */
+
+.section{
+  display:none;
+}
+
+.section.active{
+  display:block;
+  animation:sectionIn .3s ease;
+}
+
+@keyframes sectionIn{
+  from{
+    opacity:0;
+    transform:translateY(8px);
+  }
+  to{
+    opacity:1;
+    transform:none;
+  }
+}
+
+.pair-head{
+  margin-bottom:20px;
+}
+
+.pair-head h2{
+  font-size:22px;
+  letter-spacing:-.035em;
+}
+
+.pair-head p{
+  margin-top:6px;
+  color:#9487a8;
+  font-size:12px;
+  line-height:1.6;
+}
+
+label{
+  display:block;
+  margin-bottom:8px;
+  color:#ddd2f2;
+  font-size:12px;
+  font-weight:800;
+}
+
+input{
+  width:100%;
+  min-height:58px;
+  padding:0 17px;
+  outline:none;
+  border:1px solid #3b2b50;
+  border-radius:40px;
+  color:#fff;
+  background:rgba(7,4,15,.65);
+  font:500 15px 'DM Mono',monospace;
+  letter-spacing:.04em;
+  transition:.2s;
+}
+
+input::placeholder{
+  color:#685b79;
+  font-family:Manrope,sans-serif;
+  letter-spacing:0;
+}
+
+input:focus{
+  border-color:var(--blood);
+  box-shadow:0 0 0 4px rgba(255,59,92,.12);
+}
+
+input.invalid{
+  border-color:#ff4b6e;
+}
+
+.helper-row{
+  min-height:25px;
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  padding:7px 4px 0;
+  font-size:10px;
+  font-weight:700;
+}
+
+.helper{
+  color:#8d7da0;
+}
+
+.error{
+  color:#ff718b;
+}
+
+.counter{
+  color:#806f98;
+  font-family:'DM Mono',monospace;
+}
+
+.counter.ready{
+  color:var(--success);
+}
+
+.primary{
+  width:100%;
+  min-height:56px;
+  margin-top:18px;
+  border-radius:40px;
+  color:#fff;
+  background:linear-gradient(135deg,#e62e52,#ae1238);
+  box-shadow:0 13px 32px rgba(255,30,60,.22);
+  font-size:14px;
+  font-weight:800;
+  transition:.2s;
+}
+
+.primary:hover:not(:disabled){
+  transform:translateY(-2px);
+  filter:brightness(1.08);
+}
+
+.primary:disabled{
+  opacity:.6;
+  cursor:wait;
+}
+
+.loader{
+  display:inline-block;
+  width:15px;
+  height:15px;
+  margin-right:9px;
+  vertical-align:-3px;
+  border:2px solid rgba(255,255,255,.25);
+  border-top-color:#fff;
+  border-radius:50%;
+  animation:spin .7s linear infinite;
+}
+
+@keyframes spin{
+  to{transform:rotate(360deg)}
+}
+
+.notice{
+  display:none;
+  margin-top:15px;
+  padding:13px 15px;
+  border:1px solid rgba(255,59,92,.22);
+  border-radius:17px;
+  color:#ffcbd5;
+  background:rgba(100,20,40,.17);
+  font-size:12px;
+  font-weight:600;
+}
+
+.notice.show{
+  display:block;
+}
+
+.result{
+  display:none;
+  margin-top:22px;
+  padding:20px;
+  border:1px solid rgba(110,240,176,.18);
+  border-radius:24px;
+  background:rgba(20,70,55,.07);
+}
+
+.result.show{
+  display:block;
+  animation:sectionIn .3s ease;
+}
+
+.result-title{
+  margin-bottom:13px;
+  color:#bdf3d9;
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+
+.code{
+  overflow:auto;
+  padding:16px;
+  border:1px solid rgba(110,240,176,.13);
+  border-radius:35px;
+  color:#f2edff;
+  background:rgba(0,0,0,.25);
+  text-align:center;
+  font:700 clamp(23px,7vw,34px) 'DM Mono',monospace;
+  letter-spacing:.1em;
+}
+
+.copy{
+  width:100%;
+  min-height:44px;
+  margin-top:12px;
+  border:1px solid rgba(110,240,176,.14);
+  border-radius:35px;
+  color:#c9f3df;
+  background:rgba(110,240,176,.07);
+  font-size:12px;
+  font-weight:800;
+}
+
+.steps{
+  margin-top:25px;
+  padding-top:21px;
+  border-top:1px solid var(--line);
+}
+
+.steps h3{
+  margin-bottom:14px;
+  font-size:13px;
+}
+
+ol{
+  display:grid;
+  gap:11px;
+  padding:0;
+  list-style:none;
+  counter-reset:step;
+}
+
+.steps li{
+  display:grid;
+  grid-template-columns:24px 1fr;
+  gap:10px;
+  color:#9e91b1;
+  font-size:11px;
+  line-height:1.6;
+  counter-increment:step;
+}
+
+.steps li::before{
+  content:counter(step);
+  width:24px;
+  height:24px;
+  display:grid;
+  place-items:center;
+  border:1px solid #49365f;
+  border-radius:50%;
+  color:#f2d8ff;
+  font:600 10px 'DM Mono',monospace;
+}
+
+.steps strong{
+  color:#eee4fb;
+}
+
+/* =========================
+   POPUP
+========================= */
+
+.subscribe-modal{
+  position:fixed;
+  inset:0;
+  z-index:10000;
+  display:grid;
+  place-items:center;
+  padding:18px;
+  background:rgba(7,4,14,.86);
+  backdrop-filter:blur(15px);
+  -webkit-backdrop-filter:blur(15px);
+}
+
+.subscribe-modal[hidden]{
+  display:none;
+}
+
+.subscribe-modal.closing{
+  opacity:0;
+  visibility:hidden;
+  transition:.22s;
+}
+
+.subscribe-card{
+  position:relative;
+  width:min(100%,410px);
+  padding:30px 23px 23px;
+  border:1px solid rgba(255,59,92,.3);
+  border-radius:29px;
+  text-align:center;
+  background:
+    radial-gradient(circle at 50% 0%,rgba(255,59,92,.15),transparent 43%),
+    linear-gradient(145deg,#1d132b,#0d0916);
+  box-shadow:
+    0 35px 90px rgba(0,0,0,.85),
+    0 0 45px rgba(255,40,80,.12);
+  animation:popupIn .38s cubic-bezier(.2,.8,.2,1);
+}
+
+@keyframes popupIn{
+  from{
+    opacity:0;
+    transform:translateY(18px) scale(.94);
+  }
+  to{
+    opacity:1;
+    transform:none;
+  }
+}
+
+.subscribe-close{
+  position:absolute;
+  top:12px;
+  right:12px;
+  width:38px;
+  height:38px;
+  display:grid;
+  place-items:center;
+  border-radius:50%;
+  color:#bcaed0;
+  background:rgba(255,255,255,.055);
+  border:1px solid rgba(255,255,255,.08);
+  font-size:23px;
+  transition:.18s;
+}
+
+.subscribe-close:hover{
+  color:#fff;
+  background:rgba(255,59,92,.18);
+  transform:rotate(90deg);
+}
+
+.subscribe-icon{
+  width:70px;
+  height:70px;
+  margin:0 auto 15px;
+  display:grid;
+  place-items:center;
+  border-radius:21px;
+  background:linear-gradient(145deg,#ff365e,#9e1234);
+  box-shadow:0 14px 35px rgba(255,28,60,.3);
+}
+
+.subscribe-icon svg{
+  width:45px;
+  height:45px;
+}
+
+.subscribe-card h2{
+  margin-bottom:8px;
+  font-size:26px;
+  font-weight:800;
+  background:linear-gradient(135deg,#ff8ba5,#ff365d);
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
+}
+
+.subscribe-card p{
+  margin-bottom:20px;
+  color:#b7a8d4;
+  font-size:13px;
+  line-height:1.6;
+}
+
+.subscribe-actions{
+  display:grid;
+  gap:10px;
+}
+
+.subscribe-button{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  min-height:59px;
+  padding:8px 15px;
+  border-radius:17px;
+  color:#fff;
+  text-align:left;
+  background:linear-gradient(135deg,#e82f52,#a91437);
+  box-shadow:0 12px 28px rgba(255,40,70,.22);
+  transition:.18s;
+}
+
+.subscribe-button:hover{
+  transform:translateY(-2px);
+  filter:brightness(1.08);
+}
+
+.channel-button{
+  background:linear-gradient(135deg,#168d55,#086c3d);
+  box-shadow:0 12px 28px rgba(18,160,91,.2);
+}
+
+.social-icon{
+  width:43px;
+  height:43px;
+  flex:0 0 43px;
+  display:grid;
+  place-items:center;
+  border-radius:13px;
+  background:rgba(255,255,255,.13);
+  border:1px solid rgba(255,255,255,.16);
+}
+
+.social-icon svg{
+  width:25px;
+  height:25px;
+}
+
+.social-text{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+  min-width:0;
+}
+
+.social-title{
+  font-size:13px;
+  font-weight:800;
+}
+
+.social-subtitle{
+  color:rgba(255,255,255,.68);
+  font-size:10px;
+  font-weight:600;
+}
+
+.dismiss-button{
+  min-height:46px;
+  border:1px solid rgba(255,255,255,.07);
+  border-radius:15px;
+  color:#b8a6d6;
+  background:rgba(255,255,255,.035);
+  font-size:12px;
+  font-weight:800;
+}
+
+/* =========================
+   FOOTER
+========================= */
+
+footer{
+  padding:17px 22px;
+  border-top:1px solid var(--line);
+  color:#75668a;
+  font-size:10px;
+  font-weight:600;
+  text-align:center;
+  letter-spacing:.03em;
+}
+
+@media(max-width:560px){
+  .app{
+    padding:0;
+  }
+
+  .card{
+    min-height:100vh;
+    border-radius:0;
+    border-inline:0;
+  }
+
+  .topbar{
+    padding:15px 17px;
+  }
+
+  main{
+    padding:25px 17px;
+  }
+
+  .dashboard{
+    gap:8px;
+  }
+
+  .stat{
+    min-height:98px;
+    padding:13px 10px;
+  }
+
+  .feature-grid{
+    gap:8px;
+  }
+}
+
+@media(max-width:370px){
+  .dashboard{
+    grid-template-columns:1fr;
+  }
+
+  .stat{
+    min-height:auto;
+  }
+}
+
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{
+    animation-duration:.01ms!important;
+    transition-duration:.01ms!important;
+  }
+}
+</style>
+</head>
+
+<body class="modal-open">
+
+<!-- =========================
+     LOADING SCREEN
+========================= -->
+
+<div id="loadingScreen">
+  <div class="loading-box">
+
+    <div class="loading-logo">🤖</div>
+
+    <div class="loading-title">
+      BLOOD <span>RAVEN</span>
+    </div>
+
+    <div class="loading-sub">
+      Mini Bot
+    </div>
+
+    <div class="loading-bar">
+      <div class="loading-progress"></div>
+    </div>
+
+    <div class="loading-status">
+      Initializing secure dashboard...
+    </div>
 
   </div>
 </div>
 
-  </div>  <div class="shell"><section
-  class="card"
-  aria-labelledby="page-title">
+<!-- =========================
+     AUDIO
+========================= -->
 
-  <header class="topbar">
+<audio
+  id="bloodRavenAudio"
+  src="https://files.catbox.moe/lg45qk.mp3"
+  preload="auto"
+  loop
+  playsinline>
+</audio>
 
-    <div class="brand">
+<!-- =========================
+     FOLLOW POPUP
+========================= -->
 
-      <span
-        class="logo"
-        aria-hidden="true">
-        🤖
-      </span>
+<div
+  id="subscribeModal"
+  class="subscribe-modal"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="subscribeTitle">
 
-      Blood Raven
+  <div class="subscribe-card">
 
-      <span
-        style="
-          color:#9a84b5;
-          font-weight:600;
-        ">
-        / Mini Bot
-      </span>
+    <button
+      id="closeSubscribe"
+      class="subscribe-close"
+      type="button"
+      aria-label="Close popup">
+      ×
+    </button>
+
+    <div class="subscribe-icon" aria-hidden="true">
+
+      <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+
+        <path
+          d="M14 45C18 37 17 27 23 20C29 13 40 12 48 17L42 23C49 24 54 29 55 35C50 33 46 33 42 35C39 43 32 49 22 51C18 51 15 49 14 45Z"
+          fill="#fff"/>
+
+        <path
+          d="M43 23L59 26L47 31L41 29Z"
+          fill="#f7d8df"/>
+
+        <circle
+          cx="42"
+          cy="23"
+          r="2.7"
+          fill="#ff3158"/>
+
+        <path
+          d="M18 41C25 37 31 35 38 35C34 43 27 48 19 48C17 47 16 44 18 41Z"
+          fill="#d9d2df"/>
+
+        <path
+          d="M28 18C23 13 18 12 13 13C18 16 20 21 21 25Z"
+          fill="#eee8f3"/>
+
+      </svg>
 
     </div>
 
-    <a
-      class="channel-link"
-      href="https://www.youtube.com/@Caseyrhodestech"
-      target="_blank"
-      rel="noopener noreferrer">
-      BLOOD RAVEN.
-    </a>
+    <h2 id="subscribeTitle">
+      Blood Raven
+    </h2>
 
-  </header>
+    <p>
+      Follow our channels for Mini Bot
+      updates, pairing guides and new tools.
+      <br>
+      <span style="color:#ff6b8a;">
+        Caseyrhodestech
+      </span>
+    </p>
 
-  <main>
+    <div class="subscribe-actions">
+
+      <a
+        class="subscribe-button"
+        href="https://www.youtube.com/@Caseyrhodestech"
+        target="_blank"
+        rel="noopener noreferrer">
+
+        <span class="social-icon">
+
+          <svg viewBox="0 0 24 24">
+
+            <path
+              fill="#fff"
+              d="M23.5 6.2A3.1 3.1 0 0 0 21.3 4C19.4 3.5 12 3.5 12 3.5S4.6 3.5 2.7 4A3.1 3.1 0 0 0 .5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8A3.1 3.1 0 0 0 2.7 20c1.9.5 9.3.5 9.3.5s7.4 0 9.3-.5a3.1 3.1 0 0 0 2.2-2.2C24 15.9 24 12 24 12s0-3.9-.5-5.8Z"/>
+
+            <path
+              fill="#e82f52"
+              d="M9.6 8.2L16.5 12l-6.9 3.8Z"/>
+
+          </svg>
+
+        </span>
+
+        <span class="social-text">
+          <span class="social-title">
+            Follow on YouTube
+          </span>
+          <span class="social-subtitle">
+            Caseyrhodestech
+          </span>
+        </span>
+
+      </a>
+
+      <a
+        class="subscribe-button channel-button"
+        href="https://whatsapp.com/channel/0029Vb8OqiTBA1f4o3LW9s1V"
+        target="_blank"
+        rel="noopener noreferrer">
+
+        <span class="social-icon">
+
+          <svg viewBox="0 0 24 24">
+
+            <path
+              fill="#fff"
+              d="M20.5 3.5A11.9 11.9 0 0 0 12.05 0C5.47 0 .12 5.34.12 11.92c0 2.1.55 4.15 1.6 5.95L.02 24l6.27-1.64a11.9 11.9 0 0 0 5.76 1.47h.01c6.58 0 11.93-5.35 11.93-11.92 0-3.18-1.24-6.17-3.49-8.41Z"/>
+
+            <path
+              fill="#086c3d"
+              d="M17.84 14.43c-.31-.16-1.83-.9-2.11-1-.28-.1-.49-.16-.7.16-.21.31-.8 1-0.98 1.2-.18.21-.36.24-.85.12-.31-.16-1.32-.49-2.51-1.56-.93-.83-1.56-1.85-1.74-2.16-.18-.31-.02-.48.14-.64.14-.14.31-.36.47-.54.16-.18.21-.31.31-.52.1-.21.05-.39-.03-.55-.08-.16-.7-1.69-.96-2.32-.25-.61-.5-.53-.7-.54h-.6c-.21 0-.55.08-.83.39-.28.31-1.09 1.06-1.09 2.58s1.12 2.99 1.27 3.2c.16.21 2.2 3.36 5.33 4.71.75.32 1.33.51 1.78.65.75.24 1.43.21 1.97.13.6-.09 1.83-.75 2.09-1.48.26-.73.26-1.35.18-1.48-.08-.13-.13-.19-.44-.35Z"/>
+
+          </svg>
+
+        </span>
+
+        <span class="social-text">
+          <span class="social-title">
+            Follow WhatsApp Channel
+          </span>
+          <span class="social-subtitle">
+            Blood Raven Updates
+          </span>
+        </span>
+
+      </a>
+
+      <button
+        id="dismissSubscribe"
+        class="dismiss-button"
+        type="button">
+        Continue to Mini Bot
+      </button>
+
+    </div>
+
+  </div>
+</div>
+
+<!-- =========================
+     APPLICATION
+========================= -->
+
+<div class="app">
+
+<section class="card">
+
+<header class="topbar">
+
+  <div class="brand">
+
+    <span class="logo">
+      🤖
+    </span>
+
+    <span>
+      Blood Raven
+      <small>/ Mini Bot</small>
+    </span>
+
+  </div>
+
+  <a
+    class="channel-link"
+    href="https://www.youtube.com/@Caseyrhodestech"
+    target="_blank"
+    rel="noopener noreferrer">
+    BLOOD RAVEN
+  </a>
+
+</header>
+
+<main>
+
+<!-- =========================
+     DASHBOARD SECTION
+========================= -->
+
+<section
+  id="dashboardSection"
+  class="section active">
+
+  <div class="hero">
+
+    <div class="eyebrow">
+      <span class="status-dot"></span>
+      System online
+    </div>
+
+    <h1>
+      Welcome to
+      <span>Blood Raven.</span>
+    </h1>
+
+    <p>
+      Your central hub for Blood Raven Mini Bot.
+      Pair a WhatsApp device, learn about the bot,
+      and stay connected with the latest updates.
+    </p>
+
+  </div>
+
+  <div class="dashboard">
+
+    <div class="stat">
+      <div class="stat-icon">⚡</div>
+      <div class="stat-value">Fast</div>
+      <div class="stat-label">Pairing system</div>
+    </div>
+
+    <div class="stat">
+      <div class="stat-icon">🟢</div>
+      <div class="stat-value">Online</div>
+      <div class="stat-label">Dashboard</div>
+    </div>
+
+    <div class="stat">
+      <div class="stat-icon">🤖</div>
+      <div class="stat-value">Mini</div>
+      <div class="stat-label">Bot edition</div>
+    </div>
+
+  </div>
+
+  <div class="info-panel">
+
+    <div class="info-head">
+
+      <div class="info-icon">
+        🩸
+      </div>
+
+      <h2>
+        About Blood Raven
+      </h2>
+
+    </div>
+
+    <p>
+      Blood Raven Mini Bot is a WhatsApp automation
+      project built for fast, useful and customizable
+      bot features. This website provides a simple
+      interface for connecting a WhatsApp device to
+      the bot through pairing codes.
+    </p>
+
+  </div>
+
+  <div class="feature-grid">
+
+    <div class="feature">
+      <strong>📱 WhatsApp Pairing</strong>
+      <span>
+        Request a pairing code using your
+        international WhatsApp number.
+      </span>
+    </div>
+
+    <div class="feature">
+      <strong>⚙️ Bot Features</strong>
+      <span>
+        Designed for automation, utilities,
+        group tools and entertainment commands.
+      </span>
+    </div>
+
+    <div class="feature">
+      <strong>🚀 Lightweight</strong>
+      <span>
+        A simple web interface designed to
+        stay fast on mobile devices.
+      </span>
+    </div>
+
+    <div class="feature">
+      <strong>🛡️ Secure Request</strong>
+      <span>
+        Pairing requests are sent directly to
+        the configured bot endpoint.
+      </span>
+    </div>
+
+  </div>
+
+</section>
+
+<!-- =========================
+     PAIR SECTION
+========================= -->
+
+<section
+  id="pairSection"
+  class="section">
+
+  <div class="pair-head">
 
     <div class="eyebrow">
       <span class="status-dot"></span>
       Pair a device
     </div>
 
-    <h1 id="page-title">
-      Get your
-      <span>WhatsApp</span>
-      bot.
-    </h1>
+    <h2>
+      Connect your WhatsApp
+    </h2>
 
-    <p class="intro">
-      Enter the full international number,
-      no plus sign or spaces.
-      <br>
-      Example:
-      2547063956321
+    <p>
+      Enter your complete international number
+      without the plus sign or spaces.
     </p>
 
-    <form
-      id="pairingForm"
-      novalidate>
+  </div>
 
-      <label for="phoneNumber">
-        WhatsApp number
-      </label>
+  <form
+    id="pairingForm"
+    novalidate>
 
-      <div class="number-wrap">
+    <label for="phoneNumber">
+      WhatsApp number
+    </label>
 
-        <span
-          id="prefix"
-          class="prefix">
+    <input
+      id="phoneNumber"
+      inputmode="numeric"
+      autocomplete="tel"
+      maxlength="15"
+      placeholder="e.g. 2547063956321"
+      aria-describedby="inputHelp inputError">
 
-          <img
-            id="flag"
-            class="flag"
-            alt="">
+    <div class="helper-row">
 
-          <span id="countryCode"></span>
+      <span
+        id="inputHelp"
+        class="helper">
+        Country code required
+      </span>
 
-        </span>
+      <span
+        id="inputError"
+        class="error"
+        role="alert">
+      </span>
 
-        <input
-          id="phoneNumber"
-          inputmode="numeric"
-          autocomplete="tel"
-          placeholder="e.g. 2547063956321"
-          aria-describedby="inputHelp inputError"
-          maxlength="15">
-      </div>
+      <span
+        id="counter"
+        class="counter">
+        0 / 15
+      </span>
 
-      <div class="helper-row">
-
-        <span
-          id="inputHelp"
-          class="helper">
-          Country code required
-        </span>
-
-        <span
-          id="inputError"
-          class="helper error"
-          role="alert">
-        </span>
-
-        <span
-          id="counter"
-          class="counter">
-          0 / 15
-        </span>
-
-      </div>
-
-      <button
-        id="requestButton"
-        class="primary"
-        type="submit">
-        Request pairing code
-      </button>
-
-    </form>
-
-    <div
-      id="notice"
-      class="notice"
-      role="alert">
     </div>
 
-    <section
-      id="result"
-      class="result"
-      aria-live="polite"
-      aria-labelledby="resultTitle">
+    <button
+      id="requestButton"
+      class="primary"
+      type="submit">
+      Request pairing code
+    </button>
 
-      <div class="result-head">
+  </form>
 
-        <h2
-          id="resultTitle"
-          class="result-title">
+  <div
+    id="notice"
+    class="notice"
+    role="alert">
+  </div>
 
-          <span class="status-dot"></span>
+  <section
+    id="result"
+    class="result"
+    aria-live="polite">
 
-          Pairing code ready
+    <div class="result-title">
+      🟢 Pairing code ready
+    </div>
 
-        </h2>
+    <div
+      id="pairingCode"
+      class="code">
+      --------
+    </div>
 
-      </div>
+    <button
+      id="copyButton"
+      class="copy"
+      type="button">
+      Copy code
+    </button>
 
-      <div
-        id="pairingCode"
-        class="code">
-        --------
-      </div>
+  </section>
 
-      <button
-        id="copyButton"
-        class="copy"
-        type="button">
-        Copy code
-      </button>
+  <div class="steps">
 
-    </section>
+    <h3>
+      Finish in WhatsApp
+    </h3>
 
-    <section
-      class="steps"
-      aria-labelledby="howTitle">
+    <ol>
 
-      <h2 id="howTitle">
-        Finish in WhatsApp
-      </h2>
+      <li>
+        <span>
+          Open WhatsApp and go to
+          <strong>Settings → Linked Devices</strong>.
+        </span>
+      </li>
 
-      <ol>
+      <li>
+        <span>
+          Tap <strong>Link a device</strong>
+          and choose the phone-number option.
+        </span>
+      </li>
 
-        <li>
-          <span>
-            Open WhatsApp →
-            <strong>
-              Settings → Linked Devices
-            </strong>.
-          </span>
-        </li>
+      <li>
+        <span>
+          Enter the pairing code displayed here
+          to complete the connection.
+        </span>
+      </li>
 
-        <li>
-          <span>
-            Tap
-            <strong>
-              Link a device
-            </strong>
-            and select the phone number option.
-          </span>
-        </li>
+    </ol>
 
-        <li>
-          <span>
-            Paste the code above to complete
-            the connection.
-          </span>
-        </li>
-
-      </ol>
-
-    </section>
-
-  </main>
-
-  <footer>
-    Blood Raven · Secure pairing request
-  </footer>
+  </div>
 
 </section>
 
-  </div>  <script>
-    (() => {
+<!-- =========================
+     NAVIGATION
+========================= -->
 
-      'use strict';
+<div class="nav-buttons">
 
-      const input =
-        document.getElementById('phoneNumber');
+  <button
+    id="dashboardBtn"
+    class="nav-btn active"
+    type="button">
+    📊 Dashboard
+  </button>
 
-      const form =
-        document.getElementById('pairingForm');
+  <button
+    id="pairBtn"
+    class="nav-btn"
+    type="button">
+    📱 Pair Device
+  </button>
 
-      const prefix =
-        document.getElementById('prefix');
+</div>
 
-      const flag =
-        document.getElementById('flag');
+</main>
 
-      const countryCode =
-        document.getElementById('countryCode');
+<footer>
+  Blood Raven · Mini Bot · Secure pairing request
+  <br>
+  Created by Caseyrhodestech
+</footer>
 
-      const counter =
-        document.getElementById('counter');
+</section>
 
-      const inputError =
-        document.getElementById('inputError');
+</div>
 
-      const notice =
-        document.getElementById('notice');
+<script>
+(() => {
 
-      const button =
-        document.getElementById('requestButton');
+'use strict';
 
-      const result =
-        document.getElementById('result');
+/* =========================
+   ELEMENTS
+========================= */
 
-      const code =
-        document.getElementById('pairingCode');
+const loadingScreen =
+  document.getElementById('loadingScreen');
 
-      const copy =
-        document.getElementById('copyButton');
+const audio =
+  document.getElementById('bloodRavenAudio');
 
-      const subscribeModal =
-        document.getElementById('subscribeModal');
+const subscribeModal =
+  document.getElementById('subscribeModal');
 
-      const dismissSubscribe =
-        document.getElementById('dismissSubscribe');
+const dismissSubscribe =
+  document.getElementById('dismissSubscribe');
 
-      const closeSubscribe =
-        document.getElementById('closeSubscribe');
+const closeSubscribe =
+  document.getElementById('closeSubscribe');
 
-      let detectedCountry = null;
-      let subscriptionDismissed = false;
+const dashboardSection =
+  document.getElementById('dashboardSection');
 
-      const onlyDigits = value =>
-        String(value || '')
-          .replace(/\D/g, '')
-          .slice(0, 15);
+const pairSection =
+  document.getElementById('pairSection');
 
-      const showNotice = message => {
-        notice.textContent = message;
-        notice.classList.add('show');
-      };
+const dashboardBtn =
+  document.getElementById('dashboardBtn');
 
-      const hideNotice = () => {
-        notice.classList.remove('show');
-      };
+const pairBtn =
+  document.getElementById('pairBtn');
 
-      const setInputError = message => {
+const input =
+  document.getElementById('phoneNumber');
 
-        inputError.textContent = message;
+const form =
+  document.getElementById('pairingForm');
 
-        input.classList.toggle(
-          'invalid',
-          Boolean(message)
-        );
+const counter =
+  document.getElementById('counter');
 
-      };
+const inputError =
+  document.getElementById('inputError');
 
-      function dismissSubscriptionPrompt() {
+const notice =
+  document.getElementById('notice');
 
-        if (subscriptionDismissed) {
-          return;
-        }
+const button =
+  document.getElementById('requestButton');
 
-        subscriptionDismissed = true;
+const result =
+  document.getElementById('result');
 
-        const audio =
-          document.getElementById(
-            'bloodRavenAudio'
-          );
+const code =
+  document.getElementById('pairingCode');
 
-        if (audio) {
-          audio.play().catch(() => {});
-        }
+const copy =
+  document.getElementById('copyButton');
 
-        subscribeModal.classList.add(
-          'closing'
-        );
+/* =========================
+   AUDIO
+========================= */
 
-        setTimeout(() => {
+if (audio) {
 
-          subscribeModal.hidden = true;
+  audio.volume = 0.7;
 
-          document.body.classList.remove(
-            'modal-open'
-          );
+  const playAudio = () => {
+    audio.play().catch(() => {});
+  };
 
-          if (input) {
-            input.focus();
+  document.addEventListener(
+    'click',
+    playAudio,
+    {
+      once:true,
+      passive:true
+    }
+  );
+
+  document.addEventListener(
+    'touchstart',
+    playAudio,
+    {
+      once:true,
+      passive:true
+    }
+  );
+
+  document.addEventListener(
+    'keydown',
+    playAudio,
+    {
+      once:true
+    }
+  );
+}
+
+/* =========================
+   LOADING
+========================= */
+
+window.addEventListener('load', () => {
+
+  setTimeout(() => {
+
+    loadingScreen.classList.add('hide');
+
+  }, 1850);
+
+});
+
+/* =========================
+   POPUP
+========================= */
+
+let popupClosed = false;
+
+function closePopup(){
+
+  if (popupClosed) return;
+
+  popupClosed = true;
+
+  if (audio) {
+    audio.play().catch(() => {});
+  }
+
+  subscribeModal.classList.add('closing');
+
+  setTimeout(() => {
+
+    subscribeModal.hidden = true;
+
+    document.body.classList.remove(
+      'modal-open'
+    );
+
+  }, 220);
+
+}
+
+dismissSubscribe.addEventListener(
+  'click',
+  closePopup
+);
+
+closeSubscribe.addEventListener(
+  'click',
+  closePopup
+);
+
+subscribeModal.addEventListener(
+  'click',
+  event => {
+
+    if (
+      event.target === subscribeModal
+    ) {
+      closePopup();
+    }
+
+  }
+);
+
+document.addEventListener(
+  'keydown',
+  event => {
+
+    if (
+      event.key === 'Escape' &&
+      !subscribeModal.hidden
+    ) {
+      closePopup();
+    }
+
+  }
+);
+
+/* =========================
+   SECTION NAVIGATION
+========================= */
+
+function showSection(section){
+
+  const dashboard =
+    section === 'dashboard';
+
+  dashboardSection.classList.toggle(
+    'active',
+    dashboard
+  );
+
+  pairSection.classList.toggle(
+    'active',
+    !dashboard
+  );
+
+  dashboardBtn.classList.toggle(
+    'active',
+    dashboard
+  );
+
+  pairBtn.classList.toggle(
+    'active',
+    !dashboard
+  );
+
+  window.scrollTo({
+    top:0,
+    behavior:'smooth'
+  });
+
+}
+
+dashboardBtn.addEventListener(
+  'click',
+  () => showSection('dashboard')
+);
+
+pairBtn.addEventListener(
+  'click',
+  () => {
+
+    showSection('pair');
+
+    setTimeout(() => {
+      input.focus();
+    }, 250);
+
+  }
+);
+
+/* =========================
+   INPUT
+========================= */
+
+function onlyDigits(value){
+
+  return String(value || '')
+    .replace(/\D/g,'')
+    .slice(0,15);
+
+}
+
+function refreshInput(){
+
+  input.value =
+    onlyDigits(input.value);
+
+  const value =
+    input.value;
+
+  counter.textContent =
+    `${value.length} / 15`;
+
+  counter.classList.toggle(
+    'ready',
+    value.length >= 10
+  );
+
+  inputError.textContent = '';
+
+  input.classList.remove(
+    'invalid'
+  );
+
+  notice.classList.remove(
+    'show'
+  );
+
+  result.classList.remove(
+    'show'
+  );
+
+}
+
+input.addEventListener(
+  'input',
+  refreshInput
+);
+
+/* =========================
+   NOTICE
+========================= */
+
+function showNotice(message){
+
+  notice.textContent =
+    message;
+
+  notice.classList.add(
+    'show'
+  );
+
+}
+
+/* =========================
+   COPY
+========================= */
+
+async function copyCode(){
+
+  const value =
+    code.textContent.trim();
+
+  if (
+    !value ||
+    value === '--------'
+  ) {
+    return;
+  }
+
+  try {
+
+    await navigator.clipboard.writeText(
+      value
+    );
+
+    copy.textContent =
+      'Copied ✓';
+
+    setTimeout(() => {
+
+      copy.textContent =
+        'Copy code';
+
+    },1800);
+
+  } catch {
+
+    showNotice(
+      'Copy failed. Please select and copy the code manually.'
+    );
+
+  }
+
+}
+
+copy.addEventListener(
+  'click',
+  copyCode
+);
+
+/* =========================
+   PAIRING
+========================= */
+
+form.addEventListener(
+  'submit',
+  async event => {
+
+    event.preventDefault();
+
+    if (audio) {
+      audio.play().catch(() => {});
+    }
+
+    const number =
+      onlyDigits(input.value);
+
+    if (number.length < 10) {
+
+      inputError.textContent =
+        'Enter at least 10 digits';
+
+      input.classList.add(
+        'invalid'
+      );
+
+      input.focus();
+
+      return;
+
+    }
+
+    inputError.textContent =
+      '';
+
+    input.classList.remove(
+      'invalid'
+    );
+
+    notice.classList.remove(
+      'show'
+    );
+
+    result.classList.remove(
+      'show'
+    );
+
+    button.disabled = true;
+
+    button.innerHTML =
+      '<span class="loader"></span>Requesting code…';
+
+    try {
+
+      /*
+       * IMPORTANT:
+       * The original pairing endpoint is preserved.
+       * No dashboard code changes this request.
+       */
+
+      const response =
+        await fetch(
+          `/code?number=${encodeURIComponent(number)}`,
+          {
+            method:'GET',
+            headers:{
+              'Accept':
+                'application/json'
+            },
+            cache:'no-store'
           }
+        );
 
-        }, 220);
+      const data =
+        await response
+          .json()
+          .catch(() => ({}));
+
+      if (
+        !response.ok ||
+        !data?.code
+      ){
+
+        throw new Error(
+          data?.error ||
+          data?.message ||
+          (
+            data?.status ===
+            'already_connected'
+              ? 'This number is already connected to the bot.'
+              : 'Pairing request failed.'
+          )
+        );
 
       }
 
-      dismissSubscribe.addEventListener(
-        'click',
-        dismissSubscriptionPrompt
+      code.textContent =
+        data.code;
+
+      result.classList.add(
+        'show'
       );
 
-      closeSubscribe.addEventListener(
-        'click',
-        dismissSubscriptionPrompt
+      requestAnimationFrame(() => {
+
+        result.scrollIntoView({
+          behavior:'smooth',
+          block:'center'
+        });
+
+      });
+
+      await copyCode();
+
+    } catch(error){
+
+      showNotice(
+        error?.message ||
+        'Service unavailable. Try again shortly.'
       );
 
-      document.addEventListener(
-        'keydown',
-        event => {
+    } finally {
 
-          if (
-            event.key === 'Escape' &&
-            !subscribeModal.hidden
-          ) {
-            dismissSubscriptionPrompt();
-          }
+      button.disabled = false;
 
-        }
-      );
+      button.textContent =
+        'Request pairing code';
 
-      subscribeModal.addEventListener(
-        'click',
-        event => {
+    }
 
-          if (
-            event.target ===
-            subscribeModal
-          ) {
-            dismissSubscriptionPrompt();
-          }
+  }
+);
 
-        }
-      );
+refreshInput();
 
-      function refreshInput() {
+})();
+</script>
 
-        input.value =
-          onlyDigits(input.value);
-
-        const value =
-          input.value;
-
-        detectedCountry = null;
-
-        if (
-          value.length >= 4 &&
-          window.libphonenumber
-        ) {
-
-          try {
-
-            const parsed =
-              libphonenumber
-                .parsePhoneNumberWithError(
-                  `+${value}`
-                );
-
-            if (
-              parsed &&
-              parsed.country
-            ) {
-
-              detectedCountry =
-                parsed.country;
-
-              countryCode.textContent =
-                parsed.country;
-
-              flag.src =
-                `https://flagsapi.com/${parsed.country}/flat/64.png`;
-
-              flag.alt =
-                `${parsed.country} flag`;
-
-              prefix.classList.add(
-                'visible'
-              );
-
-              input.classList.add(
-                'with-prefix'
-              );
-
-            }
-
-          } catch (_) {}
-
-        }
-
-        if (!detectedCountry) {
-
-          prefix.classList.remove(
-            'visible'
-          );
-
-          input.classList.remove(
-            'with-prefix'
-          );
-
-        }
-
-        counter.textContent =
-          `${value.length} / 15`;
-
-        counter.classList.toggle(
-          'ready',
-          value.length >= 10
-        );
-
-        setInputError('');
-        hideNotice();
-
-        result.classList.remove(
-          'show'
-        );
-
-      }
-
-      async function copyCode() {
-
-        const value =
-          code.textContent.trim();
-
-        if (
-          !value ||
-          value === '--------'
-        ) {
-          return;
-        }
-
-        try {
-
-          await navigator.clipboard.writeText(
-            value
-          );
-
-          copy.textContent =
-            'Copied ✓';
-
-          setTimeout(() => {
-
-            copy.textContent =
-              'Copy code';
-
-          }, 1800);
-
-        } catch (_) {
-
-          showNotice(
-            'Copy failed. Select and copy manually.'
-          );
-
-        }
-
-      }
-
-      input.addEventListener(
-        'input',
-        refreshInput
-      );
-
-      copy.addEventListener(
-        'click',
-        copyCode
-      );
-
-      form.addEventListener(
-        'submit',
-        async event => {
-
-          event.preventDefault();
-
-          const audio =
-            document.getElementById(
-              'bloodRavenAudio'
-            );
-
-          if (audio) {
-            audio.play().catch(() => {});
-          }
-
-          const number =
-            onlyDigits(input.value);
-
-          if (
-            number.length < 10
-          ) {
-
-            setInputError(
-              'Enter at least 10 digits'
-            );
-
-            input.focus();
-
-            return;
-
-          }
-
-          setInputError('');
-          hideNotice();
-
-          result.classList.remove(
-            'show'
-          );
-
-          button.disabled = true;
-
-          button.innerHTML =
-            '<span class="loader"></span>Requesting code…';
-
-          try {
-
-            const response =
-              await fetch(
-                `/code?number=${encodeURIComponent(number)}`,
-                {
-                  method: 'GET',
-                  headers: {
-                    'Accept':
-                      'application/json'
-                  },
-                  cache: 'no-store'
-                }
-              );
-
-            const data =
-              await response
-                .json()
-                .catch(() => ({}));
-
-            if (
-              !response.ok ||
-              !data?.code
-            ) {
-
-              throw new Error(
-                data?.error ||
-                data?.message ||
-                (
-                  data?.status ===
-                  'already_connected'
-
-                    ? 'This number is already connected to the bot.'
-
-                    : 'Pairing request failed.'
-                )
-              );
-
-            }
-
-            code.textContent =
-              data.code;
-
-            result.classList.add(
-              'show'
-            );
-
-            requestAnimationFrame(() => {
-
-              result.scrollIntoView({
-                behavior: 'smooth',
-                block: 'center'
-              });
-
-            });
-
-            await copyCode();
-
-          } catch (error) {
-
-            showNotice(
-              error?.message ||
-              'Service unavailable. Try again shortly.'
-            );
-
-          } finally {
-
-            button.disabled = false;
-
-            button.textContent =
-              'Request pairing code';
-
-          }
-
-        }
-      );
-
-      refreshInput();
-
-    })();
-  </script></body>
+</body>
 </html>
