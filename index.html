@@ -1,898 +1,792 @@
-<!DOCTYPE html><html lang="en">
+<!DOCTYPE html>
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#07050d">
-<meta name="description" content="BLOOD RAVEN MINI BOT — Secure WhatsApp device pairing.">
-<title>BLOOD RAVEN MINI · PAIR</title><script src="https://cdn.tailwindcss.com"></script><link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"><link rel="stylesheet"
-href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css"><style>
-* {
-    box-sizing: border-box;
-}
-
-html {
-    scroll-behavior: smooth;
-}
-
-body {
-    margin: 0;
-    min-height: 100vh;
-    font-family: 'Inter', sans-serif;
-    color: #f5f5f5;
-    background:
-        radial-gradient(circle at 20% 20%, rgba(236,72,153,.14), transparent 30%),
-        radial-gradient(circle at 80% 80%, rgba(99,102,241,.15), transparent 30%),
-        #050409;
-    overflow-x: hidden;
-}
-
-/* Background */
-#particle-canvas {
-    position: fixed;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 0;
-    pointer-events: none;
-}
-
-.background-glow {
-    position: fixed;
-    width: 420px;
-    height: 420px;
-    border-radius: 50%;
-    filter: blur(100px);
-    opacity: .14;
-    pointer-events: none;
-    z-index: 0;
-}
-
-.glow-one {
-    background: #ec4899;
-    top: -180px;
-    left: -160px;
-}
-
-.glow-two {
-    background: #6366f1;
-    bottom: -200px;
-    right: -160px;
-}
-
-/* Main */
-.page-wrapper {
-    position: relative;
-    z-index: 10;
-    width: 100%;
-    min-height: 100vh;
-    padding: 80px 16px 35px;
-    display: flex;
-    justify-content: center;
-}
-
-.main-content {
-    width: 100%;
-    max-width: 520px;
-}
-
-/* Top navigation */
-.topbar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    padding: 16px;
-    z-index: 1000;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    pointer-events: none;
-}
-
-.topbar a,
-.topbar button {
-    pointer-events: auto;
-}
-
-.owner-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    color: #aaa;
-    font-size: 12px;
-    text-decoration: none;
-    transition: .25s;
-}
-
-.owner-link:hover {
-    color: #fff;
-}
-
-/* Refresh */
-.refresh-btn {
-    width: 42px;
-    height: 42px;
-    border-radius: 50%;
-    border: 1px solid rgba(255,255,255,.1);
-    background: rgba(15,15,20,.65);
-    backdrop-filter: blur(15px);
-    color: white;
-    cursor: pointer;
-    box-shadow: 0 8px 25px rgba(0,0,0,.3);
-    transition: .25s;
-}
-
-.refresh-btn:hover {
-    transform: rotate(90deg) scale(1.05);
-    border-color: rgba(236,72,153,.5);
-}
-
-/* Brand */
-.brand {
-    text-align: center;
-    margin-bottom: 22px;
-}
-
-.brand-row {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-}
-
-.logo {
-    width: 48px;
-    height: 48px;
-    object-fit: cover;
-    border-radius: 50%;
-    border: 2px solid rgba(236,72,153,.6);
-    box-shadow:
-        0 0 20px rgba(236,72,153,.25),
-        0 0 40px rgba(99,102,241,.15);
-}
-
-.brand-title {
-    font-size: clamp(19px, 5vw, 25px);
-    font-weight: 900;
-    letter-spacing: .5px;
-    background: linear-gradient(
-        120deg,
-        #fff,
-        #f9a8d4,
-        #c084fc,
-        #818cf8
-    );
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-}
-
-.brand-subtitle {
-    margin-top: 8px;
-    color: #888;
-    font-size: 12px;
-}
-
-/* Card */
-.pairing-card {
-    position: relative;
-    overflow: hidden;
-    border: 1px solid rgba(255,255,255,.1);
-    border-radius: 28px;
-    padding: 24px;
-    background:
-        linear-gradient(
-            145deg,
-            rgba(255,255,255,.055),
-            rgba(255,255,255,.018)
-        );
-    backdrop-filter: blur(25px);
-    -webkit-backdrop-filter: blur(25px);
-    box-shadow:
-        0 25px 80px rgba(0,0,0,.5),
-        0 0 50px rgba(236,72,153,.08);
-}
-
-.pairing-card::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(
-        120deg,
-        transparent,
-        rgba(255,255,255,.035),
-        transparent
-    );
-    transform: translateX(-100%);
-    animation: card-shine 6s infinite;
-    pointer-events: none;
-}
-
-@keyframes card-shine {
-    50%,100% {
-        transform: translateX(100%);
-    }
-}
-
-/* Status */
-.status-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 7px 12px;
-    border-radius: 999px;
-    background: rgba(16,185,129,.08);
-    border: 1px solid rgba(16,185,129,.18);
-    color: #6ee7b7;
-    font-size: 11px;
-    font-weight: 600;
-    margin-bottom: 18px;
-}
-
-.status-dot {
-    width: 7px;
-    height: 7px;
-    background: #34d399;
-    border-radius: 50%;
-    box-shadow: 0 0 12px #34d399;
-    animation: statusPulse 1.7s infinite;
-}
-
-@keyframes statusPulse {
-    50% {
-        opacity: .4;
-        transform: scale(.75);
-    }
-}
-
-/* Headings */
-.section-title {
-    text-align: center;
-    font-size: 22px;
-    font-weight: 800;
-}
-
-.section-description {
-    text-align: center;
-    color: #8d8d98;
-    font-size: 13px;
-    margin-top: 7px;
-}
-
-/* Input */
-.input-label {
-    display: block;
-    color: #c8c8d0;
-    font-size: 12px;
-    font-weight: 600;
-    margin-bottom: 8px;
-}
-
-.input-wrapper {
-    position: relative;
-}
-
-.phone-input {
-    width: 100%;
-    padding: 15px 16px 15px 46px;
-    border-radius: 14px;
-    border: 1px solid rgba(255,255,255,.1);
-    outline: none;
-    color: white;
-    background: rgba(0,0,0,.42);
-    font-size: 14px;
-    letter-spacing: .5px;
-    transition: .25s;
-}
-
-.phone-input:focus {
-    border-color: rgba(236,72,153,.65);
-    box-shadow:
-        0 0 0 3px rgba(236,72,153,.08),
-        0 0 25px rgba(236,72,153,.1);
-}
-
-.phone-icon {
-    position: absolute;
-    left: 16px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: #a855f7;
-}
-
-.helper-text {
-    margin-top: 7px;
-    color: #666;
-    font-size: 10px;
-}
-
-/* Buttons */
-.generate-btn {
-    width: 100%;
-    border: 0;
-    border-radius: 14px;
-    padding: 15px;
-    color: white;
-    font-weight: 800;
-    font-size: 14px;
-    cursor: pointer;
-    background: linear-gradient(
-        110deg,
-        #ec4899,
-        #a855f7,
-        #6366f1
-    );
-    background-size: 200% 200%;
-    box-shadow:
-        0 10px 35px rgba(236,72,153,.18),
-        inset 0 1px rgba(255,255,255,.2);
-    transition: .25s;
-    animation: gradientMove 5s ease infinite;
-}
-
-.generate-btn:hover {
-    transform: translateY(-2px);
-    box-shadow:
-        0 15px 40px rgba(236,72,153,.28);
-}
-
-.generate-btn:active {
-    transform: scale(.98);
-}
-
-@keyframes gradientMove {
-    0%,100% {
-        background-position: 0% 50%;
-    }
-    50% {
-        background-position: 100% 50%;
-    }
-}
-
-/* Loading */
-.loader {
-    width: 48px;
-    height: 48px;
-    margin: auto;
-    border-radius: 50%;
-    border: 3px solid rgba(255,255,255,.08);
-    border-top-color: #ec4899;
-    border-right-color: #8b5cf6;
-    animation: loaderSpin .8s linear infinite;
-}
-
-@keyframes loaderSpin {
-    to {
-        transform: rotate(360deg);
-    }
-}
-
-/* Code */
-.code-box {
-    position: relative;
-    margin: 22px 0;
-    padding: 22px 55px 22px 18px;
-    border-radius: 17px;
-    background:
-        linear-gradient(
-            145deg,
-            rgba(16,185,129,.07),
-            rgba(0,0,0,.4)
-        );
-    border: 1px dashed rgba(16,185,129,.28);
-}
-
-.code {
-    color: #6ee7b7;
-    font-family: monospace;
-    font-size: clamp(28px, 9vw, 42px);
-    font-weight: 800;
-    letter-spacing: 7px;
-    text-shadow: 0 0 20px rgba(110,231,183,.2);
-}
-
-.copy-btn {
-    position: absolute;
-    top: 50%;
-    right: 12px;
-    transform: translateY(-50%);
-    width: 42px;
-    height: 42px;
-    border-radius: 12px;
-    border: 1px solid rgba(255,255,255,.1);
-    color: white;
-    background: linear-gradient(135deg,#7c3aed,#ec4899);
-    cursor: pointer;
-    transition: .25s;
-}
-
-.copy-btn:hover {
-    transform: translateY(-50%) scale(1.06);
-}
-
-/* Steps */
-.steps {
-    margin-top: 24px;
-}
-
-.step {
-    display: flex;
-    gap: 12px;
-    align-items: flex-start;
-    padding: 11px 0;
-    color: #9b9ba5;
-    font-size: 12px;
-    border-bottom: 1px solid rgba(255,255,255,.04);
-}
-
-.step:last-child {
-    border-bottom: 0;
-}
-
-.step-number {
-    flex-shrink: 0;
-    width: 25px;
-    height: 25px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    color: white;
-    font-size: 10px;
-    font-weight: 800;
-    background: linear-gradient(135deg,#ec4899,#6366f1);
-}
-
-/* Secondary button */
-.secondary-btn {
-    width: 100%;
-    margin-top: 20px;
-    padding: 13px;
-    border-radius: 13px;
-    border: 1px solid rgba(255,255,255,.08);
-    background: rgba(255,255,255,.04);
-    color: #ddd;
-    cursor: pointer;
-    transition: .25s;
-    font-weight: 600;
-    font-size: 12px;
-}
-
-.secondary-btn:hover {
-    background: rgba(255,255,255,.08);
-}
-
-/* Music */
-.music-player {
-    position: fixed;
-    left: 15px;
-    bottom: 18px;
-    z-index: 9999;
-}
-
-.music-btn {
-    width: 50px;
-    height: 50px;
-    border: 1px solid rgba(255,255,255,.12);
-    border-radius: 50%;
-    color: white;
-    background: linear-gradient(135deg,#ec4899,#8b5cf6);
-    cursor: pointer;
-    box-shadow: 0 8px 30px rgba(236,72,153,.25);
-    transition: .25s;
-}
-
-.music-btn:hover {
-    transform: scale(1.08);
-}
-
-.music-btn.playing {
-    animation: musicPulse 1.8s infinite;
-}
-
-@keyframes musicPulse {
-    50% {
-        box-shadow:
-            0 0 0 8px rgba(236,72,153,.06),
-            0 8px 35px rgba(236,72,153,.35);
-    }
-}
-
-.music-label {
-    position: absolute;
-    left: 60px;
-    top: 50%;
-    transform: translateY(-50%);
-    white-space: nowrap;
-    font-size: 10px;
-    color: #777;
-    pointer-events: none;
-}
-
-/* Flowers */
-.flower-container {
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    z-index: 2;
-    overflow: hidden;
-}
-
-.falling-flower {
-    position: absolute;
-    top: -50px;
-    font-size: 23px;
-    animation: flowerFall linear forwards;
-    pointer-events: none;
-    filter: drop-shadow(0 5px 12px rgba(236,72,153,.25));
-}
-
-@keyframes flowerFall {
-    from {
-        transform: translateY(-50px) rotate(0deg);
-        opacity: 0;
-    }
-    10% {
-        opacity: .8;
-    }
-    to {
-        transform: translateY(110vh) rotate(360deg);
-        opacity: 0;
-    }
-}
-
-/* Footer */
-footer {
-    text-align: center;
-    margin-top: 18px;
-    color: #555;
-    font-size: 9px;
-}
-
-/* Toast */
-.toast {
-    position: fixed;
-    left: 50%;
-    bottom: -80px;
-    transform: translateX(-50%);
-    z-index: 99999;
-    padding: 11px 17px;
-    border-radius: 12px;
-    background: rgba(20,20,25,.95);
-    border: 1px solid rgba(110,231,183,.2);
-    color: #a7f3d0;
-    font-size: 12px;
-    box-shadow: 0 10px 35px rgba(0,0,0,.4);
-    transition: .35s;
-}
-
-.toast.show {
-    bottom: 25px;
-}
-
-/* Hide */
-.hidden {
-    display: none !important;
-}
-
-/* Mobile */
-@media (max-width: 480px) {
-    .page-wrapper {
-        padding-top: 75px;
-        padding-left: 12px;
-        padding-right: 12px;
-    }
-
-    .pairing-card {
-        padding: 20px 17px;
-        border-radius: 23px;
-    }
-
-    .owner-link span {
-        display: none;
-    }
-
-    .brand-title {
-        font-size: 18px;
-    }
-
-    .logo {
-        width: 43px;
-        height: 43px;
-    }
-}
-
-/* Accessibility */
-@media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
-        animation-duration: .01ms !important;
-        animation-iteration-count: 1 !important;
-        scroll-behavior: auto !important;
-    }
-}
-</style></head><body><div class="background-glow glow-one"></div>
-<div class="background-glow glow-two"></div><canvas id="particle-canvas"></canvas>
-
-<div class="flower-container" id="flowerContainer"></div><!-- TOP BAR --><div class="topbar">
-    <a href="https://wa.me/+254762673217"
-       class="owner-link"
-       title="Contact Owner">
-        <i class="fas fa-chevron-left"></i>
-        <span>CONTACT OWNER 🧑‍💻</span>
-    </a><button
-    class="refresh-btn"
-    id="refreshBtn"
-    title="Refresh Website"
-    aria-label="Refresh Website">
-    <i class="fas fa-rotate-right"></i>
-</button>
-
-</div><!-- MUSIC --><div class="music-player">
-    <button
-        class="music-btn"
-        id="musicBtn"
-        title="Play / Pause Music">
-        <i class="fas fa-music"></i>
-    </button><span class="music-label" id="musicLabel">
-    Music
-</span>
-
-</div><audio
-id="bgMusic"
-preload="auto"
-loop
-playsinline>
-</audio>
-
-<div class="page-wrapper"><main class="main-content"><!-- BRAND -->
-<section class="brand">
-
-    <div class="brand-row">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Caseyrhodes mini pair</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #000;
+            color: #e0e0e0;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        #particle-canvas {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+
+        .page-content {
+            position: relative;
+            z-index: 10;
+        }
+
+        .text-glow {
+            text-shadow:
+                0 0 8px rgba(255,255,255,.3),
+                0 0 20px rgba(236,72,153,.4);
+        }
+
+        .card-glow {
+            box-shadow:
+                0 0 25px rgba(236,72,153,.25),
+                0 0 40px rgba(129,140,248,.2);
+        }
+
+        .glass {
+            background: rgba(10,10,15,.58);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            border: 1px solid rgba(236,72,153,.16);
+        }
+
+        .loader {
+            border: 4px solid rgba(255,255,255,.15);
+            border-left-color: #ec4899;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .toast {
+            position: fixed;
+            bottom: -100px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 24px;
+            border-radius: 10px;
+            background: #10B981;
+            color: #fff;
+            font-weight: 600;
+            z-index: 99999;
+            box-shadow: 0 4px 20px rgba(0,0,0,.4);
+            transition: bottom .5s ease;
+        }
+
+        .toast.show {
+            bottom: 30px;
+        }
+
+        .star {
+            position: absolute;
+            background: #fff;
+            border-radius: 50%;
+            animation: twinkle 3s infinite ease-in-out;
+            z-index: 1;
+        }
+
+        @keyframes twinkle {
+            0%,100% {
+                opacity: .2;
+                transform: scale(.8);
+            }
+
+            50% {
+                opacity: 1;
+                transform: scale(1.2);
+            }
+        }
+
+        .header-text {
+            background: linear-gradient(
+                135deg,
+                #7e22ce 0%,
+                #c084fc 50%,
+                #ec4899 100%
+            );
+
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 900;
+        }
+
+        .btn-animation {
+            transition: transform .15s ease, box-shadow .2s ease;
+        }
+
+        .btn-animation:hover {
+            transform: scale(1.025);
+        }
+
+        .stat-card {
+            position: relative;
+            overflow: hidden;
+            transition: .25s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-3px);
+            border-color: rgba(236,72,153,.4);
+            box-shadow: 0 10px 35px rgba(236,72,153,.12);
+        }
+
+        .stat-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(
+                135deg,
+                rgba(236,72,153,.2),
+                rgba(129,140,248,.2)
+            );
+        }
+
+        .online-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: #22c55e;
+            box-shadow: 0 0 12px #22c55e;
+            animation: onlinePulse 1.8s infinite;
+        }
+
+        @keyframes onlinePulse {
+            0%,100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: .55;
+                transform: scale(.75);
+            }
+        }
+
+        .copy-btn {
+            position: relative;
+            background: linear-gradient(45deg,#7e22ce,#c084fc);
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            cursor: pointer;
+            transition: .3s;
+            box-shadow: 0 4px 15px rgba(126,34,206,.3);
+        }
+
+        .copy-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .copy-btn.copied i {
+            display: none;
+        }
+
+        .copy-btn.copied::after {
+            content: '✓';
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        /* Flowers */
+
+        .flower-container {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 1;
+            overflow: hidden;
+        }
+
+        .falling-flower {
+            position: absolute;
+            font-size: 25px;
+            opacity: 0;
+            pointer-events: auto;
+            cursor: grab;
+            user-select: none;
+            z-index: 2;
+        }
+
+        @keyframes fall {
+            0% {
+                opacity: 1;
+                transform: translateY(-100px) rotate(0deg);
+            }
+
+            100% {
+                opacity: 0;
+                transform: translateY(100vh) rotate(360deg);
+            }
+        }
+
+        /* Music */
+
+        .music-player {
+            position: fixed;
+            left: 20px;
+            bottom: 70px;
+            z-index: 9999;
+        }
+
+        .music-btn {
+            width: 52px;
+            height: 52px;
+            background: linear-gradient(135deg,#ec4899,#c084fc);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 5px 25px rgba(236,72,153,.4);
+            border: none;
+            font-size: 20px;
+            color: white;
+            animation: pulseMusic 2s ease-in-out infinite;
+        }
+
+        .music-btn.playing {
+            animation:
+                musicSpin 3s linear infinite,
+                pulseMusic 2s ease-in-out infinite;
+        }
+
+        @keyframes musicSpin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes pulseMusic {
+            0%,100% {
+                box-shadow: 0 5px 25px rgba(236,72,153,.4);
+            }
+
+            50% {
+                box-shadow: 0 8px 35px rgba(236,72,153,.7);
+            }
+        }
+
+        .flower-selector {
+            margin-top: 10px;
+            width: 46px;
+            height: 46px;
+            background: linear-gradient(135deg,#7e22ce,#c084fc);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(126,34,206,.4);
+            border: none;
+            font-size: 18px;
+            color: white;
+        }
+
+        .flower-menu {
+            position: absolute;
+            bottom: 58px;
+            left: 0;
+            background: rgba(20,20,20,.95);
+            backdrop-filter: blur(20px);
+            border: 2px solid rgba(126,34,206,.3);
+            border-radius: 12px;
+            padding: 8px;
+            display: none;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .flower-menu.active {
+            display: flex;
+        }
+
+        .flower-option {
+            background: rgba(126,34,206,.1);
+            border: 1px solid rgba(126,34,206,.2);
+            border-radius: 8px;
+            padding: 6px 12px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        @media(max-width:640px) {
+            .music-player {
+                left: 12px;
+                bottom: 20px;
+            }
+        }
+    </style>
+</head>
+
+<body class="p-4">
+
+<canvas id="particle-canvas"></canvas>
+<div id="stars-container"></div>
+
+<div class="flower-container" id="flowerContainer"></div>
+
+<!-- Music -->
+<div class="music-player">
+    <button class="music-btn" id="musicBtn" aria-label="Music">
+        🎵
+    </button>
+
+    <div style="position:relative;">
+        <button class="flower-selector" id="flowerSelector">
+            🎉
+        </button>
+
+        <div class="flower-menu" id="flowerMenu">
+            <div class="flower-option" data-flower="🎉">🎉</div>
+            <div class="flower-option" data-flower="🌺">🌺</div>
+            <div class="flower-option" data-flower="🌼">🌼</div>
+            <div class="flower-option" data-flower="🌻">🌻</div>
+            <div class="flower-option" data-flower="🌹">🌹</div>
+            <div class="flower-option" data-flower="💐">💐</div>
+            <div class="flower-option" data-flower="🌷">🌷</div>
+            <div class="flower-option" data-flower="🏵️">🏵️</div>
+        </div>
+    </div>
+</div>
+
+<audio id="bgMusic" preload="auto" loop playsinline></audio>
+
+<a href="https://wa.me/+254762673217"
+   class="fixed top-5 left-5 z-20 flex items-center space-x-2 text-sm text-gray-400 hover:text-gray-300"
+   title="Contact Owner">
+
+    <i class="fas fa-chevron-left"></i>
+    <span>CONTACT OWNER 🧑‍💻</span>
+</a>
+
+<div class="page-content w-full max-w-md mx-auto pt-10 pb-8">
+
+    <!-- Header -->
+
+    <div class="flex items-center justify-center space-x-3 mb-6">
 
         <img
             src="https://i.ibb.co/DDd7WkwL/caseyweb.jpg"
-            alt="Blood Raven Logo"
-            class="logo">
+            alt="CASEYRHODES Logo"
+            class="rounded-full w-12 h-12 object-cover border-2 border-pink-500/50"
+        >
 
         <div>
-            <div class="brand-title">
+            <h1 class="text-xl font-black header-text text-glow">
                 B͛L͛O͛O͛D͛ R͛ÀV͛E͛Ñ
-            </div>
+            </h1>
 
-            <div class="brand-title">
-                M͒I͒N͒I͒ P͒ÀI͒R͒ 🎀
+            <p class="text-xs text-gray-500">
+                MINI BOT · DEVICE PAIRING
+            </p>
+        </div>
+
+    </div>
+
+    <!-- Stats -->
+
+    <div class="grid grid-cols-2 gap-3 mb-5">
+
+        <div class="stat-card glass rounded-2xl p-4">
+            <div class="flex items-center gap-3">
+
+                <div class="stat-icon">
+                    <i class="fas fa-server text-pink-400"></i>
+                </div>
+
+                <div>
+                    <p class="text-[10px] uppercase tracking-wider text-gray-500">
+                        Status
+                    </p>
+
+                    <div class="flex items-center gap-2">
+                        <span class="online-dot"></span>
+
+                        <span id="stat-status"
+                              class="font-bold text-sm text-green-400">
+                            Online
+                        </span>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+
+        <div class="stat-card glass rounded-2xl p-4">
+            <div class="flex items-center gap-3">
+
+                <div class="stat-icon">
+                    <i class="fas fa-users text-purple-400"></i>
+                </div>
+
+                <div>
+                    <p class="text-[10px] uppercase tracking-wider text-gray-500">
+                        Connected
+                    </p>
+
+                    <p id="stat-users"
+                       class="font-bold text-lg text-white">
+                        --
+                    </p>
+                </div>
+
+            </div>
+        </div>
+
+
+        <div class="stat-card glass rounded-2xl p-4">
+            <div class="flex items-center gap-3">
+
+                <div class="stat-icon">
+                    <i class="fas fa-link text-indigo-400"></i>
+                </div>
+
+                <div>
+                    <p class="text-[10px] uppercase tracking-wider text-gray-500">
+                        Pairings
+                    </p>
+
+                    <p id="stat-pairings"
+                       class="font-bold text-lg text-white">
+                        --
+                    </p>
+                </div>
+
+            </div>
+        </div>
+
+
+        <div class="stat-card glass rounded-2xl p-4">
+            <div class="flex items-center gap-3">
+
+                <div class="stat-icon">
+                    <i class="fas fa-clock text-pink-400"></i>
+                </div>
+
+                <div>
+                    <p class="text-[10px] uppercase tracking-wider text-gray-500">
+                        Uptime
+                    </p>
+
+                    <p id="stat-uptime"
+                       class="font-bold text-sm text-white">
+                        --
+                    </p>
+                </div>
+
             </div>
         </div>
 
     </div>
 
-    <p class="brand-subtitle">
-        Secure WhatsApp device pairing
-    </p>
 
-</section>
+    <!-- Pairing Card -->
 
-<!-- CARD -->
-<div class="pairing-card">
+    <div id="pairing-card"
+         class="glass rounded-2xl p-6 md:p-8 card-glow">
 
-    <div class="text-center">
+        <!-- Form -->
 
-        <div class="status-pill">
-            <span class="status-dot"></span>
-            Pairing service ready
-        </div>
+        <div id="form-section">
 
-    </div>
+            <div class="text-center mb-6">
 
-    <!-- FORM -->
-    <section id="form-section">
+                <div class="inline-flex items-center justify-center
+                            w-14 h-14 rounded-2xl mb-3
+                            bg-gradient-to-br from-pink-500/20 to-purple-500/20">
 
-        <h2 class="section-title">
-            Link a New Device
-        </h2>
+                    <i class="fas fa-mobile-screen-button text-2xl text-pink-400"></i>
 
-        <p class="section-description">
-            Enter your WhatsApp number to generate a pairing code.
-        </p>
+                </div>
 
-        <div class="mt-7">
+                <h2 class="text-xl font-bold text-white">
+                    Link a New Device
+                </h2>
 
-            <label
-                for="phone"
-                class="input-label">
-                WhatsApp Number
-            </label>
+                <p class="text-gray-400 text-sm mt-2">
+                    Enter Your WhatsApp Number
+                </p>
 
-            <div class="input-wrapper">
+            </div>
 
-                <i class="fas fa-phone phone-icon"></i>
+
+            <div>
+
+                <label for="phone"
+                       class="block mb-2 text-sm font-medium text-gray-300">
+
+                    Phone Number
+
+                </label>
 
                 <input
-                    type="tel"
+                    type="text"
                     id="phone"
-                    class="phone-input"
-                    placeholder="+2547606xxxx"
-                    autocomplete="tel"
                     inputmode="tel"
-                    required>
+                    autocomplete="tel"
+                    class="bg-gray-900/80 border border-gray-700
+                           text-white text-sm rounded-lg
+                           focus:ring-pink-500 focus:border-pink-500
+                           block w-full p-3 tracking-wider"
+                    placeholder="+2547606xxxx"
+                    required
+                >
+
+                <p id="error-message"
+                   class="text-red-500 text-xs mt-2 hidden">
+                </p>
 
             </div>
 
-            <p class="helper-text">
-                Include your country code, for example +254.
-            </p>
-
-            <p
-                id="error-message"
-                class="text-red-400 text-xs mt-2 hidden">
-            </p>
-
-        </div>
-
-        <div class="mt-6">
 
             <button
                 id="generate-btn"
-                class="generate-btn">
+                class="w-full mt-6 bg-gradient-to-r
+                       from-pink-500 to-indigo-500
+                       hover:from-pink-600 hover:to-indigo-600
+                       text-white font-bold py-3 px-4 rounded-lg
+                       shadow-lg btn-animation">
 
                 <i class="fas fa-link mr-2"></i>
-                Generate Pairing Code
+                Generate Code
 
             </button>
 
         </div>
 
-    </section>
 
-    <!-- LOADING -->
-    <section
-        id="loading-section"
-        class="hidden text-center py-10">
+        <!-- Loading -->
 
-        <div class="loader"></div>
+        <div id="loading-section"
+             class="hidden text-center py-8">
 
-        <p class="mt-5 text-gray-300 font-semibold">
-            Generating your code...
-        </p>
+            <div class="loader mx-auto"></div>
 
-        <p class="mt-1 text-gray-500 text-xs">
-            Connecting securely to the pairing service.
-        </p>
-
-    </section>
-
-    <!-- CODE -->
-    <section
-        id="code-section"
-        class="hidden text-center">
-
-        <div class="status-pill">
-            <span class="status-dot"></span>
-            Code generated
-        </div>
-
-        <h2 class="section-title">
-            Your Pairing Code
-        </h2>
-
-        <p class="section-description">
-            Keep this code private.
-        </p>
-
-        <div class="code-box">
-
-            <p
-                id="pairing-code"
-                class="code">
+            <p class="mt-4 text-gray-300">
+                Generating your code...
             </p>
 
-            <button
-                id="copy-btn"
-                class="copy-btn"
-                title="Copy Pairing Code">
+            <p class="text-gray-500 text-xs mt-1">
+                Please wait.
+            </p>
 
-                <i class="far fa-copy"></i>
+        </div>
+
+
+        <!-- Code -->
+
+        <div id="code-section"
+             class="hidden text-center">
+
+            <div class="inline-flex items-center justify-center
+                        w-14 h-14 rounded-2xl mb-3
+                        bg-green-500/10">
+
+                <i class="fas fa-check text-2xl text-green-400"></i>
+
+            </div>
+
+            <h2 class="text-xl font-semibold text-white">
+                Your Pairing Code
+            </h2>
+
+            <p class="text-gray-400 text-sm mt-2">
+                Don't Share This Code With Anyone
+            </p>
+
+
+            <div class="my-6 relative bg-gray-900
+                        border border-dashed border-gray-700
+                        rounded-lg p-4">
+
+                <p id="pairing-code"
+                   class="text-3xl md:text-4xl font-mono
+                          tracking-widest text-green-400">
+                </p>
+
+                <button
+                    id="copy-btn"
+                    class="copy-btn absolute top-2 right-2"
+                    title="Copy Code">
+
+                    <i class="far fa-copy"></i>
+
+                </button>
+
+            </div>
+
+
+            <div>
+
+                <h3 class="font-semibold text-white mb-3">
+                    How to Use
+                </h3>
+
+                <ol class="text-left text-sm text-gray-400
+                           space-y-2 list-decimal list-inside">
+
+                    <li>Open WhatsApp on your phone.</li>
+
+                    <li>Go to Settings → Linked Devices.</li>
+
+                    <li>Select "Link a Device".</li>
+
+                    <li>Select "Link with phone number instead".</li>
+
+                    <li>Enter the pairing code above.</li>
+
+                </ol>
+
+            </div>
+
+
+            <button
+                id="reset-btn"
+                class="mt-6 w-full bg-gray-700
+                       hover:bg-gray-600 text-white font-bold
+                       py-2 px-4 rounded-lg btn-animation">
+
+                Pair Another Number
 
             </button>
 
         </div>
 
-        <div class="steps text-left">
+    </div>
 
-            <div class="step">
-                <span class="step-number">1</span>
-                <span>Open WhatsApp on your phone.</span>
-            </div>
 
-            <div class="step">
-                <span class="step-number">2</span>
-                <span>Open Settings and select Linked Devices.</span>
-            </div>
+    <footer class="text-center mt-6">
 
-            <div class="step">
-                <span class="step-number">3</span>
-                <span>Select Link a Device, then choose Link with phone number instead.</span>
-            </div>
+        <p class="text-xs text-gray-600">
+            © 2025-2030 CASEYRHODES BOT INC.
+        </p>
 
-            <div class="step">
-                <span class="step-number">4</span>
-                <span>Enter the pairing code shown above.</span>
-            </div>
+        <p class="text-[10px] text-gray-700 mt-1">
+            Created By Caseyrhodes Tech 🧑‍💻
+        </p>
 
-        </div>
-
-        <button
-            id="reset-btn"
-            class="secondary-btn">
-
-            <i class="fas fa-plus mr-2"></i>
-            Pair Another Number
-
-        </button>
-
-    </section>
+    </footer>
 
 </div>
 
-<footer>
-    © 2025-2030 CASEYRHODES BOT INC.
-    Created By Caseyrhodes Tech 🧑‍💻.
-</footer>
 
-</main></div><div
-    id="toast"
-    class="toast">
-</div><script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.0.0-alpha.1/axios.min.js"></script><script>
-/* =========================================================
+<script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.0.0-alpha.1/axios.min.js"></script>
+
+<script>
+
+/* ============================================================
+   STARS
+============================================================ */
+
+function createStars() {
+
+    const container =
+        document.getElementById("stars-container");
+
+    container.innerHTML = "";
+
+    for (let i = 0; i < 100; i++) {
+
+        const star = document.createElement("div");
+
+        star.className = "star";
+
+        const size = Math.random() * 1.5 + .5;
+
+        star.style.left =
+            Math.random() * window.innerWidth + "px";
+
+        star.style.top =
+            Math.random() * window.innerHeight + "px";
+
+        star.style.width = size + "px";
+        star.style.height = size + "px";
+
+        star.style.animationDelay =
+            Math.random() * 5 + "s";
+
+        container.appendChild(star);
+    }
+}
+
+
+/* ============================================================
    PARTICLES
-========================================================= */
+============================================================ */
 
-const canvas = document.getElementById("particle-canvas");
+const canvas =
+    document.getElementById("particle-canvas");
+
 const ctx = canvas.getContext("2d");
 
 let particles = [];
 
+const particleColors = [
+    "rgba(236,72,153,.7)",
+    "rgba(192,72,236,.7)",
+    "rgba(129,140,248,.7)",
+    "rgba(168,85,247,.7)"
+];
+
+
 function resizeCanvas() {
+
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
+
+    createParticles();
+    createStars();
 }
 
-resizeCanvas();
-window.addEventListener("resize", resizeCanvas);
 
 class Particle {
 
     constructor() {
 
-        this.x = Math.random() * canvas.width;
-        this.y = Math.random() * canvas.height;
+        this.x =
+            Math.random() * canvas.width;
 
-        this.size = Math.random() * 2 + .4;
+        this.y =
+            Math.random() * canvas.height;
 
-        this.speedX =
-            (Math.random() - .5) * .35;
+        this.dx =
+            (Math.random() - .5) * .5;
 
-        this.speedY =
-            (Math.random() - .5) * .35;
+        this.dy =
+            (Math.random() - .5) * .5;
 
-        this.alpha =
-            Math.random() * .5 + .15;
+        this.size =
+            Math.random() * 2 + 1;
+
+        this.color =
+            particleColors[
+                Math.floor(
+                    Math.random() *
+                    particleColors.length
+                )
+            ];
     }
 
-    update() {
-
-        this.x += this.speedX;
-        this.y += this.speedY;
-
-        if (this.x < 0 || this.x > canvas.width)
-            this.speedX *= -1;
-
-        if (this.y < 0 || this.y > canvas.height)
-            this.speedY *= -1;
-    }
 
     draw() {
 
@@ -906,28 +800,71 @@ class Particle {
             Math.PI * 2
         );
 
-        ctx.fillStyle =
-            `rgba(236,72,153,${this.alpha})`;
+        const gradient =
+            ctx.createRadialGradient(
+                this.x,
+                this.y,
+                0,
+                this.x,
+                this.y,
+                this.size * 2
+            );
+
+        gradient.addColorStop(
+            0,
+            this.color
+        );
+
+        gradient.addColorStop(
+            1,
+            "rgba(0,0,0,0)"
+        );
+
+        ctx.fillStyle = gradient;
 
         ctx.fill();
     }
+
+
+    update() {
+
+        this.x += this.dx;
+        this.y += this.dy;
+
+        if (
+            this.x < 0 ||
+            this.x > canvas.width
+        ) {
+            this.dx *= -1;
+        }
+
+        if (
+            this.y < 0 ||
+            this.y > canvas.height
+        ) {
+            this.dy *= -1;
+        }
+
+        this.draw();
+    }
 }
 
-function initParticles() {
+
+function createParticles() {
 
     particles = [];
 
-    const count =
-        Math.min(90, Math.floor(
-            window.innerWidth / 12
-        ));
-
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < 90; i++) {
         particles.push(new Particle());
     }
 }
 
+
 function animateParticles() {
+
+    requestAnimationFrame(
+        animateParticles
+    );
 
     ctx.clearRect(
         0,
@@ -936,34 +873,79 @@ function animateParticles() {
         canvas.height
     );
 
-    particles.forEach(p => {
-        p.update();
-        p.draw();
-    });
-
-    requestAnimationFrame(animateParticles);
+    particles.forEach(
+        particle => particle.update()
+    );
 }
 
-initParticles();
+
+window.addEventListener(
+    "resize",
+    resizeCanvas
+);
+
+resizeCanvas();
 animateParticles();
 
-/* =========================================================
+
+/* ============================================================
    FLOWERS
-========================================================= */
+============================================================ */
+
+let selectedFlower = "🎉";
+
+const flowerSelector =
+    document.getElementById("flowerSelector");
+
+const flowerMenu =
+    document.getElementById("flowerMenu");
 
 const flowerContainer =
     document.getElementById("flowerContainer");
 
-const flowers = [
-    "🌸",
-    "🌺",
-    "🌼",
-    "🌻",
-    "🌹",
-    "💐",
-    "🌷",
-    "🏵️"
-];
+
+flowerSelector.addEventListener(
+    "click",
+    event => {
+
+        event.stopPropagation();
+
+        flowerMenu.classList.toggle("active");
+    }
+);
+
+
+document.querySelectorAll(
+    ".flower-option"
+).forEach(option => {
+
+    option.addEventListener(
+        "click",
+        event => {
+
+            event.stopPropagation();
+
+            selectedFlower =
+                option.dataset.flower;
+
+            flowerSelector.textContent =
+                selectedFlower;
+
+            flowerMenu.classList.remove(
+                "active"
+            );
+        }
+    );
+});
+
+
+document.addEventListener(
+    "click",
+    () => {
+        flowerMenu.classList.remove("active");
+    }
+);
+
 
 function createFlower() {
 
@@ -974,33 +956,41 @@ function createFlower() {
         "falling-flower";
 
     flower.textContent =
-        flowers[
-            Math.floor(
-                Math.random() * flowers.length
-            )
-        ];
+        selectedFlower;
 
     flower.style.left =
-        Math.random() * 100 + "vw";
+        Math.random() * window.innerWidth + "px";
 
     flower.style.fontSize =
-        (16 + Math.random() * 13) + "px";
+        Math.random() * 15 + 20 + "px";
 
-    flower.style.animationDuration =
-        (5 + Math.random() * 5) + "s";
+    const duration =
+        Math.random() * 3 + 5;
+
+    flower.style.animation =
+        `fall ${duration}s linear forwards`;
 
     flowerContainer.appendChild(flower);
 
     setTimeout(() => {
-        flower.remove();
-    }, 11000);
+
+        if (flower.parentNode) {
+            flower.remove();
+        }
+
+    }, duration * 1000);
 }
 
-setInterval(createFlower, 650);
 
-/* =========================================================
+setInterval(
+    createFlower,
+    500
+);
+
+
+/* ============================================================
    MUSIC
-========================================================= */
+============================================================ */
 
 const songs = [
     "https://files.catbox.moe/x31ls3.mp3",
@@ -1014,182 +1004,304 @@ const bgMusic =
 const musicBtn =
     document.getElementById("musicBtn");
 
-const musicLabel =
-    document.getElementById("musicLabel");
+let isMusicPlaying = false;
+let musicStarted = false;
 
-let currentSong = -1;
-let musicPlaying = false;
 
-function chooseSong() {
+/*
+ * Select a song once.
+ * This prevents changing the song every time
+ * the browser fires an interaction event.
+ */
 
-    let next;
+function selectSong() {
 
-    do {
-        next =
-            Math.floor(
-                Math.random() * songs.length
-            );
-    } while (
-        songs.length > 1 &&
-        next === currentSong
-    );
+    if (!bgMusic.src) {
 
-    currentSong = next;
-    bgMusic.src = songs[currentSong];
+        const song =
+            songs[
+                Math.floor(
+                    Math.random() *
+                    songs.length
+                )
+            ];
+
+        bgMusic.src = song;
+    }
 }
+
+
+/*
+ * Start music.
+ *
+ * Important:
+ * Modern browsers may block autoplay with sound.
+ * We attempt autoplay immediately, then retry
+ * automatically on the first user interaction.
+ */
 
 async function startMusic() {
 
-    if (!bgMusic.src) {
-        chooseSong();
-    }
+    if (isMusicPlaying) return;
 
-    bgMusic.volume = 0.30;
+    selectSong();
+
+    bgMusic.volume = 0.3;
 
     try {
 
         await bgMusic.play();
 
-        musicPlaying = true;
+        isMusicPlaying = true;
+        musicStarted = true;
 
+        musicBtn.textContent = "⏸️";
         musicBtn.classList.add("playing");
-
-        musicBtn.innerHTML =
-            '<i class="fas fa-pause"></i>';
-
-        musicLabel.textContent =
-            "Music playing";
 
     } catch (error) {
 
         /*
-         Browser blocked audible autoplay.
-         The first user interaction will retry.
-        */
+         * Autoplay was blocked.
+         * The first tap/click will start it.
+         */
 
-        musicPlaying = false;
-
-        musicLabel.textContent =
-            "Tap to play";
+        console.log(
+            "Browser blocked autoplay until interaction."
+        );
     }
 }
 
-function stopMusic() {
-
-    bgMusic.pause();
-
-    musicPlaying = false;
-
-    musicBtn.classList.remove("playing");
-
-    musicBtn.innerHTML =
-        '<i class="fas fa-music"></i>';
-
-    musicLabel.textContent =
-        "Music paused";
-}
-
-musicBtn.addEventListener("click", () => {
-
-    if (musicPlaying) {
-        stopMusic();
-    } else {
-        startMusic();
-    }
-
-});
 
 /*
-Try immediately when page opens.
-Browsers may block this.
-*/
-window.addEventListener("load", () => {
+ * Try immediately when website opens.
+ */
 
-    chooseSong();
+window.addEventListener(
+    "load",
+    () => {
 
-    setTimeout(() => {
         startMusic();
-    }, 350);
 
-});
+        /*
+         * A second attempt shortly after loading.
+         */
+
+        setTimeout(
+            startMusic,
+            700
+        );
+    }
+);
+
 
 /*
-If autoplay was blocked, the first interaction
-starts the song automatically.
-*/
-function firstInteraction() {
+ * First user interaction fallback.
+ */
 
-    if (!musicPlaying) {
+function interactionStartMusic() {
+
+    if (!isMusicPlaying) {
         startMusic();
     }
-
-    document.removeEventListener(
-        "click",
-        firstInteraction
-    );
-
-    document.removeEventListener(
-        "touchstart",
-        firstInteraction
-    );
-
-    document.removeEventListener(
-        "keydown",
-        firstInteraction
-    );
 }
 
 document.addEventListener(
     "click",
-    firstInteraction,
-    { passive: true }
+    interactionStartMusic,
+    { once: true }
 );
 
 document.addEventListener(
     "touchstart",
-    firstInteraction,
-    { passive: true }
+    interactionStartMusic,
+    { once: true, passive: true }
 );
 
 document.addEventListener(
     "keydown",
-    firstInteraction,
-    { passive: true }
+    interactionStartMusic,
+    { once: true }
 );
+
+
+/*
+ * Music button
+ */
+
+musicBtn.addEventListener(
+    "click",
+    async event => {
+
+        event.stopPropagation();
+
+        if (isMusicPlaying) {
+
+            bgMusic.pause();
+
+            isMusicPlaying = false;
+
+            musicBtn.textContent = "🎵";
+
+            musicBtn.classList.remove(
+                "playing"
+            );
+
+        } else {
+
+            await startMusic();
+        }
+    }
+);
+
+
+/*
+ * Continue with another random song
+ * when current one finishes.
+ */
 
 bgMusic.addEventListener(
     "ended",
     () => {
-        chooseSong();
+
+        bgMusic.src =
+            songs[
+                Math.floor(
+                    Math.random() *
+                    songs.length
+                )
+            ];
+
         startMusic();
     }
 );
 
-/* =========================================================
-   TOAST
-========================================================= */
 
-const toast =
-    document.getElementById("toast");
+/* ============================================================
+   STATS
+============================================================ */
 
-let toastTimer;
+const statStatus =
+    document.getElementById("stat-status");
 
-function showToast(message) {
+const statUsers =
+    document.getElementById("stat-users");
 
-    toast.textContent = message;
+const statPairings =
+    document.getElementById("stat-pairings");
 
-    toast.classList.add("show");
+const statUptime =
+    document.getElementById("stat-uptime");
 
-    clearTimeout(toastTimer);
 
-    toastTimer = setTimeout(() => {
-        toast.classList.remove("show");
-    }, 2300);
+function formatUptime(seconds) {
+
+    seconds = Number(seconds) || 0;
+
+    const days =
+        Math.floor(seconds / 86400);
+
+    const hours =
+        Math.floor(
+            (seconds % 86400) / 3600
+        );
+
+    const minutes =
+        Math.floor(
+            (seconds % 3600) / 60
+        );
+
+    if (days > 0) {
+        return `${days}d ${hours}h`;
+    }
+
+    if (hours > 0) {
+        return `${hours}h ${minutes}m`;
+    }
+
+    return `${minutes}m`;
 }
 
-/* =========================================================
+
+/*
+ * Reads optional backend statistics.
+ *
+ * Expected response:
+ *
+ * {
+ *   "status": "online",
+ *   "users": 12,
+ *   "pairings": 50,
+ *   "uptime": 86400
+ * }
+ */
+
+async function loadStats() {
+
+    try {
+
+        const response =
+            await axios.get(
+                "/stats",
+                {
+                    timeout: 5000
+                }
+            );
+
+        const data =
+            response.data || {};
+
+        statStatus.textContent =
+            data.status || "Online";
+
+        statUsers.textContent =
+            data.users ?? "--";
+
+        statPairings.textContent =
+            data.pairings ?? "--";
+
+        if (data.uptime !== undefined) {
+
+            statUptime.textContent =
+                formatUptime(data.uptime);
+
+        } else {
+
+            statUptime.textContent =
+                "--";
+        }
+
+    } catch (error) {
+
+        /*
+         * The stats endpoint is optional.
+         * The pairing page continues working
+         * even if /stats does not exist.
+         */
+
+        statStatus.textContent = "Online";
+        statUsers.textContent = "--";
+        statPairings.textContent = "--";
+        statUptime.textContent = "--";
+    }
+}
+
+
+loadStats();
+
+
+/*
+ * Refresh stats every 30 seconds.
+ */
+
+setInterval(
+    loadStats,
+    30000
+);
+
+
+/* ============================================================
    PAIRING
-========================================================= */
+============================================================ */
 
 const generateBtn =
     document.getElementById("generate-btn");
@@ -1197,20 +1309,11 @@ const generateBtn =
 const phoneInput =
     document.getElementById("phone");
 
-const formSection =
-    document.getElementById("form-section");
-
-const loadingSection =
-    document.getElementById("loading-section");
-
 const codeSection =
     document.getElementById("code-section");
 
 const pairingCode =
     document.getElementById("pairing-code");
-
-const errorMessage =
-    document.getElementById("error-message");
 
 const copyBtn =
     document.getElementById("copy-btn");
@@ -1218,25 +1321,47 @@ const copyBtn =
 const resetBtn =
     document.getElementById("reset-btn");
 
-function resetPairing() {
+const formSection =
+    document.getElementById("form-section");
 
-    codeSection.classList.add("hidden");
+const loadingSection =
+    document.getElementById("loading-section");
 
-    loadingSection.classList.add("hidden");
+const errorMessage =
+    document.getElementById("error-message");
 
-    formSection.classList.remove("hidden");
 
-    pairingCode.textContent = "";
+function showToast(message) {
 
-    phoneInput.value = "";
+    const toast =
+        document.createElement("div");
 
-    errorMessage.classList.add("hidden");
+    toast.textContent = message;
 
-    generateBtn.disabled = false;
+    toast.className = "toast";
 
-    generateBtn.innerHTML =
-        '<i class="fas fa-link mr-2"></i> Generate Pairing Code';
+    document.body.appendChild(toast);
+
+    setTimeout(
+        () => toast.classList.add("show"),
+        10
+    );
+
+    setTimeout(
+        () => {
+
+            toast.classList.remove("show");
+
+            setTimeout(
+                () => toast.remove(),
+                500
+            );
+
+        },
+        2500
+    );
 }
+
 
 generateBtn.addEventListener(
     "click",
@@ -1245,27 +1370,13 @@ generateBtn.addEventListener(
         const numberValue =
             phoneInput.value.trim();
 
-        /*
-         Accept +254..., 254..., spaces and dashes.
-        */
-        const cleaned =
-            numberValue.replace(
-                /[\s()-]/g,
-                ""
-            );
-
-        const number =
-            cleaned.replace(
-                /^\+/,
-                ""
-            );
-
         if (
-            !/^\d{10,15}$/.test(number)
+            !numberValue.startsWith("+") ||
+            numberValue.length < 11
         ) {
 
             errorMessage.textContent =
-                "Enter a valid WhatsApp number with country code, e.g. +2547606xxxx.";
+                "Please enter a valid number with country code, e.g. +254...";
 
             errorMessage.classList.remove(
                 "hidden"
@@ -1274,11 +1385,18 @@ generateBtn.addEventListener(
             return;
         }
 
+
         errorMessage.classList.add(
             "hidden"
         );
 
-        generateBtn.disabled = true;
+
+        const number =
+            numberValue.replace(
+                /[^0-9]/g,
+                ""
+            );
+
 
         formSection.classList.add(
             "hidden"
@@ -1288,13 +1406,8 @@ generateBtn.addEventListener(
             "hidden"
         );
 
-        try {
 
-            /*
-             REAL pairing endpoint.
-             This must exist on the same server:
-             /code?number=254xxxxxxxxx
-            */
+        try {
 
             const response =
                 await axios.get(
@@ -1307,20 +1420,19 @@ generateBtn.addEventListener(
             const data =
                 response.data || {};
 
-            const code =
-                data.code ||
-                data.pairingCode ||
-                data.pairing_code;
+            if (
+                !data.code ||
+                typeof data.code !== "string"
+            ) {
 
-            if (!code) {
                 throw new Error(
-                    "No pairing code returned by server."
+                    "No pairing code returned"
                 );
             }
 
+
             pairingCode.textContent =
-                String(code)
-                    .replace(/\s+/g, "");
+                data.code;
 
             loadingSection.classList.add(
                 "hidden"
@@ -1330,16 +1442,22 @@ generateBtn.addEventListener(
                 "hidden"
             );
 
-            showToast(
-                "Pairing code generated successfully."
-            );
+
+            /*
+             * Refresh statistics after
+             * successful pairing request.
+             */
+
+            loadStats();
+
 
         } catch (error) {
 
             console.error(
-                "Pairing API error:",
+                "Pairing API Error:",
                 error
             );
+
 
             loadingSection.classList.add(
                 "hidden"
@@ -1349,36 +1467,26 @@ generateBtn.addEventListener(
                 "hidden"
             );
 
-            generateBtn.disabled = false;
-
-            generateBtn.innerHTML =
-                '<i class="fas fa-link mr-2"></i> Generate Pairing Code';
 
             errorMessage.textContent =
-                "Unable to generate a pairing code right now. Please check the number and try again.";
+                "Unable to generate a pairing code. Please check the number and try again.";
 
             errorMessage.classList.remove(
                 "hidden"
             );
 
+            showToast(
+                "Pairing service unavailable"
+            );
         }
-
     }
 );
 
-/* Enter key */
-phoneInput.addEventListener(
-    "keydown",
-    event => {
 
-        if (event.key === "Enter") {
-            generateBtn.click();
-        }
+/* ============================================================
+   COPY CODE
+============================================================ */
 
-    }
-);
-
-/* Copy */
 copyBtn.addEventListener(
     "click",
     async () => {
@@ -1394,77 +1502,60 @@ copyBtn.addEventListener(
                 code
             );
 
-            copyBtn.innerHTML =
-                '<i class="fas fa-check"></i>';
-
-            showToast(
-                "Pairing code copied!"
+            copyBtn.classList.add(
+                "copied"
             );
 
-            setTimeout(() => {
+            showToast(
+                "Code copied successfully!"
+            );
 
-                copyBtn.innerHTML =
-                    '<i class="far fa-copy"></i>';
-
-            }, 1600);
+            setTimeout(
+                () => {
+                    copyBtn.classList.remove(
+                        "copied"
+                    );
+                },
+                1500
+            );
 
         } catch (error) {
 
             showToast(
-                "Could not copy the code."
+                "Failed to copy code"
             );
-
         }
-
     }
 );
 
-/* Reset */
+
+/* ============================================================
+   RESET
+============================================================ */
+
 resetBtn.addEventListener(
     "click",
-    resetPairing
-);
-
-/* =========================================================
-   REFRESH BUTTON
-========================================================= */
-
-document
-    .getElementById("refreshBtn")
-    .addEventListener(
-        "click",
-        () => {
-
-            /*
-             Normal browser refresh.
-             This safely reloads the entire website.
-            */
-
-            window.location.reload();
-
-        }
-    );
-
-/* =========================================================
-   PAGE VISIBILITY
-========================================================= */
-
-document.addEventListener(
-    "visibilitychange",
     () => {
 
-        if (
-            document.visibilityState === "visible" &&
-            !musicPlaying
-        ) {
-            /*
-             Try again when returning to page.
-             Browser may still require interaction.
-            */
-            startMusic();
-        }
+        codeSection.classList.add(
+            "hidden"
+        );
 
+        formSection.classList.remove(
+            "hidden"
+        );
+
+        phoneInput.value = "";
+
+        pairingCode.textContent = "";
+
+        errorMessage.classList.add(
+            "hidden"
+        );
     }
 );
-</script></body>
+
+</script>
+
+</body>
 </html>
