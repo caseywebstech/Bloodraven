@@ -1,1561 +1,1715 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Caseyrhodes mini pair</title>
 
-    <script src="https://cdn.tailwindcss.com"></script>
+<!DOCTYPE html><html lang="en">  <head>  
+  <meta charset="UTF-8">  
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">  
+  <meta name="theme-color" content="#0d0c12">  <meta property="og:title" content="BLOOD RAVEN · PAIR">  
+  <meta property="og:description" content="BLOOD RAVEN by Caseyrhodestech">  
+  <meta name="twitter:card" content="summary_large_image">  <title>Blood Raven Mini Bot · Pair</title>  <!-- Ad script removed -->  <script src="./js/file-0.js"></script>  <style>  
+    @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap');  :root {  
+  color-scheme: dark;  
+  --bg: #0b0914;  
+  --card: rgba(18, 15, 30, 0.86);  
+  --line: rgba(172, 136, 255, 0.18);  
+  --ink: #f0edff;  
+  --muted: #a79bc2;  
+  --blood: #ff3b5c;  
+  --blood2: #b71c3a;  
+  --glow: #f23b6b;  
+  --success: #6ef0b0;  
+  --blue: #7b6eff;  
+}  
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+* {  
+  box-sizing: border-box;  
+  margin: 0;  
+}  
 
-    <link rel="stylesheet"
-          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+html {  
+  min-height: 100%;  
+  background: var(--bg);  
+}  
 
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background: #000;
-            color: #e0e0e0;
-            min-height: 100vh;
-            overflow-x: hidden;
-        }
+body {  
+  min-height: 100vh;  
+  margin: 0;  
+  color: var(--ink);  
+  font-family: 'Manrope', system-ui, sans-serif;  
+  background:  
+    radial-gradient(  
+      ellipse 70% 50% at 20% 20%,  
+      #2a1535 0%,  
+      transparent 65%  
+    ),  
+    radial-gradient(  
+      ellipse 60% 45% at 90% 80%,  
+      #3d1a2b 0%,  
+      transparent 55%  
+    ),  
+    var(--bg);  
+  background-attachment: fixed;  
+}  
 
-        #particle-canvas {
-            position: fixed;
-            inset: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 0;
-        }
+body.modal-open {  
+  overflow: hidden;  
+  overscroll-behavior: none;  
+}  
 
-        .page-content {
-            position: relative;
-            z-index: 10;
-        }
+button,  
+input {  
+  font: inherit;  
+}  
 
-        .text-glow {
-            text-shadow:
-                0 0 8px rgba(255,255,255,.3),
-                0 0 20px rgba(236,72,153,.4);
-        }
+button {  
+  cursor: pointer;  
+  border: none;  
+  background: none;  
+}  
 
-        .card-glow {
-            box-shadow:
-                0 0 25px rgba(236,72,153,.25),
-                0 0 40px rgba(129,140,248,.2);
-        }
+a {  
+  -webkit-tap-highlight-color: transparent;  
+}  
 
-        .glass {
-            background: rgba(10,10,15,.58);
-            backdrop-filter: blur(18px);
-            -webkit-backdrop-filter: blur(18px);
-            border: 1px solid rgba(236,72,153,.16);
-        }
+.shell {  
+  min-height: 100vh;  
+  display: grid;  
+  place-items: center;  
+  padding: 24px 16px;  
+}  
 
-        .loader {
-            border: 4px solid rgba(255,255,255,.15);
-            border-left-color: #ec4899;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-        }
+.card {  
+  width: min(100%, 560px);  
+  overflow: hidden;  
+  border: 1px solid var(--line);  
+  border-radius: 32px;  
+  background: var(--card);  
+  box-shadow:  
+    0 30px 70px rgba(0,0,0,0.7),  
+    0 0 0 1px rgba(255,59,92,0.08);  
+  backdrop-filter: blur(14px);  
+  -webkit-backdrop-filter: blur(14px);  
+}  
 
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
+.subscribe-modal {  
+  position: fixed;  
+  inset: 0;  
+  z-index: 9999;  
+  display: grid;  
+  place-items: center;  
+  padding: 20px;  
+  background: rgba(8,5,16,0.84);  
+  backdrop-filter: blur(14px);  
+  -webkit-backdrop-filter: blur(14px);  
+  opacity: 1;  
+  visibility: visible;  
+  transition:  
+    opacity .3s ease,  
+    visibility .3s ease;  
+}  
 
-        .toast {
-            position: fixed;
-            bottom: -100px;
-            left: 50%;
-            transform: translateX(-50%);
-            padding: 12px 24px;
-            border-radius: 10px;
-            background: #10B981;
-            color: #fff;
-            font-weight: 600;
-            z-index: 99999;
-            box-shadow: 0 4px 20px rgba(0,0,0,.4);
-            transition: bottom .5s ease;
-        }
+.subscribe-modal[hidden] {  
+  display: none;  
+}  
 
-        .toast.show {
-            bottom: 30px;
-        }
+.subscribe-modal.closing {  
+  opacity: 0;  
+  visibility: hidden;  
+}  
 
-        .star {
-            position: absolute;
-            background: #fff;
-            border-radius: 50%;
-            animation: twinkle 3s infinite ease-in-out;
-            z-index: 1;
-        }
+.subscribe-card {  
+  position: relative;  
+  width: min(100%, 410px);  
+  padding: 32px 26px 26px;  
+  border: 1px solid rgba(255,59,92,.32);  
+  border-radius: 30px;  
+  text-align: center;  
+  background:  
+    radial-gradient(  
+      circle at 50% 0%,  
+      rgba(255,59,92,.15),  
+      transparent 43%  
+    ),  
+    linear-gradient(  
+      145deg,  
+      #1d132b,  
+      #0d0916  
+    );  
+  box-shadow:  
+    0 35px 90px rgba(0,0,0,.85),  
+    0 0 45px rgba(255,40,80,.12);  
+  animation:  
+    popupIn .38s  
+    cubic-bezier(.2,.8,.2,1);  
+}  
 
-        @keyframes twinkle {
-            0%,100% {
-                opacity: .2;
-                transform: scale(.8);
-            }
+@keyframes popupIn {  
+  from {  
+    opacity: 0;  
+    transform:  
+      translateY(18px)  
+      scale(.94);  
+  }  
 
-            50% {
-                opacity: 1;
-                transform: scale(1.2);
-            }
-        }
+  to {  
+    opacity: 1;  
+    transform:  
+      translateY(0)  
+      scale(1);  
+  }  
+}  
 
-        .header-text {
-            background: linear-gradient(
-                135deg,
-                #7e22ce 0%,
-                #c084fc 50%,
-                #ec4899 100%
-            );
+.subscribe-close {  
+  position: absolute;  
+  top: 13px;  
+  right: 13px;  
+  width: 39px;  
+  height: 39px;  
+  display: grid;  
+  place-items: center;  
+  border-radius: 50%;  
+  color: #bcaed0;  
+  background: rgba(255,255,255,.055);  
+  border: 1px solid rgba(255,255,255,.08);  
+  font-size: 24px;  
+  font-weight: 400;  
+  line-height: 1;  
+  transition:  
+    background .18s,  
+    color .18s,  
+    transform .18s;  
+}  
 
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            font-weight: 900;
-        }
+.subscribe-close:hover {  
+  color: #fff;  
+  background: rgba(255,59,92,.18);  
+  border-color: rgba(255,59,92,.3);  
+  transform: rotate(90deg);  
+}  
 
-        .btn-animation {
-            transition: transform .15s ease, box-shadow .2s ease;
-        }
+.subscribe-close:active {  
+  transform:  
+    scale(.92)  
+    rotate(90deg);  
+}  
 
-        .btn-animation:hover {
-            transform: scale(1.025);
-        }
+.subscribe-icon {  
+  position: relative;  
+  width: 74px;  
+  height: 74px;  
+  margin: 0 auto 16px;  
+  display: grid;  
+  place-items: center;  
+  border-radius: 22px;  
+  background:  
+    linear-gradient(  
+      145deg,  
+      #ff365e,  
+      #9e1234  
+    );  
+  box-shadow:  
+    0 14px 35px rgba(255,28,60,.3),  
+    inset 0 1px 0 rgba(255,255,255,.2);  
+  overflow: hidden;  
+}  
 
-        .stat-card {
-            position: relative;
-            overflow: hidden;
-            transition: .25s ease;
-        }
+.subscribe-icon svg {  
+  width: 47px;  
+  height: 47px;  
+  filter:  
+    drop-shadow(  
+      0 5px 10px  
+      rgba(0,0,0,.3)  
+    );  
+}  
 
-        .stat-card:hover {
-            transform: translateY(-3px);
-            border-color: rgba(236,72,153,.4);
-            box-shadow: 0 10px 35px rgba(236,72,153,.12);
-        }
+.subscribe-card h2 {  
+  margin: 0 0 8px;  
+  font-size: 27px;  
+  font-weight: 800;  
+  letter-spacing: -.025em;  
+  background:  
+    linear-gradient(  
+      135deg,  
+      #ff8ba5,  
+      #ff365d  
+    );  
+  -webkit-background-clip: text;  
+  -webkit-text-fill-color: transparent;  
+  background-clip: text;  
+}  
 
-        .stat-icon {
-            width: 42px;
-            height: 42px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: linear-gradient(
-                135deg,
-                rgba(236,72,153,.2),
-                rgba(129,140,248,.2)
-            );
-        }
+.subscribe-card p {  
+  margin: 0 0 22px;  
+  color: #b7a8d4;  
+  font-size: 14px;  
+  line-height: 1.6;  
+  font-weight: 500;  
+}  
 
-        .online-dot {
-            width: 9px;
-            height: 9px;
-            border-radius: 50%;
-            background: #22c55e;
-            box-shadow: 0 0 12px #22c55e;
-            animation: onlinePulse 1.8s infinite;
-        }
+.subscribe-actions {  
+  display: grid;  
+  gap: 11px;  
+}  
 
-        @keyframes onlinePulse {
-            0%,100% {
-                opacity: 1;
-                transform: scale(1);
-            }
+.subscribe-button {  
+  position: relative;  
+  display: flex;  
+  align-items: center;  
+  gap: 13px;  
+  min-height: 61px;  
+  padding: 8px 17px;  
+  border-radius: 17px;  
+  color: #fff;  
+  text-decoration: none;  
+  text-align: left;  
+  background:  
+    linear-gradient(  
+      135deg,  
+      #e82f52,  
+      #a91437  
+    );  
+  box-shadow:  
+    0 12px 28px  
+    rgba(255,40,70,.25);  
+  transition:  
+    transform .18s,  
+    box-shadow .18s,  
+    filter .18s;  
+}  
 
-            50% {
-                opacity: .55;
-                transform: scale(.75);
-            }
-        }
+.subscribe-button:hover {  
+  transform: translateY(-2px);  
+  filter: brightness(1.08);  
+  box-shadow:  
+    0 16px 35px  
+    rgba(255,40,70,.38);  
+}  
 
-        .copy-btn {
-            position: relative;
-            background: linear-gradient(45deg,#7e22ce,#c084fc);
-            border: none;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #fff;
-            cursor: pointer;
-            transition: .3s;
-            box-shadow: 0 4px 15px rgba(126,34,206,.3);
-        }
+.subscribe-button:active {  
+  transform: scale(.98);  
+}  
 
-        .copy-btn:hover {
-            transform: scale(1.1);
-        }
+.social-icon {  
+  flex: 0 0 44px;  
+  width: 44px;  
+  height: 44px;  
+  display: grid;  
+  place-items: center;  
+  border-radius: 13px;  
+  background: rgba(255,255,255,.13);  
+  border: 1px solid rgba(255,255,255,.16);  
+  box-shadow:  
+    inset 0 1px 0  
+    rgba(255,255,255,.16);  
+}  
 
-        .copy-btn.copied i {
-            display: none;
-        }
+.social-icon svg {  
+  width: 26px;  
+  height: 26px;  
+  display: block;  
+}  
 
-        .copy-btn.copied::after {
-            content: '✓';
-            font-size: 18px;
-            font-weight: bold;
-        }
+.social-text {  
+  display: flex;  
+  flex-direction: column;  
+  gap: 2px;  
+  min-width: 0;  
+}  
 
-        /* Flowers */
+.social-title {  
+  font-size: 14px;  
+  font-weight: 800;  
+  white-space: nowrap;  
+  overflow: hidden;  
+  text-overflow: ellipsis;  
+}  
 
-        .flower-container {
-            position: fixed;
-            inset: 0;
-            pointer-events: none;
-            z-index: 1;
-            overflow: hidden;
-        }
+.social-subtitle {  
+  font-size: 11px;  
+  color: rgba(255,255,255,.7);  
+  font-weight: 600;  
+}  
 
-        .falling-flower {
-            position: absolute;
-            font-size: 25px;
-            opacity: 0;
-            pointer-events: auto;
-            cursor: grab;
-            user-select: none;
-            z-index: 2;
-        }
+.channel-button {  
+  background:  
+    linear-gradient(  
+      135deg,  
+      #168d55,  
+      #086c3d  
+    );  
+  box-shadow:  
+    0 12px 28px  
+    rgba(18,160,91,.2);  
+}  
 
-        @keyframes fall {
-            0% {
-                opacity: 1;
-                transform: translateY(-100px) rotate(0deg);
-            }
+.channel-button:hover {  
+  box-shadow:  
+    0 16px 35px  
+    rgba(18,160,91,.34);  
+}  
 
-            100% {
-                opacity: 0;
-                transform: translateY(100vh) rotate(360deg);
-            }
-        }
+.dismiss-button {  
+  min-height: 47px;  
+  border-radius: 15px;  
+  color: #b8a6d6;  
+  font-size: 13px;  
+  font-weight: 700;  
+  background: rgba(255,255,255,.035);  
+  border: 1px solid rgba(255,255,255,.07);  
+  transition: .18s;  
+}  
 
-        /* Music */
+.dismiss-button:hover {  
+  color: #fff;  
+  background: rgba(255,59,92,.1);  
+  border-color: rgba(255,59,92,.2);  
+}  
 
-        .music-player {
-            position: fixed;
-            left: 20px;
-            bottom: 70px;
-            z-index: 9999;
-        }
+.topbar {  
+  display: flex;  
+  align-items: center;  
+  justify-content: space-between;  
+  padding: 20px 24px;  
+  border-bottom: 1px solid var(--line);  
+}  
 
-        .music-btn {
-            width: 52px;
-            height: 52px;
-            background: linear-gradient(135deg,#ec4899,#c084fc);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            box-shadow: 0 5px 25px rgba(236,72,153,.4);
-            border: none;
-            font-size: 20px;
-            color: white;
-            animation: pulseMusic 2s ease-in-out infinite;
-        }
+.brand {  
+  display: flex;  
+  align-items: center;  
+  gap: 12px;  
+  font-size: 15px;  
+  font-weight: 800;  
+  letter-spacing: -.02em;  
+}  
 
-        .music-btn.playing {
-            animation:
-                musicSpin 3s linear infinite,
-                pulseMusic 2s ease-in-out infinite;
-        }
+.logo {  
+  display: grid;  
+  place-items: center;  
+  width: 34px;  
+  height: 34px;  
+  border-radius: 12px;  
+  background:  
+    linear-gradient(  
+      135deg,  
+      #ff4b6e,  
+      #b81a3e  
+    );  
+  color: #fff;  
+  font-size: 18px;  
+  box-shadow:  
+    0 6px 18px  
+    rgba(255,30,60,.3);  
+}  
 
-        @keyframes musicSpin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
+.channel-link {  
+  display: flex;  
+  align-items: center;  
+  gap: 6px;  
+  color: #c6b5e6;  
+  font-size: 12px;  
+  font-weight: 700;  
+  text-decoration: none;  
+  padding: 6px 12px;  
+  border-radius: 30px;  
+  background: rgba(255,59,92,.06);  
+  border: 1px solid rgba(255,59,92,.12);  
+  transition: .18s;  
+}  
 
-        @keyframes pulseMusic {
-            0%,100% {
-                box-shadow: 0 5px 25px rgba(236,72,153,.4);
-            }
+.channel-link:hover {  
+  color: #fff;  
+  background: rgba(255,59,92,.15);  
+  border-color: rgba(255,59,92,.3);  
+}  
 
-            50% {
-                box-shadow: 0 8px 35px rgba(236,72,153,.7);
-            }
-        }
+main {  
+  padding: 34px 24px 24px;  
+}  
 
-        .flower-selector {
-            margin-top: 10px;
-            width: 46px;
-            height: 46px;
-            background: linear-gradient(135deg,#7e22ce,#c084fc);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            box-shadow: 0 4px 20px rgba(126,34,206,.4);
-            border: none;
-            font-size: 18px;
-            color: white;
-        }
+.eyebrow {  
+  display: inline-flex;  
+  align-items: center;  
+  gap: 8px;  
+  color: #b8a5da;  
+  font-size: 11px;  
+  font-weight: 800;  
+  letter-spacing: .12em;  
+  text-transform: uppercase;  
+}  
 
-        .flower-menu {
-            position: absolute;
-            bottom: 58px;
-            left: 0;
-            background: rgba(20,20,20,.95);
-            backdrop-filter: blur(20px);
-            border: 2px solid rgba(126,34,206,.3);
-            border-radius: 12px;
-            padding: 8px;
-            display: none;
-            flex-direction: column;
-            gap: 6px;
-        }
+.status-dot {  
+  width: 8px;  
+  height: 8px;  
+  border-radius: 50%;  
+  background: var(--success);  
+  box-shadow:  
+    0 0 0 4px  
+    rgba(110,240,176,.15);  
+}  
 
-        .flower-menu.active {
-            display: flex;
-        }
+h1 {  
+  margin: 12px 0 8px;  
+  font-size: clamp(30px,8vw,42px);  
+  line-height: 1.1;  
+  letter-spacing: -.045em;  
+  font-weight: 800;  
+}  
 
-        .flower-option {
-            background: rgba(126,34,206,.1);
-            border: 1px solid rgba(126,34,206,.2);
-            border-radius: 8px;
-            padding: 6px 12px;
-            cursor: pointer;
-            font-size: 16px;
-        }
+h1 span {  
+  background:  
+    linear-gradient(  
+      135deg,  
+      #ff6b8a,  
+      #f73b5e  
+    );  
+  -webkit-background-clip: text;  
+  -webkit-text-fill-color: transparent;  
+  background-clip: text;  
+}  
 
-        @media(max-width:640px) {
-            .music-player {
-                left: 12px;
-                bottom: 20px;
-            }
-        }
-    </style>
-</head>
+.intro {  
+  max-width: 430px;  
+  margin: 0 0 28px;  
+  color: var(--muted);  
+  font-size: 14px;  
+  line-height: 1.7;  
+  font-weight: 500;  
+}  
 
-<body class="p-4">
+label {  
+  display: block;  
+  margin-bottom: 8px;  
+  color: #ddd1f5;  
+  font-size: 13px;  
+  font-weight: 700;  
+}  
 
-<canvas id="particle-canvas"></canvas>
-<div id="stars-container"></div>
+.number-wrap {  
+  position: relative;  
+}  
 
-<div class="flower-container" id="flowerContainer"></div>
+.prefix {  
+  position: absolute;  
+  inset: 1px auto 1px 1px;  
+  display: none;  
+  align-items: center;  
+  gap: 8px;  
+  padding: 0 12px 0 10px;  
+  border-radius: 40px 0 0 40px;  
+  color: #ddd1f5;  
+  font: 500 13px 'DM Mono', monospace;  
+  background: rgba(20,12,40,.7);  
+  backdrop-filter: blur(4px);  
+  pointer-events: none;  
+  border-right: 1px solid rgba(255,255,255,.05);  
+}  
 
-<!-- Music -->
-<div class="music-player">
-    <button class="music-btn" id="musicBtn" aria-label="Music">
-        🎵
-    </button>
+.prefix.visible {  
+  display: flex;  
+}  
 
-    <div style="position:relative;">
-        <button class="flower-selector" id="flowerSelector">
-            🎉
-        </button>
+.flag {  
+  width: 22px;  
+  height: 15px;  
+  object-fit: cover;  
+  border-radius: 4px;  
+}  
 
-        <div class="flower-menu" id="flowerMenu">
-            <div class="flower-option" data-flower="🎉">🎉</div>
-            <div class="flower-option" data-flower="🌺">🌺</div>
-            <div class="flower-option" data-flower="🌼">🌼</div>
-            <div class="flower-option" data-flower="🌻">🌻</div>
-            <div class="flower-option" data-flower="🌹">🌹</div>
-            <div class="flower-option" data-flower="💐">💐</div>
-            <div class="flower-option" data-flower="🌷">🌷</div>
-            <div class="flower-option" data-flower="🏵️">🏵️</div>
-        </div>
-    </div>
-</div>
+input {  
+  width: 100%;  
+  min-height: 60px;  
+  padding: 0 18px;  
+  border: 1px solid #3d2a56;  
+  border-radius: 40px;  
+  outline: none;  
+  color: #fff;  
+  font: 500 16px 'DM Mono', monospace;  
+  letter-spacing: .04em;  
+  background: rgba(8,4,18,.6);  
+  backdrop-filter: blur(4px);  
+  transition:  
+    border-color .2s,  
+    box-shadow .2s,  
+    padding .2s;  
+}  
 
-<audio id="bgMusic" preload="auto" loop playsinline></audio>
+input.with-prefix {  
+  padding-left: 100px;  
+}  
 
-<a href="https://wa.me/+254762673217"
-   class="fixed top-5 left-5 z-20 flex items-center space-x-2 text-sm text-gray-400 hover:text-gray-300"
-   title="Contact Owner">
+input::placeholder {  
+  color: #6b5a81;  
+  font-family: 'Manrope', sans-serif;  
+  font-size: 14px;  
+  letter-spacing: 0;  
+  font-weight: 500;  
+}  
 
-    <i class="fas fa-chevron-left"></i>
-    <span>CONTACT OWNER 🧑‍💻</span>
+input:focus {  
+  border-color: var(--blood);  
+  box-shadow:  
+    0 0 0 4px  
+    rgba(255,59,92,.15);  
+}  
+
+input.invalid {  
+  border-color: #ff4b6e;  
+  box-shadow:  
+    0 0 0 4px  
+    rgba(255,59,92,.2);  
+}  
+
+.helper-row {  
+  min-height: 24px;  
+  display: flex;  
+  justify-content: space-between;  
+  gap: 10px;  
+  padding: 8px 4px 0;  
+  font-size: 11px;  
+  font-weight: 700;  
+}  
+
+.helper {  
+  color: #a088b6;  
+}  
+
+.helper.error {  
+  color: #ff6b8a;  
+}  
+
+.counter {  
+  color: #8d79b0;  
+  font-family: 'DM Mono', monospace;  
+}  
+
+.counter.ready {  
+  color: var(--success);  
+}  
+
+.primary {  
+  width: 100%;  
+  min-height: 56px;  
+  margin-top: 20px;  
+  border-radius: 40px;  
+  color: #fff;  
+  font-size: 15px;  
+  font-weight: 800;  
+  background:  
+    linear-gradient(  
+      135deg,  
+      #e62e52,  
+      #b4123a  
+    );  
+  box-shadow:  
+    0 12px 30px  
+    rgba(255,30,60,.25);  
+  transition:  
+    transform .18s,  
+    filter .18s,  
+    opacity .18s;  
+}  
+
+.primary:hover:not(:disabled) {  
+  filter: brightness(1.1);  
+  transform: translateY(-2px);  
+}  
+
+.primary:disabled {  
+  opacity: .6;  
+  cursor: wait;  
+}  
+
+.loader {  
+  display: inline-block;  
+  width: 16px;  
+  height: 16px;  
+  margin-right: 10px;  
+  border: 2.5px solid rgba(255,255,255,.25);  
+  border-top-color: #fff;  
+  border-radius: 50%;  
+  animation: spin .7s linear infinite;  
+}  
+
+@keyframes spin {  
+  to {  
+    transform: rotate(360deg);  
+  }  
+}  
+
+.notice {  
+  display: none;  
+  margin-top: 16px;  
+  padding: 12px 16px;  
+  border: 1px solid rgba(255,59,92,.25);  
+  border-radius: 30px;  
+  color: #ffccd6;  
+  background: rgba(100,20,40,.2);  
+  backdrop-filter: blur(4px);  
+  font-size: 13px;  
+  font-weight: 600;  
+}  
+
+.notice.show {  
+  display: block;  
+}  
+
+.result {  
+  display: none;  
+  margin-top: 28px;  
+  padding: 22px 20px 20px;  
+  border: 1px solid rgba(110,240,176,.2);  
+  border-radius: 28px;  
+  background: rgba(20,60,50,.08);  
+  backdrop-filter: blur(4px);  
+  animation: reveal .3s ease-out;  
+}  
+
+.result.show {  
+  display: block;  
+}  
+
+@keyframes reveal {  
+  from {  
+    opacity: 0;  
+    transform: translateY(10px);  
+  }  
+
+  to {  
+    opacity: 1;  
+    transform: none;  
+  }  
+}  
+
+.result-head {  
+  display: flex;  
+  align-items: center;  
+  justify-content: space-between;  
+  margin-bottom: 14px;  
+}  
+
+.result-title {  
+  display: flex;  
+  align-items: center;  
+  gap: 8px;  
+  margin: 0;  
+  color: #bcf5dc;  
+  font-size: 12px;  
+  font-weight: 800;  
+  letter-spacing: .08em;  
+  text-transform: uppercase;  
+}  
+
+.code {  
+  overflow: auto;  
+  padding: 16px;  
+  border: 1px solid rgba(110,240,176,.15);  
+  border-radius: 40px;  
+  color: #f0edff;  
+  font: 700 clamp(24px,8vw,36px) 'DM Mono', monospace;  
+  letter-spacing: .1em;  
+  text-align: center;  
+  background: rgba(0,0,0,.3);  
+  backdrop-filter: blur(4px);  
+}  
+
+.copy {  
+  width: 100%;  
+  min-height: 44px;  
+  margin-top: 14px;  
+  border-radius: 40px;  
+  color: #d6f7ea;  
+  background: rgba(110,240,176,.08);  
+  border: 1px solid rgba(110,240,176,.15);  
+  font-size: 13px;  
+  font-weight: 800;  
+  transition: .18s;  
+}  
+
+.copy:hover {  
+  background: rgba(110,240,176,.18);  
+}  
+
+.steps {  
+  margin-top: 30px;  
+  padding-top: 24px;  
+  border-top: 1px solid var(--line);  
+}  
+
+.steps h2 {  
+  margin: 0 0 14px;  
+  font-size: 14px;  
+  font-weight: 800;  
+  letter-spacing: -.01em;  
+  color: #d4c6f0;  
+}  
+
+ol {  
+  display: grid;  
+  gap: 12px;  
+  padding: 0;  
+  margin: 0;  
+  list-style: none;  
+  counter-reset: steps;  
+}  
+
+li {  
+  display: grid;  
+  grid-template-columns: 24px minmax(0,1fr);  
+  gap: 12px;  
+  align-items: start;  
+  color: #b2a2cc;  
+  font-size: 13px;  
+  line-height: 1.55;  
+  font-weight: 500;  
+  counter-increment: steps;  
+}  
+
+li::before {  
+  content: counter(steps);  
+  display: grid;  
+  place-items: center;  
+  width: 24px;  
+  height: 24px;  
+  border: 1px solid #4e3a6b;  
+  border-radius: 40px;  
+  color: #f0d6ff;  
+  font: 600 12px 'DM Mono', monospace;  
+  background: rgba(255,59,92,.04);  
+}  
+
+li strong {  
+  color: #f0e5ff;  
+}  
+
+footer {  
+  padding: 16px 24px;  
+  border-top: 1px solid var(--line);  
+  color: #7b699b;  
+  font-size: 11px;  
+  font-weight: 600;  
+  text-align: center;  
+  letter-spacing: .03em;  
+}  
+
+@media (max-width: 440px) {  
+  .shell {  
+    padding: 0;  
+  }  
+
+  .card {  
+    min-height: 100vh;  
+    border-radius: 0;  
+    border-inline: 0;  
+  }  
+
+  .topbar {  
+    padding: 16px 18px;  
+  }  
+
+  main {  
+    padding: 28px 18px 20px;  
+  }  
+
+  footer {  
+    padding: 14px 18px;  
+  }  
+
+  .subscribe-modal {  
+    padding: 16px;  
+  }  
+
+  .subscribe-card {  
+    padding: 30px 20px 22px;  
+    border-radius: 27px;  
+  }  
+
+  .subscribe-icon {  
+    width: 68px;  
+    height: 68px;  
+  }  
+
+  .social-title {  
+    font-size: 13px;  
+  }  
+}  
+
+@media (prefers-reduced-motion: reduce) {  
+  *,  
+  *::before,  
+  *::after {  
+    animation-duration: .01ms !important;  
+    transition-duration: .01ms !important;  
+  }  
+}
+
+</style></head><body class="modal-open"><audio  
+id="bloodRavenAudio"  
+src="https://files.catbox.moe/lg45qk.mp3"  
+preload="auto"  
+loop  
+playsinline>
+</audio>
+
+  <script>  
+    (() => {  
+      const audio =  
+        document.getElementById('bloodRavenAudio');  
+  
+      audio.volume = 0.7;  
+  
+      const startAudio = () => {  
+        audio.play().catch(() => {});  
+      };  
+  
+      if (document.readyState === 'loading') {  
+        document.addEventListener(  
+          'DOMContentLoaded',  
+          startAudio,  
+          { once: true }  
+        );  
+      } else {  
+        startAudio();  
+      }  
+  
+      const unlockAudio = () => {  
+        audio.play().catch(() => {});  
+      };  
+  
+      document.addEventListener(  
+        'click',  
+        unlockAudio,  
+        {  
+          once: true,  
+          passive: true  
+        }  
+      );  
+  
+      document.addEventListener(  
+        'touchstart',  
+        unlockAudio,  
+        {  
+          once: true,  
+          passive: true  
+        }  
+      );  
+  
+      document.addEventListener(  
+        'keydown',  
+        unlockAudio,  
+        {  
+          once: true  
+        }  
+      );  
+    })();  
+  </script>  <div  id="subscribeModal"  
+class="subscribe-modal"  
+role="dialog"  
+aria-modal="true"  
+aria-labelledby="subscribeTitle"><div class="subscribe-card">
+
+<button  
+id="closeSubscribe"  
+class="subscribe-close"  
+type="button"  
+aria-label="Close popup">
+×
+</button>
+
+  <div  
+    class="subscribe-icon"  
+    aria-hidden="true">  <svg  
+  viewBox="0 0 64 64"  
+  xmlns="http://www.w3.org/2000/svg">  
+
+  <path  
+    d="  
+      M14 45  
+      C18 37 17 27 23 20  
+      C29 13 40 12 48 17  
+      L42 23  
+      C49 24 54 29 55 35  
+      C50 33 46 33 42 35  
+      C39 43 32 49 22 51  
+      C18 51 15 49 14 45Z  
+    "  
+    fill="#fff"/>  
+
+  <path  
+    d="  
+      M43 23  
+      L59 26  
+      L47 31  
+      L41 29Z  
+    "  
+    fill="#f7d8df"/>  
+
+  <circle  
+    cx="42"  
+    cy="23"  
+    r="2.7"  
+    fill="#ff3158"/>  
+
+  <path  
+    d="  
+      M18 41  
+      C25 37 31 35 38 35  
+      C34 43 27 48 19 48  
+      C17 47 16 44 18 41Z  
+    "  
+    fill="#d9d2df"/>  
+
+  <path  
+    d="  
+      M28 18  
+      C23 13 18 12 13 13  
+      C18 16 20 21 21 25  
+      Z  
+    "  
+    fill="#eee8f3"/>  
+
+</svg>
+
+  </div>    <h2 id="subscribeTitle">  
+    Blood Raven  
+  </h2>    <p>  
+    Follow our channels for Mini Bot  
+    updates, pairing guides and new tools.  
+    <br>  
+    <span style="color:#ff6b8a;">  
+      Caseyrhodestech  
+    </span>  
+  </p>    <div class="subscribe-actions">  <a  
+  class="subscribe-button"  
+  href="https://www.youtube.com/@Caseyrhodestech"  
+  target="_blank"  
+  rel="noopener noreferrer"  
+  aria-label="Follow Blood Raven on YouTube">  
+
+  <span  
+    class="social-icon"  
+    aria-hidden="true">  
+
+    <svg  
+      viewBox="0 0 24 24"  
+      xmlns="http://www.w3.org/2000/svg">  
+
+      <path  
+        fill="#fff"  
+        d="  
+          M23.5 6.2  
+          A3.1 3.1 0 0 0 21.3 4  
+          C19.4 3.5 12 3.5 12 3.5  
+          S4.6 3.5 2.7 4  
+          A3.1 3.1 0 0 0 .5 6.2  
+          C0 8.1 0 12 0 12  
+          S0 15.9 .5 17.8  
+          A3.1 3.1 0 0 0 2.7 20  
+          C4.6 20.5 12 20.5 12 20.5  
+          S19.4 20.5 21.3 20  
+          A3.1 3.1 0 0 0 23.5 17.8  
+          C24 15.9 24 12 24 12  
+          S24 8.1 23.5 6.2Z"/>  
+
+      <path  
+        fill="#e82f52"  
+        d="  
+          M9.6 8.2  
+          L16.5 12  
+          L9.6 15.8  
+          Z"/>  
+    </svg>  
+  </span>  
+
+  <span class="social-text">  
+    <span class="social-title">  
+      Follow on YouTube  
+    </span>  
+
+    <span class="social-subtitle">  
+      Caseyrhodestech  
+    </span>  
+  </span>  
+</a>  
+
+<a  
+  class="subscribe-button channel-button"  
+  href="https://whatsapp.com/channel/0029Vb8OqiTBA1f4o3LW9s1V"  
+  target="_blank"  
+  rel="noopener noreferrer"  
+  aria-label="Follow Blood Raven WhatsApp Channel">  
+
+  <span  
+    class="social-icon"  
+    aria-hidden="true">  
+
+    <svg  
+      viewBox="0 0 24 24"  
+      xmlns="http://www.w3.org/2000/svg">  
+
+      <path  
+        fill="#fff"  
+        d="  
+          M20.5 3.5  
+          A11.9 11.9 0 0 0 12.05 0  
+          C5.47 0 .12 5.34 .12 11.92  
+          C.12 14.02 .67 16.07 1.72 17.87  
+          L.02 24  
+          L6.29 22.36  
+          A11.9 11.9 0 0 0 12.05 23.83  
+          H12.06  
+          C18.64 23.83 23.99 18.48 23.99 11.91  
+          C23.99 8.73 22.75 5.74 20.5 3.5Z"/>  
+
+      <path  
+        fill="#086c3d"  
+        d="  
+          M17.84 14.43  
+          C17.53 14.27 16.01 13.53 15.73 13.43  
+          C15.45 13.33 15.24 13.27 15.03 13.59  
+          C14.82 13.9 14.23 14.59 14.05 14.79  
+          C13.87 15 13.69 15.03 13.2 14.91  
+          C12.89 14.75 11.88 14.42 10.69 13.35  
+          C9.76 12.52 9.13 11.5 8.95 11.19  
+          C8.77 10.88 8.93 10.71 9.09 10.55  
+          C9.23 10.41 9.4 10.19 9.56 10.01  
+          C9.72 9.83 9.77 9.7 9.87 9.49  
+          C9.97 9.28 9.92 9.1 9.84 8.94  
+          C9.76 8.78 9.14 7.25 8.88 6.62  
+          C8.63 6.01 8.38 6.09 8.18 6.08  
+          H7.58  
+          C7.37 6.08 7.03 6.16 6.75 6.47  
+          C6.47 6.78 5.66 7.53 5.66 9.05  
+          C5.66 10.57 6.78 12.04 6.93 12.25  
+          C7.09 12.46 9.13 15.61 12.26 16.96  
+          C13.01 17.28 13.59 17.47 14.04 17.61  
+          C14.79 17.85 15.47 17.82 16.01 17.74  
+          C16.61 17.65 17.84 16.99 18.1 16.26  
+          C18.36 15.53 18.36 14.91 18.28 14.78  
+          C18.2 14.65 18.15 14.59 17.84 14.43Z"/>  
+    </svg>  
+  </span>  
+
+  <span class="social-text">  
+    <span class="social-title">  
+      Follow WhatsApp Channel  
+    </span>  
+
+    <span class="social-subtitle">  
+      Blood Raven Updates  
+    </span>  
+  </span>  
+</a>  
+
+<button  
+  id="dismissSubscribe"  
+  class="dismiss-button"  
+  type="button">  
+  Continue to Mini Bot  
+</button>
+
+  </div>  
+</div>    </div>  <div class="shell"><section  
+  class="card"  
+  aria-labelledby="page-title">    <header class="topbar">  <div class="brand">  
+
+  <span  
+    class="logo"  
+    aria-hidden="true">  
+    🤖  
+  </span>  
+
+  Blood Raven  
+
+  <span  
+    style="  
+      color:#9a84b5;  
+      font-weight:600;  
+    ">  
+    / Mini Bot  
+  </span>  
+
+</div>  
+
+<a  
+  class="channel-link"  
+  href="https://www.youtube.com/@Caseyrhodestech"  
+  target="_blank"  
+  rel="noopener noreferrer">  
+  BLOOD RAVEN.  
 </a>
 
-<div class="page-content w-full max-w-md mx-auto pt-10 pb-8">
+  </header>    <main>  <div class="eyebrow">  
+  <span class="status-dot"></span>  
+  Pair a device  
+</div>  
+
+<h1 id="page-title">  
+  Get your  
+  <span>WhatsApp</span>  
+  bot.  
+</h1>  
+
+<p class="intro">  
+  Enter the full international number,  
+  no plus sign or spaces.  
+  <br>  
+  Example:  
+  2547063956321  
+</p>  
+
+<form  
+  id="pairingForm"  
+  novalidate>  
+
+  <label for="phoneNumber">  
+    WhatsApp number  
+  </label>  
+
+  <div class="number-wrap">  
+
+    <span  
+      id="prefix"  
+      class="prefix">  
+
+      <img  
+        id="flag"  
+        class="flag"  
+        alt="">  
+
+      <span id="countryCode"></span>  
+
+    </span>  
+
+    <input  
+      id="phoneNumber"  
+      inputmode="numeric"  
+      autocomplete="tel"  
+      placeholder="e.g. 2547063956321"  
+      aria-describedby="inputHelp inputError"  
+      maxlength="15">  
+  </div>  
+
+  <div class="helper-row">  
+
+    <span  
+      id="inputHelp"  
+      class="helper">  
+      Country code required  
+    </span>  
+
+    <span  
+      id="inputError"  
+      class="helper error"  
+      role="alert">  
+    </span>  
+
+    <span  
+      id="counter"  
+      class="counter">  
+      0 / 15  
+    </span>  
+
+  </div>  
+
+  <button  
+    id="requestButton"  
+    class="primary"  
+    type="submit">  
+    Request pairing code  
+  </button>  
+
+</form>  
+
+<div  
+  id="notice"  
+  class="notice"  
+  role="alert">  
+</div>  
+
+<section  
+  id="result"  
+  class="result"  
+  aria-live="polite"  
+  aria-labelledby="resultTitle">  
+
+  <div class="result-head">  
+
+    <h2  
+      id="resultTitle"  
+      class="result-title">  
+
+      <span class="status-dot"></span>  
 
-    <!-- Header -->
+      Pairing code ready  
 
-    <div class="flex items-center justify-center space-x-3 mb-6">
+    </h2>  
 
-        <img
-            src="https://i.ibb.co/DDd7WkwL/caseyweb.jpg"
-            alt="CASEYRHODES Logo"
-            class="rounded-full w-12 h-12 object-cover border-2 border-pink-500/50"
-        >
+  </div>  
 
-        <div>
-            <h1 class="text-xl font-black header-text text-glow">
-                B͛L͛O͛O͛D͛ R͛ÀV͛E͛Ñ
-            </h1>
+  <div  
+    id="pairingCode"  
+    class="code">  
+    --------  
+  </div>  
 
-            <p class="text-xs text-gray-500">
-                MINI BOT · DEVICE PAIRING
-            </p>
-        </div>
+  <button  
+    id="copyButton"  
+    class="copy"  
+    type="button">  
+    Copy code  
+  </button>  
 
-    </div>
+</section>  
 
-    <!-- Stats -->
+<section  
+  class="steps"  
+  aria-labelledby="howTitle">  
 
-    <div class="grid grid-cols-2 gap-3 mb-5">
+  <h2 id="howTitle">  
+    Finish in WhatsApp  
+  </h2>  
 
-        <div class="stat-card glass rounded-2xl p-4">
-            <div class="flex items-center gap-3">
+  <ol>  
 
-                <div class="stat-icon">
-                    <i class="fas fa-server text-pink-400"></i>
-                </div>
+    <li>  
+      <span>  
+        Open WhatsApp →  
+        <strong>  
+          Settings → Linked Devices  
+        </strong>.  
+      </span>  
+    </li>  
 
-                <div>
-                    <p class="text-[10px] uppercase tracking-wider text-gray-500">
-                        Status
-                    </p>
+    <li>  
+      <span>  
+        Tap  
+        <strong>  
+          Link a device  
+        </strong>  
+        and select the phone number option.  
+      </span>  
+    </li>  
 
-                    <div class="flex items-center gap-2">
-                        <span class="online-dot"></span>
+    <li>  
+      <span>  
+        Paste the code above to complete  
+        the connection.  
+      </span>  
+    </li>  
 
-                        <span id="stat-status"
-                              class="font-bold text-sm text-green-400">
-                            Online
-                        </span>
-                    </div>
-                </div>
+  </ol>  
 
-            </div>
-        </div>
+</section>
 
+  </main>    <footer>  
+    Blood Raven · Secure pairing request  
+  </footer>  </section>    </div>  <script>  
+    (() => {  'use strict';  
 
-        <div class="stat-card glass rounded-2xl p-4">
-            <div class="flex items-center gap-3">
+  const input =  
+    document.getElementById('phoneNumber');  
 
-                <div class="stat-icon">
-                    <i class="fas fa-users text-purple-400"></i>
-                </div>
+  const form =  
+    document.getElementById('pairingForm');  
 
-                <div>
-                    <p class="text-[10px] uppercase tracking-wider text-gray-500">
-                        Connected
-                    </p>
+  const prefix =  
+    document.getElementById('prefix');  
 
-                    <p id="stat-users"
-                       class="font-bold text-lg text-white">
-                        --
-                    </p>
-                </div>
+  const flag =  
+    document.getElementById('flag');  
 
-            </div>
-        </div>
+  const countryCode =  
+    document.getElementById('countryCode');  
 
+  const counter =  
+    document.getElementById('counter');  
 
-        <div class="stat-card glass rounded-2xl p-4">
-            <div class="flex items-center gap-3">
+  const inputError =  
+    document.getElementById('inputError');  
 
-                <div class="stat-icon">
-                    <i class="fas fa-link text-indigo-400"></i>
-                </div>
+  const notice =  
+    document.getElementById('notice');  
 
-                <div>
-                    <p class="text-[10px] uppercase tracking-wider text-gray-500">
-                        Pairings
-                    </p>
+  const button =  
+    document.getElementById('requestButton');  
 
-                    <p id="stat-pairings"
-                       class="font-bold text-lg text-white">
-                        --
-                    </p>
-                </div>
+  const result =  
+    document.getElementById('result');  
 
-            </div>
-        </div>
+  const code =  
+    document.getElementById('pairingCode');  
 
+  const copy =  
+    document.getElementById('copyButton');  
 
-        <div class="stat-card glass rounded-2xl p-4">
-            <div class="flex items-center gap-3">
+  const subscribeModal =  
+    document.getElementById('subscribeModal');  
 
-                <div class="stat-icon">
-                    <i class="fas fa-clock text-pink-400"></i>
-                </div>
+  const dismissSubscribe =  
+    document.getElementById('dismissSubscribe');  
 
-                <div>
-                    <p class="text-[10px] uppercase tracking-wider text-gray-500">
-                        Uptime
-                    </p>
+  const closeSubscribe =  
+    document.getElementById('closeSubscribe');  
 
-                    <p id="stat-uptime"
-                       class="font-bold text-sm text-white">
-                        --
-                    </p>
-                </div>
+  let detectedCountry = null;  
+  let subscriptionDismissed = false;  
 
-            </div>
-        </div>
+  const onlyDigits = value =>  
+    String(value || '')  
+      .replace(/\D/g, '')  
+      .slice(0, 15);  
 
-    </div>
+  const showNotice = message => {  
+    notice.textContent = message;  
+    notice.classList.add('show');  
+  };  
 
+  const hideNotice = () => {  
+    notice.classList.remove('show');  
+  };  
 
-    <!-- Pairing Card -->
+  const setInputError = message => {  
 
-    <div id="pairing-card"
-         class="glass rounded-2xl p-6 md:p-8 card-glow">
+    inputError.textContent = message;  
 
-        <!-- Form -->
+    input.classList.toggle(  
+      'invalid',  
+      Boolean(message)  
+    );  
 
-        <div id="form-section">
+  };  
 
-            <div class="text-center mb-6">
+  function dismissSubscriptionPrompt() {  
 
-                <div class="inline-flex items-center justify-center
-                            w-14 h-14 rounded-2xl mb-3
-                            bg-gradient-to-br from-pink-500/20 to-purple-500/20">
+    if (subscriptionDismissed) {  
+      return;  
+    }  
 
-                    <i class="fas fa-mobile-screen-button text-2xl text-pink-400"></i>
+    subscriptionDismissed = true;  
 
-                </div>
+    const audio =  
+      document.getElementById(  
+        'bloodRavenAudio'  
+      );  
 
-                <h2 class="text-xl font-bold text-white">
-                    Link a New Device
-                </h2>
+    if (audio) {  
+      audio.play().catch(() => {});  
+    }  
 
-                <p class="text-gray-400 text-sm mt-2">
-                    Enter Your WhatsApp Number
-                </p>
+    subscribeModal.classList.add(  
+      'closing'  
+    );  
 
-            </div>
+    setTimeout(() => {  
 
+      subscribeModal.hidden = true;  
 
-            <div>
+      document.body.classList.remove(  
+        'modal-open'  
+      );  
 
-                <label for="phone"
-                       class="block mb-2 text-sm font-medium text-gray-300">
+      if (input) {  
+        input.focus();  
+      }  
 
-                    Phone Number
+    }, 220);  
 
-                </label>
+  }  
 
-                <input
-                    type="text"
-                    id="phone"
-                    inputmode="tel"
-                    autocomplete="tel"
-                    class="bg-gray-900/80 border border-gray-700
-                           text-white text-sm rounded-lg
-                           focus:ring-pink-500 focus:border-pink-500
-                           block w-full p-3 tracking-wider"
-                    placeholder="+2547606xxxx"
-                    required
-                >
+  dismissSubscribe.addEventListener(  
+    'click',  
+    dismissSubscriptionPrompt  
+  );  
 
-                <p id="error-message"
-                   class="text-red-500 text-xs mt-2 hidden">
-                </p>
+  closeSubscribe.addEventListener(  
+    'click',  
+    dismissSubscriptionPrompt  
+  );  
 
-            </div>
+  document.addEventListener(  
+    'keydown',  
+    event => {  
 
+      if (  
+        event.key === 'Escape' &&  
+        !subscribeModal.hidden  
+      ) {  
+        dismissSubscriptionPrompt();  
+      }  
 
-            <button
-                id="generate-btn"
-                class="w-full mt-6 bg-gradient-to-r
-                       from-pink-500 to-indigo-500
-                       hover:from-pink-600 hover:to-indigo-600
-                       text-white font-bold py-3 px-4 rounded-lg
-                       shadow-lg btn-animation">
+    }  
+  );  
 
-                <i class="fas fa-link mr-2"></i>
-                Generate Code
+  subscribeModal.addEventListener(  
+    'click',  
+    event => {  
 
-            </button>
+      if (  
+        event.target ===  
+        subscribeModal  
+      ) {  
+        dismissSubscriptionPrompt();  
+      }  
 
-        </div>
+    }  
+  );  
 
+  function refreshInput() {  
 
-        <!-- Loading -->
+    input.value =  
+      onlyDigits(input.value);  
 
-        <div id="loading-section"
-             class="hidden text-center py-8">
+    const value =  
+      input.value;  
 
-            <div class="loader mx-auto"></div>
+    detectedCountry = null;  
 
-            <p class="mt-4 text-gray-300">
-                Generating your code...
-            </p>
+    if (  
+      value.length >= 4 &&  
+      window.libphonenumber  
+    ) {  
 
-            <p class="text-gray-500 text-xs mt-1">
-                Please wait.
-            </p>
+      try {  
 
-        </div>
+        const parsed =  
+          libphonenumber  
+            .parsePhoneNumberWithError(  
+              `+${value}`  
+            );  
 
+        if (  
+          parsed &&  
+          parsed.country  
+        ) {  
 
-        <!-- Code -->
+          detectedCountry =  
+            parsed.country;  
 
-        <div id="code-section"
-             class="hidden text-center">
+          countryCode.textContent =  
+            parsed.country;  
 
-            <div class="inline-flex items-center justify-center
-                        w-14 h-14 rounded-2xl mb-3
-                        bg-green-500/10">
+          flag.src =  
+            `https://flagsapi.com/${parsed.country}/flat/64.png`;  
 
-                <i class="fas fa-check text-2xl text-green-400"></i>
+          flag.alt =  
+            `${parsed.country} flag`;  
 
-            </div>
+          prefix.classList.add(  
+            'visible'  
+          );  
 
-            <h2 class="text-xl font-semibold text-white">
-                Your Pairing Code
-            </h2>
+          input.classList.add(  
+            'with-prefix'  
+          );  
 
-            <p class="text-gray-400 text-sm mt-2">
-                Don't Share This Code With Anyone
-            </p>
+        }  
 
+      } catch (_) {}  
 
-            <div class="my-6 relative bg-gray-900
-                        border border-dashed border-gray-700
-                        rounded-lg p-4">
+    }  
 
-                <p id="pairing-code"
-                   class="text-3xl md:text-4xl font-mono
-                          tracking-widest text-green-400">
-                </p>
+    if (!detectedCountry) {  
 
-                <button
-                    id="copy-btn"
-                    class="copy-btn absolute top-2 right-2"
-                    title="Copy Code">
+      prefix.classList.remove(  
+        'visible'  
+      );  
 
-                    <i class="far fa-copy"></i>
+      input.classList.remove(  
+        'with-prefix'  
+      );  
 
-                </button>
+    }  
 
-            </div>
+    counter.textContent =  
+      `${value.length} / 15`;  
 
+    counter.classList.toggle(  
+      'ready',  
+      value.length >= 10  
+    );  
 
-            <div>
+    setInputError('');  
+    hideNotice();  
 
-                <h3 class="font-semibold text-white mb-3">
-                    How to Use
-                </h3>
+    result.classList.remove(  
+      'show'  
+    );  
 
-                <ol class="text-left text-sm text-gray-400
-                           space-y-2 list-decimal list-inside">
+  }  
 
-                    <li>Open WhatsApp on your phone.</li>
+  async function copyCode() {  
 
-                    <li>Go to Settings → Linked Devices.</li>
+    const value =  
+      code.textContent.trim();  
 
-                    <li>Select "Link a Device".</li>
+    if (  
+      !value ||  
+      value === '--------'  
+    ) {  
+      return;  
+    }  
 
-                    <li>Select "Link with phone number instead".</li>
+    try {  
 
-                    <li>Enter the pairing code above.</li>
+      await navigator.clipboard.writeText(  
+        value  
+      );  
 
-                </ol>
+      copy.textContent =  
+        'Copied ✓';  
 
-            </div>
+      setTimeout(() => {  
 
+        copy.textContent =  
+          'Copy code';  
 
-            <button
-                id="reset-btn"
-                class="mt-6 w-full bg-gray-700
-                       hover:bg-gray-600 text-white font-bold
-                       py-2 px-4 rounded-lg btn-animation">
+      }, 1800);  
 
-                Pair Another Number
+    } catch (_) {  
 
-            </button>
+      showNotice(  
+        'Copy failed. Select and copy manually.'  
+      );  
 
-        </div>
+    }  
 
-    </div>
+  }  
 
+  input.addEventListener(  
+    'input',  
+    refreshInput  
+  );  
 
-    <footer class="text-center mt-6">
+  copy.addEventListener(  
+    'click',  
+    copyCode  
+  );  
 
-        <p class="text-xs text-gray-600">
-            © 2025-2030 CASEYRHODES BOT INC.
-        </p>
+  form.addEventListener(  
+    'submit',  
+    async event => {  
 
-        <p class="text-[10px] text-gray-700 mt-1">
-            Created By Caseyrhodes Tech 🧑‍💻
-        </p>
+      event.preventDefault();  
 
-    </footer>
+      const audio =  
+        document.getElementById(  
+          'bloodRavenAudio'  
+        );  
 
-</div>
+      if (audio) {  
+        audio.play().catch(() => {});  
+      }  
 
+      const number =  
+        onlyDigits(input.value);  
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.0.0-alpha.1/axios.min.js"></script>
+      if (  
+        number.length < 10  
+      ) {  
 
-<script>
+        setInputError(  
+          'Enter at least 10 digits'  
+        );  
 
-/* ============================================================
-   STARS
-============================================================ */
+        input.focus();  
 
-function createStars() {
+        return;  
 
-    const container =
-        document.getElementById("stars-container");
+      }  
 
-    container.innerHTML = "";
+      setInputError('');  
+      hideNotice();  
 
-    for (let i = 0; i < 100; i++) {
+      result.classList.remove(  
+        'show'  
+      );  
 
-        const star = document.createElement("div");
+      button.disabled = true;  
 
-        star.className = "star";
+      button.innerHTML =  
+        '<span class="loader"></span>Requesting code…';  
 
-        const size = Math.random() * 1.5 + .5;
+      try {  
 
-        star.style.left =
-            Math.random() * window.innerWidth + "px";
+        const response =  
+          await fetch(  
+            `/code?number=${encodeURIComponent(number)}`,  
+            {  
+              method: 'GET',  
+              headers: {  
+                'Accept':  
+                  'application/json'  
+              },  
+              cache: 'no-store'  
+            }  
+          );  
 
-        star.style.top =
-            Math.random() * window.innerHeight + "px";
+        const data =  
+          await response  
+            .json()  
+            .catch(() => ({}));  
 
-        star.style.width = size + "px";
-        star.style.height = size + "px";
+        if (  
+          !response.ok ||  
+          !data?.code  
+        ) {  
 
-        star.style.animationDelay =
-            Math.random() * 5 + "s";
+          throw new Error(  
+            data?.error ||  
+            data?.message ||  
+            (  
+              data?.status ===  
+              'already_connected'  
 
-        container.appendChild(star);
-    }
-}
+                ? 'This number is already connected to the bot.'  
 
+                : 'Pairing request failed.'  
+            )  
+          );  
 
-/* ============================================================
-   PARTICLES
-============================================================ */
+        }  
 
-const canvas =
-    document.getElementById("particle-canvas");
+        code.textContent =  
+          data.code;  
 
-const ctx = canvas.getContext("2d");
+        result.classList.add(  
+          'show'  
+        );  
 
-let particles = [];
+        requestAnimationFrame(() => {  
 
-const particleColors = [
-    "rgba(236,72,153,.7)",
-    "rgba(192,72,236,.7)",
-    "rgba(129,140,248,.7)",
-    "rgba(168,85,247,.7)"
-];
+          result.scrollIntoView({  
+            behavior: 'smooth',  
+            block: 'center'  
+          });  
 
+        });  
 
-function resizeCanvas() {
+        await copyCode();  
 
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+      } catch (error) {  
 
-    createParticles();
-    createStars();
-}
+        showNotice(  
+          error?.message ||  
+          'Service unavailable. Try again shortly.'  
+        );  
 
+      } finally {  
 
-class Particle {
+        button.disabled = false;  
 
-    constructor() {
+        button.textContent =  
+          'Request pairing code';  
 
-        this.x =
-            Math.random() * canvas.width;
+      }  
 
-        this.y =
-            Math.random() * canvas.height;
+    }  
+  );  
 
-        this.dx =
-            (Math.random() - .5) * .5;
+  refreshInput();  
 
-        this.dy =
-            (Math.random() - .5) * .5;
+})();
 
-        this.size =
-            Math.random() * 2 + 1;
+</script></body>
 
-        this.color =
-            particleColors[
-                Math.floor(
-                    Math.random() *
-                    particleColors.length
-                )
-            ];
-    }
-
-
-    draw() {
-
-        ctx.beginPath();
-
-        ctx.arc(
-            this.x,
-            this.y,
-            this.size,
-            0,
-            Math.PI * 2
-        );
-
-        const gradient =
-            ctx.createRadialGradient(
-                this.x,
-                this.y,
-                0,
-                this.x,
-                this.y,
-                this.size * 2
-            );
-
-        gradient.addColorStop(
-            0,
-            this.color
-        );
-
-        gradient.addColorStop(
-            1,
-            "rgba(0,0,0,0)"
-        );
-
-        ctx.fillStyle = gradient;
-
-        ctx.fill();
-    }
-
-
-    update() {
-
-        this.x += this.dx;
-        this.y += this.dy;
-
-        if (
-            this.x < 0 ||
-            this.x > canvas.width
-        ) {
-            this.dx *= -1;
-        }
-
-        if (
-            this.y < 0 ||
-            this.y > canvas.height
-        ) {
-            this.dy *= -1;
-        }
-
-        this.draw();
-    }
-}
-
-
-function createParticles() {
-
-    particles = [];
-
-    for (let i = 0; i < 90; i++) {
-        particles.push(new Particle());
-    }
-}
-
-
-function animateParticles() {
-
-    requestAnimationFrame(
-        animateParticles
-    );
-
-    ctx.clearRect(
-        0,
-        0,
-        canvas.width,
-        canvas.height
-    );
-
-    particles.forEach(
-        particle => particle.update()
-    );
-}
-
-
-window.addEventListener(
-    "resize",
-    resizeCanvas
-);
-
-resizeCanvas();
-animateParticles();
-
-
-/* ============================================================
-   FLOWERS
-============================================================ */
-
-let selectedFlower = "🎉";
-
-const flowerSelector =
-    document.getElementById("flowerSelector");
-
-const flowerMenu =
-    document.getElementById("flowerMenu");
-
-const flowerContainer =
-    document.getElementById("flowerContainer");
-
-
-flowerSelector.addEventListener(
-    "click",
-    event => {
-
-        event.stopPropagation();
-
-        flowerMenu.classList.toggle("active");
-    }
-);
-
-
-document.querySelectorAll(
-    ".flower-option"
-).forEach(option => {
-
-    option.addEventListener(
-        "click",
-        event => {
-
-            event.stopPropagation();
-
-            selectedFlower =
-                option.dataset.flower;
-
-            flowerSelector.textContent =
-                selectedFlower;
-
-            flowerMenu.classList.remove(
-                "active"
-            );
-        }
-    );
-});
-
-
-document.addEventListener(
-    "click",
-    () => {
-        flowerMenu.classList.remove("active");
-    }
-);
-
-
-function createFlower() {
-
-    const flower =
-        document.createElement("div");
-
-    flower.className =
-        "falling-flower";
-
-    flower.textContent =
-        selectedFlower;
-
-    flower.style.left =
-        Math.random() * window.innerWidth + "px";
-
-    flower.style.fontSize =
-        Math.random() * 15 + 20 + "px";
-
-    const duration =
-        Math.random() * 3 + 5;
-
-    flower.style.animation =
-        `fall ${duration}s linear forwards`;
-
-    flowerContainer.appendChild(flower);
-
-    setTimeout(() => {
-
-        if (flower.parentNode) {
-            flower.remove();
-        }
-
-    }, duration * 1000);
-}
-
-
-setInterval(
-    createFlower,
-    500
-);
-
-
-/* ============================================================
-   MUSIC
-============================================================ */
-
-const songs = [
-    "https://files.catbox.moe/x31ls3.mp3",
-    "https://files.catbox.moe/jydlzs.mp3",
-    "https://files.catbox.moe/2cbngz.mp3"
-];
-
-const bgMusic =
-    document.getElementById("bgMusic");
-
-const musicBtn =
-    document.getElementById("musicBtn");
-
-let isMusicPlaying = false;
-let musicStarted = false;
-
-
-/*
- * Select a song once.
- * This prevents changing the song every time
- * the browser fires an interaction event.
- */
-
-function selectSong() {
-
-    if (!bgMusic.src) {
-
-        const song =
-            songs[
-                Math.floor(
-                    Math.random() *
-                    songs.length
-                )
-            ];
-
-        bgMusic.src = song;
-    }
-}
-
-
-/*
- * Start music.
- *
- * Important:
- * Modern browsers may block autoplay with sound.
- * We attempt autoplay immediately, then retry
- * automatically on the first user interaction.
- */
-
-async function startMusic() {
-
-    if (isMusicPlaying) return;
-
-    selectSong();
-
-    bgMusic.volume = 0.3;
-
-    try {
-
-        await bgMusic.play();
-
-        isMusicPlaying = true;
-        musicStarted = true;
-
-        musicBtn.textContent = "⏸️";
-        musicBtn.classList.add("playing");
-
-    } catch (error) {
-
-        /*
-         * Autoplay was blocked.
-         * The first tap/click will start it.
-         */
-
-        console.log(
-            "Browser blocked autoplay until interaction."
-        );
-    }
-}
-
-
-/*
- * Try immediately when website opens.
- */
-
-window.addEventListener(
-    "load",
-    () => {
-
-        startMusic();
-
-        /*
-         * A second attempt shortly after loading.
-         */
-
-        setTimeout(
-            startMusic,
-            700
-        );
-    }
-);
-
-
-/*
- * First user interaction fallback.
- */
-
-function interactionStartMusic() {
-
-    if (!isMusicPlaying) {
-        startMusic();
-    }
-}
-
-document.addEventListener(
-    "click",
-    interactionStartMusic,
-    { once: true }
-);
-
-document.addEventListener(
-    "touchstart",
-    interactionStartMusic,
-    { once: true, passive: true }
-);
-
-document.addEventListener(
-    "keydown",
-    interactionStartMusic,
-    { once: true }
-);
-
-
-/*
- * Music button
- */
-
-musicBtn.addEventListener(
-    "click",
-    async event => {
-
-        event.stopPropagation();
-
-        if (isMusicPlaying) {
-
-            bgMusic.pause();
-
-            isMusicPlaying = false;
-
-            musicBtn.textContent = "🎵";
-
-            musicBtn.classList.remove(
-                "playing"
-            );
-
-        } else {
-
-            await startMusic();
-        }
-    }
-);
-
-
-/*
- * Continue with another random song
- * when current one finishes.
- */
-
-bgMusic.addEventListener(
-    "ended",
-    () => {
-
-        bgMusic.src =
-            songs[
-                Math.floor(
-                    Math.random() *
-                    songs.length
-                )
-            ];
-
-        startMusic();
-    }
-);
-
-
-/* ============================================================
-   STATS
-============================================================ */
-
-const statStatus =
-    document.getElementById("stat-status");
-
-const statUsers =
-    document.getElementById("stat-users");
-
-const statPairings =
-    document.getElementById("stat-pairings");
-
-const statUptime =
-    document.getElementById("stat-uptime");
-
-
-function formatUptime(seconds) {
-
-    seconds = Number(seconds) || 0;
-
-    const days =
-        Math.floor(seconds / 86400);
-
-    const hours =
-        Math.floor(
-            (seconds % 86400) / 3600
-        );
-
-    const minutes =
-        Math.floor(
-            (seconds % 3600) / 60
-        );
-
-    if (days > 0) {
-        return `${days}d ${hours}h`;
-    }
-
-    if (hours > 0) {
-        return `${hours}h ${minutes}m`;
-    }
-
-    return `${minutes}m`;
-}
-
-
-/*
- * Reads optional backend statistics.
- *
- * Expected response:
- *
- * {
- *   "status": "online",
- *   "users": 12,
- *   "pairings": 50,
- *   "uptime": 86400
- * }
- */
-
-async function loadStats() {
-
-    try {
-
-        const response =
-            await axios.get(
-                "/stats",
-                {
-                    timeout: 5000
-                }
-            );
-
-        const data =
-            response.data || {};
-
-        statStatus.textContent =
-            data.status || "Online";
-
-        statUsers.textContent =
-            data.users ?? "--";
-
-        statPairings.textContent =
-            data.pairings ?? "--";
-
-        if (data.uptime !== undefined) {
-
-            statUptime.textContent =
-                formatUptime(data.uptime);
-
-        } else {
-
-            statUptime.textContent =
-                "--";
-        }
-
-    } catch (error) {
-
-        /*
-         * The stats endpoint is optional.
-         * The pairing page continues working
-         * even if /stats does not exist.
-         */
-
-        statStatus.textContent = "Online";
-        statUsers.textContent = "--";
-        statPairings.textContent = "--";
-        statUptime.textContent = "--";
-    }
-}
-
-
-loadStats();
-
-
-/*
- * Refresh stats every 30 seconds.
- */
-
-setInterval(
-    loadStats,
-    30000
-);
-
-
-/* ============================================================
-   PAIRING
-============================================================ */
-
-const generateBtn =
-    document.getElementById("generate-btn");
-
-const phoneInput =
-    document.getElementById("phone");
-
-const codeSection =
-    document.getElementById("code-section");
-
-const pairingCode =
-    document.getElementById("pairing-code");
-
-const copyBtn =
-    document.getElementById("copy-btn");
-
-const resetBtn =
-    document.getElementById("reset-btn");
-
-const formSection =
-    document.getElementById("form-section");
-
-const loadingSection =
-    document.getElementById("loading-section");
-
-const errorMessage =
-    document.getElementById("error-message");
-
-
-function showToast(message) {
-
-    const toast =
-        document.createElement("div");
-
-    toast.textContent = message;
-
-    toast.className = "toast";
-
-    document.body.appendChild(toast);
-
-    setTimeout(
-        () => toast.classList.add("show"),
-        10
-    );
-
-    setTimeout(
-        () => {
-
-            toast.classList.remove("show");
-
-            setTimeout(
-                () => toast.remove(),
-                500
-            );
-
-        },
-        2500
-    );
-}
-
-
-generateBtn.addEventListener(
-    "click",
-    async () => {
-
-        const numberValue =
-            phoneInput.value.trim();
-
-        if (
-            !numberValue.startsWith("+") ||
-            numberValue.length < 11
-        ) {
-
-            errorMessage.textContent =
-                "Please enter a valid number with country code, e.g. +254...";
-
-            errorMessage.classList.remove(
-                "hidden"
-            );
-
-            return;
-        }
-
-
-        errorMessage.classList.add(
-            "hidden"
-        );
-
-
-        const number =
-            numberValue.replace(
-                /[^0-9]/g,
-                ""
-            );
-
-
-        formSection.classList.add(
-            "hidden"
-        );
-
-        loadingSection.classList.remove(
-            "hidden"
-        );
-
-
-        try {
-
-            const response =
-                await axios.get(
-                    `/code?number=${encodeURIComponent(number)}`,
-                    {
-                        timeout: 30000
-                    }
-                );
-
-            const data =
-                response.data || {};
-
-            if (
-                !data.code ||
-                typeof data.code !== "string"
-            ) {
-
-                throw new Error(
-                    "No pairing code returned"
-                );
-            }
-
-
-            pairingCode.textContent =
-                data.code;
-
-            loadingSection.classList.add(
-                "hidden"
-            );
-
-            codeSection.classList.remove(
-                "hidden"
-            );
-
-
-            /*
-             * Refresh statistics after
-             * successful pairing request.
-             */
-
-            loadStats();
-
-
-        } catch (error) {
-
-            console.error(
-                "Pairing API Error:",
-                error
-            );
-
-
-            loadingSection.classList.add(
-                "hidden"
-            );
-
-            formSection.classList.remove(
-                "hidden"
-            );
-
-
-            errorMessage.textContent =
-                "Unable to generate a pairing code. Please check the number and try again.";
-
-            errorMessage.classList.remove(
-                "hidden"
-            );
-
-            showToast(
-                "Pairing service unavailable"
-            );
-        }
-    }
-);
-
-
-/* ============================================================
-   COPY CODE
-============================================================ */
-
-copyBtn.addEventListener(
-    "click",
-    async () => {
-
-        const code =
-            pairingCode.textContent.trim();
-
-        if (!code) return;
-
-        try {
-
-            await navigator.clipboard.writeText(
-                code
-            );
-
-            copyBtn.classList.add(
-                "copied"
-            );
-
-            showToast(
-                "Code copied successfully!"
-            );
-
-            setTimeout(
-                () => {
-                    copyBtn.classList.remove(
-                        "copied"
-                    );
-                },
-                1500
-            );
-
-        } catch (error) {
-
-            showToast(
-                "Failed to copy code"
-            );
-        }
-    }
-);
-
-
-/* ============================================================
-   RESET
-============================================================ */
-
-resetBtn.addEventListener(
-    "click",
-    () => {
-
-        codeSection.classList.add(
-            "hidden"
-        );
-
-        formSection.classList.remove(
-            "hidden"
-        );
-
-        phoneInput.value = "";
-
-        pairingCode.textContent = "";
-
-        errorMessage.classList.add(
-            "hidden"
-        );
-    }
-);
-
-</script>
-
-</body>
 </html>
