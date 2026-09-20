@@ -3018,7 +3018,7 @@ case 'gitclone': {
     try {
         if (!args[0]) {
             await socket.sendMessage(sender, {
-                text: `📦 *GitHub Downloader*\n\nDownload any GitHub repository as a ZIP file.\n\n*Usage:* \`${prefix}gitclone <github_url>\`\n\n*Examples:*\n• \`${prefix}gitclone https://github.com/WhiskeySockets/Baileys\`\n• \`${prefix}gitclone https://github.com/adiwajshing/Baileys\``,
+                text: `📦 *GitHub Downloader*\n\nDownload a public GitHub repository as a ZIP file.\n\n*Usage:* \`${prefix}gitclone <github_url>\`\n\n*Examples:*\n• \`${prefix}gitclone https://github.com/WhiskeySockets/Baileys\`\n• \`${prefix}gitclone github.com/adiwajshing/Baileys\``,
                 buttons: [
                     { buttonId: `${prefix}gitclone https://github.com/WhiskeySockets/Baileys`, buttonText: { displayText: '📦 BAILEYS' }, type: 1 },
                     { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 MENU' }, type: 1 }
@@ -3028,12 +3028,14 @@ case 'gitclone': {
             break;
         }
 
-        const githubUrl = args[0];
-        const GH_REGEX = /(?:https|git)(?::\/\/|@)github\.com[\/:]([^\/:]+)\/(.+)/i;
+        // Accept normal GitHub links, www links, .git links and git@github.com links.
+        const inputUrl = String(args[0]).trim();
+        const GH_REGEX = /^(?:https?:\/\/)?(?:www\.)?github\.com[/:]([^/\s:]+)\/([^/\s#?]+?)(?:\.git)?(?:[/?#].*)?$/i;
+        const match = inputUrl.match(GH_REGEX);
 
-        if (!GH_REGEX.test(githubUrl)) {
+        if (!match) {
             await socket.sendMessage(sender, {
-                text: `⚠️ *Invalid GitHub Link*\n\nPlease provide a valid GitHub repository URL.\n\n*Example:* \`${prefix}gitclone https://github.com/user/repo\``,
+                text: `⚠️ *Invalid GitHub Link*\n\nPlease provide a public GitHub repository URL.\n\n*Example:* \`${prefix}gitclone https://github.com/user/repo\``,
                 buttons: [
                     { buttonId: `${prefix}gitclone`, buttonText: { displayText: '🔄 TRY AGAIN' }, type: 1 },
                     { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 MENU' }, type: 1 }
@@ -3043,39 +3045,59 @@ case 'gitclone': {
             break;
         }
 
+        const user = match[1];
+        const cleanRepo = match[2].replace(/\.git$/i, '');
+        const repoApiUrl = `https://api.github.com/repos/${encodeURIComponent(user)}/${encodeURIComponent(cleanRepo)}`;
+
         await socket.sendMessage(sender, { react: { text: '📦', key: msg.key } });
 
-        const [, user, repo] = githubUrl.match(GH_REGEX);
-        const cleanRepo = repo.replace(/\.git$/, '');
-        const zipUrl = `https://api.github.com/repos/${user}/${cleanRepo}/zipball`;
-
-        // Send fetching message
         const fetchingMsg = await socket.sendMessage(sender, {
             text: `📦 *Fetching Repository...*\n\n🔗 *Repo:* ${user}/${cleanRepo}\n⏳ Please wait...`,
             quoted: msg
         });
 
         try {
-            // Fetch the repository ZIP
-            const response = await fetch(zipUrl, { 
-                method: 'HEAD',
-                redirect: 'follow'
+            // GitHub's API tells us the repository's real default branch.
+            // Downloading the ZIP into a Buffer avoids WhatsApp trying to fetch
+            // GitHub's redirect/attachment URL itself.
+            const repoResponse = await axios.get(repoApiUrl, {
+                timeout: 30000,
+                headers: {
+                    'Accept': 'application/vnd.github+json',
+                    'User-Agent': 'BloodRaven-Mini-Bot'
+                }
             });
-            
-            const cd = response.headers.get('content-disposition') || '';
-            const filename = cd.match(/attachment; filename=(.*)/)?.[1] || `${cleanRepo}.zip`;
 
-            // Delete fetching message
+            const defaultBranch = repoResponse.data?.default_branch || 'main';
+            const zipUrl = `https://github.com/${encodeURIComponent(user)}/${encodeURIComponent(cleanRepo)}/archive/refs/heads/${encodeURIComponent(defaultBranch)}.zip`;
+
+            const zipResponse = await axios.get(zipUrl, {
+                responseType: 'arraybuffer',
+                timeout: 120000,
+                maxContentLength: 100 * 1024 * 1024,
+                maxBodyLength: 100 * 1024 * 1024,
+                maxRedirects: 10,
+                headers: {
+                    'User-Agent': 'BloodRaven-Mini-Bot',
+                    'Accept': 'application/zip, application/octet-stream'
+                }
+            });
+
+            const zipBuffer = Buffer.from(zipResponse.data);
+            if (!zipBuffer.length) throw new Error('GitHub returned an empty ZIP file.');
+
+            const filename = `${cleanRepo}-${defaultBranch}.zip`;
+
             try { await socket.sendMessage(sender, { delete: fetchingMsg.key }); } catch {}
 
-            // Send the ZIP file
             await socket.sendMessage(sender, {
-                document: { url: zipUrl },
+                document: zipBuffer,
                 fileName: filename,
                 mimetype: 'application/zip',
                 caption: `📦 *Repository Downloaded!*\n\n` +
                          `👤 *Owner:* ${user}\n` +
                          `📂 *Repo:* ${cleanRepo}\n` +
+                         `🌿 *Branch:* ${defaultBranch}\n` +
                          `📁 *File:* ${filename}\n` +
                          `🔗 *URL:* https://github.com/${user}/${cleanRepo}\n\n` +
                          `> ${botConfig.BOT_FOOTER}`,
@@ -3087,26 +3109,25 @@ case 'gitclone': {
             }, { quoted: msg });
 
             await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
-
         } catch (fetchError) {
-            // Delete fetching message
             try { await socket.sendMessage(sender, { delete: fetchingMsg.key }); } catch {}
-
-            throw fetchError;
+            const status = fetchError.response?.status;
+            if (status === 404) {
+                throw new Error('Repository not found. Check the owner/repository name and make sure it is public.');
+            }
+            throw new Error(fetchError.response?.data?.message || fetchError.message || 'Unable to download the repository.');
         }
 
     } catch (err) {
-        console.error('[GitClone] Error:', err.message);
-        
+        console.error('[GitClone] Error:', err);
         await socket.sendMessage(sender, {
-            text: `❌ *Download Failed*\n\n${err.message}\n\n*Note:* Make sure the repository exists and is public.\n\n*Try:* \`${prefix}gitclone https://github.com/user/repo\``,
+            text: `❌ *Download Failed*\n\n${err.message || 'Unknown error'}\n\n*Try:* \`${prefix}gitclone https://github.com/user/repo\``,
             buttons: [
                 { buttonId: `${prefix}gitclone ${args[0] || ''}`, buttonText: { displayText: '🔄 RETRY' }, type: 1 },
                 { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 MENU' }, type: 1 }
             ],
             headerType: 1
         }, { quoted: msg });
-        
         await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
     }
     break;
@@ -4832,6 +4853,13 @@ case 'menu': {
               ]
             })
           }
+        },
+        {
+          name: 'cta_url',
+          buttonParamsJson: JSON.stringify({
+            display_text: '📢 JOIN NEWSLETTER',
+            url: botConfig.CHANNEL_LINK
+          })
         }
       ],
       headerType: 1,
@@ -13348,21 +13376,20 @@ async function EmpirePair(number, res) {
                     buttonParamsJson: b.nativeFlowInfo.paramsJson || JSON.stringify({})
                 }));
 
-                // Convert every legacy quick-button array into one WhatsApp native-flow
-                // single_select category. This avoids the old buttonsResponseMessage format.
-                const rows = list.map((button, index) => {
+                // Legacy button arrays are kept as individual quick replies.
+                // Previously these were forced into a single_select category, which
+                // made simple group/tool commands unnecessarily show a category menu.
+                return list.map((button, index) => {
                     const id = button.buttonId || button.id || `${botConfig.PREFIX}option${index + 1}`;
                     const title = button.buttonText?.displayText || button.text || `Option ${index + 1}`;
-                    return { title, description: 'Select this option', id };
+                    return {
+                        name: 'quick_reply',
+                        buttonParamsJson: JSON.stringify({
+                            display_text: title,
+                            id
+                        })
+                    };
                 });
-
-                return [{
-                    name: 'single_select',
-                    buttonParamsJson: JSON.stringify({
-                        title: '📂 ᴄʜᴏᴏsᴇ ᴀɴ ᴏᴘᴛɪᴏɴ',
-                        sections: [{ title: 'ᴏᴘᴛɪᴏɴs', rows }]
-                    })
-                }];
             };
 
             sock.sendMessage = async function (jid, content, options = {}) {
