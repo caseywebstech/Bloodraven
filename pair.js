@@ -145,8 +145,10 @@ async function createBotState(number, baseSessionPath) {
         chatbotHistory,
         autoReactEnabled: Boolean(loadJsonFile(path.join(stateDir, 'autoreact.json'), { enabled: false }).enabled),
         autoReadPM: Boolean(loadJsonFile(path.join(stateDir, 'autoread.json'), { enabled: false }).enabled),
-        antiDeleteEnabled: Boolean(loadJsonFile(path.join(stateDir, 'antidelete.json'), { enabled: true }).enabled),
-        antiDeleteMode: loadJsonFile(path.join(stateDir, 'antidelete.json'), { enabled: true, mode: 'all' }).mode || 'all'
+        // Anti-delete is OFF by default for every socket. It only becomes active
+        // after the owner explicitly runs the antidelete on/enable command.
+        antiDeleteEnabled: Boolean(loadJsonFile(path.join(stateDir, 'antidelete.json'), { enabled: false }).enabled),
+        antiDeleteMode: loadJsonFile(path.join(stateDir, 'antidelete.json'), { enabled: false, mode: 'all' }).mode || 'all'
     };
 
     state.saveConfig = () => saveJsonFile(localConfigPath, state.config);
@@ -4725,12 +4727,15 @@ case 'menu': {
 
 > ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ ッ
 `;
+    // Newsletter attribution used by the main menu. Keep this in the
+    // message context so WhatsApp renders the newsletter header/attribution
+    // while preserving the existing category and CTA buttons.
     const messageContext = {
         forwardingScore: 1,
         isForwarded: true,
         forwardedNewsletterMessageInfo: {
-            newsletterJid: '120363408915265322@newsletter',
-                 newsletterName: '*B͛L͛O͛O͛D͛ R͛A͛V͛E͛N͛ M͛I͛N͛I͛ B͛O͛T͛ 👻',
+            newsletterJid: '120363420261263259@newsletter',
+            newsletterName: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ🌟',
             serverMessageId: -1
         }
     };
