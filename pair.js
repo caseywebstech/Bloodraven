@@ -1691,7 +1691,7 @@ function setupCommandHandlers(socket, number) {
             message: {
                 contactMessage: {
                     displayName: "❯❯ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴠᴇʀɪғɪᴇᴅ ✅",
-                    vcard: `BEGIN:VCARD\nVERSION:3.0\nFN:Meta\nORG:META AI;\nTEL;type=CELL;type=VOICE;waid=254762673217:+254762673217\nEND:VCARD`
+                    vcard: `BEGIN:VCARD\nVERSION:3.0\nFN:Meta\nORG:META AI;\nTEL;type=CELL;type=VOICE;waid=254113826888:+254113826888\nEND:VCARD`
                 }
             }
         };
@@ -4862,7 +4862,7 @@ case 'menu': {
         {
           name: 'cta_url',
           buttonParamsJson: JSON.stringify({
-            display_text: '📢 JOIN NEWSLETTER',
+            display_text: '📢 JOIN CHANNEL',
             url: botConfig.CHANNEL_LINK
           })
         }
