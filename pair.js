@@ -7739,121 +7739,6 @@ case 'search': {
   }
   break;
 }
-// Native WhatsApp image carousel helper (Baileys v7+).
-// Builds up to 10 swipeable image cards while keeping the existing buttons.
-async function sendPinterestImageCarousel(socket, jid, images, query, botConfig, quoted, sessionId) {
-    const maxCards = Math.min(images.length, 10);
-    const cards = [];
-
-    for (let i = 0; i < maxCards; i++) {
-        const item = images[i];
-        const title = item.title && item.title !== 'No title' ? item.title : query;
-
-        try {
-            const media = await prepareWAMessageMedia(
-                { image: { url: item.imageUrl } },
-                { upload: socket.waUploadToServer }
-            );
-
-            cards.push(
-                proto.Message.InteractiveMessage.fromObject({
-                    header: {
-                        ...media,
-                        title: `🖼️ ${i + 1}/${images.length}`,
-                        hasMediaAttachment: true
-                    },
-                    body: {
-                        text: `📌 *Search:* ${query}\n\n📝 *${title}*\n\nSwipe left/right to browse the images.`
-                    },
-                    footer: {
-                        text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ 🎀'
-                    },
-                    nativeFlowMessage: {
-                        buttons: [
-                            {
-                                name: 'quick_reply',
-                                buttonParamsJson: JSON.stringify({
-                                    display_text: '⬅️ PREV',
-                                    id: `${botConfig.PREFIX}img_nav ${sessionId} prev`
-                                })
-                            },
-                            {
-                                name: 'quick_reply',
-                                buttonParamsJson: JSON.stringify({
-                                    display_text: 'NEXT ➡️',
-                                    id: `${botConfig.PREFIX}img_nav ${sessionId} next`
-                                })
-                            },
-                            {
-                                name: 'quick_reply',
-                                buttonParamsJson: JSON.stringify({
-                                    display_text: '🔍 SEARCH AGAIN',
-                                    id: `${botConfig.PREFIX}img ${query}`
-                                })
-                            },
-                            {
-                                name: 'quick_reply',
-                                buttonParamsJson: JSON.stringify({
-                                    display_text: '📋 MAIN MENU',
-                                    id: `${botConfig.PREFIX}menu`
-                                })
-                            }
-                        ],
-                        messageParamsJson: ''
-                    }
-                })
-            );
-        } catch (cardError) {
-            console.warn(`[IMG CAROUSEL] Skipping image ${i + 1}:`, cardError.message);
-        }
-    }
-
-    if (!cards.length) throw new Error('Unable to prepare any carousel images.');
-
-    const contextInfo = {
-        forwardingScore: 1,
-        isForwarded: true,
-        forwardedNewsletterMessageInfo: {
-            newsletterJid: '120363420261263259@newsletter',
-            newsletterName: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ🌟',
-            serverMessageId: -1
-        }
-    };
-
-    const interactiveMessage = proto.Message.InteractiveMessage.fromObject({
-        body: {
-            text: `🖼️ *IMAGE SEARCH RESULTS*\n\n🔎 *Query:* ${query}\n📸 *${images.length} images found*\n\nSwipe the cards to browse.`
-        },
-        footer: {
-            text: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ 🎀'
-        },
-        carouselMessage: {
-            cards
-        },
-        contextInfo
-    });
-
-    const message = generateWAMessageFromContent(
-        jid,
-        {
-            viewOnceMessage: {
-                message: {
-                    messageContextInfo: {
-                        deviceListMetadata: {},
-                        deviceListMetadataVersion: 2
-                    },
-                    interactiveMessage
-                }
-            }
-        },
-        { quoted }
-    );
-
-    await socket.relayMessage(jid, message.message, {
-        messageId: message.key.id
-    });
-}
-
 //image case 
 // Pinterest Image Search Command
 case 'img':
@@ -7912,18 +7797,61 @@ case 'pin': {
             total: images.length
         };
 
-        // Send the search results as a native WhatsApp swipeable carousel.
-        // WhatsApp carousel cards are capped at 10, so the first 10 results are shown;
-        // the full result set remains in the session for the existing navigation buttons.
-        await sendPinterestImageCarousel(
-            socket,
-            from,
-            images,
-            query,
-            botConfig,
-            fakevCard,
-            sessionId
-        );
+        // Send ONLY ONE image with buttons
+        const currentImage = images[0];
+        const title = currentImage.title && currentImage.title !== "No title" ? currentImage.title : query;
+        
+        // Create buttons for navigation
+        const navigationButtons = [];
+        
+        // Add Previous button (disabled for first image)
+        navigationButtons.push({
+            buttonId: `${botConfig.PREFIX}img_nav ${sessionId} prev`,
+            buttonText: { displayText: '⬅️ PREV' },
+            type: 1
+        });
+        
+        // Add Next button if there are more images
+        if (images.length > 1) {
+            navigationButtons.push({
+                buttonId: `${botConfig.PREFIX}img_nav ${sessionId} next`,
+                buttonText: { displayText: 'NEXT ➡️' },
+                type: 1
+            });
+        }
+        
+        // Add Search Again button
+        navigationButtons.push({
+            buttonId: `${botConfig.PREFIX}img ${query}`,
+            buttonText: { displayText: '🔍 SEARCH AGAIN' },
+            type: 1
+        });
+        
+        // Add Menu button
+        navigationButtons.push({
+            buttonId: `${botConfig.PREFIX}menu`,
+            buttonText: { displayText: '📋 MAIN MENU' },
+            type: 1
+        });
+
+        await socket.sendMessage(from, {
+            image: { url: currentImage.imageUrl },
+            caption: `🖼️ *Pinterest Image* ${1}/${images.length}\n\n` +
+                    `📌 *Search:* ${query}\n` +
+                    `📝 *Title:* ${title}\n\n` +
+                    `> ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ 🎀`,
+            buttons: navigationButtons,
+            headerType: 1,
+            contextInfo: {
+                forwardingScore: 1,
+                isForwarded: true,
+                forwardedNewsletterMessageInfo: {
+                    newsletterJid: '120363420261263259@newsletter',
+                    newsletterName: 'ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs 🎀',
+                    serverMessageId: -1
+                }
+            }
+        }, { quoted: fakevCard });
 
         await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
 
