@@ -4701,6 +4701,7 @@ case 'info': {
     }
     break;
 }
+//case menu
 case 'menu': {
   try {
     const from = msg?.key?.remoteJid || sender;
@@ -4726,8 +4727,9 @@ case 'menu': {
 
 > ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ ッ
 `;
-
-    // Newsletter attribution context
+    // Newsletter attribution used by the main menu. Keep this in the
+    // message context so WhatsApp renders the newsletter header/attribution
+    // while preserving the existing category and CTA buttons.
     const messageContext = {
         forwardingScore: 1,
         isForwarded: true,
@@ -4738,7 +4740,10 @@ case 'menu': {
         }
     };
 
-    const buttons = [
+    const menuMessage = {
+      image: { url: "https://i.ibb.co/750pdM9/b46b44ae51c1.jpg" },
+      caption: `*🎀 B͛L͛O͛O͛D͛ R͛A͛V͛E͛N͛ M͛I͛N͛I͛ B͛O͛T͛ 🎀*\n${menuText}`,
+      buttons: [
         {
           buttonId: `${botConfig.PREFIX}quick_commands`,
           buttonText: { displayText: '🤖 C͛H͛O͛O͛SE͛ C͛A͛T͛E͛G͛O͛R͛Y͛' },
@@ -4753,7 +4758,7 @@ case 'menu': {
                   highlight_label: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ',
                   rows: [
                     { title: "📜 ᴀʟʟᴍᴇɴᴜ", description: "get all command in list", id: `${botConfig.PREFIX}allmenu` }, 
-                    { title: "🤖 CHATBOT", description: "reply with chatgpt", id: `${botConfig.PREFIX}chatbot` }, 
+                     { title: "🤖 CHATBOT", description: "reply with chatgpt", id: `${botConfig.PREFIX}chatbot` }, 
                     { title: "🎨 ʟᴏɢᴏ ᴍᴇɴᴜ", description: "get your own logo texts", id: `${botConfig.PREFIX}logomenu` }, 
                     { title: "🟢 ᴀʟɪᴠᴇ", description: "Check if bot is active", id: `${botConfig.PREFIX}alive` }, 
                     { title: "⚙️ sᴇᴛᴛɪɴɢs", description: "change your settings", id: `${botConfig.PREFIX}settings` },
@@ -4861,17 +4866,20 @@ case 'menu': {
             url: botConfig.CHANNEL_LINK
           })
         }
-      ];
-
-    // Send the menu with newsletter context properly attached
+      ],
+      headerType: 1,
+      contextInfo: messageContext
+    };
+    
+    // Send the menu through gifted-btns so the category selector is rendered correctly.
+    // This keeps the image, newsletter context, fakevCard quote, and category button in ONE message.
     await socket.sendMessage(from, {
       image: { url: 'https://i.ibb.co/750pdM9/b46b44ae51c1.jpg' },
       caption: `*🎀 B͛L͛O͛O͛D͛ R͛A͛V͛E͛N͛ M͛I͛N͛I͛ B͛O͛T͛ 🎀*\n${menuText}`,
       footer: 'ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ ッ',
-      buttons: buttons,
-      contextInfo: messageContext  // ✅ Newsletter context attached here
+      buttons: menuMessage.buttons,
+      contextInfo: messageContext
     }, { quoted: fakevCard });
-    
     await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
     
   } catch (error) {
@@ -5916,266 +5924,107 @@ case 'instagramstalk': {
     break;
 }
 // Case: pair
-// Case: pair
 case 'pair': {
-    const fetch = (...args) =>
-        import('node-fetch').then(({ default: fetch }) => fetch(...args));
+    const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
 
-    const q =
-        msg.message?.conversation ||
-        msg.message?.extendedTextMessage?.text ||
-        msg.message?.imageMessage?.caption ||
-        msg.message?.videoMessage?.caption ||
-        '';
+    const q = msg.message?.conversation ||
+              msg.message?.extendedTextMessage?.text ||
+              msg.message?.imageMessage?.caption ||
+              msg.message?.videoMessage?.caption || '';
 
-    const number = q
-        .replace(/^[.\/!]pair\s*/i, '')
-        .trim();
-
-    const pairImage = 'https://files.catbox.moe/3aqnr8.jpg';
-
-    // Keep pairing code available for the catch block
-    let pairingCode = null;
+    const number = q.replace(/^[.\/!]pair\s*/i, '').trim();
 
     if (!number) {
-        return await socket.sendMessage(
-            sender,
-            {
-                image: {
-                    url: pairImage
-                },
-                caption:
-                    `*📌 ᴘᴀɪʀɪɴɢ*\n\n` +
-                    `*ᴜsᴀɢᴇ:* \`${prefix}pair 25410XXXXXX\`\n\n` +
-                    `*ᴇxᴀᴍᴘʟᴇ:* \`${prefix}pair 254712345678\`\n\n` +
-                    `> ${botConfig.BOT_FOOTER}`
-            },
-            {
-                quoted: fakevCard
-            }
-        );
+        return await socket.sendMessage(sender, {
+            text: `*📌 ᴘᴀɪʀɪɴɢ*\n\n*ᴜsᴀɢᴇ:* \`${prefix}pair 25410XXXXXX\`\n\n*ᴇxᴀᴍᴘʟᴇ:* \`${prefix}pair 254712345678\`\n\n> ${botConfig.BOT_FOOTER}`,
+            quoted: fakevCard
+        });
     }
 
-    await socket.sendMessage(sender, {
-        react: {
-            text: '⏳',
-            key: msg.key
-        }
-    });
+    await socket.sendMessage(sender, { react: { text: '⏳', key: msg.key } });
 
     try {
-        const url =
-            `https://mini-bot-1-awlm.onrender.com/code?number=` +
-            encodeURIComponent(number);
-
+        const url = `https://mini-bot-1-awlm.onrender.com/code?number=${encodeURIComponent(number)}`;
         const response = await fetch(url);
-
-        if (!response.ok) {
-            throw new Error(
-                `Pairing server returned HTTP ${response.status}`
-            );
-        }
-
         const bodyText = await response.text();
 
         let result;
-
         try {
             result = JSON.parse(bodyText);
         } catch (e) {
-            return await socket.sendMessage(
-                sender,
-                {
-                    image: {
-                        url: pairImage
-                    },
-                    caption:
-                        `❌ *ɪɴᴠᴀʟɪᴅ ʀᴇsᴘᴏɴsᴇ ғʀᴏᴍ sᴇʀᴠᴇʀ.*\n\n` +
-                        `> ${botConfig.BOT_FOOTER}`
-                },
-                {
-                    quoted: fakevCard
-                }
-            );
+            return await socket.sendMessage(sender, {
+                text: '❌ ɪɴᴠᴀʟɪᴅ ʀᴇsᴘᴏɴsᴇ ғʀᴏᴍ sᴇʀᴠᴇʀ.',
+                quoted: fakevCard
+            });
         }
 
         if (!result || !result.code) {
-            return await socket.sendMessage(
-                sender,
-                {
-                    image: {
-                        url: pairImage
-                    },
-                    caption:
-                        `❌ *ғᴀɪʟᴇᴅ ᴛᴏ ʀᴇᴛʀɪᴇᴠᴇ ᴘᴀɪʀɪɴɢ ᴄᴏᴅᴇ.*\n\n` +
-                        `> ${botConfig.BOT_FOOTER}`
-                },
-                {
-                    quoted: fakevCard
-                }
-            );
+            return await socket.sendMessage(sender, {
+                text: '❌ ғᴀɪʟᴇᴅ ᴛᴏ ʀᴇᴛʀɪᴇᴠᴇ ᴘᴀɪʀɪɴɢ ᴄᴏᴅᴇ.',
+                quoted: fakevCard
+            });
         }
 
-        pairingCode = result.code;
+        const pairingCode = result.code;
 
-        /*
-         * Prepare image for interactive message
-         */
-        try {
-            const imageContent = await generateWAMessageContent(
-                {
-                    image: {
-                        url: pairImage
-                    }
-                },
-                {
-                    upload: socket.waUploadToServer
-                }
-            );
-
-            /*
-             * ONE message:
-             * Image + Pairing Code + Copy + Follow Channel
-             */
-            const ctaMsg = generateWAMessageFromContent(
-                sender,
-                {
-                    viewOnceMessage: {
-                        message: {
-                            interactiveMessage: {
-                                header: {
-                                    title: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ',
-                                    hasMediaAttachment: true,
-                                    imageMessage: imageContent.imageMessage
-                                },
-
-                                body: {
-                                    text:
-                                        `*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ - ᴘᴀɪʀɪɴɢ ✅*\n\n` +
-                                        `*🔑 ʏᴏᴜʀ ᴘᴀɪʀɪɴɢ ᴄᴏᴅᴇ:*\n` +
-                                        `\`\`\`${pairingCode}\`\`\`\n\n` +
-                                        `📝 *ɪɴsᴛʀᴜᴄᴛɪᴏɴs:*\n` +
-                                        `1. ᴛᴀᴘ *ᴄᴏᴘʏ ᴄᴏᴅᴇ* ʙᴇʟᴏᴡ\n` +
-                                        `2. ᴏᴘᴇɴ ᴡʜᴀᴛsᴀᴘᴘ ᴏɴ ʏᴏᴜʀ ᴘʜᴏɴᴇ\n` +
-                                        `3. ɢᴏ ᴛᴏ *ʟɪɴᴋᴇᴅ ᴅᴇᴠɪᴄᴇs*\n` +
-                                        `4. ᴇɴᴛᴇʀ ᴛʜᴇ ᴘᴀɪʀɪɴɢ ᴄᴏᴅᴇ\n\n` +
-                                        `> ${botConfig.BOT_FOOTER}`
-                                },
-
-                                footer: {
-                                    text:
-                                        'ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ'
-                                },
-
-                                nativeFlowMessage: {
-                                    buttons: [
-                                        {
-                                            name: 'cta_copy',
-                                            buttonParamsJson:
-                                                JSON.stringify({
-                                                    display_text:
-                                                        '📋 Copy Code',
-                                                    copy_code:
-                                                        pairingCode
-                                                })
-                                        },
-                                        {
-                                            name: 'cta_url',
-                                            buttonParamsJson:
-                                                JSON.stringify({
-                                                    display_text:
-                                                        '📢 Follow Channel',
-                                                    url:
-                                                        botConfig.CHANNEL_LINK
-                                                })
-                                        }
-                                    ]
-                                }
+        // ONE message with Copy + Follow Channel buttons
+        const ctaMsg = generateWAMessageFromContent(
+            sender,
+            {
+                viewOnceMessage: {
+                    message: {
+                        interactiveMessage: {
+                            body: {
+                                text: `*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ - ᴘᴀɪʀɪɴɢ ✅*\n\n` +
+                                      `*🔑 ʏᴏᴜʀ ᴘᴀɪʀɪɴɢ ᴄᴏᴅᴇ:* \`\`\`${pairingCode}\`\`\`\n\n` +
+                                      `📝 *ɪɴsᴛʀᴜᴄᴛɪᴏɴs:*\n` +
+                                      `1. ᴛᴀᴘ ᴄᴏᴘʏ ʙᴜᴛᴛᴏɴ ʙᴇʟᴏᴡ\n` +
+                                      `2. ᴘᴀsᴛᴇ ɪɴ ʟɪɴᴋᴇᴅ ᴅᴇᴠɪᴄᴇs\n\n` +
+                                      `> ${botConfig.BOT_FOOTER}`
+                            },
+                            footer: { text: 'ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                            nativeFlowMessage: {
+                                buttons: [
+                                    {
+                                        name: 'cta_copy',
+                                        buttonParamsJson: JSON.stringify({
+                                            display_text: 'Copy Code',
+                                            copy_code: pairingCode
+                                        })
+                                    },
+                                    {
+                                        name: 'cta_url',
+                                        buttonParamsJson: JSON.stringify({
+                                            display_text: '📢 Follow Channel',
+                                            url: botConfig.CHANNEL_LINK
+                                        })
+                                    }
+                                ]
                             }
                         }
                     }
-                },
-                {
-                    quoted: fakevCard
                 }
-            );
-
-            await socket.relayMessage(
-                sender,
-                ctaMsg.message,
-                {
-                    messageId: ctaMsg.key.id
-                }
-            );
-
-        } catch (imageError) {
-            /*
-             * If interactive image fails, send normal image
-             * instead of crashing the command.
-             */
-            console.error(
-                '[Pair] Interactive image error:',
-                imageError.message
-            );
-
-            await socket.sendMessage(
-                sender,
-                {
-                    image: {
-                        url: pairImage
-                    },
-                    caption:
-                        `*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ - ᴘᴀɪʀɪɴɢ ✅*\n\n` +
-                        `*🔑 ʏᴏᴜʀ ᴘᴀɪʀɪɴɢ ᴄᴏᴅᴇ:*\n` +
-                        `\`\`\`${pairingCode}\`\`\`\n\n` +
-                        `📝 ᴄᴏᴘʏ ᴛʜᴇ ᴄᴏᴅᴇ ᴀɴᴅ ᴘᴀsᴛᴇ ɪᴛ ɪɴ ʟɪɴᴋᴇᴅ ᴅᴇᴠɪᴄᴇs\n\n` +
-                        `> ${botConfig.BOT_FOOTER}`
-                },
-                {
-                    quoted: fakevCard
-                }
-            );
-        }
-
-        await socket.sendMessage(sender, {
-            react: {
-                text: '✅',
-                key: msg.key
-            }
-        });
-
-    } catch (err) {
-        console.error('❌ Pair Command Error:', err);
-
-        await socket.sendMessage(
-            sender,
-            {
-                image: {
-                    url: pairImage
-                },
-                caption:
-                    `*ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ - ᴘᴀɪʀɪɴɢ ❌*\n\n` +
-                    `*🔑 ᴘᴀɪʀɪɴɢ ᴄᴏᴅᴇ:* ` +
-                    `${pairingCode || 'N/A'}\n\n` +
-                    `❌ ғᴀɪʟᴇᴅ ᴛᴏ ɢᴇɴᴇʀᴀᴛᴇ ᴀ ᴘᴀɪʀɪɴɢ ᴄᴏᴅᴇ.\n\n` +
-                    `> ${botConfig.BOT_FOOTER}`
             },
-            {
-                quoted: fakevCard
-            }
+            { quoted: fakevCard }
         );
 
-        await socket.sendMessage(sender, {
-            react: {
-                text: '❌',
-                key: msg.key
-            }
-        });
-    }
+        await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
+        await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
 
+    } catch (err) {
+        console.error("❌ Pair Command Error:", err);
+        await socket.sendMessage(sender, {
+            text: `> *ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ - ᴘᴀɪʀɪɴɢ ✅*\n\n*🔑 ʏᴏᴜʀ ᴘᴀɪʀɪɴɢ ᴄᴏᴅᴇ:* ${pairingCode || 'N/A'}\n\n📝 ᴄᴏᴘʏ ᴛʜᴇ ᴄᴏᴅᴇ ᴀɴᴅ ᴘᴀsᴛᴇ ɪɴ ʟɪɴᴋᴇᴅ ᴅᴇᴠɪᴄᴇs\n\n> ${botConfig.BOT_FOOTER}`,
+            buttons: [
+                { buttonId: `${prefix}pair`, buttonText: { displayText: '🔄 New Code' }, type: 1 }
+            ],
+            headerType: 1
+        }, { quoted: fakevCard });
+        await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
+    }
+    
     break;
 }
-
 //case tagadmin
 case 'tagadmins':
 case 'gc_tagadmins': {
@@ -13154,102 +13003,55 @@ case 'repo':
 case 'sc':
 case 'script': {
     try {
-        await socket.sendMessage(sender, {
-            react: {
-                text: '📦',
-                key: msg.key
-            }
-        });
+        await socket.sendMessage(sender, { react: { text: '📦', key: msg.key } });
 
         const repoApiUrl = 'https://api.github.com/repos/caseyweb/CASEYRHODES-XMD';
         const repoUrl = 'https://github.com/caseyweb/CASEYRHODES-XMD';
-        const repoImage = 'https://files.catbox.moe/3aqnr8.jpg';
-
         let caption = '';
 
-        // Get GitHub repository information
         try {
             const { data } = await axios.get(repoApiUrl, {
-                headers: {
-                    'User-Agent': 'CaseyRhodes-Bot'
-                },
+                headers: { 'User-Agent': 'CaseyRhodes-Bot' },
                 timeout: 5000
             });
 
-            const stars = Number(data.stargazers_count || 0).toLocaleString();
-            const forks = Number(data.forks_count || 0).toLocaleString();
-            const watchers = Number(data.watchers_count || 0).toLocaleString();
+            const stars = data.stargazers_count.toLocaleString();
+            const forks = data.forks_count.toLocaleString();
+            const watchers = data.watchers_count.toLocaleString();
+            const createdAt = new Date(data.created_at).toLocaleDateString('en-GB');
+            const lastUpdated = new Date(data.pushed_at).toLocaleDateString('en-GB');
 
-            const createdAt = data.created_at
-                ? new Date(data.created_at).toLocaleDateString('en-GB')
-                : 'Unknown';
-
-            const lastUpdated = data.pushed_at
-                ? new Date(data.pushed_at).toLocaleDateString('en-GB')
-                : 'Unknown';
-
-            caption =
-                `*📦 ɢɪᴛʜᴜʙ ʀᴇᴘᴏsɪᴛᴏʀʏ*\n\n` +
-                `🤖 *ʙᴏᴛ:* ${botConfig.OWNER_NAME}\n` +
-                `📁 *ʀᴇᴘᴏ:* CASEYRHODES-XMD\n` +
-                `👤 *ᴏᴡɴᴇʀ:* caseyweb\n\n` +
-                `📊 *sᴛᴀᴛs:*\n` +
-                `⭐ *sᴛᴀʀs:* ${stars}\n` +
-                `🍴 *ғᴏʀᴋs:* ${forks}\n` +
-                `👀 *ᴡᴀᴛᴄʜᴇʀs:* ${watchers}\n` +
-                `📅 *ᴄʀᴇᴀᴛᴇᴅ:* ${createdAt}\n` +
-                `♻️ *ᴜᴘᴅᴀᴛᴇᴅ:* ${lastUpdated}\n\n` +
-                `🔗 ${repoUrl}\n\n` +
-                `> ${botConfig.BOT_FOOTER}`;
-
-        } catch (apiError) {
-            console.log('[Repo] GitHub API unavailable:', apiError.message);
-
-            caption =
-                `*📦 ɢɪᴛʜᴜʙ ʀᴇᴘᴏsɪᴛᴏʀʏ*\n\n` +
-                `🤖 *ʙᴏᴛ:* ${botConfig.OWNER_NAME}\n` +
-                `📁 *ʀᴇᴘᴏ:* CASEYRHODES-XMD\n` +
-                `👤 *ᴏᴡɴᴇʀ:* caseyweb\n\n` +
-                `🔗 ${repoUrl}\n\n` +
-                `> ${botConfig.BOT_FOOTER}`;
+            caption = `*📦 ɢɪᴛʜᴜʙ ʀᴇᴘᴏsɪᴛᴏʀʏ*\n\n` +
+                      `🤖 *ʙᴏᴛ:* ${botConfig.OWNER_NAME}\n` +
+                      `📁 *ʀᴇᴘᴏ:* CASEYRHODES-XMD\n` +
+                      `👤 *ᴏᴡɴᴇʀ:* caseyweb\n\n` +
+                      `📊 *sᴛᴀᴛs:*\n` +
+                      `⭐ *sᴛᴀʀs:* ${stars}\n` +
+                      `🍴 *ғᴏʀᴋs:* ${forks}\n` +
+                      `👀 *ᴡᴀᴛᴄʜᴇʀs:* ${watchers}\n` +
+                      `📅 *ᴄʀᴇᴀᴛᴇᴅ:* ${createdAt}\n` +
+                      `♻️ *ᴜᴘᴅᴀᴛᴇᴅ:* ${lastUpdated}\n\n` +
+                      `🔗 ${repoUrl}\n\n` +
+                      `> ${botConfig.BOT_FOOTER}`;
+        } catch {
+            caption = `*📦 ɢɪᴛʜᴜʙ ʀᴇᴘᴏsɪᴛᴏʀʏ*\n\n` +
+                      `🤖 *ʙᴏᴛ:* ${botConfig.OWNER_NAME}\n` +
+                      `📁 *ʀᴇᴘᴏ:* CASEYRHODES-XMD\n` +
+                      `👤 *ᴏᴡɴᴇʀ:* caseyweb\n\n` +
+                      `🔗 ${repoUrl}\n\n` +
+                      `> ${botConfig.BOT_FOOTER}`;
         }
 
-        /*
-         * Send image + interactive buttons
-         */
+        // ONE message with CTA buttons
         try {
-            // Prepare image for the interactive message
-            const imageContent = await generateWAMessageContent(
-                {
-                    image: {
-                        url: repoImage
-                    }
-                },
-                {
-                    upload: socket.waUploadToServer
-                }
-            );
-
             const ctaMsg = generateWAMessageFromContent(
                 sender,
                 {
                     viewOnceMessage: {
                         message: {
                             interactiveMessage: {
-                                header: {
-                                    title: '📦 CASEYRHODES-XMD',
-                                    hasMediaAttachment: true,
-                                    imageMessage: imageContent.imageMessage
-                                },
-
-                                body: {
-                                    text: caption
-                                },
-
-                                footer: {
-                                    text: 'ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ'
-                                },
-
+                                body: { text: caption },
+                                footer: { text: 'ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
                                 nativeFlowMessage: {
                                     buttons: [
                                         {
@@ -13279,134 +13081,35 @@ case 'script': {
                         }
                     }
                 },
-                {
-                    quoted: fakevCard
-                }
+                { quoted: fakevCard }
             );
-
-            await socket.relayMessage(
-                sender,
-                ctaMsg.message,
-                {
-                    messageId: ctaMsg.key.id
-                }
-            );
-
-        } catch (interactiveError) {
-            console.error(
-                '[Repo] Interactive image error:',
-                interactiveError.message
-            );
-
-            /*
-             * Fallback:
-             * If WhatsApp/Baileys rejects the interactive image,
-             * send the image normally instead of crashing the bot.
-             */
-            try {
-                await socket.sendMessage(
-                    sender,
-                    {
-                        image: {
-                            url: repoImage
-                        },
-                        caption: caption
-                    },
-                    {
-                        quoted: fakevCard
-                    }
-                );
-
-                await socket.sendMessage(
-                    sender,
-                    {
-                        text: '📋 *ᴏᴘᴛɪᴏɴs*',
-                        buttons: [
-                            {
-                                buttonId: `${prefix}menu`,
-                                buttonText: {
-                                    displayText: '📋 Menu'
-                                },
-                                type: 1
-                            }
-                        ],
-                        headerType: 1
-                    },
-                    {
-                        quoted: fakevCard
-                    }
-                );
-
-            } catch (fallbackError) {
-                console.error(
-                    '[Repo] Fallback error:',
-                    fallbackError.message
-                );
-
-                await socket.sendMessage(
-                    sender,
-                    {
-                        text: caption
-                    },
-                    {
-                        quoted: fakevCard
-                    }
-                );
-            }
+            await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
+        } catch {
+            await socket.sendMessage(sender, {
+                text: caption,
+                buttons: [
+                    { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 Menu' }, type: 1 }
+                ],
+                headerType: 1
+            }, { quoted: fakevCard });
         }
 
-        await socket.sendMessage(sender, {
-            react: {
-                text: '✅',
-                key: msg.key
-            }
-        });
+        await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
 
     } catch (error) {
-        console.error('[Repo] Error:', error);
-
-        /*
-         * Final emergency fallback.
-         * This prevents the repo command from crashing the bot.
-         */
-        try {
-            await socket.sendMessage(
-                sender,
-                {
-                    image: {
-                        url: 'https://files.catbox.moe/3aqnr8.jpg'
-                    },
-                    caption:
-                        `*📦 ɢɪᴛʜᴜʙ ʀᴇᴘᴏ*\n\n` +
-                        `🤖 ${botConfig.OWNER_NAME}\n` +
-                        `📁 CASEYRHODES-XMD\n` +
-                        `👤 caseyweb\n\n` +
-                        `🔗 https://github.com/caseyweb/CASEYRHODES-XMD\n\n` +
-                        `> ${botConfig.BOT_FOOTER}`
-                },
-                {
-                    quoted: fakevCard
-                }
-            );
-
-            await socket.sendMessage(sender, {
-                react: {
-                    text: '❌',
-                    key: msg.key
-                }
-            });
-
-        } catch (finalError) {
-            console.error(
-                '[Repo] Final fallback error:',
-                finalError.message
-            );
-        }
+        console.error('[Repo] Error:', error.message);
+        await socket.sendMessage(sender, {
+            text: `*📦 ɢɪᴛʜᴜʙ ʀᴇᴘᴏ*\n\n🤖 ${botConfig.OWNER_NAME}\n🔗 https://github.com/caseyweb/CASEYRHODES-XMD\n\n> ${botConfig.BOT_FOOTER}`,
+            buttons: [
+                { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 Menu' }, type: 1 }
+            ],
+            headerType: 1
+        }, { quoted: fakevCard });
+        await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
     }
-
     break;
 }
-          case 'deleteme':
+                case 'deleteme':
                     const sessionPath = path.join(SESSION_BASE_PATH, `session_${number.replace(/[^0-9]/g, '')}`);
                     if (fs.existsSync(sessionPath)) {
                         fs.removeSync(sessionPath);
