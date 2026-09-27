@@ -148,7 +148,10 @@ async function createBotState(number, baseSessionPath) {
         // Anti-delete is OFF by default for every socket. It only becomes active
         // after the owner explicitly runs the antidelete on/enable command.
         antiDeleteEnabled: Boolean(loadJsonFile(path.join(stateDir, 'antidelete.json'), { enabled: false }).enabled),
-        antiDeleteMode: loadJsonFile(path.join(stateDir, 'antidelete.json'), { enabled: false, mode: 'all' }).mode || 'all'
+        antiDeleteMode: loadJsonFile(path.join(stateDir, 'antidelete.json'), { enabled: false, mode: 'all' }).mode || 'all',
+        // AutoBio is OFF by default and persisted independently for every socket.
+        autoBioEnabled: Boolean(loadJsonFile(path.join(stateDir, 'autobio.json'), { enabled: false }).enabled),
+        autoBioTimer: null
     };
 
     state.saveConfig = () => saveJsonFile(localConfigPath, state.config);
@@ -163,6 +166,7 @@ async function createBotState(number, baseSessionPath) {
     state.saveAutoReact = () => saveJsonFile(path.join(stateDir, 'autoreact.json'), { enabled: state.autoReactEnabled });
     state.saveAutoRead = () => saveJsonFile(path.join(stateDir, 'autoread.json'), { enabled: state.autoReadPM });
     state.saveAntiDelete = () => saveJsonFile(path.join(stateDir, 'antidelete.json'), { enabled: state.antiDeleteEnabled, mode: state.antiDeleteMode });
+    state.saveAutoBio = () => saveJsonFile(path.join(stateDir, 'autobio.json'), { enabled: state.autoBioEnabled });
 
     return state;
 }
@@ -170,7 +174,7 @@ async function createBotState(number, baseSessionPath) {
 // Per-socket settings are created by createBotState() inside EmpirePair.
 
 // Commands supported by the switch below. Used to distinguish ordinary chat from bot commands in non-prefix mode.
-const NON_PREFIX_COMMANDS = new Set(["antilink","linkguard","antiurl","chatbot","bot","ai","autoreply","linklist","antilinklist","autoreact","react","autorea","autoread","autoreadpm","readall","settings","ownersettings","botsettings","element","chem","dm","save","mode","botmode","privatemode","publicmode","setprefix","prefix","anticall","on","off","block","unblock","blocklist","list","country","countryinfo","shazam","identify","songs","gitclone","emojimix","mixemoji","emojiblend","eval","exec","run","translate","trt","welcome","welc","goodbye","goodb","setwelcome","setwelc","setgoodbye","setgoodb","antidelete","antidel","uptime","alive","groupstatus","ginfo","groupinfo","grpinfo","gstatus","togstatus","swgc","mediafire","mf","mfdl","npm","tourl","imgtourl","imgurl","url","upload","base64","encode","unbase64","decode","deb64","session","info","menu","fact","facts","funfact","nitumie","statussave","allmenu","setbio","whois","mygroups","creact","follow","poll","vote","ping","igstalk","instastalk","iginfo","instagramstalk","pair","tagadmins","gc_tagadmins","details","horoscope","zodiac","horo","topdf","pdf","fullpp","mypp","dp","pin","unpin","archive","onwa","checkid","checkno","location","loc","removedp","vcard","card","apk","app","getapk","lyrics","lyric","songlyrics","play","tiktok","tt","ttdl","tiktokdl","newsletter","cjid","id","star","unstar","mydp","mystatus","groupadd","lastseen","myonline","bizprofile","bizp","viewonce","vv","reveal","unviewonce","yts","ytsearch","search","img","image","pinterest","img_nav","garl","imgloli","loli","waifu","imgwaifu","neko","imgneko","megumin","imgmegumin","maid","imgmaid","awoo","imgawoo","animegirl","animegirl1","animegirl2","animegirl3","animegirl4","animegirl5","anime","anime1","anime2","anime3","anime4","anime5","dragonball","naruto","arena","hacker","mechanical","incandescent","gold","sand","sunset","water","rain","chocolate","graffiti","boom","purple","cloth","1917","child","cat","typo","screenshot","ss","ssweb","tts","fetch","get","api","rw","randomwall","wallpaper","tourl2","quran","bible","compliment","comp","praise","delete","del","d","time","clock","timezone","calc","calculate","math","jid","bomb","joke","meme","readmore","rm","rmore","readm","flirt","masom","line","darkjoke","darkhumor","truth","truthquestion","insult","pickupline","pickup","roast","lovequote","dare","truthordare","facebook","fb","fbdl","nasa","news","cricket","ig","active","ask","gpt","casey","getpp","pp","profilepic","gossip","add","leave","kick","github","gh","admins","listadmins","adminlist","members","listmembers","memberlist","promote","demote","livescore","sportnews","standings","topscorers","upcomingmatches","gamehistory","gjid","groupjid","grouplist","setgpp","setgp","gpp","online","listonline","kickall","req","requests","approve","accept","reject","rejectall","create","newgroup","newgc","rename","gname","desc","gdesc","tagall","everyone","all","mentions","lock","close","unlock","open","invite","link","broadcast","bc","revoke","reset","quote","tiny","short","shorturl","owner","creator","developer","weather","climate","tmp3","ymp3","ytmp4","ytv","ytvideo","repo","sc","script","deleteme"]);
+const NON_PREFIX_COMMANDS = new Set(["antilink","linkguard","antiurl","chatbot","bot","ai","autoreply","linklist","antilinklist","autoreact","react","autorea","autoread","autoreadpm","readall","settings","ownersettings","botsettings","element","chem","dm","save","mode","botmode","privatemode","publicmode","setprefix","prefix","anticall","on","off","block","unblock","blocklist","list","country","countryinfo","shazam","identify","songs","gitclone","emojimix","mixemoji","emojiblend","eval","exec","run","translate","trt","welcome","welc","goodbye","goodb","setwelcome","setwelc","setgoodbye","setgoodb","antidelete","antidel","autobio","bioauto","setautobio","uptime","alive","groupstatus","ginfo","groupinfo","grpinfo","gstatus","togstatus","swgc","mediafire","mf","mfdl","npm","tourl","imgtourl","imgurl","url","upload","base64","encode","unbase64","decode","deb64","session","info","menu","fact","facts","funfact","nitumie","statussave","allmenu","setbio","whois","mygroups","creact","follow","poll","vote","ping","igstalk","instastalk","iginfo","instagramstalk","pair","tagadmins","gc_tagadmins","details","horoscope","zodiac","horo","topdf","pdf","fullpp","mypp","dp","pin","unpin","archive","onwa","checkid","checkno","location","loc","removedp","vcard","card","apk","app","getapk","lyrics","lyric","songlyrics","play","tiktok","tt","ttdl","tiktokdl","newsletter","cjid","id","star","unstar","mydp","mystatus","groupadd","lastseen","myonline","bizprofile","bizp","viewonce","vv","reveal","unviewonce","yts","ytsearch","search","img","image","pinterest","img_nav","garl","imgloli","loli","waifu","imgwaifu","neko","imgneko","megumin","imgmegumin","maid","imgmaid","awoo","imgawoo","animegirl","animegirl1","animegirl2","animegirl3","animegirl4","animegirl5","anime","anime1","anime2","anime3","anime4","anime5","dragonball","naruto","arena","hacker","mechanical","incandescent","gold","sand","sunset","water","rain","chocolate","graffiti","boom","purple","cloth","1917","child","cat","typo","screenshot","ss","ssweb","tts","fetch","get","api","rw","randomwall","wallpaper","tourl2","quran","bible","compliment","comp","praise","delete","del","d","time","clock","timezone","calc","calculate","math","jid","bomb","joke","meme","readmore","rm","rmore","readm","flirt","masom","line","darkjoke","darkhumor","truth","truthquestion","insult","pickupline","pickup","roast","lovequote","dare","truthordare","facebook","fb","fbdl","nasa","news","cricket","ig","active","ask","gpt","casey","getpp","pp","profilepic","gossip","add","leave","kick","github","gh","admins","listadmins","adminlist","members","listmembers","memberlist","promote","demote","livescore","sportnews","standings","topscorers","upcomingmatches","gamehistory","gjid","groupjid","grouplist","setgpp","setgp","gpp","online","listonline","kickall","req","requests","approve","accept","reject","rejectall","create","newgroup","newgc","rename","gname","desc","gdesc","tagall","everyone","all","mentions","lock","close","unlock","open","invite","link","broadcast","bc","revoke","reset","quote","tiny","short","shorturl","owner","creator","developer","weather","climate","tmp3","ymp3","ytmp4","ytv","ytvideo","repo","sc","script","deleteme"]);
 
 const TEMP_MEDIA_DIR = path.join(__dirname, 'tmp');
 
@@ -1395,62 +1399,76 @@ function setupAntiDelete(sock) {
         if (!botState.antiDeleteEnabled) return;
         if (botState.antiDeleteMode === 'groups' && !String(chat).endsWith('@g.us')) return;
 
-        const lines = [`🛡️ *ANTI-DELETE RECOVERY*`, ``, `♻️ *${list.length} deleted message${list.length === 1 ? '' : 's'} recovered*`, ``];
+        // ArslanMD-style delivery: recovered deletions go to the configured
+        // owner inbox instead of silently disappearing in the original chat.
+        const rawOwners = Array.isArray(botConfig.OWNER_NUMBER)
+            ? botConfig.OWNER_NUMBER
+            : String(botConfig.OWNER_NUMBER || '').split(',');
+        const ownerJids = rawOwners
+            .map(n => String(n).replace(/[^0-9]/g, ''))
+            .filter(Boolean)
+            .map(n => `${n}@s.whatsapp.net`);
+
+        if (!ownerJids.length) {
+            console.warn('[AntiDelete] No owner number configured.');
+            return;
+        }
+
+        let chatName = 'Private Chat';
+        const isGroup = String(chat).endsWith('@g.us');
+        if (isGroup) {
+            try {
+                const metadata = await sock.groupMetadata(chat);
+                chatName = metadata?.subject || 'Unknown Group';
+            } catch (_) {}
+        }
+
+        const lines = [
+            `⚠️ *MESSAGE DELETED DETECTED!*`,
+            ``,
+            `💬 *Chat:* ${chatName}`,
+            `📌 *Type:* ${isGroup ? 'Group' : 'Private'}`,
+            `🕐 *Time:* ${new Date().toLocaleString()}`,
+            ``
+        ];
+
+        const mentions = [];
         for (let i = 0; i < list.length; i++) {
             const item = list[i];
-            lines.push(`*${i + 1}. ${item.type}* — @${item.senderName}`);
+            const number = String(item.participant || '').split('@')[0].split(':')[0];
+            if (number) mentions.push(item.participant);
+            lines.push(`*${i + 1}. ${item.type}* — @${number || 'unknown'}`);
             if (item.body) lines.push(item.body.slice(0, 3500));
             else lines.push(`_[${item.type} message recovered]_`);
             lines.push('');
         }
-        lines.push(`> ${botConfig.BOT_FOOTER}`);
 
-        const mentions = [...new Set(list.map(x => x.participant).filter(Boolean))];
+        lines.push(`> ${botConfig.BOT_FOOTER}`);
         const text = lines.join('\n').slice(0, 12000);
-        const newsletterInfo = botConfig.NEWSLETTER_JID ? {
+
+        const contextInfo = {
             forwardingScore: 1,
             isForwarded: true,
+            mentionedJid: [...new Set(mentions.filter(Boolean))],
             forwardedNewsletterMessageInfo: {
-                newsletterJid: botConfig.NEWSLETTER_JID,
-                newsletterName: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ',
-                serverMessageId: Number(botConfig.NEWSLETTER_MESSAGE_ID) || -1
+                newsletterJid: botConfig.NEWSLETTER_JID || '120363420261263259@newsletter',
+                newsletterName: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ🌟',
+                serverMessageId: -1
             }
-        } : {};
+        };
 
-        try {
-            const ctaMsg = generateWAMessageFromContent(chat, {
-                viewOnceMessage: {
-                    message: {
-                        interactiveMessage: {
-                            body: { text },
-                            footer: { text: botConfig.BOT_FOOTER },
-                            nativeFlowMessage: {
-                                buttons: botConfig.CHANNEL_LINK ? [{
-                                    name: 'cta_url',
-                                    buttonParamsJson: JSON.stringify({
-                                        display_text: '📢 Join Newsletter',
-                                        url: botConfig.CHANNEL_LINK
-                                    })
-                                }] : []
-                            }
-                        }
-                    }
-                }
-            }, { quoted: fakevCard });
-            ctaMsg.message.viewOnceMessage.message.interactiveMessage.body.contextInfo = {
-                mentionedJid: mentions,
-                ...newsletterInfo
-            };
-            await sock.relayMessage(chat, ctaMsg.message, { messageId: ctaMsg.key.id });
-        } catch (err) {
-            console.warn('[AntiDelete] CTA recovery failed, using plain message:', err.message);
-            await sock.sendMessage(chat, {
-                text,
-                mentions,
-                contextInfo: newsletterInfo
-            }, { quoted: fakevCard });
+        for (const ownerJid of ownerJids) {
+            try {
+                await sock.sendMessage(ownerJid, {
+                    text,
+                    mentions: contextInfo.mentionedJid,
+                    contextInfo
+                });
+                console.log(`[AntiDelete] Recovered ${list.length} deleted message(s) -> ${ownerJid}`);
+            } catch (err) {
+                console.warn(`[AntiDelete] Failed to notify ${ownerJid}:`, err.message);
+            }
         }
-        console.log(`[AntiDelete] ♻️ Recovered ${list.length} deleted message(s) in ${chat}`);
     };
 
     const queueRecovery = (original) => {
@@ -4418,7 +4436,18 @@ case 'upload': {
                     viewOnceMessage: {
                         message: {
                             interactiveMessage: {
-                                body: { text: caption },
+                                body: {
+                                    text: caption,
+                                    contextInfo: {
+                                        forwardingScore: 1,
+                                        isForwarded: true,
+                                        forwardedNewsletterMessageInfo: {
+                                            newsletterJid: botConfig.NEWSLETTER_JID,
+                                            newsletterName: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ🌟',
+                                            serverMessageId: -1
+                                        }
+                                    }
+                                },
                                 footer: { text: 'ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
                                 header: { title: '☁️ ᴜᴘʟᴏᴀᴅ sᴜᴄᴄᴇss', hasMediaAttachment: false },
                                 nativeFlowMessage: {
@@ -4734,7 +4763,7 @@ case 'menu': {
         forwardingScore: 1,
         isForwarded: true,
         forwardedNewsletterMessageInfo: {
-            newsletterJid: '120363420261263259@newsletter',
+            newsletterJid: botConfig.NEWSLETTER_JID || '120363420261263259@newsletter',
             newsletterName: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ🌟',
             serverMessageId: -1
         }
@@ -5378,6 +5407,52 @@ case 'block': {
         await socket.sendMessage(sender, { text: `🚫 *ʙʟᴏᴄᴋᴇᴅ*\n\n@${targetJid.split('@')[0]}\n\n> ${botConfig.BOT_FOOTER}`, mentions: [targetJid], quoted: msg });
         await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
     } catch (e) { await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: msg }); }
+    break;
+}
+
+
+// Case: autobio - Automatically update WhatsApp profile bio (owner only)
+case 'autobio':
+case 'bioauto':
+case 'setautobio': {
+    try {
+        if (!isOwner) {
+            await socket.sendMessage(sender, { text: '❌ *ᴏᴡɴᴇʀ ᴏɴʟʏ*', quoted: msg });
+            break;
+        }
+
+        const action = String(args[0] || '').toLowerCase();
+        if (!['on', 'off', 'enable', 'disable'].includes(action)) {
+            await socket.sendMessage(sender, {
+                text: `♻️ *ᴀᴜᴛᴏʙɪᴏ*
+
+` +
+                      `• ${prefix}autobio on
+` +
+                      `• ${prefix}autobio off
+
+` +
+                      `Current: *${botState.autoBioEnabled ? 'ON ✅' : 'OFF ❌'}*`,
+                quoted: msg
+            });
+            break;
+        }
+
+        const enabled = action === 'on' || action === 'enable';
+        botState.autoBioEnabled = enabled;
+        botState.saveAutoBio();
+
+        if (enabled) {
+            await updateAutoBio();
+            await socket.sendMessage(sender, { text: '✅ *ᴀᴜᴛᴏʙɪᴏ ᴇɴᴀʙʟᴇᴅ*\n\nYour WhatsApp bio will update every minute.', quoted: msg });
+        } else {
+            stopAutoBio();
+            await socket.sendMessage(sender, { text: '✅ *ᴀᴜᴛᴏʙɪᴏ ᴅɪsᴀʙʟᴇᴅ*', quoted: msg });
+        }
+    } catch (e) {
+        stopAutoBio();
+        await socket.sendMessage(sender, { text: '❌ ' + e.message, quoted: msg });
+    }
     break;
 }
 
@@ -12047,6 +12122,14 @@ case 'grouplist': {
                     viewOnceMessage: {
                         message: {
                             interactiveMessage: {
+                                header: {
+                                    title: '📦 CASEYRHODES-XMD',
+                                    hasMediaAttachment: true,
+                                    imageMessage: (await prepareWAMessageMedia(
+                                        { image: { url: botConfig.RCD_IMAGE_PATH } },
+                                        { upload: socket.waUploadToServer }
+                                    )).imageMessage
+                                },
                                 body: { text: caption },
                                 footer: { text: 'ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
                                 nativeFlowMessage: {
@@ -13086,11 +13169,21 @@ case 'script': {
             await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
         } catch {
             await socket.sendMessage(sender, {
-                text: caption,
+                image: { url: botConfig.RCD_IMAGE_PATH },
+                caption,
                 buttons: [
                     { buttonId: `${prefix}menu`, buttonText: { displayText: '📋 Menu' }, type: 1 }
                 ],
-                headerType: 1
+                headerType: 4,
+                contextInfo: {
+                    forwardingScore: 1,
+                    isForwarded: true,
+                    forwardedNewsletterMessageInfo: {
+                        newsletterJid: botConfig.NEWSLETTER_JID,
+                        newsletterName: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ🌟',
+                        serverMessageId: -1
+                    }
+                }
             }, { quoted: fakevCard });
         }
 
@@ -13349,6 +13442,34 @@ async function EmpirePair(number, res) {
     const botState = await createBotState(sanitizedNumber, sessionPath);
     const botConfig = botState.config;
     const logger = pino({ level: process.env.NODE_ENV === 'production' ? 'fatal' : 'debug' });
+
+    const updateAutoBio = async () => {
+        if (!botState.autoBioEnabled) return;
+        try {
+            const uptimeMs = process.uptime() * 1000;
+            const d = Math.floor(uptimeMs / 86400000);
+            const h = Math.floor(uptimeMs / 3600000) % 24;
+            const m = Math.floor(uptimeMs / 60000) % 60;
+            const uptime = [d ? `${d}D` : '', h ? `${h}H` : '', `${m}M`].filter(Boolean).join(' ');
+            const bio = `👑 ${botConfig.OWNER_NAME || 'CASEYRHODES'} MINI ACTIVE • ${uptime} 👑`;
+            if (typeof socket.updateProfileStatus === 'function') {
+                await socket.updateProfileStatus(bio);
+                console.log(`[AutoBio] ${sanitizedNumber}: ${bio}`);
+            }
+        } catch (err) {
+            console.warn(`[AutoBio] ${sanitizedNumber} update failed:`, err.message);
+        } finally {
+            if (botState.autoBioEnabled) {
+                clearTimeout(botState.autoBioTimer);
+                botState.autoBioTimer = setTimeout(updateAutoBio, 60 * 1000);
+            }
+        }
+    };
+
+    const stopAutoBio = () => {
+        if (botState.autoBioTimer) clearTimeout(botState.autoBioTimer);
+        botState.autoBioTimer = null;
+    };
 
     try {
         // =========================================================
@@ -13620,6 +13741,11 @@ async function EmpirePair(number, res) {
 
                     activeSockets.set(sanitizedNumber, socket);
 
+                    // Resume persisted AutoBio after every successful reconnect.
+                    if (botState.autoBioEnabled) {
+                        await updateAutoBio();
+                    }
+
 const groupStatus = groupResult.status === 'success'
     ? 'ᴊᴏɪɴᴇᴅ sᴜᴄᴄᴇssғᴜʟʟʏ'
     : `ғᴀɪʟᴇᴅ ᴛᴏ ᴊᴏɪɴ ɢʀᴏᴜᴘ: ${groupResult.error}`;
@@ -13641,7 +13767,7 @@ await socket.sendMessage(userJid, {
         forwardingScore: 1,
         isForwarded: true,
         forwardedNewsletterMessageInfo: {
-            newsletterJid: '120363420261263259@newsletter',
+            newsletterJid: botConfig.NEWSLETTER_JID || '120363420261263259@newsletter',
             newsletterName: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ🌟',
             serverMessageId: -1
         }
