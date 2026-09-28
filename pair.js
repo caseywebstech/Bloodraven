@@ -68,7 +68,8 @@ const config = {
     OWNER_NUMBER: '254117312277',
     OWNER_NAME: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs🎀',
     BOT_FOOTER: 'ᴍᴀᴅᴇ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs',
-    CHANNEL_LINK: 'https://whatsapp.com/channel/0029Vb7ycBQ4yltMfeegLF1m'
+    CHANNEL_LINK: 'https://whatsapp.com/channel/0029Vb7ycBQ4yltMfeegLF1m',
+    MENU_VIDEO_URL: 'https://files.catbox.moe/c00wnp.mp4'
 };
 
 // =========================================================
@@ -4324,6 +4325,75 @@ case 'upload': {
     try {
         const quoted = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
         const source = quoted || msg.message;
+        const urlText = String(body || '').trim();
+        const directUrl = (urlText.match(/https?:\/\/[^\s<>]+/i) || [])[0] || null;
+
+        // Strong URL mode: `url <direct-media-url>` downloads the remote file
+        // first, then uploads it to Catbox. Quoted WhatsApp media still works.
+        if (directUrl && !quoted) {
+            try {
+                await socket.sendMessage(sender, { react: { text: '⏳', key: msg.key } });
+                const remote = await axios.get(directUrl, {
+                    responseType: 'arraybuffer',
+                    timeout: 45000,
+                    maxContentLength: 100 * 1024 * 1024,
+                    maxBodyLength: 100 * 1024 * 1024,
+                    validateStatus: s => s >= 200 && s < 400
+                });
+                const remoteType = String(remote.headers['content-type'] || 'application/octet-stream').split(';')[0].toLowerCase();
+                let remoteExt = path.extname(new URL(directUrl).pathname) || '';
+                if (!remoteExt) {
+                    remoteExt = remoteType.includes('jpeg') ? '.jpg'
+                        : remoteType.includes('png') ? '.png'
+                        : remoteType.includes('webp') ? '.webp'
+                        : remoteType.includes('gif') ? '.gif'
+                        : remoteType.includes('mp4') ? '.mp4'
+                        : remoteType.includes('webm') ? '.webm'
+                        : remoteType.includes('mpeg') ? '.mp3'
+                        : remoteType.includes('ogg') ? '.ogg'
+                        : remoteType.includes('pdf') ? '.pdf' : '.bin';
+                }
+                const safeExt = remoteExt.replace(/[^a-z0-9.]/gi, '').slice(0, 10) || '.bin';
+                const remotePath = path.join(TEMP_MEDIA_DIR, `catbox_remote_${Date.now()}${safeExt}`);
+                await writeFile(remotePath, Buffer.from(remote.data));
+
+                const form = new FormData();
+                form.append('fileToUpload', fs.createReadStream(remotePath), `file${safeExt}`);
+                form.append('reqtype', 'fileupload');
+                const { data: remoteUrl } = await axios.post('https://catbox.moe/user/api.php', form, {
+                    headers: form.getHeaders(), timeout: 60000
+                });
+                try { await fs.remove(remotePath); } catch {}
+                if (!remoteUrl || String(remoteUrl).toLowerCase().includes('error')) throw new Error('Catbox returned an error');
+
+                const size = Buffer.byteLength(remote.data);
+                const sizeStr = size < 1048576 ? `${(size / 1024).toFixed(1)} KB` : `${(size / 1048576).toFixed(2)} MB`;
+                const caption = `☁️ *ᴜʀʟ ᴜᴘʟᴏᴀᴅ ᴄᴏᴍᴘʟᴇᴛᴇ!*\n\n` +
+                    `📦 *sɪᴢᴇ:* ${sizeStr}\n` +
+                    `🗂️ *ᴛʏᴘᴇ:* ${remoteType}\n` +
+                    `🔗 *ʟɪɴᴋ:* ${remoteUrl}\n\n> ${botConfig.BOT_FOOTER}`;
+
+                const ctaMsg = generateWAMessageFromContent(sender, {
+                    viewOnceMessage: { message: { interactiveMessage: {
+                        body: { text: caption },
+                        footer: { text: 'ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ' },
+                        nativeFlowMessage: { buttons: [
+                            { name: 'cta_copy', buttonParamsJson: JSON.stringify({ display_text: '📋 ᴄᴏᴘʏ ʟɪɴᴋ', copy_code: remoteUrl }) },
+                            { name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: '📢 ᴊᴏɪɴ ᴄʜᴀɴɴᴇʟ', url: botConfig.CHANNEL_LINK }) },
+                            { name: 'quick_reply', buttonParamsJson: JSON.stringify({ display_text: '📋 ᴍᴇɴᴜ', id: `${prefix}menu` }) }
+                        ] }
+                    } } }
+                }, { quoted: fakevCard });
+                await socket.relayMessage(sender, ctaMsg.message, { messageId: ctaMsg.key.id });
+                await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
+                break;
+            } catch (directErr) {
+                console.error('[URL] direct URL upload failed:', directErr.message);
+                await socket.sendMessage(sender, { text: `❌ *ᴜʀʟ ᴜᴘʟᴏᴀᴅ ғᴀɪʟᴇᴅ*\n\n${directErr.message}` }, { quoted: fakevCard });
+                await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
+                break;
+            }
+        }
         
         if (!source) {
             await socket.sendMessage(sender, {
@@ -4741,7 +4811,8 @@ case 'menu': {
     };
 
     const menuMessage = {
-      image: { url: "https://i.ibb.co/750pdM9/b46b44ae51c1.jpg" },
+      video: { url: botConfig.MENU_VIDEO_URL },
+      mimetype: 'video/mp4',
       caption: `*🎀 B͛L͛O͛O͛D͛ R͛A͛V͛E͛N͛ M͛I͛N͛I͛ B͛O͛T͛ 🎀*\n${menuText}`,
       buttons: [
         {
@@ -4871,15 +4942,28 @@ case 'menu': {
       contextInfo: messageContext
     };
     
-    // Send the menu through gifted-btns so the category selector is rendered correctly.
-    // This keeps the image, newsletter context, fakevCard quote, and category button in ONE message.
-    await socket.sendMessage(from, {
-      image: { url: 'https://i.ibb.co/750pdM9/b46b44ae51c1.jpg' },
+    // Send the menu as ONE rich media message. The newsletter context is
+    // attached directly to the same message so WhatsApp can render the
+    // forwarded-channel attribution on the menu itself.
+    const menuPayload = {
+      video: { url: botConfig.MENU_VIDEO_URL },
+      mimetype: 'video/mp4',
       caption: `*🎀 B͛L͛O͛O͛D͛ R͛A͛V͛E͛N͛ M͛I͛N͛I͛ B͛O͛T͛ 🎀*\n${menuText}`,
       footer: 'ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ ッ',
       buttons: menuMessage.buttons,
-      contextInfo: messageContext
-    }, { quoted: fakevCard });
+      headerType: 4,
+      contextInfo: {
+        forwardingScore: 1,
+        isForwarded: true,
+        forwardedNewsletterMessageInfo: {
+          newsletterJid: botConfig.NEWSLETTER_JID,
+          newsletterName: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ🌟',
+          serverMessageId: -1
+        }
+      }
+    };
+
+    await socket.sendMessage(from, menuPayload, { quoted: fakevCard });
     await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
     
   } catch (error) {
@@ -5330,15 +5414,33 @@ ${liveCommandLines}
 
     const buttons = [
       {buttonId: `${prefix}alive`, buttonText: {displayText: 'Alive'}, type: 1},
-      {buttonId: `${prefix}menu`, buttonText: {displayText: 'Menu'}, type: 1}
+      {buttonId: `${prefix}menu`, buttonText: {displayText: 'Menu'}, type: 1},
+      {
+        name: 'cta_url',
+        buttonParamsJson: JSON.stringify({
+          display_text: '📢 JOIN CHANNEL',
+          url: botConfig.CHANNEL_LINK
+        })
+      }
     ];
 
     const buttonMessage = {
-      image: { url:"https://i.ibb.co/750pdM9/b46b44ae51c1.jpg" },
+      video: { url: botConfig.MENU_VIDEO_URL },
+      mimetype: 'video/mp4',
       caption: allMenuText,
       footer: "Click buttons for quick actions",
       buttons: buttons,
       headerType: 4
+    };
+
+    buttonMessage.contextInfo = {
+      forwardingScore: 1,
+      isForwarded: true,
+      forwardedNewsletterMessageInfo: {
+        newsletterJid: botConfig.NEWSLETTER_JID,
+        newsletterName: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ🌟',
+        serverMessageId: -1
+      }
     };
 
     await socket.sendMessage(from, buttonMessage, { quoted: fakevCard });
