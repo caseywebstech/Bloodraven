@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0d0c12">
+  <title>BLOOD RAVEN MINI BOT · Pair</title>
+  <style>
+    *{box-sizing:border-box}
+    body{
+      margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+      padding:20px;background:#0d0c12;color:#fff;font-family:Arial,Helvetica,sans-serif;
+      overflow-x:hidden;
+    }
+    body:before{
+      content:"";position:fixed;inset:0;pointer-events:none;
+      background:
+        radial-gradient(circle at 20% 20%,rgba(180,0,45,.20),transparent 35%),
+        radial-gradient(circle at 80% 80%,rgba(100,0,140,.18),transparent 35%);
+    }
+    .card{
+      position:relative;width:min(430px,100%);padding:30px 24px;border:1px solid rgba(255,255,255,.10);
+      border-radius:24px;background:rgba(20,18,27,.88);box-shadow:0 25px 80px rgba(0,0,0,.45);
+      backdrop-filter:blur(16px);text-align:center;
+    }
+    .logo{
+      width:76px;height:76px;margin:0 auto 16px;border-radius:22px;
+      display:flex;align-items:center;justify-content:center;
+      background:linear-gradient(145deg,#7d0028,#250018);font-size:34px;
+      box-shadow:0 12px 35px rgba(150,0,55,.28);
+    }
+    h1{margin:0;font-size:25px;letter-spacing:.5px}
+    .sub{margin:9px 0 25px;color:#aaa;font-size:14px;line-height:1.5}
+    label{display:block;text-align:left;margin:0 0 8px;color:#ddd;font-size:13px}
+    input{
+      width:100%;padding:15px 16px;border:1px solid #3a3542;border-radius:13px;
+      outline:none;background:#121018;color:#fff;font-size:16px;
+    }
+    input:focus{border-color:#a4003a;box-shadow:0 0 0 3px rgba(164,0,58,.12)}
+    button{
+      width:100%;margin-top:14px;padding:15px;border:0;border-radius:13px;
+      background:linear-gradient(135deg,#a5003d,#5d0028);color:#fff;font-size:15px;
+      font-weight:700;cursor:pointer;
+    }
+    button:disabled{opacity:.55;cursor:not-allowed}
+    .status{min-height:24px;margin-top:16px;font-size:14px;color:#aaa;line-height:1.5}
+    .code-box{display:none;margin-top:18px;padding:18px;border-radius:16px;background:#100b12;border:1px solid #3b1728}
+    .code{
+      font-size:28px;letter-spacing:5px;font-weight:800;color:#ff477d;
+      word-break:break-all;user-select:all;margin:4px 0 14px;
+    }
+    .copy{
+      margin:0;background:#24121b;border:1px solid #552238;padding:11px;
+    }
+    .back{display:inline-block;margin-top:18px;color:#999;text-decoration:none;font-size:13px}
+    .back:hover{color:#fff}
+    .hint{margin-top:20px;color:#777;font-size:12px;line-height:1.6}
+  </style>
+</head>
+<body>
+  <main class="card">
+    <div class="logo">🩸</div>
+    <h1>BLOOD RAVEN MINI BOT</h1>
+    <p class="sub">Connect your WhatsApp account using a pairing code.</p>
+
+    <form id="pairForm">
+      <label for="number">WhatsApp number</label>
+      <input id="number" type="tel" inputmode="numeric" autocomplete="tel"
+             placeholder="2547XXXXXXXX" required>
+      <button id="pairBtn" type="submit">GET PAIRING CODE</button>
+    </form>
+
+    <div id="status" class="status"></div>
+
+    <div id="codeBox" class="code-box">
+      <div style="font-size:12px;color:#aaa">YOUR PAIRING CODE</div>
+      <div id="code" class="code"></div>
+      <button id="copyBtn" class="copy" type="button">COPY CODE</button>
+    </div>
+
+    <a class="back" href="/">← Back to home</a>
+    <div class="hint">
+      Enter your full WhatsApp number with country code, without <b>+</b> or spaces.
+      Then enter the displayed code in WhatsApp → Linked devices → Link a device → Link with phone number.
+    </div>
+  </main>
+
+  <script>
+    const form = document.getElementById('pairForm');
+    const numberInput = document.getElementById('number');
+    const pairBtn = document.getElementById('pairBtn');
+    const status = document.getElementById('status');
+    const codeBox = document.getElementById('codeBox');
+    const codeEl = document.getElementById('code');
+    const copyBtn = document.getElementById('copyBtn');
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+
+      const number = numberInput.value.replace(/\D/g, '');
+      codeBox.style.display = 'none';
+      codeEl.textContent = '';
+
+      if (!number || number.length < 8 || number.length > 15) {
+        status.textContent = 'Please enter a valid WhatsApp number with country code.';
+        return;
+      }
+
+      pairBtn.disabled = true;
+      pairBtn.textContent = 'GENERATING CODE...';
+      status.textContent = 'Connecting to WhatsApp. Please wait...';
+
+      try {
+        const response = await fetch('/code/?number=' + encodeURIComponent(number), {
+          method: 'GET',
+          cache: 'no-store',
+          headers: { 'Accept': 'application/json' }
+        });
+
+        let data = {};
+        try { data = await response.json(); } catch (_) {}
+
+        if (!response.ok) {
+          throw new Error(data.error || data.message || 'Unable to generate pairing code.');
+        }
+
+        if (data.status === 'already_connected') {
+          status.textContent = data.message || 'This number is already connected.';
+          return;
+        }
+
+        if (!data.code) {
+          throw new Error('WhatsApp did not return a pairing code.');
+        }
+
+        codeEl.textContent = data.code;
+        codeBox.style.display = 'block';
+        status.textContent = 'Pairing code generated successfully.';
+      } catch (error) {
+        status.textContent = error.message || 'Pairing failed. Please try again.';
+      } finally {
+        pairBtn.disabled = false;
+        pairBtn.textContent = 'GET PAIRING CODE';
+      }
+    });
+
+    copyBtn.addEventListener('click', async () => {
+      const code = codeEl.textContent.trim();
+      if (!code) return;
+
+      try {
+        await navigator.clipboard.writeText(code);
+        copyBtn.textContent = 'COPIED ✓';
+        setTimeout(() => copyBtn.textContent = 'COPY CODE', 1800);
+      } catch (_) {
+        const range = document.createRange();
+        range.selectNodeContents(codeEl);
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+        copyBtn.textContent = 'SELECTED — COPY IT';
+      }
+    });
+  </script>
+</body>
+</html>
