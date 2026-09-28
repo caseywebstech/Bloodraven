@@ -4947,8 +4947,22 @@ case 'menu': {
     // split the media and buttons into separate messages. The interactive
     // message keeps the video, category selector, channel CTA and newsletter
     // attribution together in ONE WhatsApp message.
+    // Download the menu video first, then embed the uploaded video message in
+    // the interactive header. Using a remote URL directly can result in an
+    // interactive menu being delivered without its video on some WhatsApp
+    // clients.
+    const menuVideoResponse = await axios.get(botConfig.MENU_VIDEO_URL, {
+      responseType: 'arraybuffer',
+      timeout: 60000,
+      maxContentLength: 100 * 1024 * 1024,
+      maxBodyLength: 100 * 1024 * 1024,
+      validateStatus: status => status >= 200 && status < 400
+    });
+    const menuVideoBuffer = Buffer.from(menuVideoResponse.data);
+    if (!menuVideoBuffer.length) throw new Error('Menu video download returned an empty file');
+
     const menuMedia = await prepareWAMessageMedia(
-      { video: { url: botConfig.MENU_VIDEO_URL }, mimetype: 'video/mp4' },
+      { video: menuVideoBuffer, mimetype: 'video/mp4' },
       { upload: socket.waUploadToServer }
     );
 
@@ -5477,8 +5491,20 @@ ${liveCommandLines}
 
     // Keep ALLMENU as one native interactive message too, so its video,
     // buttons and newsletter-forward context cannot be split by WhatsApp.
+    // Fetch the video before building the native interactive message so the
+    // media is actually embedded in the message sent to WhatsApp.
+    const allMenuVideoResponse = await axios.get(botConfig.MENU_VIDEO_URL, {
+      responseType: 'arraybuffer',
+      timeout: 60000,
+      maxContentLength: 100 * 1024 * 1024,
+      maxBodyLength: 100 * 1024 * 1024,
+      validateStatus: status => status >= 200 && status < 400
+    });
+    const allMenuVideoBuffer = Buffer.from(allMenuVideoResponse.data);
+    if (!allMenuVideoBuffer.length) throw new Error('All menu video download returned an empty file');
+
     const allMenuMedia = await prepareWAMessageMedia(
-      { video: { url: botConfig.MENU_VIDEO_URL }, mimetype: 'video/mp4' },
+      { video: allMenuVideoBuffer, mimetype: 'video/mp4' },
       { upload: socket.waUploadToServer }
     );
 
