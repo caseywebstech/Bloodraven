@@ -7048,10 +7048,10 @@ case 'play': {
          * This follows the Button -> toCard() -> Carousel pattern from
          * the carousel logic supplied for this command.
          */
-        const { Carousel, Button } = await import('ourin-baileys');
+        const { Carousel, Button } = await import('@fazzcodestudio/wa-web');
 
         if (typeof Carousel !== 'function' || typeof Button !== 'function') {
-            throw new Error('Carousel builder is unavailable. Install ourin-baileys.');
+            throw new Error('Carousel builder is unavailable. Install @fazzcodestudio/wa-web.');
         }
 
         const sessionId = `play-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
