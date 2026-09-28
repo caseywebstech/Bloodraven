@@ -4927,17 +4927,10 @@ case 'menu': {
       headerType: 1,
     };
     
-    // IMPORTANT: Build the menu as a single native interactive message.
-    // Sending a normal video + legacy `buttons` object can make Baileys/WhatsApp
-    // split the media and buttons into separate messages. The interactive
-    // message keeps the video, category selector, channel CTA and newsletter
-    // attribution together in ONE WhatsApp message.
-    const menuMedia = await prepareWAMessageMedia(
-      { video: { url: botConfig.MENU_VIDEO_URL }, mimetype: 'video/mp4' },
-      { upload: socket.waUploadToServer }
-    );
-
-    const menuFlowButtons = [
+    // Send the menu as ONE native-flow message with the video as its media header.
+    // Do not build the interactive header manually: WhatsApp/Baileys v7 accepts
+    // the media + native flow together through sendMessage().
+    const menuInteractiveButtons = [
       {
         name: 'single_select',
         buttonParamsJson: menuMessage.buttons[0].nativeFlowInfo.paramsJson
@@ -4946,40 +4939,22 @@ case 'menu': {
         name: 'cta_url',
         buttonParamsJson: JSON.stringify({
           display_text: '📢 JOIN CHANNEL',
-          url: botConfig.CHANNEL_LINK
+          url: botConfig.CHANNEL_LINK,
+          merchant_url: botConfig.CHANNEL_LINK
         })
       }
     ];
 
-    const menuContent = {
-      viewOnceMessage: {
-        message: {
-          interactiveMessage: {
-            header: {
-              title: '🎀 BLOOD RAVEN MINI BOT 🎀',
-              hasMediaAttachment: true,
-              videoMessage: menuMedia.videoMessage
-            },
-            body: {
-              text: `*🎀 B͛L͛O͛O͛D͛ R͛A͛V͛E͛N͛ M͛I͛N͛I͛ B͛O͛T͛ 🎀*\n${menuText}`
-            },
-            footer: {
-              text: 'ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ ッ'
-            },
-            nativeFlowMessage: {
-              buttons: menuFlowButtons,
-              messageParamsJson: ''
-            },
-          }
-        }
-      }
-    };
+    await socket.sendMessage(from, {
+      video: { url: botConfig.MENU_VIDEO_URL },
+      mimetype: 'video/mp4',
+      caption: `*🎀 B͛L͛O͛O͛D͛ R͛A͛V͛E͛N͛ M͛I͛N͛I͛ B͛O͛T͛ 🎀*\n${menuText}`,
+      title: '🎀 BLOOD RAVEN MINI BOT 🎀',
+      footer: 'ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ ッ',
+      hasMediaAttachment: true,
+      interactive: menuInteractiveButtons
+    }, { quoted: fakevCard });
 
-    const menuMsg = generateWAMessageFromContent(from, menuContent, {
-      userJid: socket.user?.id,
-      quoted: fakevCard
-    });
-    await socket.relayMessage(from, menuMsg.message, { messageId: menuMsg.key.id });
     await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
     
   } catch (error) {
