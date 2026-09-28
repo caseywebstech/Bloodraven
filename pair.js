@@ -7065,11 +7065,11 @@ case 'play': {
             }
         }
 
-        async function downloadFromToosii(videoUrl) {
-            const endpoint = 'https://www.toosiitech.org/api/download/audio';
+        async function downloadFromKeith(videoUrl) {
+            const endpoint = 'https://apiskeith2-production-3679.up.railway.app/download/ytmp3';
             const apiUrl = `${endpoint}?url=${encodeURIComponent(videoUrl)}`;
 
-            console.log('[PLAY] ToosiiTech API:', apiUrl);
+            console.log('[PLAY] Keith YTMP3 API:', apiUrl);
 
             const response = await axios.get(apiUrl, {
                 responseType: 'arraybuffer',
@@ -7092,7 +7092,7 @@ case 'play': {
                 if (payload) {
                     detail = payload?.message || payload?.error || payload?.status || '';
                 }
-                throw new Error(`ToosiiTech API returned HTTP ${response.status}${detail ? `: ${detail}` : ''}`);
+                throw new Error(`Keith YTMP3 API returned HTTP ${response.status}${detail ? `: ${detail}` : ''}`);
             }
 
             // Some download APIs return the actual MP3 bytes directly.
@@ -7102,7 +7102,7 @@ case 'play': {
                 contentType.includes('mp3') ||
                 contentType.includes('octet-stream')
             ) {
-                if (!rawBuffer.length) throw new Error('ToosiiTech returned an empty audio file');
+                if (!rawBuffer.length) throw new Error('Keith YTMP3 API returned an empty audio file');
                 return { buffer: rawBuffer, url: null };
             }
 
@@ -7113,17 +7113,17 @@ case 'play': {
                 if (rawBuffer.length > 1024) {
                     return { buffer: rawBuffer, url: null };
                 }
-                throw new Error('Invalid response from ToosiiTech audio API');
+                throw new Error('Invalid response from Keith YTMP3 API');
             }
 
             const audioUrl = findAudioUrl(payload);
 
             if (!audioUrl) {
-                console.error('[PLAY] ToosiiTech response:', JSON.stringify(payload).slice(0, 2000));
+                console.error('[PLAY] Keith YTMP3 response:', JSON.stringify(payload).slice(0, 2000));
                 throw new Error(
                     payload?.message ||
                     payload?.error ||
-                    'ToosiiTech did not return an audio download link'
+                    'Keith YTMP3 API did not return an audio download link'
                 );
             }
 
@@ -7233,11 +7233,11 @@ case 'play': {
                     });
 
                     try {
-                        const downloaded = await downloadFromToosii(selectedVideo.url);
+                        const downloaded = await downloadFromKeith(selectedVideo.url);
 
                         let audioBuffer = downloaded.buffer;
 
-                        // If ToosiiTech returned a URL, fetch the actual audio.
+                        // If the API returned a URL, fetch the actual audio.
                         if (!audioBuffer && downloaded.url) {
                             const audioResponse = await axios.get(downloaded.url, {
                                 responseType: 'arraybuffer',
@@ -7271,7 +7271,7 @@ case 'play': {
                             react: { text: '✅', key: messageData.key }
                         });
                     } catch (downloadError) {
-                        console.error('[PLAY] ToosiiTech download error:', downloadError);
+                        console.error('[PLAY] Keith YTMP3 download error:', downloadError);
 
                         await socket.sendMessage(sender, {
                             react: { text: '❌', key: messageData.key }
