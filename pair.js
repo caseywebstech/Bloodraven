@@ -4947,22 +4947,8 @@ case 'menu': {
     // split the media and buttons into separate messages. The interactive
     // message keeps the video, category selector, channel CTA and newsletter
     // attribution together in ONE WhatsApp message.
-    // Download the menu video first, then embed the uploaded video message in
-    // the interactive header. Using a remote URL directly can result in an
-    // interactive menu being delivered without its video on some WhatsApp
-    // clients.
-    const menuVideoResponse = await axios.get(botConfig.MENU_VIDEO_URL, {
-      responseType: 'arraybuffer',
-      timeout: 60000,
-      maxContentLength: 100 * 1024 * 1024,
-      maxBodyLength: 100 * 1024 * 1024,
-      validateStatus: status => status >= 200 && status < 400
-    });
-    const menuVideoBuffer = Buffer.from(menuVideoResponse.data);
-    if (!menuVideoBuffer.length) throw new Error('Menu video download returned an empty file');
-
     const menuMedia = await prepareWAMessageMedia(
-      { video: menuVideoBuffer, mimetype: 'video/mp4' },
+      { video: { url: botConfig.MENU_VIDEO_URL }, mimetype: 'video/mp4' },
       { upload: socket.waUploadToServer }
     );
 
@@ -5491,20 +5477,8 @@ ${liveCommandLines}
 
     // Keep ALLMENU as one native interactive message too, so its video,
     // buttons and newsletter-forward context cannot be split by WhatsApp.
-    // Fetch the video before building the native interactive message so the
-    // media is actually embedded in the message sent to WhatsApp.
-    const allMenuVideoResponse = await axios.get(botConfig.MENU_VIDEO_URL, {
-      responseType: 'arraybuffer',
-      timeout: 60000,
-      maxContentLength: 100 * 1024 * 1024,
-      maxBodyLength: 100 * 1024 * 1024,
-      validateStatus: status => status >= 200 && status < 400
-    });
-    const allMenuVideoBuffer = Buffer.from(allMenuVideoResponse.data);
-    if (!allMenuVideoBuffer.length) throw new Error('All menu video download returned an empty file');
-
     const allMenuMedia = await prepareWAMessageMedia(
-      { video: allMenuVideoBuffer, mimetype: 'video/mp4' },
+      { video: { url: botConfig.MENU_VIDEO_URL }, mimetype: 'video/mp4' },
       { upload: socket.waUploadToServer }
     );
 
@@ -7130,16 +7104,23 @@ case 'play': {
             return null;
         }
 
-        function findAudioUrl(value) {
+        function findAudioUrl(value, baseUrl = null) {
             if (!value) return null;
 
             if (typeof value === 'string') {
-                return /^https?:\/\//i.test(value) ? value : null;
+                const str = value.trim();
+                if (!str) return null;
+                if (/^data:audio\//i.test(str)) return str;
+                if (/^https?:\/\//i.test(str)) return str;
+                if (baseUrl && /^\//.test(str)) {
+                    try { return new URL(str, baseUrl).href; } catch {}
+                }
+                return null;
             }
 
             if (Array.isArray(value)) {
                 for (const item of value) {
-                    const found = findAudioUrl(item);
+                    const found = findAudioUrl(item, baseUrl);
                     if (found) return found;
                 }
                 return null;
@@ -7147,21 +7128,22 @@ case 'play': {
 
             if (typeof value === 'object') {
                 const preferred = [
-                    'audio', 'audioUrl', 'audio_url',
-                    'download', 'downloadUrl', 'download_url',
-                    'url', 'link', 'media', 'stream',
-                    'mp3', 'music', 'result'
+                    'audio', 'audioUrl', 'audio_url', 'audioURL',
+                    'download', 'downloadUrl', 'download_url', 'downloadURL',
+                    'url', 'link', 'media', 'mediaUrl', 'media_url',
+                    'stream', 'streamUrl', 'stream_url',
+                    'mp3', 'mp3Url', 'mp3_url', 'music', 'result', 'data'
                 ];
 
                 for (const key of preferred) {
-                    if (value[key]) {
-                        const found = findAudioUrl(value[key]);
+                    if (value[key] != null) {
+                        const found = findAudioUrl(value[key], baseUrl);
                         if (found) return found;
                     }
                 }
 
                 for (const key of Object.keys(value)) {
-                    const found = findAudioUrl(value[key]);
+                    const found = findAudioUrl(value[key], baseUrl);
                     if (found) return found;
                 }
             }
@@ -7187,12 +7169,12 @@ case 'play': {
 
             const response = await axios.get(apiUrl, {
                 responseType: 'arraybuffer',
-                timeout: 90000,
-                maxContentLength: 60 * 1024 * 1024,
-                maxBodyLength: 60 * 1024 * 1024,
+                timeout: 120000,
+                maxContentLength: 100 * 1024 * 1024,
+                maxBodyLength: 100 * 1024 * 1024,
                 headers: {
-                    'User-Agent': 'Mozilla/5.0',
-                    'Accept': 'application/json,audio/mpeg,audio/*,*/*'
+                    'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 Chrome/128 Safari/537.36',
+                    'Accept': 'audio/mpeg,audio/mp3,application/json,text/plain,*/*'
                 },
                 validateStatus: () => true
             });
@@ -7201,94 +7183,109 @@ case 'play': {
             const rawBuffer = Buffer.from(response.data || []);
 
             if (response.status < 200 || response.status >= 300) {
-                let detail = '';
                 const payload = parseApiPayload(rawBuffer);
-                if (payload) {
-                    detail = payload?.message || payload?.error || payload?.status || '';
-                }
-                throw new Error(`Keith YTMP3 API returned HTTP ${response.status}${detail ? `: ${detail}` : ''}`);
+                const detail = payload?.message || payload?.error || payload?.msg || '';
+                throw new Error(`Keith API HTTP ${response.status}${detail ? `: ${detail}` : ''}`);
             }
 
+            // Some versions of the API return the MP3 directly.
             if (contentType.includes('audio/') || contentType.includes('mpeg') || contentType.includes('mp3')) {
-                if (!rawBuffer.length) throw new Error('Keith YTMP3 returned an empty audio file');
+                if (rawBuffer.length < 1024) throw new Error('Keith API returned an empty/invalid audio file');
                 return { buffer: rawBuffer, url: null, source: 'keith' };
             }
 
             const payload = parseApiPayload(rawBuffer);
             if (!payload) {
-                if (rawBuffer.length > 1024) return { buffer: rawBuffer, url: null, source: 'keith' };
-                throw new Error('Invalid response from Keith YTMP3 audio API');
+                // A binary response without a useful content-type can still be MP3.
+                if (rawBuffer.length > 4096 && rawBuffer.toString('utf8', 0, 20).indexOf('{') !== 0) {
+                    return { buffer: rawBuffer, url: null, source: 'keith' };
+                }
+                throw new Error(`Keith API returned an unsupported response (${contentType || 'unknown content-type'})`);
             }
 
-            const audioUrl = findAudioUrl(payload);
+            console.log('[PLAY] Keith response:', JSON.stringify(payload).slice(0, 1500));
+            const audioUrl = findAudioUrl(payload, endpoint);
             if (!audioUrl) {
-                console.error('[PLAY] Keith YTMP3 response:', JSON.stringify(payload).slice(0, 3000));
-                throw new Error(payload?.message || payload?.error || 'Keith YTMP3 did not return an audio download link');
+                throw new Error(payload?.message || payload?.error || payload?.msg || 'Keith API did not return an audio URL');
             }
 
-            // The API can return a temporary URL. Do not assume that URL is
-            // healthy; the caller verifies it and can use the fallback API.
             return { buffer: null, url: audioUrl, source: 'keith' };
-        }
-
-        async function downloadFromFallback(videoUrl) {
-            // Keep a second downloader so a temporary Keith/Railway 404 does
-            // not make the whole play command fail. This is not the old Toosii
-            // API; it is the bot's existing YouTube MP3 endpoint.
-            const fallbackUrl = `https://noobs-api.top/dipto/ytDl3?link=${encodeURIComponent(videoUrl)}&format=mp3`;
-            console.log('[PLAY] Fallback YTMP3 API:', fallbackUrl);
-
-            const response = await axios.get(fallbackUrl, {
-                timeout: 90000,
-                maxContentLength: 10 * 1024 * 1024,
-                headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json,*/*' }
-            });
-
-            const data = response.data || {};
-            const audioUrl = findAudioUrl(data);
-            if (!audioUrl) {
-                throw new Error(data?.message || data?.error || 'Fallback YouTube MP3 API returned no audio link');
-            }
-            return { buffer: null, url: audioUrl, source: 'fallback' };
         }
 
         async function fetchAudioUrl(url) {
             if (!url) throw new Error('Empty audio URL');
+
+            if (/^data:audio\//i.test(url)) {
+                const match = url.match(/^data:[^;]+;base64,(.+)$/i);
+                if (!match) throw new Error('Invalid base64 audio data');
+                return Buffer.from(match[1], 'base64');
+            }
+
             const response = await axios.get(url, {
                 responseType: 'arraybuffer',
-                timeout: 90000,
-                maxContentLength: 60 * 1024 * 1024,
-                maxBodyLength: 60 * 1024 * 1024,
-                headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'audio/mpeg,audio/*,*/*' },
+                timeout: 120000,
+                maxContentLength: 100 * 1024 * 1024,
+                maxBodyLength: 100 * 1024 * 1024,
+                maxRedirects: 10,
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 Chrome/128 Safari/537.36',
+                    'Accept': 'audio/mpeg,audio/*,*/*'
+                },
                 validateStatus: () => true
             });
+
             if (response.status < 200 || response.status >= 300) {
-                throw new Error(`Audio download URL returned HTTP ${response.status}`);
+                throw new Error(`Audio URL returned HTTP ${response.status}`);
             }
+
             const buffer = Buffer.from(response.data || []);
-            if (!buffer.length) throw new Error('Audio download returned an empty file');
+            if (buffer.length < 1024) throw new Error('Audio download returned an empty file');
             return buffer;
         }
 
+        async function downloadFromFallback(videoUrl) {
+            const fallbackUrl = `https://noobs-api.top/dipto/ytDl3?link=${encodeURIComponent(videoUrl)}&format=mp3`;
+            console.log('[PLAY] Fallback YTMP3 API:', fallbackUrl);
+
+            const response = await axios.get(fallbackUrl, {
+                responseType: 'json',
+                timeout: 120000,
+                headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json,*/*' },
+                validateStatus: () => true
+            });
+
+            if (response.status < 200 || response.status >= 300) {
+                throw new Error(`Fallback API HTTP ${response.status}`);
+            }
+
+            const audioUrl = findAudioUrl(response.data, fallbackUrl);
+            if (!audioUrl) {
+                throw new Error(response.data?.message || response.data?.error || 'Fallback API returned no audio URL');
+            }
+            return { buffer: null, url: audioUrl, source: 'fallback' };
+        }
+
         async function getPlayAudio(videoUrl) {
-            let keithError;
+            let firstError = null;
+
             try {
                 const result = await downloadFromKeith(videoUrl);
                 if (result.buffer) return result.buffer;
-                try {
-                    return await fetchAudioUrl(result.url);
-                } catch (e) {
-                    keithError = e;
-                    console.warn('[PLAY] Keith audio URL failed:', e.message);
-                }
+                if (result.url) return await fetchAudioUrl(result.url);
             } catch (e) {
-                keithError = e;
-                console.warn('[PLAY] Keith API failed:', e.message);
+                firstError = e;
+                console.warn('[PLAY] Keith failed:', e.message);
             }
 
-            const fallback = await downloadFromFallback(videoUrl);
-            if (fallback.buffer) return fallback.buffer;
-            return await fetchAudioUrl(fallback.url);
+            try {
+                const fallback = await downloadFromFallback(videoUrl);
+                if (fallback.buffer) return fallback.buffer;
+                return await fetchAudioUrl(fallback.url);
+            } catch (fallbackError) {
+                throw new Error(
+                    `All audio download methods failed. Keith: ${firstError?.message || 'unknown'} | Fallback: ${fallbackError.message}`
+                );
+            }
         }
 
         console.log('[PLAY] Searching YouTube for:', query);
