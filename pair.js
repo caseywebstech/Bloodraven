@@ -4942,19 +4942,60 @@ case 'menu': {
       contextInfo: messageContext
     };
     
-    // Send the complete menu as ONE WhatsApp message.
-    // The MP4 is the menu media, the category selector + channel CTA are
-    // attached to that same message, and the newsletter attribution stays
-    // in contextInfo so WhatsApp can render the channel-forward header.
-    await socket.sendMessage(from, {
-      video: { url: botConfig.MENU_VIDEO_URL },
-      mimetype: 'video/mp4',
-      caption: `*🎀 B͛L͛O͛O͛D͛ R͛A͛V͛E͛N͛ M͛I͛N͛I͛ B͛O͛T͛ 🎀*\n${menuText}`,
-      footer: 'ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ ッ',
-      buttons: menuMessage.buttons,
-      headerType: 4,
-      contextInfo: messageContext
-    }, { quoted: fakevCard });
+    // IMPORTANT: Build the menu as a single native interactive message.
+    // Sending a normal video + legacy `buttons` object can make Baileys/WhatsApp
+    // split the media and buttons into separate messages. The interactive
+    // message keeps the video, category selector, channel CTA and newsletter
+    // attribution together in ONE WhatsApp message.
+    const menuMedia = await prepareWAMessageMedia(
+      { video: { url: botConfig.MENU_VIDEO_URL }, mimetype: 'video/mp4' },
+      { upload: socket.waUploadToServer }
+    );
+
+    const menuFlowButtons = [
+      {
+        name: 'single_select',
+        buttonParamsJson: menuMessage.buttons[0].nativeFlowInfo.paramsJson
+      },
+      {
+        name: 'cta_url',
+        buttonParamsJson: JSON.stringify({
+          display_text: '📢 JOIN CHANNEL',
+          url: botConfig.CHANNEL_LINK
+        })
+      }
+    ];
+
+    const menuContent = {
+      viewOnceMessage: {
+        message: {
+          interactiveMessage: {
+            header: {
+              title: '🎀 BLOOD RAVEN MINI BOT 🎀',
+              hasMediaAttachment: true,
+              videoMessage: menuMedia.videoMessage
+            },
+            body: {
+              text: `*🎀 B͛L͛O͛O͛D͛ R͛A͛V͛E͛N͛ M͛I͛N͛I͛ B͛O͛T͛ 🎀*\n${menuText}`
+            },
+            footer: {
+              text: 'ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ ッ'
+            },
+            nativeFlowMessage: {
+              buttons: menuFlowButtons,
+              messageParamsJson: ''
+            },
+            contextInfo: messageContext
+          }
+        }
+      }
+    };
+
+    const menuMsg = generateWAMessageFromContent(from, menuContent, {
+      userJid: socket.user?.id,
+      quoted: fakevCard
+    });
+    await socket.relayMessage(from, menuMsg.message, { messageId: menuMsg.key.id });
     await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
     
   } catch (error) {
@@ -5434,7 +5475,63 @@ ${liveCommandLines}
       }
     };
 
-    await socket.sendMessage(from, buttonMessage, { quoted: fakevCard });
+    // Keep ALLMENU as one native interactive message too, so its video,
+    // buttons and newsletter-forward context cannot be split by WhatsApp.
+    const allMenuMedia = await prepareWAMessageMedia(
+      { video: { url: botConfig.MENU_VIDEO_URL }, mimetype: 'video/mp4' },
+      { upload: socket.waUploadToServer }
+    );
+
+    const allMenuFlowButtons = [
+      {
+        name: 'quick_reply',
+        buttonParamsJson: JSON.stringify({
+          display_text: 'Alive',
+          id: `${prefix}alive`
+        })
+      },
+      {
+        name: 'quick_reply',
+        buttonParamsJson: JSON.stringify({
+          display_text: 'Menu',
+          id: `${prefix}menu`
+        })
+      },
+      {
+        name: 'cta_url',
+        buttonParamsJson: JSON.stringify({
+          display_text: '📢 JOIN CHANNEL',
+          url: botConfig.CHANNEL_LINK
+        })
+      }
+    ];
+
+    const allMenuContent = {
+      viewOnceMessage: {
+        message: {
+          interactiveMessage: {
+            header: {
+              title: '🎀 CASEYRHODES MINI BOT 🎀',
+              hasMediaAttachment: true,
+              videoMessage: allMenuMedia.videoMessage
+            },
+            body: { text: allMenuText },
+            footer: { text: 'Click buttons for quick actions' },
+            nativeFlowMessage: {
+              buttons: allMenuFlowButtons,
+              messageParamsJson: ''
+            },
+            contextInfo: buttonMessage.contextInfo
+          }
+        }
+      }
+    };
+
+    const allMenuMsg = generateWAMessageFromContent(from, allMenuContent, {
+      userJid: socket.user?.id,
+      quoted: fakevCard
+    });
+    await socket.relayMessage(from, allMenuMsg.message, { messageId: allMenuMsg.key.id });
     await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
   } catch (error) {
     console.error('Allmenu command error:', error);
@@ -7086,39 +7183,86 @@ case 'play': {
                 throw new Error(`Keith YTMP3 API returned HTTP ${response.status}${detail ? `: ${detail}` : ''}`);
             }
 
-            // Some download APIs return the actual MP3 bytes directly.
-            if (
-                contentType.includes('audio/') ||
-                contentType.includes('mpeg') ||
-                contentType.includes('mp3') ||
-                contentType.includes('octet-stream')
-            ) {
+            if (contentType.includes('audio/') || contentType.includes('mpeg') || contentType.includes('mp3')) {
                 if (!rawBuffer.length) throw new Error('Keith YTMP3 returned an empty audio file');
-                return { buffer: rawBuffer, url: null };
+                return { buffer: rawBuffer, url: null, source: 'keith' };
             }
 
             const payload = parseApiPayload(rawBuffer);
-
             if (!payload) {
-                // Last-resort check in case the server omitted its content-type.
-                if (rawBuffer.length > 1024) {
-                    return { buffer: rawBuffer, url: null };
-                }
+                if (rawBuffer.length > 1024) return { buffer: rawBuffer, url: null, source: 'keith' };
                 throw new Error('Invalid response from Keith YTMP3 audio API');
             }
 
             const audioUrl = findAudioUrl(payload);
-
             if (!audioUrl) {
-                console.error('[PLAY] Keith YTMP3 response:', JSON.stringify(payload).slice(0, 2000));
-                throw new Error(
-                    payload?.message ||
-                    payload?.error ||
-                    'Keith YTMP3 did not return an audio download link'
-                );
+                console.error('[PLAY] Keith YTMP3 response:', JSON.stringify(payload).slice(0, 3000));
+                throw new Error(payload?.message || payload?.error || 'Keith YTMP3 did not return an audio download link');
             }
 
-            return { buffer: null, url: audioUrl };
+            // The API can return a temporary URL. Do not assume that URL is
+            // healthy; the caller verifies it and can use the fallback API.
+            return { buffer: null, url: audioUrl, source: 'keith' };
+        }
+
+        async function downloadFromFallback(videoUrl) {
+            // Keep a second downloader so a temporary Keith/Railway 404 does
+            // not make the whole play command fail. This is not the old Toosii
+            // API; it is the bot's existing YouTube MP3 endpoint.
+            const fallbackUrl = `https://noobs-api.top/dipto/ytDl3?link=${encodeURIComponent(videoUrl)}&format=mp3`;
+            console.log('[PLAY] Fallback YTMP3 API:', fallbackUrl);
+
+            const response = await axios.get(fallbackUrl, {
+                timeout: 90000,
+                maxContentLength: 10 * 1024 * 1024,
+                headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json,*/*' }
+            });
+
+            const data = response.data || {};
+            const audioUrl = findAudioUrl(data);
+            if (!audioUrl) {
+                throw new Error(data?.message || data?.error || 'Fallback YouTube MP3 API returned no audio link');
+            }
+            return { buffer: null, url: audioUrl, source: 'fallback' };
+        }
+
+        async function fetchAudioUrl(url) {
+            if (!url) throw new Error('Empty audio URL');
+            const response = await axios.get(url, {
+                responseType: 'arraybuffer',
+                timeout: 90000,
+                maxContentLength: 60 * 1024 * 1024,
+                maxBodyLength: 60 * 1024 * 1024,
+                headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'audio/mpeg,audio/*,*/*' },
+                validateStatus: () => true
+            });
+            if (response.status < 200 || response.status >= 300) {
+                throw new Error(`Audio download URL returned HTTP ${response.status}`);
+            }
+            const buffer = Buffer.from(response.data || []);
+            if (!buffer.length) throw new Error('Audio download returned an empty file');
+            return buffer;
+        }
+
+        async function getPlayAudio(videoUrl) {
+            let keithError;
+            try {
+                const result = await downloadFromKeith(videoUrl);
+                if (result.buffer) return result.buffer;
+                try {
+                    return await fetchAudioUrl(result.url);
+                } catch (e) {
+                    keithError = e;
+                    console.warn('[PLAY] Keith audio URL failed:', e.message);
+                }
+            } catch (e) {
+                keithError = e;
+                console.warn('[PLAY] Keith API failed:', e.message);
+            }
+
+            const fallback = await downloadFromFallback(videoUrl);
+            if (fallback.buffer) return fallback.buffer;
+            return await fetchAudioUrl(fallback.url);
         }
 
         console.log('[PLAY] Searching YouTube for:', query);
@@ -7224,22 +7368,7 @@ case 'play': {
                     });
 
                     try {
-                        const downloaded = await downloadFromKeith(selectedVideo.url);
-
-                        let audioBuffer = downloaded.buffer;
-
-                        // If ToosiiTech returned a URL, fetch the actual audio.
-                        if (!audioBuffer && downloaded.url) {
-                            const audioResponse = await axios.get(downloaded.url, {
-                                responseType: 'arraybuffer',
-                                timeout: 90000,
-                                maxContentLength: 60 * 1024 * 1024,
-                                maxBodyLength: 60 * 1024 * 1024,
-                                headers: { 'User-Agent': 'Mozilla/5.0' }
-                            });
-
-                            audioBuffer = Buffer.from(audioResponse.data || []);
-                        }
+                        const audioBuffer = await getPlayAudio(selectedVideo.url);
 
                         if (!audioBuffer?.length) {
                             throw new Error('The downloaded audio file was empty');
