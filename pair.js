@@ -4942,28 +4942,19 @@ case 'menu': {
       contextInfo: messageContext
     };
     
-    // Send the menu as ONE rich media message. The newsletter context is
-    // attached directly to the same message so WhatsApp can render the
-    // forwarded-channel attribution on the menu itself.
-    const menuPayload = {
+    // Send the complete menu as ONE WhatsApp message.
+    // The MP4 is the menu media, the category selector + channel CTA are
+    // attached to that same message, and the newsletter attribution stays
+    // in contextInfo so WhatsApp can render the channel-forward header.
+    await socket.sendMessage(from, {
       video: { url: botConfig.MENU_VIDEO_URL },
       mimetype: 'video/mp4',
       caption: `*🎀 B͛L͛O͛O͛D͛ R͛A͛V͛E͛N͛ M͛I͛N͛I͛ B͛O͛T͛ 🎀*\n${menuText}`,
       footer: 'ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ ッ',
       buttons: menuMessage.buttons,
       headerType: 4,
-      contextInfo: {
-        forwardingScore: 1,
-        isForwarded: true,
-        forwardedNewsletterMessageInfo: {
-          newsletterJid: botConfig.NEWSLETTER_JID,
-          newsletterName: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ🌟',
-          serverMessageId: -1
-        }
-      }
-    };
-
-    await socket.sendMessage(from, menuPayload, { quoted: fakevCard });
+      contextInfo: messageContext
+    }, { quoted: fakevCard });
     await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
     
   } catch (error) {
@@ -7102,7 +7093,7 @@ case 'play': {
                 contentType.includes('mp3') ||
                 contentType.includes('octet-stream')
             ) {
-                if (!rawBuffer.length) throw new Error('Keith YTMP3 API returned an empty audio file');
+                if (!rawBuffer.length) throw new Error('Keith YTMP3 returned an empty audio file');
                 return { buffer: rawBuffer, url: null };
             }
 
@@ -7113,7 +7104,7 @@ case 'play': {
                 if (rawBuffer.length > 1024) {
                     return { buffer: rawBuffer, url: null };
                 }
-                throw new Error('Invalid response from Keith YTMP3 API');
+                throw new Error('Invalid response from Keith YTMP3 audio API');
             }
 
             const audioUrl = findAudioUrl(payload);
@@ -7123,7 +7114,7 @@ case 'play': {
                 throw new Error(
                     payload?.message ||
                     payload?.error ||
-                    'Keith YTMP3 API did not return an audio download link'
+                    'Keith YTMP3 did not return an audio download link'
                 );
             }
 
@@ -7237,7 +7228,7 @@ case 'play': {
 
                         let audioBuffer = downloaded.buffer;
 
-                        // If the API returned a URL, fetch the actual audio.
+                        // If ToosiiTech returned a URL, fetch the actual audio.
                         if (!audioBuffer && downloaded.url) {
                             const audioResponse = await axios.get(downloaded.url, {
                                 responseType: 'arraybuffer',
