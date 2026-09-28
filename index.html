@@ -1,1715 +1,248 @@
-
-
-<!DOCTYPE html><html lang="en">  <head>  
-  <meta charset="UTF-8">  
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">  
-  <meta name="theme-color" content="#0d0c12">  <meta property="og:title" content="BLOOD RAVEN · PAIR">  
-  <meta property="og:description" content="BLOOD RAVEN by Caseyrhodestech">  
-  <meta name="twitter:card" content="summary_large_image">  <title>Blood Raven Mini Bot · Pair</title>  <!-- Ad script removed -->  <script src="./js/file-0.js"></script>  <style>  
-    @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap');  :root {  
-  color-scheme: dark;  
-  --bg: #0b0914;  
-  --card: rgba(18, 15, 30, 0.86);  
-  --line: rgba(172, 136, 255, 0.18);  
-  --ink: #f0edff;  
-  --muted: #a79bc2;  
-  --blood: #ff3b5c;  
-  --blood2: #b71c3a;  
-  --glow: #f23b6b;  
-  --success: #6ef0b0;  
-  --blue: #7b6eff;  
-}  
-
-* {  
-  box-sizing: border-box;  
-  margin: 0;  
-}  
-
-html {  
-  min-height: 100%;  
-  background: var(--bg);  
-}  
-
-body {  
-  min-height: 100vh;  
-  margin: 0;  
-  color: var(--ink);  
-  font-family: 'Manrope', system-ui, sans-serif;  
-  background:  
-    radial-gradient(  
-      ellipse 70% 50% at 20% 20%,  
-      #2a1535 0%,  
-      transparent 65%  
-    ),  
-    radial-gradient(  
-      ellipse 60% 45% at 90% 80%,  
-      #3d1a2b 0%,  
-      transparent 55%  
-    ),  
-    var(--bg);  
-  background-attachment: fixed;  
-}  
-
-body.modal-open {  
-  overflow: hidden;  
-  overscroll-behavior: none;  
-}  
-
-button,  
-input {  
-  font: inherit;  
-}  
-
-button {  
-  cursor: pointer;  
-  border: none;  
-  background: none;  
-}  
-
-a {  
-  -webkit-tap-highlight-color: transparent;  
-}  
-
-.shell {  
-  min-height: 100vh;  
-  display: grid;  
-  place-items: center;  
-  padding: 24px 16px;  
-}  
-
-.card {  
-  width: min(100%, 560px);  
-  overflow: hidden;  
-  border: 1px solid var(--line);  
-  border-radius: 32px;  
-  background: var(--card);  
-  box-shadow:  
-    0 30px 70px rgba(0,0,0,0.7),  
-    0 0 0 1px rgba(255,59,92,0.08);  
-  backdrop-filter: blur(14px);  
-  -webkit-backdrop-filter: blur(14px);  
-}  
-
-.subscribe-modal {  
-  position: fixed;  
-  inset: 0;  
-  z-index: 9999;  
-  display: grid;  
-  place-items: center;  
-  padding: 20px;  
-  background: rgba(8,5,16,0.84);  
-  backdrop-filter: blur(14px);  
-  -webkit-backdrop-filter: blur(14px);  
-  opacity: 1;  
-  visibility: visible;  
-  transition:  
-    opacity .3s ease,  
-    visibility .3s ease;  
-}  
-
-.subscribe-modal[hidden] {  
-  display: none;  
-}  
-
-.subscribe-modal.closing {  
-  opacity: 0;  
-  visibility: hidden;  
-}  
-
-.subscribe-card {  
-  position: relative;  
-  width: min(100%, 410px);  
-  padding: 32px 26px 26px;  
-  border: 1px solid rgba(255,59,92,.32);  
-  border-radius: 30px;  
-  text-align: center;  
-  background:  
-    radial-gradient(  
-      circle at 50% 0%,  
-      rgba(255,59,92,.15),  
-      transparent 43%  
-    ),  
-    linear-gradient(  
-      145deg,  
-      #1d132b,  
-      #0d0916  
-    );  
-  box-shadow:  
-    0 35px 90px rgba(0,0,0,.85),  
-    0 0 45px rgba(255,40,80,.12);  
-  animation:  
-    popupIn .38s  
-    cubic-bezier(.2,.8,.2,1);  
-}  
-
-@keyframes popupIn {  
-  from {  
-    opacity: 0;  
-    transform:  
-      translateY(18px)  
-      scale(.94);  
-  }  
-
-  to {  
-    opacity: 1;  
-    transform:  
-      translateY(0)  
-      scale(1);  
-  }  
-}  
-
-.subscribe-close {  
-  position: absolute;  
-  top: 13px;  
-  right: 13px;  
-  width: 39px;  
-  height: 39px;  
-  display: grid;  
-  place-items: center;  
-  border-radius: 50%;  
-  color: #bcaed0;  
-  background: rgba(255,255,255,.055);  
-  border: 1px solid rgba(255,255,255,.08);  
-  font-size: 24px;  
-  font-weight: 400;  
-  line-height: 1;  
-  transition:  
-    background .18s,  
-    color .18s,  
-    transform .18s;  
-}  
-
-.subscribe-close:hover {  
-  color: #fff;  
-  background: rgba(255,59,92,.18);  
-  border-color: rgba(255,59,92,.3);  
-  transform: rotate(90deg);  
-}  
-
-.subscribe-close:active {  
-  transform:  
-    scale(.92)  
-    rotate(90deg);  
-}  
-
-.subscribe-icon {  
-  position: relative;  
-  width: 74px;  
-  height: 74px;  
-  margin: 0 auto 16px;  
-  display: grid;  
-  place-items: center;  
-  border-radius: 22px;  
-  background:  
-    linear-gradient(  
-      145deg,  
-      #ff365e,  
-      #9e1234  
-    );  
-  box-shadow:  
-    0 14px 35px rgba(255,28,60,.3),  
-    inset 0 1px 0 rgba(255,255,255,.2);  
-  overflow: hidden;  
-}  
-
-.subscribe-icon svg {  
-  width: 47px;  
-  height: 47px;  
-  filter:  
-    drop-shadow(  
-      0 5px 10px  
-      rgba(0,0,0,.3)  
-    );  
-}  
-
-.subscribe-card h2 {  
-  margin: 0 0 8px;  
-  font-size: 27px;  
-  font-weight: 800;  
-  letter-spacing: -.025em;  
-  background:  
-    linear-gradient(  
-      135deg,  
-      #ff8ba5,  
-      #ff365d  
-    );  
-  -webkit-background-clip: text;  
-  -webkit-text-fill-color: transparent;  
-  background-clip: text;  
-}  
-
-.subscribe-card p {  
-  margin: 0 0 22px;  
-  color: #b7a8d4;  
-  font-size: 14px;  
-  line-height: 1.6;  
-  font-weight: 500;  
-}  
-
-.subscribe-actions {  
-  display: grid;  
-  gap: 11px;  
-}  
-
-.subscribe-button {  
-  position: relative;  
-  display: flex;  
-  align-items: center;  
-  gap: 13px;  
-  min-height: 61px;  
-  padding: 8px 17px;  
-  border-radius: 17px;  
-  color: #fff;  
-  text-decoration: none;  
-  text-align: left;  
-  background:  
-    linear-gradient(  
-      135deg,  
-      #e82f52,  
-      #a91437  
-    );  
-  box-shadow:  
-    0 12px 28px  
-    rgba(255,40,70,.25);  
-  transition:  
-    transform .18s,  
-    box-shadow .18s,  
-    filter .18s;  
-}  
-
-.subscribe-button:hover {  
-  transform: translateY(-2px);  
-  filter: brightness(1.08);  
-  box-shadow:  
-    0 16px 35px  
-    rgba(255,40,70,.38);  
-}  
-
-.subscribe-button:active {  
-  transform: scale(.98);  
-}  
-
-.social-icon {  
-  flex: 0 0 44px;  
-  width: 44px;  
-  height: 44px;  
-  display: grid;  
-  place-items: center;  
-  border-radius: 13px;  
-  background: rgba(255,255,255,.13);  
-  border: 1px solid rgba(255,255,255,.16);  
-  box-shadow:  
-    inset 0 1px 0  
-    rgba(255,255,255,.16);  
-}  
-
-.social-icon svg {  
-  width: 26px;  
-  height: 26px;  
-  display: block;  
-}  
-
-.social-text {  
-  display: flex;  
-  flex-direction: column;  
-  gap: 2px;  
-  min-width: 0;  
-}  
-
-.social-title {  
-  font-size: 14px;  
-  font-weight: 800;  
-  white-space: nowrap;  
-  overflow: hidden;  
-  text-overflow: ellipsis;  
-}  
-
-.social-subtitle {  
-  font-size: 11px;  
-  color: rgba(255,255,255,.7);  
-  font-weight: 600;  
-}  
-
-.channel-button {  
-  background:  
-    linear-gradient(  
-      135deg,  
-      #168d55,  
-      #086c3d  
-    );  
-  box-shadow:  
-    0 12px 28px  
-    rgba(18,160,91,.2);  
-}  
-
-.channel-button:hover {  
-  box-shadow:  
-    0 16px 35px  
-    rgba(18,160,91,.34);  
-}  
-
-.dismiss-button {  
-  min-height: 47px;  
-  border-radius: 15px;  
-  color: #b8a6d6;  
-  font-size: 13px;  
-  font-weight: 700;  
-  background: rgba(255,255,255,.035);  
-  border: 1px solid rgba(255,255,255,.07);  
-  transition: .18s;  
-}  
-
-.dismiss-button:hover {  
-  color: #fff;  
-  background: rgba(255,59,92,.1);  
-  border-color: rgba(255,59,92,.2);  
-}  
-
-.topbar {  
-  display: flex;  
-  align-items: center;  
-  justify-content: space-between;  
-  padding: 20px 24px;  
-  border-bottom: 1px solid var(--line);  
-}  
-
-.brand {  
-  display: flex;  
-  align-items: center;  
-  gap: 12px;  
-  font-size: 15px;  
-  font-weight: 800;  
-  letter-spacing: -.02em;  
-}  
-
-.logo {  
-  display: grid;  
-  place-items: center;  
-  width: 34px;  
-  height: 34px;  
-  border-radius: 12px;  
-  background:  
-    linear-gradient(  
-      135deg,  
-      #ff4b6e,  
-      #b81a3e  
-    );  
-  color: #fff;  
-  font-size: 18px;  
-  box-shadow:  
-    0 6px 18px  
-    rgba(255,30,60,.3);  
-}  
-
-.channel-link {  
-  display: flex;  
-  align-items: center;  
-  gap: 6px;  
-  color: #c6b5e6;  
-  font-size: 12px;  
-  font-weight: 700;  
-  text-decoration: none;  
-  padding: 6px 12px;  
-  border-radius: 30px;  
-  background: rgba(255,59,92,.06);  
-  border: 1px solid rgba(255,59,92,.12);  
-  transition: .18s;  
-}  
-
-.channel-link:hover {  
-  color: #fff;  
-  background: rgba(255,59,92,.15);  
-  border-color: rgba(255,59,92,.3);  
-}  
-
-main {  
-  padding: 34px 24px 24px;  
-}  
-
-.eyebrow {  
-  display: inline-flex;  
-  align-items: center;  
-  gap: 8px;  
-  color: #b8a5da;  
-  font-size: 11px;  
-  font-weight: 800;  
-  letter-spacing: .12em;  
-  text-transform: uppercase;  
-}  
-
-.status-dot {  
-  width: 8px;  
-  height: 8px;  
-  border-radius: 50%;  
-  background: var(--success);  
-  box-shadow:  
-    0 0 0 4px  
-    rgba(110,240,176,.15);  
-}  
-
-h1 {  
-  margin: 12px 0 8px;  
-  font-size: clamp(30px,8vw,42px);  
-  line-height: 1.1;  
-  letter-spacing: -.045em;  
-  font-weight: 800;  
-}  
-
-h1 span {  
-  background:  
-    linear-gradient(  
-      135deg,  
-      #ff6b8a,  
-      #f73b5e  
-    );  
-  -webkit-background-clip: text;  
-  -webkit-text-fill-color: transparent;  
-  background-clip: text;  
-}  
-
-.intro {  
-  max-width: 430px;  
-  margin: 0 0 28px;  
-  color: var(--muted);  
-  font-size: 14px;  
-  line-height: 1.7;  
-  font-weight: 500;  
-}  
-
-label {  
-  display: block;  
-  margin-bottom: 8px;  
-  color: #ddd1f5;  
-  font-size: 13px;  
-  font-weight: 700;  
-}  
-
-.number-wrap {  
-  position: relative;  
-}  
-
-.prefix {  
-  position: absolute;  
-  inset: 1px auto 1px 1px;  
-  display: none;  
-  align-items: center;  
-  gap: 8px;  
-  padding: 0 12px 0 10px;  
-  border-radius: 40px 0 0 40px;  
-  color: #ddd1f5;  
-  font: 500 13px 'DM Mono', monospace;  
-  background: rgba(20,12,40,.7);  
-  backdrop-filter: blur(4px);  
-  pointer-events: none;  
-  border-right: 1px solid rgba(255,255,255,.05);  
-}  
-
-.prefix.visible {  
-  display: flex;  
-}  
-
-.flag {  
-  width: 22px;  
-  height: 15px;  
-  object-fit: cover;  
-  border-radius: 4px;  
-}  
-
-input {  
-  width: 100%;  
-  min-height: 60px;  
-  padding: 0 18px;  
-  border: 1px solid #3d2a56;  
-  border-radius: 40px;  
-  outline: none;  
-  color: #fff;  
-  font: 500 16px 'DM Mono', monospace;  
-  letter-spacing: .04em;  
-  background: rgba(8,4,18,.6);  
-  backdrop-filter: blur(4px);  
-  transition:  
-    border-color .2s,  
-    box-shadow .2s,  
-    padding .2s;  
-}  
-
-input.with-prefix {  
-  padding-left: 100px;  
-}  
-
-input::placeholder {  
-  color: #6b5a81;  
-  font-family: 'Manrope', sans-serif;  
-  font-size: 14px;  
-  letter-spacing: 0;  
-  font-weight: 500;  
-}  
-
-input:focus {  
-  border-color: var(--blood);  
-  box-shadow:  
-    0 0 0 4px  
-    rgba(255,59,92,.15);  
-}  
-
-input.invalid {  
-  border-color: #ff4b6e;  
-  box-shadow:  
-    0 0 0 4px  
-    rgba(255,59,92,.2);  
-}  
-
-.helper-row {  
-  min-height: 24px;  
-  display: flex;  
-  justify-content: space-between;  
-  gap: 10px;  
-  padding: 8px 4px 0;  
-  font-size: 11px;  
-  font-weight: 700;  
-}  
-
-.helper {  
-  color: #a088b6;  
-}  
-
-.helper.error {  
-  color: #ff6b8a;  
-}  
-
-.counter {  
-  color: #8d79b0;  
-  font-family: 'DM Mono', monospace;  
-}  
-
-.counter.ready {  
-  color: var(--success);  
-}  
-
-.primary {  
-  width: 100%;  
-  min-height: 56px;  
-  margin-top: 20px;  
-  border-radius: 40px;  
-  color: #fff;  
-  font-size: 15px;  
-  font-weight: 800;  
-  background:  
-    linear-gradient(  
-      135deg,  
-      #e62e52,  
-      #b4123a  
-    );  
-  box-shadow:  
-    0 12px 30px  
-    rgba(255,30,60,.25);  
-  transition:  
-    transform .18s,  
-    filter .18s,  
-    opacity .18s;  
-}  
-
-.primary:hover:not(:disabled) {  
-  filter: brightness(1.1);  
-  transform: translateY(-2px);  
-}  
-
-.primary:disabled {  
-  opacity: .6;  
-  cursor: wait;  
-}  
-
-.loader {  
-  display: inline-block;  
-  width: 16px;  
-  height: 16px;  
-  margin-right: 10px;  
-  border: 2.5px solid rgba(255,255,255,.25);  
-  border-top-color: #fff;  
-  border-radius: 50%;  
-  animation: spin .7s linear infinite;  
-}  
-
-@keyframes spin {  
-  to {  
-    transform: rotate(360deg);  
-  }  
-}  
-
-.notice {  
-  display: none;  
-  margin-top: 16px;  
-  padding: 12px 16px;  
-  border: 1px solid rgba(255,59,92,.25);  
-  border-radius: 30px;  
-  color: #ffccd6;  
-  background: rgba(100,20,40,.2);  
-  backdrop-filter: blur(4px);  
-  font-size: 13px;  
-  font-weight: 600;  
-}  
-
-.notice.show {  
-  display: block;  
-}  
-
-.result {  
-  display: none;  
-  margin-top: 28px;  
-  padding: 22px 20px 20px;  
-  border: 1px solid rgba(110,240,176,.2);  
-  border-radius: 28px;  
-  background: rgba(20,60,50,.08);  
-  backdrop-filter: blur(4px);  
-  animation: reveal .3s ease-out;  
-}  
-
-.result.show {  
-  display: block;  
-}  
-
-@keyframes reveal {  
-  from {  
-    opacity: 0;  
-    transform: translateY(10px);  
-  }  
-
-  to {  
-    opacity: 1;  
-    transform: none;  
-  }  
-}  
-
-.result-head {  
-  display: flex;  
-  align-items: center;  
-  justify-content: space-between;  
-  margin-bottom: 14px;  
-}  
-
-.result-title {  
-  display: flex;  
-  align-items: center;  
-  gap: 8px;  
-  margin: 0;  
-  color: #bcf5dc;  
-  font-size: 12px;  
-  font-weight: 800;  
-  letter-spacing: .08em;  
-  text-transform: uppercase;  
-}  
-
-.code {  
-  overflow: auto;  
-  padding: 16px;  
-  border: 1px solid rgba(110,240,176,.15);  
-  border-radius: 40px;  
-  color: #f0edff;  
-  font: 700 clamp(24px,8vw,36px) 'DM Mono', monospace;  
-  letter-spacing: .1em;  
-  text-align: center;  
-  background: rgba(0,0,0,.3);  
-  backdrop-filter: blur(4px);  
-}  
-
-.copy {  
-  width: 100%;  
-  min-height: 44px;  
-  margin-top: 14px;  
-  border-radius: 40px;  
-  color: #d6f7ea;  
-  background: rgba(110,240,176,.08);  
-  border: 1px solid rgba(110,240,176,.15);  
-  font-size: 13px;  
-  font-weight: 800;  
-  transition: .18s;  
-}  
-
-.copy:hover {  
-  background: rgba(110,240,176,.18);  
-}  
-
-.steps {  
-  margin-top: 30px;  
-  padding-top: 24px;  
-  border-top: 1px solid var(--line);  
-}  
-
-.steps h2 {  
-  margin: 0 0 14px;  
-  font-size: 14px;  
-  font-weight: 800;  
-  letter-spacing: -.01em;  
-  color: #d4c6f0;  
-}  
-
-ol {  
-  display: grid;  
-  gap: 12px;  
-  padding: 0;  
-  margin: 0;  
-  list-style: none;  
-  counter-reset: steps;  
-}  
-
-li {  
-  display: grid;  
-  grid-template-columns: 24px minmax(0,1fr);  
-  gap: 12px;  
-  align-items: start;  
-  color: #b2a2cc;  
-  font-size: 13px;  
-  line-height: 1.55;  
-  font-weight: 500;  
-  counter-increment: steps;  
-}  
-
-li::before {  
-  content: counter(steps);  
-  display: grid;  
-  place-items: center;  
-  width: 24px;  
-  height: 24px;  
-  border: 1px solid #4e3a6b;  
-  border-radius: 40px;  
-  color: #f0d6ff;  
-  font: 600 12px 'DM Mono', monospace;  
-  background: rgba(255,59,92,.04);  
-}  
-
-li strong {  
-  color: #f0e5ff;  
-}  
-
-footer {  
-  padding: 16px 24px;  
-  border-top: 1px solid var(--line);  
-  color: #7b699b;  
-  font-size: 11px;  
-  font-weight: 600;  
-  text-align: center;  
-  letter-spacing: .03em;  
-}  
-
-@media (max-width: 440px) {  
-  .shell {  
-    padding: 0;  
-  }  
-
-  .card {  
-    min-height: 100vh;  
-    border-radius: 0;  
-    border-inline: 0;  
-  }  
-
-  .topbar {  
-    padding: 16px 18px;  
-  }  
-
-  main {  
-    padding: 28px 18px 20px;  
-  }  
-
-  footer {  
-    padding: 14px 18px;  
-  }  
-
-  .subscribe-modal {  
-    padding: 16px;  
-  }  
-
-  .subscribe-card {  
-    padding: 30px 20px 22px;  
-    border-radius: 27px;  
-  }  
-
-  .subscribe-icon {  
-    width: 68px;  
-    height: 68px;  
-  }  
-
-  .social-title {  
-    font-size: 13px;  
-  }  
-}  
-
-@media (prefers-reduced-motion: reduce) {  
-  *,  
-  *::before,  
-  *::after {  
-    animation-duration: .01ms !important;  
-    transition-duration: .01ms !important;  
-  }  
+<!DOCTYPE html>
+<html lang="en" data-accent="lime" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<link rel="icon" href="/api/web-logo" onerror="this.href='./img/file-0.img'">
+<link rel="apple-touch-icon" href="/api/web-logo">
+<title>BLOOD RAVEN MINI BOT</title>
+<style>
+*,
+*::before,
+*::after{margin:0;padding:0;box-sizing:border-box}
+:root,html[data-accent="lime"]{--lime:#ccff00;--lime-soft:rgba(204,255,0,.15);--lime-dim:#a3cc00;--lime-glow:rgba(204,255,0,.35);--text-on-lime:#000}
+html[data-accent="orange"]{--lime:#ff8a00;--lime-soft:rgba(255,138,0,.15);--lime-dim:#cc6e00;--lime-glow:rgba(255,138,0,.35);--text-on-lime:#000}
+html[data-accent="cyan"]{--lime:#00e0ff;--lime-soft:rgba(0,224,255,.15);--lime-dim:#00b3cc;--lime-glow:rgba(0,224,255,.35);--text-on-lime:#000}
+html[data-accent="violet"]{--lime:#a855f7;--lime-soft:rgba(168,85,247,.16);--lime-dim:#7e3ac8;--lime-glow:rgba(168,85,247,.4);--text-on-lime:#fff}
+html[data-accent="rose"]{--lime:#ff2d78;--lime-soft:rgba(255,45,120,.16);--lime-dim:#cc1a5a;--lime-glow:rgba(255,45,120,.4);--text-on-lime:#fff}
+:root{--bg:#000;--card:#0a0a0a;--card-2:#141414;--text:#fff;--text-2:#a0a0a0;--text-3:#555;--border:#1f1f1f;--border-2:#2c2c2c;--green:#00ff88;--r-lg:30px;--r-md:22px;--r-pill:999px;--safe-b:env(safe-area-inset-bottom,0px)}
+html[data-theme="light"]{--bg:#fff;--card:#fff;--card-2:#f2f2f2;--text:#000;--text-2:#5a5a5a;--text-3:#a0a0a0;--border:#ebebeb;--border-2:#d8d8d8}
+html,body{height:100%}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',system-ui,sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh;overflow-x:hidden;transition:background .35s,color .35s;letter-spacing:-.01em}
+::-webkit-scrollbar{width:0;height:0}
+#canvas{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.8}
+.mesh{position:fixed;inset:0;z-index:1;pointer-events:none;background:radial-gradient(ellipse 65% 45% at 15% 18%,var(--lime-soft) 0%,transparent 60%),radial-gradient(ellipse 55% 45% at 85% 78%,var(--lime-soft) 0%,transparent 60%),radial-gradient(ellipse 45% 40% at 50% 100%,var(--lime-soft) 0%,transparent 60%);opacity:.55}
+.grid{position:fixed;inset:0;z-index:1;pointer-events:none;background-image:linear-gradient(rgba(255,255,255,.022) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.022) 1px,transparent 1px);background-size:52px 52px}
+html[data-theme="light"] .grid{background-image:linear-gradient(rgba(0,0,0,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,0,0,.03) 1px,transparent 1px)}
+.page{position:relative;z-index:10;width:100%;max-width:520px;margin:0 auto;padding:20px 20px calc(40px + var(--safe-b));animation:riseUp .9s cubic-bezier(.16,1,.3,1) both}
+@keyframes riseUp{from{opacity:0;transform:translateY(44px)}to{opacity:1;transform:none}}
+.topbar{display:flex;align-items:center;gap:8px;margin-bottom:40px}
+.topbar-pill{display:flex;align-items:center;gap:12px;padding:6px 16px 6px 6px;background:var(--card);border-radius:var(--r-pill);border:1px solid var(--border);flex:1;min-width:0}
+.logo-wrap{width:40px;height:40px;border-radius:50%;background:var(--lime);color:var(--text-on-lime);display:grid;place-items:center;flex-shrink:0;overflow:hidden;position:relative;box-shadow:0 4px 20px var(--lime-glow);animation:logoPulse 2.6s ease-in-out infinite}
+.logo-wrap img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%;z-index:2}
+.logo-fallback{z-index:1;display:grid;place-items:center}
+.logo-fallback svg{width:20px;height:20px;fill:currentColor}
+@keyframes logoPulse{0%,100%{box-shadow:0 4px 20px var(--lime-glow)}50%{box-shadow:0 6px 30px var(--lime-glow),0 0 0 8px transparent}}
+.topbar-info{min-width:0;flex:1}
+.topbar-name{font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.15}
+.topbar-sub{font-size:10.5px;color:var(--text-2);margin-top:2px;display:flex;align-items:center;gap:5px}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:dotPulse 2.2s ease-in-out infinite;flex-shrink:0}
+@keyframes dotPulse{50%{opacity:.35}}
+.icon-btn{width:42px;height:42px;border-radius:50%;background:var(--card);border:1px solid var(--border);display:grid;place-items:center;color:var(--text);cursor:pointer;flex-shrink:0;transition:transform .25s cubic-bezier(.34,1.56,.64,1),border-color .2s;-webkit-tap-highlight-color:transparent}
+.icon-btn:active{transform:scale(.92)}.icon-btn:hover{border-color:var(--border-2)}
+.icon-btn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.85;stroke-linecap:round;stroke-linejoin:round}
+.hero{text-align:center;margin-bottom:40px}
+.version-tag{display:inline-flex;align-items:center;gap:6px;background:var(--lime-soft);border:1px solid var(--lime);border-radius:var(--r-pill);padding:5px 14px;font-size:10.5px;font-weight:800;color:var(--lime);letter-spacing:1.4px;margin-bottom:22px;text-transform:uppercase}
+.version-tag svg{width:12px;height:12px;fill:currentColor}
+.hero-ring{width:96px;height:96px;margin:0 auto 22px;border-radius:28px;background:var(--card);border:1px solid var(--border);display:grid;place-items:center;position:relative;overflow:hidden;animation:heroGlow 4s ease-in-out infinite}
+.hero-ring img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:28px;z-index:2}
+@keyframes heroGlow{0%,100%{box-shadow:0 0 32px var(--lime-glow)}50%{box-shadow:0 0 52px var(--lime-glow),0 0 100px var(--lime-soft)}}
+.hero-ring::before{content:'';position:absolute;inset:-2px;border-radius:30px;background:conic-gradient(from 0deg,var(--lime),transparent 40%,var(--lime) 70%,transparent);-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:destination-out;mask-composite:exclude;padding:2px;animation:ringRotate 4s linear infinite;z-index:0}
+.hero-emoji{z-index:1;position:relative;display:grid;place-items:center;color:var(--lime)}
+.hero-emoji svg{width:44px;height:44px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+@keyframes ringRotate{to{transform:rotate(360deg)}}
+.hero h1{font-size:2rem;font-weight:900;letter-spacing:-1.5px;line-height:1.1;color:var(--text);margin-bottom:10px}
+.hero h1 .lime{color:var(--lime)}
+.hero-sub{font-size:10.5px;color:var(--text-2);letter-spacing:3px;text-transform:uppercase;display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:22px}
+.stats-row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.stat-pill{display:flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-pill);padding:6px 14px;font-size:11px;font-weight:700;color:var(--text-2)}
+.pill-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}.d-lime{background:var(--lime);box-shadow:0 0 6px var(--lime)}.d-green{background:var(--green);box-shadow:0 0 6px var(--green)}.d-muted{background:var(--text-3)}
+.divider{display:flex;align-items:center;gap:14px;margin:36px 0 20px;color:var(--text-3);font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:1.8px}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,transparent,var(--border-2),transparent)}
+.cards{display:flex;flex-direction:column;gap:12px}
+.card{display:flex;align-items:center;gap:16px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px 22px;text-decoration:none;color:var(--text);position:relative;overflow:hidden;transition:transform .3s cubic-bezier(.34,1.56,.64,1),border-color .3s,box-shadow .3s,background .3s;-webkit-tap-highlight-color:transparent}
+.card::before{content:'';position:absolute;top:0;left:-100%;width:55%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.06),transparent);transition:left .6s;pointer-events:none}
+.card:hover::before{left:160%}.card::after{content:'';position:absolute;left:0;top:22%;bottom:22%;width:3px;border-radius:3px;opacity:0;transition:opacity .3s}
+.card.admin:hover::after{opacity:1;background:#8b5cf6}.card.pair:hover::after{opacity:1;background:#25d366}.card.dashboard:hover::after{opacity:1;background:#22d3ee}
+.card.admin:hover{transform:translateX(6px);border-color:rgba(139,92,246,.55);background:rgba(139,92,246,.06);box-shadow:0 8px 40px rgba(139,92,246,.15)}
+.card.pair:hover{transform:translateX(6px);border-color:rgba(37,211,102,.55);background:rgba(37,211,102,.06);box-shadow:0 8px 40px rgba(37,211,102,.15)}
+.card.dashboard:hover{transform:translateX(6px);border-color:rgba(34,211,238,.55);background:rgba(34,211,238,.06);box-shadow:0 8px 40px rgba(34,211,238,.15)}
+.card-icon{width:52px;height:52px;flex-shrink:0;border-radius:16px;display:grid;place-items:center;background:var(--card-2);border:1px solid var(--border);transition:transform .35s cubic-bezier(.34,1.56,.64,1),box-shadow .3s,background .3s,border-color .3s}
+.card-icon svg{width:28px;height:28px}.stroke-icon{stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}.fill-icon{fill:currentColor}
+.card.admin .card-icon{background:rgba(139,92,246,.14);border-color:rgba(139,92,246,.32);color:#a78bfa}.card.pair .card-icon{background:rgba(37,211,102,.14);border-color:rgba(37,211,102,.32);color:#25d366}.card.dashboard .card-icon{background:rgba(34,211,238,.14);border-color:rgba(34,211,238,.32);color:#22d3ee}
+.card.admin:hover .card-icon,.card.pair:hover .card-icon,.card.dashboard:hover .card-icon{transform:scale(1.08) rotate(-4deg)}
+.card-body{flex:1;min-width:0}.card-title-text{font-size:15px;font-weight:800;color:var(--text);margin-bottom:3px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}.card-desc{font-size:12px;color:var(--text-2);line-height:1.45}
+.card-badge{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:1px;padding:3px 9px;border-radius:var(--r-pill)}
+.badge-admin{background:rgba(139,92,246,.18);color:#a78bfa;border:1px solid rgba(139,92,246,.4)}.badge-new{background:rgba(34,211,238,.15);color:#22d3ee;border:1px solid rgba(34,211,238,.4)}
+.card-arrow{width:32px;height:32px;border-radius:50%;flex-shrink:0;display:grid;place-items:center;color:var(--text-3);background:var(--card-2);border:1px solid var(--border);transition:all .25s}.card-arrow svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.socials{display:flex;justify-content:center;gap:10px;margin-top:40px;margin-bottom:20px}.social{width:44px;height:44px;border-radius:50%;background:var(--card);border:1px solid var(--border);display:grid;place-items:center;color:var(--text-2);text-decoration:none;transition:transform .25s cubic-bezier(.34,1.56,.64,1),border-color .2s,color .2s,background .2s;-webkit-tap-highlight-color:transparent}.social:hover{transform:translateY(-3px)}.social svg{width:20px;height:20px}.social.gh svg{fill:var(--text)}.social.wa svg{fill:#25d366}
+.footer{text-align:center;font-size:11px;color:var(--text-3);letter-spacing:.3px;line-height:1.7}.footer a{color:var(--text-2);text-decoration:none;font-weight:700}
+.audio-fab{position:fixed;bottom:calc(20px + var(--safe-b));left:20px;z-index:150;width:46px;height:46px;border-radius:50%;background:var(--card);border:1px solid var(--border-2);display:none;place-items:center;color:var(--text);cursor:pointer;box-shadow:0 8px 30px rgba(0,0,0,.7);transition:transform .2s,border-color .2s,color .2s}.audio-fab.show{display:grid}.audio-fab:hover{border-color:var(--lime);color:var(--lime)}.audio-fab:active{transform:scale(.92)}.audio-fab svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.85;stroke-linecap:round;stroke-linejoin:round}.audio-fab.playing{border-color:var(--lime);color:var(--lime);animation:audioPulse 2s ease-in-out infinite}@keyframes audioPulse{50%{box-shadow:0 8px 30px rgba(0,0,0,.7),0 0 0 10px transparent}}
+.accent-popover{position:fixed;top:74px;right:20px;z-index:160;background:var(--card);border:1px solid var(--border-2);border-radius:var(--r-md);padding:14px;box-shadow:0 12px 40px rgba(0,0,0,.8);display:none}.accent-popover.show{display:block;animation:riseUp .3s cubic-bezier(.16,1,.3,1) both}.accent-popover-label{font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:1.4px;margin-bottom:10px}.color-chips{display:flex;gap:10px}.color-chip{width:34px;height:34px;border-radius:50%;border:2px solid transparent;cursor:pointer;padding:0}.color-chip.on{border-color:var(--text);box-shadow:0 0 0 4px var(--bg),0 0 0 6px var(--text)}.color-chip.lime{background:#ccff00}.color-chip.orange{background:#ff8a00}.color-chip.cyan{background:#00e0ff}.color-chip.violet{background:#a855f7}.color-chip.rose{background:#ff2d78}
+@media(max-width:420px){.hero h1{font-size:1.7rem}.card{padding:17px}.card-title-text{font-size:14px}}
+</style>
+</head>
+<body>
+<canvas id="canvas"></canvas><div class="mesh"></div><div class="grid"></div>
+
+<div class="page">
+  <div class="topbar">
+    <div class="topbar-pill">
+      <div class="logo-wrap">
+        <img id="brandLogo" src="./img/file-0.img" alt="" onerror="this.style.display='none'">
+        <span class="logo-fallback"><svg viewBox="0 0 24 24"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"></path></svg></span>
+      </div>
+      <div class="topbar-info">
+        <div class="topbar-name">BLOOD RAVEN MINI BOT</div>
+        <div class="topbar-sub"><span class="live-dot"></span>System Live · Multi-Session</div>
+      </div>
+    </div>
+    <button class="icon-btn" onclick="toggleThemeMode()" aria-label="Theme"><svg id="themeIcon" viewBox="0 0 24 24"></svg></button>
+    <button class="icon-btn" onclick="toggleAccentPicker()" aria-label="Accent color"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><circle cx="9" cy="9" r="1.5" fill="currentColor" stroke="none"></circle><circle cx="15" cy="9" r="1.5" fill="currentColor" stroke="none"></circle><circle cx="9" cy="15" r="1.5" fill="currentColor" stroke="none"></circle><circle cx="15" cy="15" r="1.5" fill="currentColor" stroke="none"></circle></svg></button>
+  </div>
+
+  <div class="hero">
+    <div class="version-tag"><svg viewBox="0 0 24 24"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"></path></svg>v2.5.0 PREMIUM</div>
+    <div class="hero-ring">
+      <img id="heroLogo" src="./img/file-1.img" alt="" onerror="this.style.display='none'">
+      <span class="hero-emoji"><svg viewBox="0 0 24 24"><rect x="3.5" y="8" width="17" height="12" rx="3"></rect><path d="M12 2v4"></path><circle cx="12" cy="2" r=".8" fill="currentColor" stroke="none"></circle><circle cx="9" cy="14" r="1.1" fill="currentColor" stroke="none"></circle><circle cx="15" cy="14" r="1.1" fill="currentColor" stroke="none"></circle><path d="M9.5 17.5h5M2 12v3M22 12v3"></path></svg></span>
+    </div>
+    <h1>BLOOD RAVEN MINI BOT<span class="lime">.</span></h1>
+    <div class="hero-sub"><span class="live-dot"></span>System Online · Multi-Session<span class="live-dot"></span></div>
+    <div class="stats-row">
+      <div class="stat-pill"><span class="pill-dot d-green"></span>Operational</div>
+      <div class="stat-pill"><span class="pill-dot d-lime"></span>Multi-Bot Ready</div>
+      <div class="stat-pill"><span class="pill-dot d-muted"></span>Isolated Sessions</div>
+    </div>
+  </div>
+
+  <div class="divider">Choose your portal</div>
+  <div class="cards">
+    <a href="/admin-login" class="card admin">
+      <div class="card-icon"><svg class="stroke-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg></div>
+      <div class="card-body"><div class="card-title-text">Admin Panel <span class="card-badge badge-admin">Admin</span></div><div class="card-desc">Manage all sessions, view logs, server stats and health reports</div></div>
+      <div class="card-arrow"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"></path></svg></div>
+    </a>
+    <a href="/pair" class="card pair">
+      <div class="card-icon"><svg class="fill-icon" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.198.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"></path></svg></div>
+      <div class="card-body"><div class="card-title-text">Pair BLOOD RAVEN MINI BOT</div><div class="card-desc">Link your WhatsApp number and set up your personal bot in seconds</div></div>
+      <div class="card-arrow"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"></path></svg></div>
+    </a>
+    <a href="/user-login" class="card dashboard">
+      <div class="card-icon"><svg class="stroke-icon" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div>
+      <div class="card-body"><div class="card-title-text">My Dashboard <span class="card-badge badge-new">New</span></div><div class="card-desc">Control your bot settings, toggles, auto-reply, logs and more</div></div>
+      <div class="card-arrow"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"></path></svg></div>
+    </a>
+  </div>
+
+  <div class="socials">
+    <a href="https://google.com" target="_blank" rel="noopener" class="social" aria-label="Google"><svg viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"></path><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"></path><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"></path><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"></path></svg></a>
+    <a href="https://github.com" target="_blank" rel="noopener" class="social gh" aria-label="GitHub"><svg class="fill-icon" viewBox="0 0 24 24"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"></path></svg></a>
+    <a href="https://whatsapp.com/channel/0029Vb8fAvuIXnltjmHYm31j" target="_blank" rel="noopener" class="social wa" aria-label="WhatsApp"><svg class="fill-icon" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347M12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0012.05 0Z"></path></svg></a>
+  </div>
+  <div class="footer">© 2026 BLOOD RAVEN MINI BOT · All rights reserved</div>
+</div>
+
+<audio id="webAudio" loop preload="auto" playsinline src="https://files.catbox.moe/lg45qk.mp3" style="display:none"></audio>
+<button class="audio-fab" id="audioFab" onclick="toggleWebAudio()" aria-label="Play audio">
+  <svg id="audioIcon" viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4z"></path><path d="m23 9-6 6"></path><path d="m17 9 6 6"></path></svg>
+</button>
+
+<div class="accent-popover" id="accentPopover">
+  <div class="accent-popover-label">Accent color</div>
+  <div class="color-chips">
+    <button class="color-chip lime" onclick="applyAccent('lime')" aria-label="Lime"></button>
+    <button class="color-chip orange" onclick="applyAccent('orange')" aria-label="Orange"></button>
+    <button class="color-chip cyan" onclick="applyAccent('cyan')" aria-label="Cyan"></button>
+    <button class="color-chip violet" onclick="applyAccent('violet')" aria-label="Violet"></button>
+    <button class="color-chip rose" onclick="applyAccent('rose')" aria-label="Rose"></button>
+  </div>
+</div>
+
+<script>
+function applyThemeMode(t){
+  document.documentElement.setAttribute('data-theme',t);
+  const icon=document.getElementById('themeIcon');
+  if(icon)icon.innerHTML=t==='light'
+    ?'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>'
+    :'<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+  const meta=document.querySelector('meta[name="theme-color"]');
+  if(meta)meta.setAttribute('content',t==='light'?'#ffffff':'#000000');
 }
-
-</style></head><body class="modal-open"><audio  
-id="bloodRavenAudio"  
-src="https://files.catbox.moe/lg45qk.mp3"  
-preload="auto"  
-loop  
-playsinline>
-</audio>
-
-  <script>  
-    (() => {  
-      const audio =  
-        document.getElementById('bloodRavenAudio');  
-  
-      audio.volume = 0.7;  
-  
-      const startAudio = () => {  
-        audio.play().catch(() => {});  
-      };  
-  
-      if (document.readyState === 'loading') {  
-        document.addEventListener(  
-          'DOMContentLoaded',  
-          startAudio,  
-          { once: true }  
-        );  
-      } else {  
-        startAudio();  
-      }  
-  
-      const unlockAudio = () => {  
-        audio.play().catch(() => {});  
-      };  
-  
-      document.addEventListener(  
-        'click',  
-        unlockAudio,  
-        {  
-          once: true,  
-          passive: true  
-        }  
-      );  
-  
-      document.addEventListener(  
-        'touchstart',  
-        unlockAudio,  
-        {  
-          once: true,  
-          passive: true  
-        }  
-      );  
-  
-      document.addEventListener(  
-        'keydown',  
-        unlockAudio,  
-        {  
-          once: true  
-        }  
-      );  
-    })();  
-  </script>  <div  id="subscribeModal"  
-class="subscribe-modal"  
-role="dialog"  
-aria-modal="true"  
-aria-labelledby="subscribeTitle"><div class="subscribe-card">
-
-<button  
-id="closeSubscribe"  
-class="subscribe-close"  
-type="button"  
-aria-label="Close popup">
-×
-</button>
-
-  <div  
-    class="subscribe-icon"  
-    aria-hidden="true">  <svg  
-  viewBox="0 0 64 64"  
-  xmlns="http://www.w3.org/2000/svg">  
-
-  <path  
-    d="  
-      M14 45  
-      C18 37 17 27 23 20  
-      C29 13 40 12 48 17  
-      L42 23  
-      C49 24 54 29 55 35  
-      C50 33 46 33 42 35  
-      C39 43 32 49 22 51  
-      C18 51 15 49 14 45Z  
-    "  
-    fill="#fff"/>  
-
-  <path  
-    d="  
-      M43 23  
-      L59 26  
-      L47 31  
-      L41 29Z  
-    "  
-    fill="#f7d8df"/>  
-
-  <circle  
-    cx="42"  
-    cy="23"  
-    r="2.7"  
-    fill="#ff3158"/>  
-
-  <path  
-    d="  
-      M18 41  
-      C25 37 31 35 38 35  
-      C34 43 27 48 19 48  
-      C17 47 16 44 18 41Z  
-    "  
-    fill="#d9d2df"/>  
-
-  <path  
-    d="  
-      M28 18  
-      C23 13 18 12 13 13  
-      C18 16 20 21 21 25  
-      Z  
-    "  
-    fill="#eee8f3"/>  
-
-</svg>
-
-  </div>    <h2 id="subscribeTitle">  
-    Blood Raven  
-  </h2>    <p>  
-    Follow our channels for Mini Bot  
-    updates, pairing guides and new tools.  
-    <br>  
-    <span style="color:#ff6b8a;">  
-      Caseyrhodestech  
-    </span>  
-  </p>    <div class="subscribe-actions">  <a  
-  class="subscribe-button"  
-  href="https://www.youtube.com/@Caseyrhodestech"  
-  target="_blank"  
-  rel="noopener noreferrer"  
-  aria-label="Follow Blood Raven on YouTube">  
-
-  <span  
-    class="social-icon"  
-    aria-hidden="true">  
-
-    <svg  
-      viewBox="0 0 24 24"  
-      xmlns="http://www.w3.org/2000/svg">  
-
-      <path  
-        fill="#fff"  
-        d="  
-          M23.5 6.2  
-          A3.1 3.1 0 0 0 21.3 4  
-          C19.4 3.5 12 3.5 12 3.5  
-          S4.6 3.5 2.7 4  
-          A3.1 3.1 0 0 0 .5 6.2  
-          C0 8.1 0 12 0 12  
-          S0 15.9 .5 17.8  
-          A3.1 3.1 0 0 0 2.7 20  
-          C4.6 20.5 12 20.5 12 20.5  
-          S19.4 20.5 21.3 20  
-          A3.1 3.1 0 0 0 23.5 17.8  
-          C24 15.9 24 12 24 12  
-          S24 8.1 23.5 6.2Z"/>  
-
-      <path  
-        fill="#e82f52"  
-        d="  
-          M9.6 8.2  
-          L16.5 12  
-          L9.6 15.8  
-          Z"/>  
-    </svg>  
-  </span>  
-
-  <span class="social-text">  
-    <span class="social-title">  
-      Follow on YouTube  
-    </span>  
-
-    <span class="social-subtitle">  
-      Caseyrhodestech  
-    </span>  
-  </span>  
-</a>  
-
-<a  
-  class="subscribe-button channel-button"  
-  href="https://whatsapp.com/channel/0029Vb8OqiTBA1f4o3LW9s1V"  
-  target="_blank"  
-  rel="noopener noreferrer"  
-  aria-label="Follow Blood Raven WhatsApp Channel">  
-
-  <span  
-    class="social-icon"  
-    aria-hidden="true">  
-
-    <svg  
-      viewBox="0 0 24 24"  
-      xmlns="http://www.w3.org/2000/svg">  
-
-      <path  
-        fill="#fff"  
-        d="  
-          M20.5 3.5  
-          A11.9 11.9 0 0 0 12.05 0  
-          C5.47 0 .12 5.34 .12 11.92  
-          C.12 14.02 .67 16.07 1.72 17.87  
-          L.02 24  
-          L6.29 22.36  
-          A11.9 11.9 0 0 0 12.05 23.83  
-          H12.06  
-          C18.64 23.83 23.99 18.48 23.99 11.91  
-          C23.99 8.73 22.75 5.74 20.5 3.5Z"/>  
-
-      <path  
-        fill="#086c3d"  
-        d="  
-          M17.84 14.43  
-          C17.53 14.27 16.01 13.53 15.73 13.43  
-          C15.45 13.33 15.24 13.27 15.03 13.59  
-          C14.82 13.9 14.23 14.59 14.05 14.79  
-          C13.87 15 13.69 15.03 13.2 14.91  
-          C12.89 14.75 11.88 14.42 10.69 13.35  
-          C9.76 12.52 9.13 11.5 8.95 11.19  
-          C8.77 10.88 8.93 10.71 9.09 10.55  
-          C9.23 10.41 9.4 10.19 9.56 10.01  
-          C9.72 9.83 9.77 9.7 9.87 9.49  
-          C9.97 9.28 9.92 9.1 9.84 8.94  
-          C9.76 8.78 9.14 7.25 8.88 6.62  
-          C8.63 6.01 8.38 6.09 8.18 6.08  
-          H7.58  
-          C7.37 6.08 7.03 6.16 6.75 6.47  
-          C6.47 6.78 5.66 7.53 5.66 9.05  
-          C5.66 10.57 6.78 12.04 6.93 12.25  
-          C7.09 12.46 9.13 15.61 12.26 16.96  
-          C13.01 17.28 13.59 17.47 14.04 17.61  
-          C14.79 17.85 15.47 17.82 16.01 17.74  
-          C16.61 17.65 17.84 16.99 18.1 16.26  
-          C18.36 15.53 18.36 14.91 18.28 14.78  
-          C18.2 14.65 18.15 14.59 17.84 14.43Z"/>  
-    </svg>  
-  </span>  
-
-  <span class="social-text">  
-    <span class="social-title">  
-      Follow WhatsApp Channel  
-    </span>  
-
-    <span class="social-subtitle">  
-      Blood Raven Updates  
-    </span>  
-  </span>  
-</a>  
-
-<button  
-  id="dismissSubscribe"  
-  class="dismiss-button"  
-  type="button">  
-  Continue to Mini Bot  
-</button>
-
-  </div>  
-</div>    </div>  <div class="shell"><section  
-  class="card"  
-  aria-labelledby="page-title">    <header class="topbar">  <div class="brand">  
-
-  <span  
-    class="logo"  
-    aria-hidden="true">  
-    🤖  
-  </span>  
-
-  Blood Raven  
-
-  <span  
-    style="  
-      color:#9a84b5;  
-      font-weight:600;  
-    ">  
-    / Mini Bot  
-  </span>  
-
-</div>  
-
-<a  
-  class="channel-link"  
-  href="https://www.youtube.com/@Caseyrhodestech"  
-  target="_blank"  
-  rel="noopener noreferrer">  
-  BLOOD RAVEN.  
-</a>
-
-  </header>    <main>  <div class="eyebrow">  
-  <span class="status-dot"></span>  
-  Pair a device  
-</div>  
-
-<h1 id="page-title">  
-  Get your  
-  <span>WhatsApp</span>  
-  bot.  
-</h1>  
-
-<p class="intro">  
-  Enter the full international number,  
-  no plus sign or spaces.  
-  <br>  
-  Example:  
-  2547063956321  
-</p>  
-
-<form  
-  id="pairingForm"  
-  novalidate>  
-
-  <label for="phoneNumber">  
-    WhatsApp number  
-  </label>  
-
-  <div class="number-wrap">  
-
-    <span  
-      id="prefix"  
-      class="prefix">  
-
-      <img  
-        id="flag"  
-        class="flag"  
-        alt="">  
-
-      <span id="countryCode"></span>  
-
-    </span>  
-
-    <input  
-      id="phoneNumber"  
-      inputmode="numeric"  
-      autocomplete="tel"  
-      placeholder="e.g. 2547063956321"  
-      aria-describedby="inputHelp inputError"  
-      maxlength="15">  
-  </div>  
-
-  <div class="helper-row">  
-
-    <span  
-      id="inputHelp"  
-      class="helper">  
-      Country code required  
-    </span>  
-
-    <span  
-      id="inputError"  
-      class="helper error"  
-      role="alert">  
-    </span>  
-
-    <span  
-      id="counter"  
-      class="counter">  
-      0 / 15  
-    </span>  
-
-  </div>  
-
-  <button  
-    id="requestButton"  
-    class="primary"  
-    type="submit">  
-    Request pairing code  
-  </button>  
-
-</form>  
-
-<div  
-  id="notice"  
-  class="notice"  
-  role="alert">  
-</div>  
-
-<section  
-  id="result"  
-  class="result"  
-  aria-live="polite"  
-  aria-labelledby="resultTitle">  
-
-  <div class="result-head">  
-
-    <h2  
-      id="resultTitle"  
-      class="result-title">  
-
-      <span class="status-dot"></span>  
-
-      Pairing code ready  
-
-    </h2>  
-
-  </div>  
-
-  <div  
-    id="pairingCode"  
-    class="code">  
-    --------  
-  </div>  
-
-  <button  
-    id="copyButton"  
-    class="copy"  
-    type="button">  
-    Copy code  
-  </button>  
-
-</section>  
-
-<section  
-  class="steps"  
-  aria-labelledby="howTitle">  
-
-  <h2 id="howTitle">  
-    Finish in WhatsApp  
-  </h2>  
-
-  <ol>  
-
-    <li>  
-      <span>  
-        Open WhatsApp →  
-        <strong>  
-          Settings → Linked Devices  
-        </strong>.  
-      </span>  
-    </li>  
-
-    <li>  
-      <span>  
-        Tap  
-        <strong>  
-          Link a device  
-        </strong>  
-        and select the phone number option.  
-      </span>  
-    </li>  
-
-    <li>  
-      <span>  
-        Paste the code above to complete  
-        the connection.  
-      </span>  
-    </li>  
-
-  </ol>  
-
-</section>
-
-  </main>    <footer>  
-    Blood Raven · Secure pairing request  
-  </footer>  </section>    </div>  <script>  
-    (() => {  'use strict';  
-
-  const input =  
-    document.getElementById('phoneNumber');  
-
-  const form =  
-    document.getElementById('pairingForm');  
-
-  const prefix =  
-    document.getElementById('prefix');  
-
-  const flag =  
-    document.getElementById('flag');  
-
-  const countryCode =  
-    document.getElementById('countryCode');  
-
-  const counter =  
-    document.getElementById('counter');  
-
-  const inputError =  
-    document.getElementById('inputError');  
-
-  const notice =  
-    document.getElementById('notice');  
-
-  const button =  
-    document.getElementById('requestButton');  
-
-  const result =  
-    document.getElementById('result');  
-
-  const code =  
-    document.getElementById('pairingCode');  
-
-  const copy =  
-    document.getElementById('copyButton');  
-
-  const subscribeModal =  
-    document.getElementById('subscribeModal');  
-
-  const dismissSubscribe =  
-    document.getElementById('dismissSubscribe');  
-
-  const closeSubscribe =  
-    document.getElementById('closeSubscribe');  
-
-  let detectedCountry = null;  
-  let subscriptionDismissed = false;  
-
-  const onlyDigits = value =>  
-    String(value || '')  
-      .replace(/\D/g, '')  
-      .slice(0, 15);  
-
-  const showNotice = message => {  
-    notice.textContent = message;  
-    notice.classList.add('show');  
-  };  
-
-  const hideNotice = () => {  
-    notice.classList.remove('show');  
-  };  
-
-  const setInputError = message => {  
-
-    inputError.textContent = message;  
-
-    input.classList.toggle(  
-      'invalid',  
-      Boolean(message)  
-    );  
-
-  };  
-
-  function dismissSubscriptionPrompt() {  
-
-    if (subscriptionDismissed) {  
-      return;  
-    }  
-
-    subscriptionDismissed = true;  
-
-    const audio =  
-      document.getElementById(  
-        'bloodRavenAudio'  
-      );  
-
-    if (audio) {  
-      audio.play().catch(() => {});  
-    }  
-
-    subscribeModal.classList.add(  
-      'closing'  
-    );  
-
-    setTimeout(() => {  
-
-      subscribeModal.hidden = true;  
-
-      document.body.classList.remove(  
-        'modal-open'  
-      );  
-
-      if (input) {  
-        input.focus();  
-      }  
-
-    }, 220);  
-
-  }  
-
-  dismissSubscribe.addEventListener(  
-    'click',  
-    dismissSubscriptionPrompt  
-  );  
-
-  closeSubscribe.addEventListener(  
-    'click',  
-    dismissSubscriptionPrompt  
-  );  
-
-  document.addEventListener(  
-    'keydown',  
-    event => {  
-
-      if (  
-        event.key === 'Escape' &&  
-        !subscribeModal.hidden  
-      ) {  
-        dismissSubscriptionPrompt();  
-      }  
-
-    }  
-  );  
-
-  subscribeModal.addEventListener(  
-    'click',  
-    event => {  
-
-      if (  
-        event.target ===  
-        subscribeModal  
-      ) {  
-        dismissSubscriptionPrompt();  
-      }  
-
-    }  
-  );  
-
-  function refreshInput() {  
-
-    input.value =  
-      onlyDigits(input.value);  
-
-    const value =  
-      input.value;  
-
-    detectedCountry = null;  
-
-    if (  
-      value.length >= 4 &&  
-      window.libphonenumber  
-    ) {  
-
-      try {  
-
-        const parsed =  
-          libphonenumber  
-            .parsePhoneNumberWithError(  
-              `+${value}`  
-            );  
-
-        if (  
-          parsed &&  
-          parsed.country  
-        ) {  
-
-          detectedCountry =  
-            parsed.country;  
-
-          countryCode.textContent =  
-            parsed.country;  
-
-          flag.src =  
-            `https://flagsapi.com/${parsed.country}/flat/64.png`;  
-
-          flag.alt =  
-            `${parsed.country} flag`;  
-
-          prefix.classList.add(  
-            'visible'  
-          );  
-
-          input.classList.add(  
-            'with-prefix'  
-          );  
-
-        }  
-
-      } catch (_) {}  
-
-    }  
-
-    if (!detectedCountry) {  
-
-      prefix.classList.remove(  
-        'visible'  
-      );  
-
-      input.classList.remove(  
-        'with-prefix'  
-      );  
-
-    }  
-
-    counter.textContent =  
-      `${value.length} / 15`;  
-
-    counter.classList.toggle(  
-      'ready',  
-      value.length >= 10  
-    );  
-
-    setInputError('');  
-    hideNotice();  
-
-    result.classList.remove(  
-      'show'  
-    );  
-
-  }  
-
-  async function copyCode() {  
-
-    const value =  
-      code.textContent.trim();  
-
-    if (  
-      !value ||  
-      value === '--------'  
-    ) {  
-      return;  
-    }  
-
-    try {  
-
-      await navigator.clipboard.writeText(  
-        value  
-      );  
-
-      copy.textContent =  
-        'Copied ✓';  
-
-      setTimeout(() => {  
-
-        copy.textContent =  
-          'Copy code';  
-
-      }, 1800);  
-
-    } catch (_) {  
-
-      showNotice(  
-        'Copy failed. Select and copy manually.'  
-      );  
-
-    }  
-
-  }  
-
-  input.addEventListener(  
-    'input',  
-    refreshInput  
-  );  
-
-  copy.addEventListener(  
-    'click',  
-    copyCode  
-  );  
-
-  form.addEventListener(  
-    'submit',  
-    async event => {  
-
-      event.preventDefault();  
-
-      const audio =  
-        document.getElementById(  
-          'bloodRavenAudio'  
-        );  
-
-      if (audio) {  
-        audio.play().catch(() => {});  
-      }  
-
-      const number =  
-        onlyDigits(input.value);  
-
-      if (  
-        number.length < 10  
-      ) {  
-
-        setInputError(  
-          'Enter at least 10 digits'  
-        );  
-
-        input.focus();  
-
-        return;  
-
-      }  
-
-      setInputError('');  
-      hideNotice();  
-
-      result.classList.remove(  
-        'show'  
-      );  
-
-      button.disabled = true;  
-
-      button.innerHTML =  
-        '<span class="loader"></span>Requesting code…';  
-
-      try {  
-
-        const response =  
-          await fetch(  
-            `/code?number=${encodeURIComponent(number)}`,  
-            {  
-              method: 'GET',  
-              headers: {  
-                'Accept':  
-                  'application/json'  
-              },  
-              cache: 'no-store'  
-            }  
-          );  
-
-        const data =  
-          await response  
-            .json()  
-            .catch(() => ({}));  
-
-        if (  
-          !response.ok ||  
-          !data?.code  
-        ) {  
-
-          throw new Error(  
-            data?.error ||  
-            data?.message ||  
-            (  
-              data?.status ===  
-              'already_connected'  
-
-                ? 'This number is already connected to the bot.'  
-
-                : 'Pairing request failed.'  
-            )  
-          );  
-
-        }  
-
-        code.textContent =  
-          data.code;  
-
-        result.classList.add(  
-          'show'  
-        );  
-
-        requestAnimationFrame(() => {  
-
-          result.scrollIntoView({  
-            behavior: 'smooth',  
-            block: 'center'  
-          });  
-
-        });  
-
-        await copyCode();  
-
-      } catch (error) {  
-
-        showNotice(  
-          error?.message ||  
-          'Service unavailable. Try again shortly.'  
-        );  
-
-      } finally {  
-
-        button.disabled = false;  
-
-        button.textContent =  
-          'Request pairing code';  
-
-      }  
-
-    }  
-  );  
-
-  refreshInput();  
-
+function toggleThemeMode(){
+  const next=(document.documentElement.getAttribute('data-theme')||'dark')==='light'?'dark':'light';
+  applyThemeMode(next);localStorage.setItem('bloodraven_theme_mode',next);
+}
+const ACCENTS=['lime','orange','cyan','violet','rose'];
+function applyAccent(a){
+  if(!ACCENTS.includes(a))a='lime';
+  document.documentElement.setAttribute('data-accent',a);
+  localStorage.setItem('bloodraven_accent',a);
+  document.querySelectorAll('.color-chip').forEach(el=>el.classList.toggle('on',el.classList.contains(a)));
+}
+function toggleAccentPicker(){document.getElementById('accentPopover').classList.toggle('show')}
+document.addEventListener('click',e=>{
+  const pop=document.getElementById('accentPopover');
+  if(!pop||!pop.classList.contains('show'))return;
+  if(pop.contains(e.target))return;
+  if(e.target.closest('button[onclick="toggleAccentPicker()"]'))return;
+  pop.classList.remove('show');
+});
+applyThemeMode(localStorage.getItem('bloodraven_theme_mode')||'dark');
+applyAccent(localStorage.getItem('bloodraven_accent')||'lime');
+
+(function(){
+  const c=document.getElementById('canvas'),ctx=c.getContext('2d');
+  let W,H,particles=[];
+  function rgb(){
+    const v=getComputedStyle(document.documentElement).getPropertyValue('--lime').trim(),m=v.match(/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
+    return m?[parseInt(m[1],16),parseInt(m[2],16),parseInt(m[3],16)]:[204,255,0];
+  }
+  function resize(){W=c.width=innerWidth;H=c.height=innerHeight}
+  function seed(){
+    const [r,g,b]=rgb();
+    particles=Array.from({length:60},()=>({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.6+.3,dx:(Math.random()-.5)*.28,dy:-(Math.random()*.3+.06),o:Math.random()*.38+.05,col:Math.random()<.75?`rgb(${r},${g},${b})`:'#fff'}));
+  }
+  resize();seed();addEventListener('resize',()=>{resize();seed()});
+  new MutationObserver(seed).observe(document.documentElement,{attributes:true,attributeFilter:['data-accent']});
+  function frame(){
+    ctx.clearRect(0,0,W,H);
+    particles.forEach(p=>{ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle=p.col;ctx.globalAlpha=p.o;ctx.fill();p.x+=p.dx;p.y+=p.dy;if(p.y<-6){p.y=H+6;p.x=Math.random()*W}if(p.x<-6)p.x=W+6;if(p.x>W+6)p.x=-6});
+    ctx.globalAlpha=1;requestAnimationFrame(frame);
+  }frame();
 })();
 
-</script></body>
-
+let webAudioPlaying=false;
+const audio=document.getElementById('webAudio');
+const fab=document.getElementById('audioFab');
+function updateAudioFab(){
+  const icon=document.getElementById('audioIcon');
+  if(webAudioPlaying){
+    fab.classList.add('show','playing');
+    icon.innerHTML='<path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>';
+  }else{
+    fab.classList.add('show');fab.classList.remove('playing');
+    icon.innerHTML='<path d="M11 5 6 9H2v6h4l5 4z"/><path d="m23 9-6 6"/><path d="m17 9 6 6"/>';
+  }
+}
+function toggleWebAudio(){
+  if(webAudioPlaying){audio.pause();webAudioPlaying=false;updateAudioFab();return}
+  audio.volume=.55;
+  audio.play().then(()=>{webAudioPlaying=true;updateAudioFab()}).catch(()=>updateAudioFab());
+}
+function startAudioOnce(){
+  audio.volume=.55;
+  audio.play().then(()=>{webAudioPlaying=true;updateAudioFab()}).catch(()=>{updateAudioFab()});
+  ['click','touchstart','keydown'].forEach(e=>document.removeEventListener(e,startAudioOnce));
+}
+updateAudioFab();
+audio.addEventListener('play',()=>{webAudioPlaying=true;updateAudioFab()});
+audio.addEventListener('pause',()=>{webAudioPlaying=false;updateAudioFab()});
+audio.addEventListener('error',()=>fab.classList.remove('show'));
+audio.play().then(()=>{webAudioPlaying=true;updateAudioFab()}).catch(()=>{
+  ['click','touchstart','keydown'].forEach(e=>document.addEventListener(e,startAudioOnce,{once:true}));
+});
+</script>
+</body>
 </html>
