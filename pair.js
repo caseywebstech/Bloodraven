@@ -6843,198 +6843,373 @@ case 'songlyrics': {
 //case play damn am good
 case 'play': {
     try {
-        await socket.sendMessage(sender, { react: { text: '🎶', key: msg.key } });
+        await socket.sendMessage(sender, { react: { text: '🎠', key: msg.key } });
 
-        const yts = require('yt-search');
         const q = msg.message?.conversation ||
                   msg.message?.extendedTextMessage?.text ||
                   msg.message?.imageMessage?.caption ||
                   msg.message?.videoMessage?.caption || '';
-        const query = q.split(' ').slice(1).join(' ').trim();
+
+        const query = q.replace(/^[.\/!]play\s*/i, '').trim();
 
         if (!query) {
             return await socket.sendMessage(sender, {
-                text: `🎵 *ᴀᴜᴅɪᴏ ᴘʟᴀʏᴇʀ*\n\nᴘʟᴇᴀsᴇ ᴘʀᴏᴠɪᴅᴇ ᴀ sᴏɴɢ ɴᴀᴍᴇ.\n\n*ᴜsᴀɢᴇ:* \`${prefix}play <song name>\`\n\n*ᴇxᴀᴍᴘʟᴇ:*\n\`${prefix}play Faded\`\n\`${prefix}play Shape of You\`\n\n> ${botConfig.BOT_FOOTER}`,
+                text: `🎵 *ᴘʟᴀʏ ᴍᴜsɪᴄ*\n\nᴘʟᴇᴀsᴇ ᴘʀᴏᴠɪᴅᴇ ᴀ sᴏɴɢ ɴᴀᴍᴇ.\n\n*ᴜsᴀɢᴇ:* \`${prefix}play <song name>\`\n\n*ᴇxᴀᴍᴘʟᴇ:*\n\`${prefix}play Faded\`\n\`${prefix}play Shape of You\`\n\n> ${botConfig.BOT_FOOTER}`,
                 quoted: msg
             });
+        }
+
+        function clip(s, n) {
+            s = String(s || '');
+            return s.length > n ? s.slice(0, n - 2) + '..' : s;
+        }
+
+        async function fetchThumb(url) {
+            if (!url) return null;
+            try {
+                const res = await axios.get(url, {
+                    responseType: 'arraybuffer',
+                    timeout: 15000,
+                    maxContentLength: 8 * 1024 * 1024,
+                    maxBodyLength: 8 * 1024 * 1024,
+                    headers: { 'User-Agent': 'Mozilla/5.0' }
+                });
+                return Buffer.from(res.data);
+            } catch {
+                return null;
+            }
+        }
+
+        function extractSelectedId(message) {
+            if (!message) return null;
+
+            if (message.templateButtonReplyMessage?.selectedId) {
+                return message.templateButtonReplyMessage.selectedId;
+            }
+
+            if (message.buttonsResponseMessage?.selectedButtonId) {
+                return message.buttonsResponseMessage.selectedButtonId;
+            }
+
+            if (message.listResponseMessage?.singleSelectReply?.selectedRowId) {
+                return message.listResponseMessage.singleSelectReply.selectedRowId;
+            }
+
+            if (message.interactiveResponseMessage) {
+                const nf = message.interactiveResponseMessage.nativeFlowResponseMessage;
+
+                if (nf?.paramsJson) {
+                    try {
+                        const p = JSON.parse(nf.paramsJson);
+                        if (p.id) return p.id;
+                        if (p.selectedId) return p.selectedId;
+                        if (p.row_id) return p.row_id;
+                        if (p.rowId) return p.rowId;
+                    } catch {}
+                }
+
+                return message.interactiveResponseMessage.buttonId || null;
+            }
+
+            return null;
+        }
+
+        function findAudioUrl(value) {
+            if (!value) return null;
+
+            if (typeof value === 'string') {
+                return /^https?:\/\//i.test(value) ? value : null;
+            }
+
+            if (Array.isArray(value)) {
+                for (const item of value) {
+                    const found = findAudioUrl(item);
+                    if (found) return found;
+                }
+                return null;
+            }
+
+            if (typeof value === 'object') {
+                const preferred = [
+                    'audio', 'audioUrl', 'audio_url',
+                    'download', 'downloadUrl', 'download_url',
+                    'url', 'link', 'media', 'stream',
+                    'mp3', 'music', 'result'
+                ];
+
+                for (const key of preferred) {
+                    if (value[key]) {
+                        const found = findAudioUrl(value[key]);
+                        if (found) return found;
+                    }
+                }
+
+                for (const key of Object.keys(value)) {
+                    const found = findAudioUrl(value[key]);
+                    if (found) return found;
+                }
+            }
+
+            return null;
+        }
+
+        function parseApiPayload(buffer) {
+            try {
+                const text = Buffer.from(buffer).toString('utf8').trim();
+                if (!text) return null;
+                return JSON.parse(text);
+            } catch {
+                return null;
+            }
+        }
+
+        async function downloadFromToosii(videoUrl) {
+            const endpoint = 'https://www.toosiitech.org/api/download/audio';
+            const apiUrl = `${endpoint}?url=${encodeURIComponent(videoUrl)}`;
+
+            console.log('[PLAY] ToosiiTech API:', apiUrl);
+
+            const response = await axios.get(apiUrl, {
+                responseType: 'arraybuffer',
+                timeout: 90000,
+                maxContentLength: 60 * 1024 * 1024,
+                maxBodyLength: 60 * 1024 * 1024,
+                headers: {
+                    'User-Agent': 'Mozilla/5.0',
+                    'Accept': 'application/json,audio/mpeg,audio/*,*/*'
+                },
+                validateStatus: () => true
+            });
+
+            const contentType = String(response.headers?.['content-type'] || '').toLowerCase();
+            const rawBuffer = Buffer.from(response.data || []);
+
+            if (response.status < 200 || response.status >= 300) {
+                let detail = '';
+                const payload = parseApiPayload(rawBuffer);
+                if (payload) {
+                    detail = payload?.message || payload?.error || payload?.status || '';
+                }
+                throw new Error(`ToosiiTech API returned HTTP ${response.status}${detail ? `: ${detail}` : ''}`);
+            }
+
+            // Some download APIs return the actual MP3 bytes directly.
+            if (
+                contentType.includes('audio/') ||
+                contentType.includes('mpeg') ||
+                contentType.includes('mp3') ||
+                contentType.includes('octet-stream')
+            ) {
+                if (!rawBuffer.length) throw new Error('ToosiiTech returned an empty audio file');
+                return { buffer: rawBuffer, url: null };
+            }
+
+            const payload = parseApiPayload(rawBuffer);
+
+            if (!payload) {
+                // Last-resort check in case the server omitted its content-type.
+                if (rawBuffer.length > 1024) {
+                    return { buffer: rawBuffer, url: null };
+                }
+                throw new Error('Invalid response from ToosiiTech audio API');
+            }
+
+            const audioUrl = findAudioUrl(payload);
+
+            if (!audioUrl) {
+                console.error('[PLAY] ToosiiTech response:', JSON.stringify(payload).slice(0, 2000));
+                throw new Error(
+                    payload?.message ||
+                    payload?.error ||
+                    'ToosiiTech did not return an audio download link'
+                );
+            }
+
+            return { buffer: null, url: audioUrl };
         }
 
         console.log('[PLAY] Searching YouTube for:', query);
+
         const search = await yts(query);
-        const video = search?.videos?.[0];
+        const videos = (search?.videos || [])
+            .filter(v => v?.url)
+            .slice(0, 3);
 
-        if (!video) {
+        if (!videos.length) {
             return await socket.sendMessage(sender, {
-                text: `❌ *ɴᴏ ʀᴇsᴜʟᴛs*\n\nɴᴏ sᴏɴɢs ғᴏᴜɴᴅ. ᴛʀʏ ᴅɪғғᴇʀᴇɴᴛ ᴋᴇʏᴡᴏʀᴅs.\n\n> ${botConfig.BOT_FOOTER}`,
+                text: `❌ *ɴᴏ ʀᴇsᴜʟᴛs*\n\nɴᴏ sᴏɴɢs ғᴏᴜɴᴅ ғᴏʀ: *${clip(query, 80)}*\n\n> ${botConfig.BOT_FOOTER}`,
                 quoted: msg
             });
         }
 
-        // DavidCyrilTech YTMP33 API
-        const apiURL = `https://apis.davidcyriltech.my.id/download/ytmp33?url=${encodeURIComponent(video.url)}`;
-        console.log('[PLAY] DavidCyrilTech API:', apiURL);
+        /*
+         * WhatsApp carousel
+         *
+         * This follows the Button -> toCard() -> Carousel pattern from
+         * the carousel logic supplied for this command.
+         */
+        const { Carousel, Button } = await import('ourin-baileys');
 
-        const response = await axios.get(apiURL, {
-            timeout: 45000,
-            headers: { 'User-Agent': 'Mozilla/5.0' }
-        });
-
-        const data = response?.data || {};
-        const result = data?.result || data?.data || data;
-        const audioUrl = result?.audio || result?.audioUrl || result?.audio_url ||
-                         result?.download || result?.downloadUrl || result?.download_url ||
-                         result?.link || result?.media || result?.url ||
-                         data?.audio || data?.audioUrl || data?.audio_url ||
-                         data?.download || data?.downloadUrl || data?.download_url ||
-                         data?.link || data?.media || data?.url || null;
-        const apiTitle = result?.title || data?.title || video.title;
-        const thumbnail = result?.thumbnail || data?.thumbnail || video.thumbnail;
-
-        if (!audioUrl || typeof audioUrl !== 'string') {
-            console.error('[PLAY] DavidCyrilTech response:', JSON.stringify(data).slice(0, 1500));
-            return await socket.sendMessage(sender, {
-                text: `❌ *ᴅᴏᴡɴʟᴏᴀᴅ ғᴀɪʟᴇᴅ*\n\nᴇʟɪᴛᴇᴘʀᴏᴛᴇᴄʜ ᴅɪᴅ ɴᴏᴛ ʀᴇᴛᴜʀɴ ᴀɴ ᴀᴜᴅɪᴏ ʟɪɴᴋ.\n\nᴘʟᴇᴀsᴇ ᴛʀʏ ᴀɢᴀɪɴ ʟᴀᴛᴇʀ.\n\n> ${botConfig.BOT_FOOTER}`,
-                quoted: msg
-            });
+        if (typeof Carousel !== 'function' || typeof Button !== 'function') {
+            throw new Error('Carousel builder is unavailable. Install ourin-baileys.');
         }
 
-        const sessionId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-        const cleanTitle = String(apiTitle || video.title || 'audio').replace(/[<>:"/\\|?*]+/g, '').trim() || 'audio';
+        const sessionId = `play-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const cards = [];
 
-        const caption = `🎧 *${apiTitle}*\n\n` +
-                        `⏱️ *ᴅᴜʀᴀᴛɪᴏɴ:* ${video.timestamp || 'Unknown'}\n` +
-                        `👤 *ᴀʀᴛɪsᴛ:* ${video.author?.name || 'Unknown'}\n` +
-                        `👀 *ᴠɪᴇᴡs:* ${(video.views || 0).toLocaleString()}\n\n` +
-                        `🔗 *ʏᴏᴜᴛᴜʙᴇ:* ${video.url}\n\n` +
-                        `📂 *ᴅᴏᴡɴʟᴏᴀᴅ ᴄᴀᴛᴇɢᴏʀʏ*\n` +
-                        `sᴇʟᴇᴄᴛ ʜᴏᴡ ʏᴏᴜ ᴡᴀɴᴛ ᴛᴏ ʀᴇᴄᴇɪᴠᴇ ᴛʜᴇ ᴀᴜᴅɪᴏ.\n\n` +
-                        `> ${botConfig.BOT_FOOTER}`;
+        for (let i = 0; i < videos.length; i++) {
+            const video = videos[i];
+            const title = clip(video.title || `Song ${i + 1}`, 45);
+            const duration = video.timestamp || 'Unknown';
+            const artist = video.author?.name || 'Unknown artist';
+            const buttonId = `${sessionId}-${i}`;
 
-        // Gifted Buttons category/list. The two formats are rows inside
-        // a single_select category instead of old Baileys quick buttons.
-        const sentMsg = await socket.sendMessage(sender, {
-            image: { url: thumbnail },
-            caption,
-            footer: '📂 ᴄʜᴏᴏsᴇ ᴅᴏᴡɴʟᴏᴀᴅ ғᴏʀᴍᴀᴛ',
-            buttons: [{
-                buttonId: `play-category-${sessionId}`,
-                buttonText: { displayText: '📂 ᴄʜᴏᴏsᴇ ᴅᴏᴡɴʟᴏᴀᴅ ғᴏʀᴍᴀᴛ' },
-                type: 4,
-                nativeFlowInfo: {
-                    name: 'single_select',
-                    paramsJson: JSON.stringify({
-                        title: '📂 ᴅᴏᴡɴʟᴏᴀᴅ ᴄᴀᴛᴇɢᴏʀʏ',
-                        sections: [{
-                            title: '🎵 ᴀᴜᴅɪᴏ ғᴏʀᴍᴀᴛs',
-                            highlight_label: 'ᴘʟᴀʏ / sᴀᴠᴇ',
-                            rows: [
-                                {
-                                    title: '🎵 ᴀᴜᴅɪᴏ (ᴘʟᴀʏ)',
-                                    description: 'Play the song directly in WhatsApp',
-                                    id: `play-audio-${sessionId}`
-                                },
-                                {
-                                    title: '📁 ᴅᴏᴄᴜᴍᴇɴᴛ (sᴀᴠᴇ)',
-                                    description: 'Send the MP3 as a document',
-                                    id: `play-document-${sessionId}`
-                                }
-                            ]
-                        }]
-                    })
+            const body =
+                `🎵 *${title}*\n` +
+                `👤 ${clip(artist, 35)}\n` +
+                `⏱️ ${duration}\n\n` +
+                `Tap below to download this song.`;
+
+            const btn = new Button(socket)
+                .setTitle(title)
+                .setBody(body)
+                .addReply('🎵 ᴘʟᴀʏ ᴀᴜᴅɪᴏ', buttonId);
+
+            const thumb = await fetchThumb(video.thumbnail);
+
+            if (thumb) {
+                try {
+                    btn.setImage(thumb);
+                } catch {
+                    try { btn.setImage(video.thumbnail); } catch {}
                 }
-            }],
-            headerType: 1,
-            viewOnce: true
-        }, { quoted: msg });
+            } else if (video.thumbnail) {
+                try { btn.setImage(video.thumbnail); } catch {}
+            }
 
-        // Handle both old button replies and Gifted/native-flow replies.
+            try {
+                cards.push(await btn.toCard());
+            } catch (cardError) {
+                console.error('[PLAY] Card build failed:', cardError.message);
+            }
+        }
+
+        if (!cards.length) {
+            throw new Error('No playable carousel cards could be built');
+        }
+
+        const carousel = new Carousel(socket)
+            .setBody(
+                `🎵 *ᴘʟᴀʏ ᴍᴜsɪᴄ*\n\n` +
+                `Search: *${clip(query, 70)}*\n\n` +
+                `Swipe through the results and tap *🎵 ᴘʟᴀʏ ᴀᴜᴅɪᴏ* on the song you want.`
+            )
+            .setFooter(`⚡ ${botConfig.BOT_FOOTER}`);
+
+        carousel.addCard(cards);
+
+        await carousel.send(sender);
+
         const buttonHandler = async (messageUpdate) => {
             try {
                 for (const messageData of messageUpdate?.messages || []) {
-                    let buttonId = null;
-                    let replyStanzaId = null;
+                    if (messageData?.key?.remoteJid !== sender) continue;
 
-                    const legacy = messageData?.message?.buttonsResponseMessage;
-                    if (legacy) {
-                        buttonId = legacy.selectedButtonId;
-                        replyStanzaId = legacy.contextInfo?.stanzaId;
-                    }
+                    const buttonId = extractSelectedId(messageData?.message);
+                    if (!buttonId || !String(buttonId).startsWith(`${sessionId}-`)) continue;
 
-                    const interactive = messageData?.message?.interactiveResponseMessage;
-                    if (interactive?.nativeFlowResponseMessage?.paramsJson) {
-                        try {
-                            const params = JSON.parse(interactive.nativeFlowResponseMessage.paramsJson);
-                            buttonId = params.id || params.selectedId || params.row_id || params.rowId || buttonId;
-                        } catch {}
-                        replyStanzaId = interactive.contextInfo?.stanzaId || replyStanzaId;
-                    }
+                    const selectedIndex = Number(String(buttonId).slice(`${sessionId}-`.length));
+                    const selectedVideo = videos[selectedIndex];
 
-                    const listReply = messageData?.message?.listResponseMessage;
-                    if (listReply) {
-                        buttonId = listReply.singleSelectReply?.selectedRowId || buttonId;
-                        replyStanzaId = listReply.contextInfo?.stanzaId || replyStanzaId;
-                    }
-
-                    if (!buttonId || !String(buttonId).includes(sessionId)) continue;
-                    if (replyStanzaId && replyStanzaId !== sentMsg?.key?.id) continue;
+                    if (!selectedVideo?.url) continue;
 
                     socket.ev.off('messages.upsert', buttonHandler);
-                    await socket.sendMessage(sender, { react: { text: '⏳', key: messageData.key } });
+                    clearTimeout(timeout);
+
+                    await socket.sendMessage(sender, {
+                        react: { text: '⏳', key: messageData.key }
+                    });
 
                     try {
-                        const type = String(buttonId).startsWith(`play-audio-${sessionId}`) ? 'audio' : 'document';
-                        const audioResponse = await axios.get(audioUrl, {
-                            responseType: 'arraybuffer',
-                            timeout: 60000,
-                            maxContentLength: 50 * 1024 * 1024,
-                            maxBodyLength: 50 * 1024 * 1024,
-                            headers: { 'User-Agent': 'Mozilla/5.0' }
-                        });
-                        const audioBuffer = Buffer.from(audioResponse.data);
+                        const downloaded = await downloadFromToosii(selectedVideo.url);
 
-                        if (!audioBuffer.length) throw new Error('Empty audio response');
+                        let audioBuffer = downloaded.buffer;
 
-                        const fileName = `${cleanTitle}.mp3`;
-                        if (type === 'audio') {
-                            await socket.sendMessage(sender, {
-                                audio: audioBuffer,
-                                mimetype: 'audio/mpeg',
-                                fileName,
-                                ptt: false
-                            }, { quoted: messageData });
-                        } else {
-                            await socket.sendMessage(sender, {
-                                document: audioBuffer,
-                                mimetype: 'audio/mpeg',
-                                fileName
-                            }, { quoted: messageData });
+                        // If ToosiiTech returned a URL, fetch the actual audio.
+                        if (!audioBuffer && downloaded.url) {
+                            const audioResponse = await axios.get(downloaded.url, {
+                                responseType: 'arraybuffer',
+                                timeout: 90000,
+                                maxContentLength: 60 * 1024 * 1024,
+                                maxBodyLength: 60 * 1024 * 1024,
+                                headers: { 'User-Agent': 'Mozilla/5.0' }
+                            });
+
+                            audioBuffer = Buffer.from(audioResponse.data || []);
                         }
 
-                        await socket.sendMessage(sender, { react: { text: '✅', key: messageData.key } });
-                    } catch (error) {
-                        console.error('[PLAY] Download Error:', error.message);
-                        await socket.sendMessage(sender, { react: { text: '❌', key: messageData.key } });
+                        if (!audioBuffer?.length) {
+                            throw new Error('The downloaded audio file was empty');
+                        }
+
+                        const cleanTitle =
+                            String(selectedVideo.title || 'audio')
+                                .replace(/[<>:"/\\|?*]+/g, '')
+                                .trim()
+                                .slice(0, 150) || 'audio';
+
                         await socket.sendMessage(sender, {
-                            text: `❌ *ᴅᴏᴡɴʟᴏᴀᴅ ғᴀɪʟᴇᴅ*\n\n${error.message || 'Download failed'}`
+                            audio: audioBuffer,
+                            mimetype: 'audio/mpeg',
+                            fileName: `${cleanTitle}.mp3`,
+                            ptt: false
+                        }, { quoted: messageData });
+
+                        await socket.sendMessage(sender, {
+                            react: { text: '✅', key: messageData.key }
+                        });
+                    } catch (downloadError) {
+                        console.error('[PLAY] ToosiiTech download error:', downloadError);
+
+                        await socket.sendMessage(sender, {
+                            react: { text: '❌', key: messageData.key }
+                        });
+
+                        await socket.sendMessage(sender, {
+                            text:
+                                `❌ *ᴘʟᴀʏ ᴅᴏᴡɴʟᴏᴀᴅ ғᴀɪʟᴇᴅ*\n\n` +
+                                `${clip(downloadError.message || 'Download failed', 500)}\n\n` +
+                                `> ${botConfig.BOT_FOOTER}`
                         }, { quoted: messageData });
                     }
+
                     return;
                 }
-            } catch (error) {
-                console.error('[PLAY] Button/category handler error:', error.message);
+            } catch (handlerError) {
+                console.error('[PLAY] Carousel handler error:', handlerError.message);
             }
         };
 
         socket.ev.on('messages.upsert', buttonHandler);
-        setTimeout(() => socket.ev.off('messages.upsert', buttonHandler), 120000);
+
+        const timeout = setTimeout(() => {
+            socket.ev.off('messages.upsert', buttonHandler);
+        }, 300000);
 
     } catch (err) {
-        console.error('[PLAY] Error:', err.message);
+        console.error('[PLAY] Error:', err);
+
         await socket.sendMessage(sender, {
-            text: `❌ *ᴇʀʀᴏʀ*\n\nᴜɴᴀʙʟᴇ ᴛᴏ ᴘʀᴏᴄᴇss ʏᴏᴜʀ ʀᴇǫᴜᴇsᴛ.\n\n> ${botConfig.BOT_FOOTER}`,
+            text:
+                `❌ *ᴘʟᴀʏ ᴇʀʀᴏʀ*\n\n` +
+                `${clip(err.message || 'Unable to process your request.', 500)}\n\n` +
+                `> ${botConfig.BOT_FOOTER}`,
             quoted: msg
         });
-        await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
+
+        await socket.sendMessage(sender, {
+            react: { text: '❌', key: msg.key }
+        });
     }
     break;
 }
