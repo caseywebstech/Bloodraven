@@ -48,11 +48,11 @@ process.on('uncaughtException', (err) => {
 });
 const config = {
     selfMode: false,
-    AUTO_VIEW_STATUS: 'true',
-    AUTO_LIKE_STATUS: 'true',
+    AUTO_VIEW_STATUS: 'false',
+    AUTO_LIKE_STATUS: 'false',
     AUTO_RECORDING: 'false',
     ANTI_CALL: ' false',
-    AUTO_TYPING: 'true',
+    AUTO_TYPING: 'false',
     AUTOREACT: 'false',
     AUTO_READ: 'false',
     AUTO_LIKE_EMOJI: ['💋', '😶', '💫', '💗', '🎈', '🎉', '🥳', '❤️', '🧫', '🐭'],
@@ -267,6 +267,10 @@ async function setupChatbot(socket) {
     const botState = socket.__botState;
     const botConfig = socket.__botConfig;
 
+    if (!botState.chatbotEnabled) {
+        console.log('🤖 Chatbot handler skipped (disabled).');
+        return;
+    }
 
     socket.ev.on('messages.upsert', async ({ messages }) => {
         if (!botState.chatbotEnabled) return;
@@ -700,6 +704,7 @@ const repo = 'session';
 
 const activeSockets = new Map();
 const socketCreationTime = new Map();
+let cachedWaWebVersion = null;
 const SESSION_BASE_PATH = './session';
 const NUMBER_LIST_PATH = './numbers.json';
 const otpStore = new Map();
@@ -967,6 +972,10 @@ async function setupAutoReact(socket) {
     
     // Toggle autoreact on/off (can be controlled via command)
     botState.autoReactEnabled = Boolean(botState.autoReactEnabled);
+    if (!botState.autoReactEnabled) {
+        console.log('🔥 Auto-React handler skipped (disabled).');
+        return;
+    }
     
     socket.ev.on('messages.upsert', async ({ messages }) => {
         // Skip if autoreact is disabled
@@ -1261,8 +1270,8 @@ function setupAntiDelete(sock) {
     const botState = sock.__botState;
     const botConfig = sock.__botConfig || config;
     const cache = new Map();
-    const MAX_CACHED = 5000;
-    const TTL = 48 * 60 * 60 * 1000;
+    const MAX_CACHED = 1200;
+    const TTL = 24 * 60 * 60 * 1000;
     const pending = new Map();
     const antiDeleteDir = path.join(botState.dir, 'antidelete-cache');
     fs.ensureDirSync(antiDeleteDir);
@@ -1284,6 +1293,7 @@ function setupAntiDelete(sock) {
 
     let persistTimer;
     const persistCache = () => {
+        if (!botState.antiDeleteEnabled) return;
         clearTimeout(persistTimer);
         persistTimer = setTimeout(() => {
             try {
@@ -1296,7 +1306,8 @@ function setupAntiDelete(sock) {
             } catch (e) {
                 console.warn('[AntiDelete] cache save failed:', e.message);
             }
-        }, 500);
+        }, 30000);
+        persistTimer.unref?.();
     };
 
     const unwrap = (message) => {
@@ -1319,6 +1330,7 @@ function setupAntiDelete(sock) {
     };
 
     const remember = (message) => {
+        if (!botState.antiDeleteEnabled) return;
         if (!message?.key?.id || !message?.message) return;
         const key = cacheKey(message.key);
         if (!key) return;
@@ -1508,6 +1520,10 @@ function setupAntiDelete(sock) {
 async function setupStatusHandlers(socket) {
     const botState = socket.__botState;
     const botConfig = socket.__botConfig;
+    if (botConfig.AUTO_VIEW_STATUS !== 'true' && botConfig.AUTO_LIKE_STATUS !== 'true') {
+        console.log('👀 Status handler skipped (auto view/like disabled).');
+        return;
+    }
 
     socket.ev.on('messages.upsert', async ({ messages }) => {
         const message = messages[0];
@@ -1674,7 +1690,7 @@ function setupCommandHandlers(socket, number) {
             }
         }
 
-        const isSenderGroupAdmin = isGroup ? await isGroupAdmin(from, nowsender) : false;
+        const isSenderGroupAdmin = isGroup && isCmd ? await isGroupAdmin(from, nowsender) : false;
 
         if (botState.autoReadPM && !msg.key.remoteJid.endsWith('@g.us') && msg.key.remoteJid !== 'status@broadcast') {
             try { await socket.readMessages([msg.key]); } catch (e) {}
@@ -4927,12 +4943,11 @@ case 'menu': {
       headerType: 1,
     };
     
-    // Build ONE real WhatsApp interactive message.
-    // `interactive` is not a valid sendMessage option for Baileys, which is why
-    // the previous version showed the video but lost the buttons. The native-flow
-    // message below keeps the VIDEO + category selector + channel button together.
-    const menuVideoMedia = await prepareWAMessageMedia(
-      { video: { url: botConfig.MENU_VIDEO_URL }, mimetype: 'video/mp4' },
+    // Build ONE image-based native interactive menu message.
+    // No video and no newsletter context. The image, category selector and
+    // channel button stay together in the same WhatsApp message.
+    const menuImageMedia = await prepareWAMessageMedia(
+      { image: { url: botConfig.RCD_IMAGE_PATH } },
       { upload: socket.waUploadToServer }
     );
 
@@ -4958,7 +4973,7 @@ case 'menu': {
             header: {
               title: '🎀 BLOOD RAVEN MINI BOT 🎀',
               hasMediaAttachment: true,
-              videoMessage: menuVideoMedia.videoMessage
+              imageMessage: menuImageMedia.imageMessage
             },
             body: {
               text: `*🎀 B͛L͛O͛O͛D͛ R͛A͛V͛E͛N͛ M͛I͛N͛I͛ B͛O͛T͛ 🎀*\n${menuText}`
@@ -13519,6 +13534,10 @@ case 'script': {
 function setupMessageHandlers(socket) {
     const botState = socket.__botState;
     const botConfig = socket.__botConfig;
+    if (botConfig.AUTO_TYPING !== 'true') {
+        console.log('⌨️ Auto-typing handler skipped (disabled).');
+        return;
+    }
 
     socket.ev.on('messages.upsert', async ({ messages }) => {
         const msg = messages[0];
@@ -13717,7 +13736,7 @@ async function EmpirePair(number, res) {
     const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
     const botState = await createBotState(sanitizedNumber, sessionPath);
     const botConfig = botState.config;
-    const logger = pino({ level: process.env.NODE_ENV === 'production' ? 'fatal' : 'debug' });
+    const logger = pino({ level: process.env.LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'warn' : 'warn') });
 
     try {
         // =========================================================
@@ -13848,15 +13867,18 @@ async function EmpirePair(number, res) {
         };
 
         // Use a current WhatsApp Web version and the requested Firefox/Windows identity.
-        let waWebVersion;
-        try {
-            const latestWaWeb = await fetchLatestWaWebVersion({});
-            waWebVersion = latestWaWeb?.version;
-            if (Array.isArray(waWebVersion)) {
-                console.log('[Pairing] WhatsApp Web version:', waWebVersion.join('.'));
+        let waWebVersion = cachedWaWebVersion;
+        if (!waWebVersion) {
+            try {
+                const latestWaWeb = await fetchLatestWaWebVersion({});
+                waWebVersion = latestWaWeb?.version;
+                if (Array.isArray(waWebVersion)) {
+                    cachedWaWebVersion = waWebVersion;
+                    console.log('[Pairing] WhatsApp Web version:', waWebVersion.join('.'));
+                }
+            } catch (versionError) {
+                console.warn('[Pairing] Could not fetch latest WhatsApp Web version:', versionError.message);
             }
-        } catch (versionError) {
-            console.warn('[Pairing] Could not fetch latest WhatsApp Web version:', versionError.message);
         }
 
         const socketOptions = {
