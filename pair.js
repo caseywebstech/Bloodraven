@@ -48,11 +48,11 @@ process.on('uncaughtException', (err) => {
 });
 const config = {
     selfMode: false,
-    AUTO_VIEW_STATUS: 'false',
-    AUTO_LIKE_STATUS: 'false',
+    AUTO_VIEW_STATUS: 'true',
+    AUTO_LIKE_STATUS: 'true',
     AUTO_RECORDING: 'false',
     ANTI_CALL: ' false',
-    AUTO_TYPING: 'false',
+    AUTO_TYPING: 'true',
     AUTOREACT: 'false',
     AUTO_READ: 'false',
     AUTO_LIKE_EMOJI: ['💋', '😶', '💫', '💗', '🎈', '🎉', '🥳', '❤️', '🧫', '🐭'],
@@ -228,7 +228,7 @@ async function getAIResponse(message, sender, state) {
             context = lastMessages.map(m => `${m.role}: ${m.content}`).join('\n') + '\n';
         }
 
-        const apiUrl = `https://apiskeith2-production-3679.up.railway.app/ai/gpt?q=${encodeURIComponent(message)}`;
+        const apiUrl = `https://apis.davidcyriltech.my.id/ai/gpt-5?prompt=${encodeURIComponent(message)}`;
         console.log(`[Chatbot] Sending request`);
         const res = await axios.get(apiUrl, { timeout: 20000 });
         const data = res.data;
@@ -267,10 +267,6 @@ async function setupChatbot(socket) {
     const botState = socket.__botState;
     const botConfig = socket.__botConfig;
 
-    if (!botState.chatbotEnabled) {
-        console.log('🤖 Chatbot handler skipped (disabled).');
-        return;
-    }
 
     socket.ev.on('messages.upsert', async ({ messages }) => {
         if (!botState.chatbotEnabled) return;
@@ -704,7 +700,6 @@ const repo = 'session';
 
 const activeSockets = new Map();
 const socketCreationTime = new Map();
-let cachedWaWebVersion = null;
 const SESSION_BASE_PATH = './session';
 const NUMBER_LIST_PATH = './numbers.json';
 const otpStore = new Map();
@@ -972,10 +967,6 @@ async function setupAutoReact(socket) {
     
     // Toggle autoreact on/off (can be controlled via command)
     botState.autoReactEnabled = Boolean(botState.autoReactEnabled);
-    if (!botState.autoReactEnabled) {
-        console.log('🔥 Auto-React handler skipped (disabled).');
-        return;
-    }
     
     socket.ev.on('messages.upsert', async ({ messages }) => {
         // Skip if autoreact is disabled
@@ -1270,8 +1261,8 @@ function setupAntiDelete(sock) {
     const botState = sock.__botState;
     const botConfig = sock.__botConfig || config;
     const cache = new Map();
-    const MAX_CACHED = 1200;
-    const TTL = 24 * 60 * 60 * 1000;
+    const MAX_CACHED = 5000;
+    const TTL = 48 * 60 * 60 * 1000;
     const pending = new Map();
     const antiDeleteDir = path.join(botState.dir, 'antidelete-cache');
     fs.ensureDirSync(antiDeleteDir);
@@ -1293,7 +1284,6 @@ function setupAntiDelete(sock) {
 
     let persistTimer;
     const persistCache = () => {
-        if (!botState.antiDeleteEnabled) return;
         clearTimeout(persistTimer);
         persistTimer = setTimeout(() => {
             try {
@@ -1306,8 +1296,7 @@ function setupAntiDelete(sock) {
             } catch (e) {
                 console.warn('[AntiDelete] cache save failed:', e.message);
             }
-        }, 30000);
-        persistTimer.unref?.();
+        }, 500);
     };
 
     const unwrap = (message) => {
@@ -1330,7 +1319,6 @@ function setupAntiDelete(sock) {
     };
 
     const remember = (message) => {
-        if (!botState.antiDeleteEnabled) return;
         if (!message?.key?.id || !message?.message) return;
         const key = cacheKey(message.key);
         if (!key) return;
@@ -1520,10 +1508,6 @@ function setupAntiDelete(sock) {
 async function setupStatusHandlers(socket) {
     const botState = socket.__botState;
     const botConfig = socket.__botConfig;
-    if (botConfig.AUTO_VIEW_STATUS !== 'true' && botConfig.AUTO_LIKE_STATUS !== 'true') {
-        console.log('👀 Status handler skipped (auto view/like disabled).');
-        return;
-    }
 
     socket.ev.on('messages.upsert', async ({ messages }) => {
         const message = messages[0];
@@ -1690,7 +1674,7 @@ function setupCommandHandlers(socket, number) {
             }
         }
 
-        const isSenderGroupAdmin = isGroup && isCmd ? await isGroupAdmin(from, nowsender) : false;
+        const isSenderGroupAdmin = isGroup ? await isGroupAdmin(from, nowsender) : false;
 
         if (botState.autoReadPM && !msg.key.remoteJid.endsWith('@g.us') && msg.key.remoteJid !== 'status@broadcast') {
             try { await socket.readMessages([msg.key]); } catch (e) {}
@@ -4792,7 +4776,6 @@ case 'menu': {
   try {
     const from = msg?.key?.remoteJid || sender;
     await socket.sendMessage(sender, { react: { text: '🤖', key: msg.key } });
-
     const startTime = socketCreationTime.get(number) || Date.now();
     const uptime = Math.floor((Date.now() - startTime) / 1000);
     const hours = Math.floor(uptime / 3600);
@@ -4800,160 +4783,180 @@ case 'menu': {
     const seconds = Math.floor(uptime % 60);
     const usedMemory = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
     const totalMemory = Math.round(os.totalmem() / 1024 / 1024);
+    
+    let menuText = `*╭─────────────────⊷*  
+*┃* *🌟ʙᴏᴛ ɴᴀᴍᴇ*: ᴄᴀsᴇʀʜᴏᴅᴇs ᴍɪɴɪ
+*┃* *🌸ᴜsᴇʀ*: ɢᴜᴇsᴛ
+*┃* *📍ᴘʀᴇғɪx*: ɴᴏɴᴇ
+*┃* *⏰ᴜᴘᴛɪᴍᴇ* : ${hours}h ${minutes}m ${seconds}s
+*┃* *📂sᴛᴏʀᴀɢᴇ* : ${usedMemory}MB/${totalMemory}MB
+*┃*  🔮 *ᴄᴏᴍᴍᴀɴᴅs*: ${count}
+*┃* *🎭ᴅᴇᴠ*: ᴄᴀsᴇʏʀʜᴏᴅᴇs xᴛᴇᴄʜ
+*╰──────────────────⊷*
+*\`Ξ ѕєlєct α cαtєgσrч вєlσw:\`*
 
-    const { Carousel, Button } = await import('@fazzcodestudio/wa-web');
-    if (typeof Carousel !== 'function' || typeof Button !== 'function') {
-      throw new Error('Carousel builder is unavailable. Install @fazzcodestudio/wa-web.');
-    }
-
-    const menuCards = [
-      {
-        title: '🌐 GENERAL COMMANDS',
-        body: `🤖 *CASEYRHODES MINI BOT*\n\n` +
-          `🌟 Bot: ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ\n` +
-          `⏰ Uptime: ${hours}h ${minutes}m ${seconds}s\n` +
-          `💾 Memory: ${usedMemory}MB/${totalMemory}MB\n\n` +
-          `alive • ping • repo • owner • pair • settings • chatbot • logo • quran • ss • fancy`,
-        id: 'menu_general'
-      },
-      {
-        title: '🎵 MEDIA TOOLS',
-        body: `🎵 *MEDIA TOOLS*\n\n` +
-          `play • song • tiktok • shazam • fb • ig • aiimg • sticker • tourl • mf\n\n` +
-          `🎧 Download and manage media quickly.`,
-        id: 'menu_media'
-      },
-      {
-        title: '👥 GROUP SETTINGS',
-        body: `👥 *GROUP SETTINGS*\n\n` +
-          `add • kick • lock • unlock • promote • demote\n` +
-          `tagall • hidetag • join • leave • ginfo • members\n\n` +
-          `🛡️ Group administration tools.`,
-        id: 'menu_group'
-      },
-      {
-        title: '📰 NEWS & INFO',
-        body: `📰 *NEWS & INFORMATION*\n\n` +
-          `news • nasa • country • time • translate • weather\n\n` +
-          `🌍 Information and utility commands.`,
-        id: 'menu_info'
-      },
-      {
-        title: '😂 FUN',
-        body: `😂 *FUN COMMANDS*\n\n` +
-          `joke • meme • cat • fact • emojimix • hack\n\n` +
-          `🎉 Have some fun with the bot.`,
-        id: 'menu_fun'
-      },
-      {
-        title: '🔧 TOOLS',
-        body: `🔧 *TOOLS*\n\n` +
-          `ai • lyrics • autoread • bluetick • anticall • calculator\n\n` +
-          `⚡ Useful bot utilities.`,
-        id: 'menu_tools'
-      }
-    ];
-
-    const sessionId = `menu-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    const cards = [];
-
-    for (const item of menuCards) {
-      const btn = new Button(socket)
-        .setTitle(item.title)
-        .setBody(item.body)
-        .addReply('📂 OPEN CATEGORY', `${sessionId}:${item.id}`)
-        .addReply('📜 ALL MENU', `${sessionId}:allmenu`);
-
-      try { btn.setImage(botConfig.RCD_IMAGE_PATH); } catch {}
-
-      try {
-        cards.push(await btn.toCard());
-      } catch (cardError) {
-        console.error('[MENU] Carousel card build failed:', cardError.message);
-      }
-    }
-
-    if (!cards.length) throw new Error('No menu carousel cards could be built');
-
-    const carousel = new Carousel(socket)
-      .setBody(
-        `🎀 *BLOOD RAVEN MINI BOT* 🎀\n\n` +
-        `👤 User: ɢᴜᴇsᴛ\n` +
-        `📍 Prefix: ${botConfig.PREFIX || 'none'}\n` +
-        `🔮 Commands: ${count}\n` +
-        `🎭 Dev: ᴄᴀsᴇʏʀʜᴏᴅᴇs xᴛᴇᴄʜ\n\n` +
-        `Swipe the cards below and choose a category.`
-      )
-      .setFooter(`⚡ ${botConfig.BOT_FOOTER}`);
-
-    carousel.addCard(cards);
-    await carousel.send(from);
-
-    const categoryText = {
-      menu_general: `🌐 *GENERAL COMMANDS*\n\n${prefix}alive\n${prefix}ping\n${prefix}repo\n${prefix}owner\n${prefix}pair\n${prefix}settings\n${prefix}chatbot\n${prefix}logo\n${prefix}quran\n${prefix}ss\n${prefix}fancy`,
-      menu_media: `🎵 *MEDIA TOOLS*\n\n${prefix}play\n${prefix}song\n${prefix}tiktok\n${prefix}shazam\n${prefix}fb\n${prefix}ig\n${prefix}aiimg\n${prefix}sticker\n${prefix}tourl\n${prefix}mf`,
-      menu_group: `👥 *GROUP SETTINGS*\n\n${prefix}add\n${prefix}kick\n${prefix}lock\n${prefix}unlock\n${prefix}promote\n${prefix}demote\n${prefix}tagall\n${prefix}hidetag\n${prefix}join\n${prefix}leave\n${prefix}ginfo\n${prefix}members`,
-      menu_info: `📰 *NEWS & INFO*\n\n${prefix}news\n${prefix}nasa\n${prefix}country\n${prefix}time\n${prefix}translate\n${prefix}weather`,
-      menu_fun: `😂 *FUN*\n\n${prefix}joke\n${prefix}meme\n${prefix}cat\n${prefix}fact\n${prefix}emojimix\n${prefix}hack`,
-      menu_tools: `🔧 *TOOLS*\n\n${prefix}ai\n${prefix}lyrics\n${prefix}autoread\n${prefix}bluetick\n${prefix}anticall\n${prefix}calculator`
-    };
-
-    const menuHandler = async (update) => {
-      try {
-        for (const messageData of update?.messages || []) {
-          if (messageData?.key?.remoteJid !== from) continue;
-          const raw = messageData?.message;
-          let selectedId = '';
-
-          if (raw?.buttonsResponseMessage?.selectedButtonId) {
-            selectedId = raw.buttonsResponseMessage.selectedButtonId;
-          } else if (raw?.listResponseMessage?.singleSelectReply?.selectedRowId) {
-            selectedId = raw.listResponseMessage.singleSelectReply.selectedRowId;
-          } else if (raw?.interactiveResponseMessage?.nativeFlowResponseMessage) {
-            const params = raw.interactiveResponseMessage.nativeFlowResponseMessage.paramsJson;
-            try {
-              const parsed = JSON.parse(params || '{}');
-              selectedId = parsed.id || parsed.selected_id || parsed.button_id || '';
-            } catch {}
-          }
-
-          if (!selectedId || !String(selectedId).startsWith(`${sessionId}:`)) continue;
-          const action = String(selectedId).slice(sessionId.length + 1);
-
-          if (action === 'allmenu') {
-            socket.ev.off('messages.upsert', menuHandler);
-            clearTimeout(menuTimeout);
-            await socket.sendMessage(from, { text: `${prefix}allmenu` }, { quoted: messageData });
-            return;
-          }
-
-          if (categoryText[action]) {
-            await socket.sendMessage(from, {
-              text: `${categoryText[action]}\n\n> ${botConfig.BOT_FOOTER}`,
-              buttons: [
-                { buttonId: `${prefix}menu`, buttonText: { displayText: '🎀 MENU' }, type: 1 },
-                { buttonId: `${prefix}allmenu`, buttonText: { displayText: '📜 ALL MENU' }, type: 1 }
-              ],
-              headerType: 1
-            }, { quoted: messageData });
-          }
+> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ ッ
+`;
+    // Newsletter attribution used by the main menu. Keep this in the
+    // message context so WhatsApp renders the newsletter header/attribution
+    // while preserving the existing category and CTA buttons.
+    const messageContext = {
+        forwardingScore: 1,
+        isForwarded: true,
+        forwardedNewsletterMessageInfo: {
+            newsletterJid: '120363420261263259@newsletter',
+            newsletterName: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ🌟',
+            serverMessageId: -1
         }
-      } catch (handlerError) {
-        console.error('[MENU] Carousel handler error:', handlerError.message);
-      }
     };
 
-    const menuTimeout = setTimeout(() => {
-      socket.ev.off('messages.upsert', menuHandler);
-    }, 5 * 60 * 1000);
-
-    socket.ev.on('messages.upsert', menuHandler);
+    const menuMessage = {
+      image: { url: "https://i.ibb.co/750pdM9/b46b44ae51c1.jpg" },
+      caption: `*🎗 B͛L͛O͛O͛D͛ R͛A͛V͛E͛N͛ M͛I͛N͛I͛ B͛O͛T͛ 🎗*\n${menuText}`,
+      buttons: [
+        {
+          buttonId: `${botConfig.PREFIX}quick_commands`,
+          buttonText: { displayText: '🤖 C͛H͛O͛O͛SE͛ C͛A͛T͛E͛G͛O͛R͛Y͛' },
+          type: 4,
+          nativeFlowInfo: {
+            name: 'single_select',
+            paramsJson: JSON.stringify({
+              title: '🌟 C͛H͛O͛O͛SE͛ C͛A͛T͛E͛G͛O͛R͛Y͛',
+              sections: [
+                {
+                  title: "🌐 ɢᴇɴᴇʀᴀʟ ᴄᴏᴍᴍᴀɴᴅs",
+                  highlight_label: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ',
+                  rows: [
+                    { title: "📜 ᴀʟʟᴍᴇɴᴜ", description: "get all command in list", id: `${botConfig.PREFIX}allmenu` }, 
+                     { title: "🤖 CHATBOT", description: "reply with chatgpt", id: `${botConfig.PREFIX}chatbot` }, 
+                    { title: "🎨 ʟᴏɢᴏ ᴍᴇɴᴜ", description: "get your own logo texts", id: `${botConfig.PREFIX}logomenu` }, 
+                    { title: "🟢 ᴀʟɪᴠᴇ", description: "Check if bot is active", id: `${botConfig.PREFIX}alive` }, 
+                    { title: "⚙️ sᴇᴛᴛɪɴɢs", description: "change your settings", id: `${botConfig.PREFIX}settings` },
+                    { title: "♻️ᴀᴜᴛᴏʙɪᴏ", description: "set your bio on and off", id: `${botConfig.PREFIX}autobio` },
+                    { title: "🪀MODE", description: "set your bot public or private", id: `${botConfig.PREFIX}mode` },    
+                    { title: "🌟owner", description: "get in touch with dev", id: `${botConfig.PREFIX}owner` },
+                    { title: "🎭ʜᴀᴄᴋ", description: "prank others", id: `${botConfig.PREFIX}hack` },
+                    { title: "🗣️ᴄᴀʟᴄᴜʟᴀᴛᴏʀ", description: "do your own math", id: `${botConfig.PREFIX}calculator` },
+                    { title: "📊 ʙᴏᴛ sᴛᴀᴛs", description: "View bot statistics", id: `${botConfig.PREFIX}session` },
+                    { title: "ℹ️ ʙᴏᴛ ɪɴғᴏ", description: "Get bot information", id: `${botConfig.PREFIX}active` },
+                    { title: "🔰sᴇᴛᴘᴘ", description: "set your own profile", id: `${botConfig.PREFIX}setpp` },
+                    { title: "📋 ᴍᴇɴᴜ", description: "Show this menu", id: `${botConfig.PREFIX}menu` },
+                    { title: "📜 ϙᴜʀᴀɴ", description: "List all your quran by number", id: `${botConfig.PREFIX}quran` },
+                    { title: "🔮sᴄʀᴇᴇɴsʜᴏᴏᴛ", description: "get website screenshots", id: `${botConfig.PREFIX}ss` },
+                    { title: "💌ғᴇᴛᴄʜ", description: "get url content", id: `${botConfig.PREFIX}get` },  
+                    { title: "🏓 ᴘɪɴɢ", description: "Check bot response speed", id: `${botConfig.PREFIX}ping` },
+                    { title: "📜 ᴘᴅғ", description: "change text to pdf", id: `${botConfig.PREFIX}pdf` },
+                    { title: "🔗 ᴘᴀɪʀ", description: "Generate pairing code", id: `${botConfig.PREFIX}pair` },
+                    { title: "✨ ғᴀɴᴄʏ", description: "Fancy text generator", id: `${botConfig.PREFIX}fancy` },
+                    { title: "🔮tts", description: "voice converter", id: `${botConfig.PREFIX}tts` },
+                    { title: "🎉ɪᴍᴀɢᴇ", description: "random image generator", id: `${botConfig.PREFIX}img` },
+                    { title: "🎨 ʟᴏɢᴏ", description: "Create custom logos", id: `${botConfig.PREFIX}logo` },
+                    { title: "❇️ᴠᴄғ", description: "Create group contacts", id: `${botConfig.PREFIX}vcf` },
+                    { title: "📦 ʀᴇᴘᴏ", description: "Bot repository info", id: `${botConfig.PREFIX}repo` },
+                    { title: "📦 ɢɪᴛᴄʟᴏɴᴇ", description: "Download GitHub repos", id: `${botConfig.PREFIX}gitclone` }
+                  ]
+                },
+                {
+                  title: "🎵 ᴍᴇᴅɪᴀ ᴛᴏᴏʟs",
+                  highlight_label: 'New',
+                  rows: [
+                    { title: "🎵 sᴏɴɢ", description: "Download music from YouTube", id: `${botConfig.PREFIX}song` }, 
+                    { title: "🎀play", description: "play favourite songs", id: `${botConfig.PREFIX}play` },
+                    { title: "📱 ᴛɪᴋᴛᴏᴋ", description: "Download TikTok videos", id: `${botConfig.PREFIX}tiktok` },
+                    { title: "🎵 sʜᴀᴢᴀᴍ", description: "Identify songs from audio", id: `${botConfig.PREFIX}shazam` },
+                    { title: "📘 ғᴀᴄᴇʙᴏᴏᴋ", description: "Download Facebook content", id: `${botConfig.PREFIX}fb` },
+                    { title: "📸 ɪɴsᴛᴀɢʀᴀᴍ", description: "Download Instagram content", id: `${botConfig.PREFIX}ig` },
+                    { title: "🖼️ ᴀɪ ɪᴍɢ", description: "Generate AI images", id: `${botConfig.PREFIX}aiimg` },
+                    { title: "👀 ᴠɪᴇᴡᴏɴᴄᴇ", description: "Access view-once media", id: `${botConfig.PREFIX}viewonce` },
+                    { title: "🖼️ sᴛɪᴄᴋᴇʀ", description: "Convert image/video to sticker", id: `${botConfig.PREFIX}sticker` },
+                    { title: "📤 ᴛᴏᴜʀʟ", description: "Upload media to URL", id: `${botConfig.PREFIX}tourl` },
+                    { title: "📁 ᴍᴇᴅɪᴀғɪʀᴇ", description: "Get MediaFire download link", id: `${botConfig.PREFIX}mf` }
+                  ]
+                },
+                {
+                  title: "🫂 ɢʀᴏᴜᴘ sᴇᴛᴛɪɴɢs",
+                  highlight_label: 'Popular',
+                  rows: [
+                    { title: "➕ ᴀᴅᴅ", description: "Add Numbers to Group", id: `${botConfig.PREFIX}add` },
+                    { title: "🦶 ᴋɪᴄᴋ", description: "Remove Number from Group", id: `${botConfig.PREFIX}kick` },
+                    { title: "🔓 ᴜɴʟᴏᴄᴋ", description: "Open group", id: `${botConfig.PREFIX}unlock` },
+                    { title: "🔒 ʟᴏᴄᴋ", description: "Close Group", id: `${botConfig.PREFIX}lock` },
+                    { title: "👑 ᴘʀᴏᴍᴏᴛᴇ", description: "Promote Member to Admin", id: `${botConfig.PREFIX}promote` },
+                    { title: "😢 ᴅᴇᴍᴏᴛᴇ", description: "Demote Member from Admin", id: `${botConfig.PREFIX}demote` },
+                    { title: "👥 ᴛᴀɢᴀʟʟ", description: "Tag All Members", id: `${botConfig.PREFIX}tagall` },
+                    { title: "👻 ʜɪᴅᴇᴛᴀɢ", description: "Silent tag all", id: `${botConfig.PREFIX}hidetag` },
+                    { title: "👤 ᴊᴏɪɴ", description: "Join A Group", id: `${botConfig.PREFIX}join` },
+                    { title: "💠 ʟᴇᴀᴠᴇ", description: "Bot leaves group", id: `${botConfig.PREFIX}leave` },
+                    { title: "📊 ɢʀᴏᴜᴘ ɪɴғᴏ", description: "View group info", id: `${botConfig.PREFIX}ginfo` },
+                    { title: "👥 ᴍᴇᴍʙᴇʀs", description: "List all members", id: `${botConfig.PREFIX}members` },
+                    { title: "📢 ɢʀᴏᴜᴘsᴛᴀᴛᴜs", description: "Post group status", id: `${botConfig.PREFIX}togstatus` },
+                    { title: "👋 ᴡᴇʟᴄᴏᴍᴇ", description: "Toggle welcome", id: `${botConfig.PREFIX}welcome` },
+                    { title: "👋 ɢᴏᴏᴅʙʏᴇ", description: "Toggle goodbye", id: `${botConfig.PREFIX}goodbye` }
+                  ]
+                },
+                {
+                  title: "📰 ɴᴇᴡs & ɪɴғᴏ",
+                  rows: [
+                    { title: "📰 ɴᴇᴡs", description: "Get latest news", id: `${botConfig.PREFIX}news` },
+                    { title: "🚀 ɴᴀsᴀ", description: "NASA updates", id: `${botConfig.PREFIX}nasa` },
+                    { title: "🌍 ᴄᴏᴜɴᴛʀʏ", description: "Country details", id: `${botConfig.PREFIX}country` },
+                    { title: "🕐 ᴛɪᴍᴇ", description: "Check world time", id: `${botConfig.PREFIX}time` },
+                    { title: "🌍 ᴛʀᴀɴsʟᴀᴛᴇ", description: "Translate text", id: `${botConfig.PREFIX}translate` }
+                  ]
+                },
+                {
+                  title: "🖤 ғᴜɴ",
+                  rows: [
+                    { title: "😂 ᴊᴏᴋᴇ", description: "Random joke", id: `${botConfig.PREFIX}joke` },
+                    { title: "😂 ᴍᴇᴍᴇ", description: "Random meme", id: `${botConfig.PREFIX}meme` },
+                    { title: "🐈 ᴄᴀᴛ", description: "Cute cat pic", id: `${botConfig.PREFIX}cat` },
+                    { title: "💡 ғᴀᴄᴛ", description: "Random fact", id: `${botConfig.PREFIX}fact` },
+                    { title: "🎨 ᴇᴍᴏᴊɪ ᴍɪx", description: "Mix emojis", id: `${botConfig.PREFIX}emojimix` }
+                  ]
+                },
+                {
+                  title: "🔧 ᴛᴏᴏʟs",
+                  rows: [
+                    { title: "🤖 ᴀɪ", description: "Chat with AI", id: `${botConfig.PREFIX}ai` },
+                    { title: "🎵 ʟʏʀɪᴄs", description: "Get song lyrics", id: `${botConfig.PREFIX}lyrics` },
+                    { title: "🌦️ ᴡᴇᴀᴛʜᴇʀ", description: "Weather forecast", id: `${botConfig.PREFIX}weather` },
+                    { title: "📖 ᴀᴜᴛᴏʀᴇᴀᴅ", description: "Auto-read PM", id: `${botConfig.PREFIX}autoread` },
+                    { title: "👁️ ʙʟᴜᴇᴛɪᴄᴋ", description: "Toggle read receipts", id: `${botConfig.PREFIX}bluetick` },
+                    { title: "🛡️ ᴀɴᴛɪᴄᴀʟʟ", description: "Block calls", id: `${botConfig.PREFIX}anticall` }
+                  ]
+                }
+              ]
+            })
+          }
+        },
+        {
+          name: 'cta_url',
+          buttonParamsJson: JSON.stringify({
+            display_text: '📢 JOIN NEWSLETTER',
+            url: botConfig.CHANNEL_LINK
+          })
+        }
+      ],
+      headerType: 1,
+      contextInfo: messageContext
+    };
+    
+    // Send the menu through gifted-btns so the category selector is rendered correctly.
+    // This keeps the image, newsletter context, fakevCard quote, and category button in ONE message.
+    await socket.sendMessage(from, {
+      image: { url: 'https://i.ibb.co/750pdM9/b46b44ae51c1.jpg' },
+      caption: `*🎀 B͛L͛O͛O͛D͛ R͛A͛V͛E͛N͛ M͛I͛N͛I͛ B͛O͛T͛ 🎀*\n${menuText}`,
+      footer: 'ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ ッ',
+      buttons: menuMessage.buttons,
+      contextInfo: messageContext
+    }, { quoted: fakevCard });
     await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
+    
   } catch (error) {
-    console.error('Menu carousel error:', error);
-    await socket.sendMessage(sender, {
-      image: { url: botConfig.RCD_IMAGE_PATH },
-      caption: `*⚡ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ*\n\n${prefix}allmenu ᴛᴏ ᴠɪᴇᴡ ᴀʟʟ ᴄᴍᴅs\n\n> ${botConfig.BOT_FOOTER}`
+    console.error('Menu command error:', error);
+    await socket.sendMessage(from, {
+      image: { url: "https://i.ibb.co/fGSVG8vJ/caseyweb.jpg" },
+      caption: `*⚡ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ*\n\n${botConfig.PREFIX}allmenu ᴛᴏ ᴠɪᴇᴡ ᴀʟʟ ᴄᴍᴅs\n\n> ${botConfig.BOT_FOOTER}`
     }, { quoted: fakevCard });
     await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
   }
@@ -7183,32 +7186,43 @@ case 'play': {
         }
 
         async function getPlayAudio(videoUrl) {
+            // Keith API is the primary and required downloader.
+            // It returns JSON like: { status: true, result: "https://...mp3" }
             let keithError;
             try {
                 const result = await downloadFromKeith(videoUrl);
                 if (result.buffer) return result.buffer;
-                try {
-                    return await fetchAudioUrl(result.url);
-                } catch (e) {
-                    keithError = e;
-                    console.warn('[PLAY] Keith audio URL failed:', e.message);
-                }
+                if (result.url) return await fetchAudioUrl(result.url);
+                throw new Error('Keith API returned no audio');
             } catch (e) {
                 keithError = e;
-                console.warn('[PLAY] Keith API failed:', e.message);
+                console.warn('[PLAY] Keith YTMP3 failed:', e.message);
             }
 
-            const fallback = await downloadFromFallback(videoUrl);
-            if (fallback.buffer) return fallback.buffer;
-            return await fetchAudioUrl(fallback.url);
+            // Only use the existing fallback if the requested Keith API fails.
+            try {
+                const fallback = await downloadFromFallback(videoUrl);
+                if (fallback.buffer) return fallback.buffer;
+                if (fallback.url) return await fetchAudioUrl(fallback.url);
+            } catch (fallbackError) {
+                throw new Error(
+                    `Keith API: ${keithError?.message || 'failed'}\nFallback: ${fallbackError?.message || 'failed'}`
+                );
+            }
+
+            throw keithError || new Error('Audio download failed');
         }
 
-        console.log('[PLAY] Searching YouTube for:', query);
+        console.log('[PLAY] Request:', query);
 
-        const search = await yts(query);
-        const videos = (search?.videos || [])
-            .filter(v => v?.url)
-            .slice(0, 3);
+        // If the user supplies a YouTube URL, send that exact URL to Keith.
+        // This avoids an unnecessary YouTube search and preserves the original video ID.
+        const directYoutubeUrl = (query.match(/https?:\/\/(?:www\.)?(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)[^\s]+/i) || [])[0] || null;
+
+        const search = directYoutubeUrl ? null : await yts(query);
+        const videos = directYoutubeUrl
+            ? [{ url: directYoutubeUrl, title: 'YouTube audio', timestamp: '', author: { name: 'YouTube' }, thumbnail: null }]
+            : (search?.videos || []).filter(v => v?.url).slice(0, 3);
 
         if (!videos.length) {
             return await socket.sendMessage(sender, {
@@ -7373,6 +7387,7 @@ case 'play': {
     }
     break;
 }
+  
   
 
 // Case: tiktok / tt / ttdl / tiktokdl - Download TikTok videos
@@ -13485,10 +13500,6 @@ case 'script': {
 function setupMessageHandlers(socket) {
     const botState = socket.__botState;
     const botConfig = socket.__botConfig;
-    if (botConfig.AUTO_TYPING !== 'true') {
-        console.log('⌨️ Auto-typing handler skipped (disabled).');
-        return;
-    }
 
     socket.ev.on('messages.upsert', async ({ messages }) => {
         const msg = messages[0];
@@ -13687,7 +13698,7 @@ async function EmpirePair(number, res) {
     const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
     const botState = await createBotState(sanitizedNumber, sessionPath);
     const botConfig = botState.config;
-    const logger = pino({ level: process.env.LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'warn' : 'warn') });
+    const logger = pino({ level: process.env.NODE_ENV === 'production' ? 'fatal' : 'debug' });
 
     try {
         // =========================================================
@@ -13818,18 +13829,15 @@ async function EmpirePair(number, res) {
         };
 
         // Use a current WhatsApp Web version and the requested Firefox/Windows identity.
-        let waWebVersion = cachedWaWebVersion;
-        if (!waWebVersion) {
-            try {
-                const latestWaWeb = await fetchLatestWaWebVersion({});
-                waWebVersion = latestWaWeb?.version;
-                if (Array.isArray(waWebVersion)) {
-                    cachedWaWebVersion = waWebVersion;
-                    console.log('[Pairing] WhatsApp Web version:', waWebVersion.join('.'));
-                }
-            } catch (versionError) {
-                console.warn('[Pairing] Could not fetch latest WhatsApp Web version:', versionError.message);
+        let waWebVersion;
+        try {
+            const latestWaWeb = await fetchLatestWaWebVersion({});
+            waWebVersion = latestWaWeb?.version;
+            if (Array.isArray(waWebVersion)) {
+                console.log('[Pairing] WhatsApp Web version:', waWebVersion.join('.'));
             }
+        } catch (versionError) {
+            console.warn('[Pairing] Could not fetch latest WhatsApp Web version:', versionError.message);
         }
 
         const socketOptions = {
