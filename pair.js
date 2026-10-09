@@ -7076,6 +7076,7 @@ case 'play': {
                 }
 
                 for (const key of Object.keys(value)) {
+                    if (/thumbnail|thumb|image|cover|avatar|author|channel|preview/i.test(key)) continue;
                     const found = findAudioUrl(value[key]);
                     if (found) return found;
                 }
@@ -7094,11 +7095,17 @@ case 'play': {
             }
         }
 
-        async function downloadFromKeith(videoUrl) {
-            const endpoint = 'https://apiskeith2-production-3679.up.railway.app/download/ytmp3';
-            const apiUrl = `${endpoint}?url=${encodeURIComponent(videoUrl)}`;
+        async function downloadFromDavidCyril(videoUrl) {
+            const apiKey = process.env.DAVID_CYRIL_API_KEY;
+            if (!apiKey) {
+                throw new Error('Missing DAVID_CYRIL_API_KEY. Add your David Cyril API key to the hosting environment variables.');
+            }
 
-            console.log('[PLAY] Keith YTMP3 API:', apiUrl);
+            // David Cyril YouTube MP3 (Alt) endpoint. Keep the key in an
+            // environment variable so it is not exposed in the source/repo.
+            const endpoint = 'https://apis.davidcyril.name.ng/download/youtube-mp3-alt';
+            const apiUrl = `${endpoint}?url=${encodeURIComponent(videoUrl)}`;
+            console.log('[PLAY] David Cyril YouTube MP3 Alt request started');
 
             const response = await axios.get(apiUrl, {
                 responseType: 'arraybuffer',
@@ -7106,7 +7113,8 @@ case 'play': {
                 maxContentLength: 60 * 1024 * 1024,
                 maxBodyLength: 60 * 1024 * 1024,
                 headers: {
-                    'User-Agent': 'Mozilla/5.0',
+                    'X-API-Key': apiKey,
+                    'User-Agent': 'CASEYRHODES-MD/1.0',
                     'Accept': 'application/json,audio/mpeg,audio/*,*/*'
                 },
                 validateStatus: () => true
@@ -7116,55 +7124,43 @@ case 'play': {
             const rawBuffer = Buffer.from(response.data || []);
 
             if (response.status < 200 || response.status >= 300) {
-                let detail = '';
                 const payload = parseApiPayload(rawBuffer);
-                if (payload) {
-                    detail = payload?.message || payload?.error || payload?.status || '';
+                const detail = payload?.message || payload?.error || payload?.result?.message || '';
+                if (response.status === 401 || response.status === 403) {
+                    throw new Error(`David Cyril API rejected the API key (HTTP ${response.status}). Check DAVID_CYRIL_API_KEY.`);
                 }
-                throw new Error(`Keith YTMP3 API returned HTTP ${response.status}${detail ? `: ${detail}` : ''}`);
+                throw new Error(`David Cyril YouTube MP3 API returned HTTP ${response.status}${detail ? `: ${detail}` : ''}`);
             }
 
+            if (!rawBuffer.length) throw new Error('David Cyril API returned an empty response');
+
+            // Some downloader endpoints return the MP3 bytes directly.
             if (contentType.includes('audio/') || contentType.includes('mpeg') || contentType.includes('mp3')) {
-                if (!rawBuffer.length) throw new Error('Keith YTMP3 returned an empty audio file');
-                return { buffer: rawBuffer, url: null, source: 'keith' };
+                return { buffer: rawBuffer, url: null, source: 'david-cyril' };
             }
 
             const payload = parseApiPayload(rawBuffer);
             if (!payload) {
-                if (rawBuffer.length > 1024) return { buffer: rawBuffer, url: null, source: 'keith' };
-                throw new Error('Invalid response from Keith YTMP3 audio API');
+                // Accept a direct binary MP3 response even when the server
+                // labels it as application/octet-stream.
+                const looksLikeMp3 = rawBuffer.length > 1024 &&
+                    (rawBuffer.subarray(0, 3).toString() === 'ID3' ||
+                     (rawBuffer[0] === 0xff && (rawBuffer[1] & 0xe0) === 0xe0));
+                if (looksLikeMp3) return { buffer: rawBuffer, url: null, source: 'david-cyril' };
+                throw new Error(`David Cyril API returned an unreadable response${contentType ? ` (${contentType})` : ''}`);
+            }
+
+            if (payload.success === false || payload.status === false) {
+                throw new Error(payload.message || payload.error || 'David Cyril API reported that the download failed');
             }
 
             const audioUrl = findAudioUrl(payload);
             if (!audioUrl) {
-                console.error('[PLAY] Keith YTMP3 response:', JSON.stringify(payload).slice(0, 3000));
-                throw new Error(payload?.message || payload?.error || 'Keith YTMP3 did not return an audio download link');
+                console.error('[PLAY] David Cyril response:', JSON.stringify(payload).slice(0, 2000));
+                throw new Error(payload.message || payload.error || 'David Cyril API response did not contain an audio download URL');
             }
 
-            // The API can return a temporary URL. Do not assume that URL is
-            // healthy; the caller verifies it and can use the fallback API.
-            return { buffer: null, url: audioUrl, source: 'keith' };
-        }
-
-        async function downloadFromFallback(videoUrl) {
-            // Keep a second downloader so a temporary Keith/Railway 404 does
-            // not make the whole play command fail. This is not the old Toosii
-            // API; it is the bot's existing YouTube MP3 endpoint.
-            const fallbackUrl = `https://noobs-api.top/dipto/ytDl3?link=${encodeURIComponent(videoUrl)}&format=mp3`;
-            console.log('[PLAY] Fallback YTMP3 API:', fallbackUrl);
-
-            const response = await axios.get(fallbackUrl, {
-                timeout: 90000,
-                maxContentLength: 10 * 1024 * 1024,
-                headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json,*/*' }
-            });
-
-            const data = response.data || {};
-            const audioUrl = findAudioUrl(data);
-            if (!audioUrl) {
-                throw new Error(data?.message || data?.error || 'Fallback YouTube MP3 API returned no audio link');
-            }
-            return { buffer: null, url: audioUrl, source: 'fallback' };
+            return { buffer: null, url: audioUrl, source: 'david-cyril' };
         }
 
         async function fetchAudioUrl(url) {
@@ -7186,31 +7182,10 @@ case 'play': {
         }
 
         async function getPlayAudio(videoUrl) {
-            // Keith API is the primary and required downloader.
-            // It returns JSON like: { status: true, result: "https://...mp3" }
-            let keithError;
-            try {
-                const result = await downloadFromKeith(videoUrl);
-                if (result.buffer) return result.buffer;
-                if (result.url) return await fetchAudioUrl(result.url);
-                throw new Error('Keith API returned no audio');
-            } catch (e) {
-                keithError = e;
-                console.warn('[PLAY] Keith YTMP3 failed:', e.message);
-            }
-
-            // Only use the existing fallback if the requested Keith API fails.
-            try {
-                const fallback = await downloadFromFallback(videoUrl);
-                if (fallback.buffer) return fallback.buffer;
-                if (fallback.url) return await fetchAudioUrl(fallback.url);
-            } catch (fallbackError) {
-                throw new Error(
-                    `Keith API: ${keithError?.message || 'failed'}\nFallback: ${fallbackError?.message || 'failed'}`
-                );
-            }
-
-            throw keithError || new Error('Audio download failed');
+            const result = await downloadFromDavidCyril(videoUrl);
+            if (result.buffer?.length) return result.buffer;
+            if (result.url) return await fetchAudioUrl(result.url);
+            throw new Error('David Cyril API did not return an audio file or download URL');
         }
 
         console.log('[PLAY] Request:', query);
