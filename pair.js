@@ -7005,24 +7005,35 @@ case 'play': {
         }
 
         const sessionId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-        const apiURL = `https://arslan-apis-v2.vercel.app/download/ytmp3?url=${encodeURIComponent(video.url)}`;
-        console.log('[PLAY] Requesting Arslan YTMP3 API');
-        const response = await axios.get(apiURL, {
+        const apiURL = 'https://toosiitechdevelopertools.zone.id/api/download/audio';
+        console.log('[PLAY] Requesting ToosiiTech audio API');
+
+        // POST the YouTube URL and request MP3. Keep the token out of logs.
+        const response = await axios.post(apiURL, {
+            url: video.url,
+            format: 'mp3'
+        }, {
             timeout: 90000,
             responseType: 'arraybuffer',
             maxContentLength: 60 * 1024 * 1024,
             maxBodyLength: 60 * 1024 * 1024,
-            headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json,audio/mpeg,audio/*,application/octet-stream,*/*' },
+            headers: {
+                'Authorization': 'Bearer TSK_78_671bbfc9c96b45ea5a2a53c49515a84165610f2493085395',
+                'Content-Type': 'application/json',
+                'Accept': 'application/json,audio/mpeg,audio/*,application/octet-stream,*/*',
+                'User-Agent': 'Mozilla/5.0'
+            },
             validateStatus: () => true
         });
+
         const contentType = String(response.headers?.['content-type'] || '').toLowerCase();
         const raw = Buffer.from(response.data || []);
         if (response.status < 200 || response.status >= 300) {
             let detail = '';
             try { const j = JSON.parse(raw.toString('utf8')); detail = j.message || j.error || ''; } catch {}
-            throw new Error(`Arslan API returned HTTP ${response.status}${detail ? `: ${detail}` : ''}`);
+            throw new Error(`ToosiiTech API returned HTTP ${response.status}${detail ? `: ${detail}` : ''}`);
         }
-        if (!raw.length) throw new Error('Arslan API returned an empty response');
+        if (!raw.length) throw new Error('ToosiiTech API returned an empty response');
 
         let audioUrl = null;
         let directAudio = null;
@@ -7033,21 +7044,28 @@ case 'play': {
             try { data = JSON.parse(raw.toString('utf8')); }
             catch {
                 if (raw.length > 1024 && (raw.subarray(0, 3).toString() === 'ID3' || (raw[0] === 0xff && (raw[1] & 0xe0) === 0xe0))) directAudio = raw;
-                else throw new Error('Arslan API response was not JSON or a recognizable audio file');
+                else throw new Error('ToosiiTech API response was not JSON or a recognizable audio file');
             }
             if (data) {
-                if (data.success === false || data.status === false || data.error || data.ok === false) throw new Error(data.message || data.error || 'Arslan API reported a download failure');
+                if (data.success === false || data.status === false || data.error || data.ok === false) {
+                    throw new Error(data.message || data.error || 'ToosiiTech API reported a download failure');
+                }
                 const findUrl = (obj, depth = 0) => {
                     if (!obj || depth > 7) return null;
                     if (typeof obj === 'string') return /^https?:\/\//i.test(obj) && !/youtube\.com\/(watch|shorts)|youtu\.be\//i.test(obj) ? obj : null;
                     if (Array.isArray(obj)) { for (const v of obj) { const found = findUrl(v, depth + 1); if (found) return found; } return null; }
                     if (typeof obj !== 'object') return null;
-                    for (const k of ['audio','audioUrl','audio_url','downloadUrl','download_url','download','url','link','result','data']) { if (obj[k] != null) { const found = findUrl(obj[k], depth + 1); if (found) return found; } }
-                    for (const [k,v] of Object.entries(obj)) { if (/thumbnail|image|title|author|youtube/i.test(k)) continue; const found = findUrl(v, depth + 1); if (found) return found; }
+                    for (const k of ['audio','audioUrl','audio_url','downloadUrl','download_url','download','url','link','result','data','file']) {
+                        if (obj[k] != null) { const found = findUrl(obj[k], depth + 1); if (found) return found; }
+                    }
+                    for (const [k, v] of Object.entries(obj)) {
+                        if (/thumbnail|image|title|author|youtube/i.test(k)) continue;
+                        const found = findUrl(v, depth + 1); if (found) return found;
+                    }
                     return null;
                 };
                 audioUrl = findUrl(data);
-                if (!audioUrl) throw new Error(data.message || 'Arslan API did not return an audio download URL');
+                if (!audioUrl && !directAudio) throw new Error(data.message || 'ToosiiTech API did not return an audio download URL');
             }
         }
 
@@ -7125,7 +7143,7 @@ case 'play': {
                         }
                         await socket.sendMessage(sender, { react: { text: '✅', key: messageData.key } });
                     } catch (error) {
-                        console.error('[PLAY] Arslan download error:', error.message);
+                        console.error('[PLAY] ToosiiTech download error:', error.message);
                         await socket.sendMessage(sender, { react: { text: '❌', key: messageData.key } });
                         await socket.sendMessage(sender, { text: `❌ *ᴅᴏᴡɴʟᴏᴀᴅ ғᴀɪʟᴇᴅ*\n\n${error.message || 'Download failed'}` }, { quoted: messageData });
                     }
@@ -10828,33 +10846,33 @@ case 'fbdl': {
             quoted: msg
         });
 
-        // Arslan Facebook downloader API (no API key required)
-        const apiUrl = `https://arslan-apis-v2.vercel.app/download/fbdown?url=${encodeURIComponent(url)}`;
-        const { data } = await axios.get(apiUrl, {
-            timeout: 60000,
-            headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' },
-            maxRedirects: 5
+        // GiftedTech Facebook downloader API
+        const { data } = await axios.get('https://api.gifted.co.ke/api/download/facebook', {
+            params: {
+                apikey: 'gifted',
+                url
+            },
+            timeout: 45000,
+            headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' }
         });
 
-        if (!data || data.error || data.status === false || (typeof data.status === 'number' && data.status >= 400)) {
-            throw new Error(data?.message || data?.error || `Arslan Facebook API returned status ${data?.status ?? 'an invalid response'}`);
+        if (data?.error || (data?.status && Number(data.status) >= 400)) {
+            throw new Error(data.error || data.message || `Facebook API returned status ${data.status}`);
         }
 
-        // Handle common response shapes returned by downloader APIs.
-        const result = data?.result ?? data?.data ?? data?.media ?? data;
+        // Gifted responses may place download links under result as an object or string.
+        const result = data?.result ?? data?.data ?? data;
         const videoUrl = (typeof result === 'string' ? result : null) ||
-            result?.hd || result?.HD || result?.video_hd || result?.hd_url ||
-            result?.videoUrl || result?.video_url || result?.download_url ||
-            result?.downloadUrl || result?.download || result?.sd || result?.SD ||
-            result?.video_sd || result?.sd_url || result?.url ||
-            data?.hd || data?.HD || data?.videoUrl || data?.video_url ||
-            data?.download_url || data?.downloadUrl || data?.url;
+            result?.hd || result?.hd_url || result?.video_hd || result?.videoUrl ||
+            result?.video_url || result?.download_url || result?.downloadUrl ||
+            result?.sd || result?.sd_url || result?.video_sd || result?.url ||
+            data?.hd || data?.video_url || data?.download_url || data?.url;
         if (typeof videoUrl !== 'string' || !/^https?:\/\//i.test(videoUrl)) {
-            console.error('[Facebook] Arslan API response:', JSON.stringify(data).slice(0, 2000));
-            throw new Error(data?.message || data?.msg || 'Arslan API did not return a usable video URL. Make sure the Facebook video is public.');
+            throw new Error(data?.message || data?.error || 'The Facebook API did not return a usable video download URL. The video may be private or the API response format may have changed.');
         }
 
-        const title = result?.title || result?.name || data?.title || data?.name || 'Facebook Video';
+        const title = result?.title || result?.name || data?.title || 'Facebook Video';
+
         // Delete downloading message
         try { await socket.sendMessage(sender, { delete: downloadingMsg.key }); } catch {}
 
