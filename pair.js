@@ -7011,77 +7011,92 @@ case 'play': {
             }
         }
 
+        function unwrapMessage(message) {
+            let current = message;
+            // Baileys may wrap interactive replies in ephemeral/view-once messages.
+            for (let i = 0; i < 6 && current; i++) {
+                const next = current.ephemeralMessage?.message ||
+                    current.viewOnceMessage?.message ||
+                    current.viewOnceMessageV2?.message ||
+                    current.documentWithCaptionMessage?.message ||
+                    current.editedMessage?.message;
+                if (!next) break;
+                current = next;
+            }
+            return current;
+        }
+
         function extractSelectedId(message) {
-            if (!message) return null;
+            const root = unwrapMessage(message);
+            if (!root) return null;
 
-            if (message.templateButtonReplyMessage?.selectedId) {
-                return message.templateButtonReplyMessage.selectedId;
-            }
+            const direct = root.templateButtonReplyMessage?.selectedId ||
+                root.buttonsResponseMessage?.selectedButtonId ||
+                root.listResponseMessage?.singleSelectReply?.selectedRowId;
+            if (direct) return direct;
 
-            if (message.buttonsResponseMessage?.selectedButtonId) {
-                return message.buttonsResponseMessage.selectedButtonId;
-            }
-
-            if (message.listResponseMessage?.singleSelectReply?.selectedRowId) {
-                return message.listResponseMessage.singleSelectReply.selectedRowId;
-            }
-
-            if (message.interactiveResponseMessage) {
-                const nf = message.interactiveResponseMessage.nativeFlowResponseMessage;
-
+            const interactive = root.interactiveResponseMessage;
+            if (interactive) {
+                const nf = interactive.nativeFlowResponseMessage;
                 if (nf?.paramsJson) {
                     try {
                         const p = JSON.parse(nf.paramsJson);
-                        if (p.id) return p.id;
-                        if (p.selectedId) return p.selectedId;
-                        if (p.row_id) return p.row_id;
-                        if (p.rowId) return p.rowId;
+                        const id = p.id || p.selectedId || p.row_id || p.rowId || p.button_id;
+                        if (id) return id;
                     } catch {}
                 }
-
-                return message.interactiveResponseMessage.buttonId || null;
+                if (interactive.buttonId) return interactive.buttonId;
             }
 
+            // Compatibility for alternative button reply shapes used by WhatsApp clients.
+            const native = root.nativeFlowResponseMessage;
+            if (native?.paramsJson) {
+                try {
+                    const p = JSON.parse(native.paramsJson);
+                    return p.id || p.selectedId || p.row_id || p.rowId || p.button_id || null;
+                } catch {}
+            }
             return null;
         }
 
-        function findAudioUrl(value) {
-            if (!value) return null;
+        function isHttpUrl(value) {
+            return typeof value === 'string' && /^https?:\/\//i.test(value);
+        }
 
+        function findAudioUrl(value, depth = 0) {
+            if (!value || depth > 8) return null;
             if (typeof value === 'string') {
-                return /^https?:\/\//i.test(value) ? value : null;
+                if (!isHttpUrl(value)) return null;
+                // Never mistake the submitted YouTube page or a thumbnail for the audio URL.
+                if (/youtube\.com\/(watch|shorts)|youtu\.be\//i.test(value)) return null;
+                return value;
             }
-
             if (Array.isArray(value)) {
                 for (const item of value) {
-                    const found = findAudioUrl(item);
+                    const found = findAudioUrl(item, depth + 1);
                     if (found) return found;
                 }
                 return null;
             }
+            if (typeof value !== 'object') return null;
 
-            if (typeof value === 'object') {
-                const preferred = [
-                    'audio', 'audioUrl', 'audio_url',
-                    'download', 'downloadUrl', 'download_url',
-                    'url', 'link', 'media', 'stream',
-                    'mp3', 'music', 'result'
-                ];
-
-                for (const key of preferred) {
-                    if (value[key]) {
-                        const found = findAudioUrl(value[key]);
-                        if (found) return found;
-                    }
-                }
-
-                for (const key of Object.keys(value)) {
-                    if (/thumbnail|thumb|image|cover|avatar|author|channel|preview/i.test(key)) continue;
-                    const found = findAudioUrl(value[key]);
+            const preferred = [
+                'downloadUrl', 'download_url', 'audioUrl', 'audio_url',
+                'directUrl', 'direct_url', 'mediaUrl', 'media_url',
+                'streamUrl', 'stream_url', 'mp3Url', 'mp3_url',
+                'audio', 'download', 'media', 'stream', 'mp3', 'result', 'data'
+            ];
+            for (const key of preferred) {
+                if (value[key] !== undefined && value[key] !== null) {
+                    const found = findAudioUrl(value[key], depth + 1);
                     if (found) return found;
                 }
             }
-
+            for (const [key, child] of Object.entries(value)) {
+                if (/youtube|source|original|thumbnail|thumb|image|cover|avatar|author|channel|title|name/i.test(key)) continue;
+                const found = findAudioUrl(child, depth + 1);
+                if (found) return found;
+            }
             return null;
         }
 
@@ -7135,7 +7150,7 @@ case 'play': {
                 throw new Error(`Arslan YTMP3 API returned an unreadable response${contentType ? ` (${contentType})` : ''}`);
             }
 
-            if (payload.success === false || payload.status === false || payload.error) {
+            if (payload.success === false || payload.status === false || payload.error || payload.ok === false) {
                 throw new Error(payload.message || payload.error || payload.result?.message || 'Arslan YTMP3 API reported that the download failed');
             }
 
@@ -7175,7 +7190,7 @@ case 'play': {
 
         console.log('[PLAY] Request:', query);
 
-        // If the user supplies a YouTube URL, send that exact URL to Keith.
+        // If the user supplies a YouTube URL, pass that exact URL to the Arslan API.
         // This avoids an unnecessary YouTube search and preserves the original video ID.
         const directYoutubeUrl = (query.match(/https?:\/\/(?:www\.)?(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)[^\s]+/i) || [])[0] || null;
 
@@ -7257,12 +7272,11 @@ case 'play': {
 
         carousel.addCard(cards);
 
-        await carousel.send(sender);
-
         const buttonHandler = async (messageUpdate) => {
             try {
                 for (const messageData of messageUpdate?.messages || []) {
-                    if (messageData?.key?.remoteJid !== sender) continue;
+                    const remoteJid = messageData?.key?.remoteJid || '';
+                    if (remoteJid !== sender && remoteJid.split(':')[0] !== String(sender).split(':')[0]) continue;
 
                     const buttonId = extractSelectedId(messageData?.message);
                     if (!buttonId || !String(buttonId).startsWith(`${sessionId}-`)) continue;
@@ -7324,11 +7338,18 @@ case 'play': {
             }
         };
 
-        socket.ev.on('messages.upsert', buttonHandler);
-
         const timeout = setTimeout(() => {
             socket.ev.off('messages.upsert', buttonHandler);
         }, 300000);
+        socket.ev.on('messages.upsert', buttonHandler);
+
+        try {
+            await carousel.send(sender);
+        } catch (sendError) {
+            socket.ev.off('messages.upsert', buttonHandler);
+            clearTimeout(timeout);
+            throw sendError;
+        }
 
     } catch (err) {
         console.error('[PLAY] Error:', err);
