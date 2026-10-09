@@ -7095,14 +7095,9 @@ case 'play': {
             }
         }
 
-        async function downloadFromDavidCyril(videoUrl) {
-            const apiKey = process.env.DAVID_CYRIL_API_KEY || 'dc_live_zysiVMMYsV8fPZ0N54HyP5b0XqB2lk_v';
-
-            // David Cyril YouTube MP3 (Alt) endpoint. The environment variable
-            // can override the embedded fallback key when configured.
-            const endpoint = 'https://apis.davidcyril.name.ng/download/youtube-mp3-alt';
-            const apiUrl = `${endpoint}?url=${encodeURIComponent(videoUrl)}`;
-            console.log('[PLAY] David Cyril YouTube MP3 Alt request started');
+        async function downloadFromArslanApi(videoUrl) {
+            const apiUrl = `https://arslan-apis-v2.vercel.app/download/ytmp3?url=${encodeURIComponent(videoUrl)}`;
+            console.log('[PLAY] Arslan YTMP3 request started');
 
             const response = await axios.get(apiUrl, {
                 responseType: 'arraybuffer',
@@ -7110,9 +7105,8 @@ case 'play': {
                 maxContentLength: 60 * 1024 * 1024,
                 maxBodyLength: 60 * 1024 * 1024,
                 headers: {
-                    'X-API-Key': apiKey,
-                    'User-Agent': 'CASEYRHODES-MD/1.0',
-                    'Accept': 'application/json,audio/mpeg,audio/*,*/*'
+                    'User-Agent': 'Mozilla/5.0',
+                    'Accept': 'application/json,audio/mpeg,audio/*,application/octet-stream,*/*'
                 },
                 validateStatus: () => true
             });
@@ -7123,41 +7117,35 @@ case 'play': {
             if (response.status < 200 || response.status >= 300) {
                 const payload = parseApiPayload(rawBuffer);
                 const detail = payload?.message || payload?.error || payload?.result?.message || '';
-                if (response.status === 401 || response.status === 403) {
-                    throw new Error(`David Cyril API rejected the API key (HTTP ${response.status}). Check DAVID_CYRIL_API_KEY.`);
-                }
-                throw new Error(`David Cyril YouTube MP3 API returned HTTP ${response.status}${detail ? `: ${detail}` : ''}`);
+                throw new Error(`Arslan YTMP3 API returned HTTP ${response.status}${detail ? `: ${detail}` : ''}`);
             }
+            if (!rawBuffer.length) throw new Error('Arslan YTMP3 API returned an empty response');
 
-            if (!rawBuffer.length) throw new Error('David Cyril API returned an empty response');
-
-            // Some downloader endpoints return the MP3 bytes directly.
+            // Some API deployments return audio bytes directly instead of JSON.
             if (contentType.includes('audio/') || contentType.includes('mpeg') || contentType.includes('mp3')) {
-                return { buffer: rawBuffer, url: null, source: 'david-cyril' };
+                return { buffer: rawBuffer, url: null };
             }
 
             const payload = parseApiPayload(rawBuffer);
             if (!payload) {
-                // Accept a direct binary MP3 response even when the server
-                // labels it as application/octet-stream.
                 const looksLikeMp3 = rawBuffer.length > 1024 &&
                     (rawBuffer.subarray(0, 3).toString() === 'ID3' ||
                      (rawBuffer[0] === 0xff && (rawBuffer[1] & 0xe0) === 0xe0));
-                if (looksLikeMp3) return { buffer: rawBuffer, url: null, source: 'david-cyril' };
-                throw new Error(`David Cyril API returned an unreadable response${contentType ? ` (${contentType})` : ''}`);
+                if (looksLikeMp3) return { buffer: rawBuffer, url: null };
+                throw new Error(`Arslan YTMP3 API returned an unreadable response${contentType ? ` (${contentType})` : ''}`);
             }
 
-            if (payload.success === false || payload.status === false) {
-                throw new Error(payload.message || payload.error || 'David Cyril API reported that the download failed');
+            if (payload.success === false || payload.status === false || payload.error) {
+                throw new Error(payload.message || payload.error || payload.result?.message || 'Arslan YTMP3 API reported that the download failed');
             }
 
             const audioUrl = findAudioUrl(payload);
-            if (!audioUrl) {
-                console.error('[PLAY] David Cyril response:', JSON.stringify(payload).slice(0, 2000));
-                throw new Error(payload.message || payload.error || 'David Cyril API response did not contain an audio download URL');
+            if (!audioUrl || audioUrl === apiUrl || !/^https?:\/\//i.test(audioUrl)) {
+                console.error('[PLAY] Arslan YTMP3 response:', JSON.stringify(payload).slice(0, 2000));
+                throw new Error(payload.message || payload.result?.message || 'Arslan YTMP3 API response did not contain an audio download URL');
             }
 
-            return { buffer: null, url: audioUrl, source: 'david-cyril' };
+            return { buffer: null, url: audioUrl };
         }
 
         async function fetchAudioUrl(url) {
@@ -7179,10 +7167,10 @@ case 'play': {
         }
 
         async function getPlayAudio(videoUrl) {
-            const result = await downloadFromDavidCyril(videoUrl);
+            const result = await downloadFromArslanApi(videoUrl);
             if (result.buffer?.length) return result.buffer;
             if (result.url) return await fetchAudioUrl(result.url);
-            throw new Error('David Cyril API did not return an audio file or download URL');
+            throw new Error('Arslan YTMP3 API did not return an audio file or download URL');
         }
 
         console.log('[PLAY] Request:', query);
@@ -7315,7 +7303,7 @@ case 'play': {
                             react: { text: '✅', key: messageData.key }
                         });
                     } catch (downloadError) {
-                        console.error('[PLAY] Keith YTMP3 download error:', downloadError);
+                        console.error('[PLAY] Arslan YTMP3 download error:', downloadError);
 
                         await socket.sendMessage(sender, {
                             react: { text: '❌', key: messageData.key }
