@@ -7416,17 +7416,15 @@ case 'tiktokdl': {
             quoted: msg
         });
 
-        // Encode URL for API
-        const encodedUrl = encodeURIComponent(url);
-        const apiUrl = `https://api.cod3uchiha.com/downloaders/tiktokdl?url=${encodedUrl}`;
-
+        // GiftedTech TikTok downloader API
         console.log(`[TikTok] 📥 Downloading: ${url}`);
 
-        // Fetch video info and download link
-        const response = await axios.get(apiUrl, { 
-            timeout: 30000,
+        const response = await axios.get('https://api.gifted.co.ke/api/download/tiktok', {
+            params: { apikey: 'gifted', url },
+            timeout: 45000,
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Accept': 'application/json'
             }
         });
 
@@ -7435,16 +7433,20 @@ case 'tiktokdl': {
         // Delete processing message
         try { await socket.sendMessage(sender, { delete: processingMsg.key }); } catch (e) {}
 
-        // Check if response contains error
-        if (data.error || data.status === 'error' || !data) {
-            throw new Error(data.message || 'Failed to download video');
+        // Check for Gifted API errors
+        if (!data || data.error || (data.status && Number(data.status) >= 400) || data.status === 'error') {
+            throw new Error(data?.error || data?.message || 'Gifted TikTok API failed to download this video');
         }
 
-        // Extract video info from response (supports multiple response formats)
-        const videoData = data.result || data.data || data;
-        
-        const videoTitle = videoData.title || videoData.desc || 'TikTok Video';
-        const videoUrl = videoData.play || videoData.videoUrl || videoData.download || videoData.url || videoData.link;
+        // Extract video info from common Gifted response formats
+        const rawResult = data.result ?? data.data ?? data;
+        const videoData = Array.isArray(rawResult) ? (rawResult[0] || {}) : rawResult;
+        const videoTitle = videoData.title || videoData.desc || videoData.description || 'TikTok Video';
+        const videoUrl = (typeof videoData === 'string' ? videoData : null) ||
+            videoData.play || videoData.play_url || videoData.playUrl || videoData.videoUrl ||
+            videoData.video_url || videoData.no_watermark || videoData.nowm || videoData.download ||
+            videoData.download_url || videoData.downloadUrl || videoData.url || videoData.link ||
+            videoData.hdplay || videoData.wmplay || data.url || data.video_url;
         const thumbnail = videoData.cover || videoData.thumbnail || videoData.pic || 'https://via.placeholder.com/150';
         const duration = videoData.duration || 'N/A';
         const views = videoData.play_count || videoData.views || 'N/A';
@@ -7456,8 +7458,8 @@ case 'tiktokdl': {
         const music = videoData.music || videoData.sound || 'Unknown';
         const isWatermarked = videoData.watermarked || false;
 
-        if (!videoUrl) {
-            throw new Error('No download URL found in response');
+        if (typeof videoUrl !== 'string' || !/^https?:\/\//i.test(videoUrl)) {
+            throw new Error(data?.message || 'Gifted TikTok API did not return a usable video download URL. The link may be private or the API response format may have changed.');
         }
 
         // Determine if video has audio
@@ -11039,16 +11041,32 @@ case 'fbdl': {
             quoted: msg
         });
 
-        const apiUrl = `https://api.nexoracle.com/downloaders/fbdl?url=${encodeURIComponent(url)}&apikey=free_for_use`;
-        const { data } = await axios.get(apiUrl, {
-            timeout: 30000,
-            headers: { 'User-Agent': 'Mozilla/5.0' }
+        // GiftedTech Facebook downloader API
+        const { data } = await axios.get('https://api.gifted.co.ke/api/download/facebook', {
+            params: {
+                apikey: 'gifted',
+                url
+            },
+            timeout: 45000,
+            headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' }
         });
 
-        const videoUrl = data?.result?.hd || data?.result?.sd || data?.link;
-        if (!videoUrl) throw new Error('Could not extract video URL. The link may be private or unsupported.');
+        if (data?.error || (data?.status && Number(data.status) >= 400)) {
+            throw new Error(data.error || data.message || `Facebook API returned status ${data.status}`);
+        }
 
-        const title = data?.result?.title || 'Facebook Video';
+        // Gifted responses may place download links under result as an object or string.
+        const result = data?.result ?? data?.data ?? data;
+        const videoUrl = (typeof result === 'string' ? result : null) ||
+            result?.hd || result?.hd_url || result?.video_hd || result?.videoUrl ||
+            result?.video_url || result?.download_url || result?.downloadUrl ||
+            result?.sd || result?.sd_url || result?.video_sd || result?.url ||
+            data?.hd || data?.video_url || data?.download_url || data?.url;
+        if (typeof videoUrl !== 'string' || !/^https?:\/\//i.test(videoUrl)) {
+            throw new Error(data?.message || data?.error || 'The Facebook API did not return a usable video download URL. The video may be private or the API response format may have changed.');
+        }
+
+        const title = result?.title || result?.name || data?.title || 'Facebook Video';
 
         // Delete downloading message
         try { await socket.sendMessage(sender, { delete: downloadingMsg.key }); } catch {}
