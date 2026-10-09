@@ -6974,397 +6974,175 @@ case 'songlyrics': {
 //case play damn am good
 case 'play': {
     try {
-        await socket.sendMessage(sender, { react: { text: '🎠', key: msg.key } });
+        await socket.sendMessage(sender, { react: { text: '🎶', key: msg.key } });
 
+        const yts = require('yt-search');
         const q = msg.message?.conversation ||
                   msg.message?.extendedTextMessage?.text ||
                   msg.message?.imageMessage?.caption ||
                   msg.message?.videoMessage?.caption || '';
-
-        const query = q.replace(/^[.\/!]play\s*/i, '').trim();
+        const query = q.replace(/^[.\/@!]play\s*/i, '').trim();
 
         if (!query) {
             return await socket.sendMessage(sender, {
-                text: `🎵 *ᴘʟᴀʏ ᴍᴜsɪᴄ*\n\nᴘʟᴇᴀsᴇ ᴘʀᴏᴠɪᴅᴇ ᴀ sᴏɴɢ ɴᴀᴍᴇ.\n\n*ᴜsᴀɢᴇ:* \`${prefix}play <song name>\`\n\n*ᴇxᴀᴍᴘʟᴇ:*\n\`${prefix}play Faded\`\n\`${prefix}play Shape of You\`\n\n> ${botConfig.BOT_FOOTER}`,
+                text: `🎵 *ᴀᴜᴅɪᴏ ᴘʟᴀʏᴇʀ*\n\nᴘʟᴇᴀsᴇ ᴘʀᴏᴠɪᴅᴇ ᴀ sᴏɴɢ ɴᴀᴍᴇ.\n\n*ᴜsᴀɢᴇ:* \`${prefix}play <song name>\`\n\n*ᴇxᴀᴍᴘʟᴇ:*\n\`${prefix}play Faded\`\n\`${prefix}play Shape of You\`\n\n> ${botConfig.BOT_FOOTER}`,
                 quoted: msg
             });
         }
 
-        function clip(s, n) {
-            s = String(s || '');
-            return s.length > n ? s.slice(0, n - 2) + '..' : s;
-        }
+        console.log('[PLAY] Searching YouTube for:', query);
+        const directUrl = (query.match(/https?:\/\/(?:www\.)?(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)[^\s]+/i) || [])[0];
+        const search = directUrl ? null : await yts(query);
+        const video = directUrl
+            ? { url: directUrl, title: 'YouTube audio', timestamp: 'Unknown', author: { name: 'YouTube' }, views: 0, thumbnail: null }
+            : search?.videos?.[0];
 
-        async function fetchThumb(url) {
-            if (!url) return null;
-            try {
-                const res = await axios.get(url, {
-                    responseType: 'arraybuffer',
-                    timeout: 15000,
-                    maxContentLength: 8 * 1024 * 1024,
-                    maxBodyLength: 8 * 1024 * 1024,
-                    headers: { 'User-Agent': 'Mozilla/5.0' }
-                });
-                return Buffer.from(res.data);
-            } catch {
-                return null;
-            }
-        }
-
-        function unwrapMessage(message) {
-            let current = message;
-            // Baileys may wrap interactive replies in ephemeral/view-once messages.
-            for (let i = 0; i < 6 && current; i++) {
-                const next = current.ephemeralMessage?.message ||
-                    current.viewOnceMessage?.message ||
-                    current.viewOnceMessageV2?.message ||
-                    current.documentWithCaptionMessage?.message ||
-                    current.editedMessage?.message;
-                if (!next) break;
-                current = next;
-            }
-            return current;
-        }
-
-        function extractSelectedId(message) {
-            const root = unwrapMessage(message);
-            if (!root) return null;
-
-            const direct = root.templateButtonReplyMessage?.selectedId ||
-                root.buttonsResponseMessage?.selectedButtonId ||
-                root.listResponseMessage?.singleSelectReply?.selectedRowId;
-            if (direct) return direct;
-
-            const interactive = root.interactiveResponseMessage;
-            if (interactive) {
-                const nf = interactive.nativeFlowResponseMessage;
-                if (nf?.paramsJson) {
-                    try {
-                        const p = JSON.parse(nf.paramsJson);
-                        const id = p.id || p.selectedId || p.row_id || p.rowId || p.button_id;
-                        if (id) return id;
-                    } catch {}
-                }
-                if (interactive.buttonId) return interactive.buttonId;
-            }
-
-            // Compatibility for alternative button reply shapes used by WhatsApp clients.
-            const native = root.nativeFlowResponseMessage;
-            if (native?.paramsJson) {
-                try {
-                    const p = JSON.parse(native.paramsJson);
-                    return p.id || p.selectedId || p.row_id || p.rowId || p.button_id || null;
-                } catch {}
-            }
-            return null;
-        }
-
-        function isHttpUrl(value) {
-            return typeof value === 'string' && /^https?:\/\//i.test(value);
-        }
-
-        function findAudioUrl(value, depth = 0) {
-            if (!value || depth > 8) return null;
-            if (typeof value === 'string') {
-                if (!isHttpUrl(value)) return null;
-                // Never mistake the submitted YouTube page or a thumbnail for the audio URL.
-                if (/youtube\.com\/(watch|shorts)|youtu\.be\//i.test(value)) return null;
-                return value;
-            }
-            if (Array.isArray(value)) {
-                for (const item of value) {
-                    const found = findAudioUrl(item, depth + 1);
-                    if (found) return found;
-                }
-                return null;
-            }
-            if (typeof value !== 'object') return null;
-
-            const preferred = [
-                'downloadUrl', 'download_url', 'audioUrl', 'audio_url',
-                'directUrl', 'direct_url', 'mediaUrl', 'media_url',
-                'streamUrl', 'stream_url', 'mp3Url', 'mp3_url',
-                'audio', 'download', 'media', 'stream', 'mp3', 'result', 'data'
-            ];
-            for (const key of preferred) {
-                if (value[key] !== undefined && value[key] !== null) {
-                    const found = findAudioUrl(value[key], depth + 1);
-                    if (found) return found;
-                }
-            }
-            for (const [key, child] of Object.entries(value)) {
-                if (/youtube|source|original|thumbnail|thumb|image|cover|avatar|author|channel|title|name/i.test(key)) continue;
-                const found = findAudioUrl(child, depth + 1);
-                if (found) return found;
-            }
-            return null;
-        }
-
-        function parseApiPayload(buffer) {
-            try {
-                const text = Buffer.from(buffer).toString('utf8').trim();
-                if (!text) return null;
-                return JSON.parse(text);
-            } catch {
-                return null;
-            }
-        }
-
-        async function downloadFromArslanApi(videoUrl) {
-            const apiUrl = `https://arslan-apis-v2.vercel.app/download/ytmp3?url=${encodeURIComponent(videoUrl)}`;
-            console.log('[PLAY] Arslan YTMP3 request started');
-
-            const response = await axios.get(apiUrl, {
-                responseType: 'arraybuffer',
-                timeout: 90000,
-                maxContentLength: 60 * 1024 * 1024,
-                maxBodyLength: 60 * 1024 * 1024,
-                headers: {
-                    'User-Agent': 'Mozilla/5.0',
-                    'Accept': 'application/json,audio/mpeg,audio/*,application/octet-stream,*/*'
-                },
-                validateStatus: () => true
-            });
-
-            const contentType = String(response.headers?.['content-type'] || '').toLowerCase();
-            const rawBuffer = Buffer.from(response.data || []);
-
-            if (response.status < 200 || response.status >= 300) {
-                const payload = parseApiPayload(rawBuffer);
-                const detail = payload?.message || payload?.error || payload?.result?.message || '';
-                throw new Error(`Arslan YTMP3 API returned HTTP ${response.status}${detail ? `: ${detail}` : ''}`);
-            }
-            if (!rawBuffer.length) throw new Error('Arslan YTMP3 API returned an empty response');
-
-            // Some API deployments return audio bytes directly instead of JSON.
-            if (contentType.includes('audio/') || contentType.includes('mpeg') || contentType.includes('mp3')) {
-                return { buffer: rawBuffer, url: null };
-            }
-
-            const payload = parseApiPayload(rawBuffer);
-            if (!payload) {
-                const looksLikeMp3 = rawBuffer.length > 1024 &&
-                    (rawBuffer.subarray(0, 3).toString() === 'ID3' ||
-                     (rawBuffer[0] === 0xff && (rawBuffer[1] & 0xe0) === 0xe0));
-                if (looksLikeMp3) return { buffer: rawBuffer, url: null };
-                throw new Error(`Arslan YTMP3 API returned an unreadable response${contentType ? ` (${contentType})` : ''}`);
-            }
-
-            if (payload.success === false || payload.status === false || payload.error || payload.ok === false) {
-                throw new Error(payload.message || payload.error || payload.result?.message || 'Arslan YTMP3 API reported that the download failed');
-            }
-
-            const audioUrl = findAudioUrl(payload);
-            if (!audioUrl || audioUrl === apiUrl || !/^https?:\/\//i.test(audioUrl)) {
-                console.error('[PLAY] Arslan YTMP3 response:', JSON.stringify(payload).slice(0, 2000));
-                throw new Error(payload.message || payload.result?.message || 'Arslan YTMP3 API response did not contain an audio download URL');
-            }
-
-            return { buffer: null, url: audioUrl };
-        }
-
-        async function fetchAudioUrl(url) {
-            if (!url) throw new Error('Empty audio URL');
-            const response = await axios.get(url, {
-                responseType: 'arraybuffer',
-                timeout: 90000,
-                maxContentLength: 60 * 1024 * 1024,
-                maxBodyLength: 60 * 1024 * 1024,
-                headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'audio/mpeg,audio/*,*/*' },
-                validateStatus: () => true
-            });
-            if (response.status < 200 || response.status >= 300) {
-                throw new Error(`Audio download URL returned HTTP ${response.status}`);
-            }
-            const buffer = Buffer.from(response.data || []);
-            if (!buffer.length) throw new Error('Audio download returned an empty file');
-            return buffer;
-        }
-
-        async function getPlayAudio(videoUrl) {
-            const result = await downloadFromArslanApi(videoUrl);
-            if (result.buffer?.length) return result.buffer;
-            if (result.url) return await fetchAudioUrl(result.url);
-            throw new Error('Arslan YTMP3 API did not return an audio file or download URL');
-        }
-
-        console.log('[PLAY] Request:', query);
-
-        // If the user supplies a YouTube URL, pass that exact URL to the Arslan API.
-        // This avoids an unnecessary YouTube search and preserves the original video ID.
-        const directYoutubeUrl = (query.match(/https?:\/\/(?:www\.)?(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)[^\s]+/i) || [])[0] || null;
-
-        const search = directYoutubeUrl ? null : await yts(query);
-        const videos = directYoutubeUrl
-            ? [{ url: directYoutubeUrl, title: 'YouTube audio', timestamp: '', author: { name: 'YouTube' }, thumbnail: null }]
-            : (search?.videos || []).filter(v => v?.url).slice(0, 3);
-
-        if (!videos.length) {
+        if (!video?.url) {
             return await socket.sendMessage(sender, {
-                text: `❌ *ɴᴏ ʀᴇsᴜʟᴛs*\n\nɴᴏ sᴏɴɢs ғᴏᴜɴᴅ ғᴏʀ: *${clip(query, 80)}*\n\n> ${botConfig.BOT_FOOTER}`,
+                text: `❌ *ɴᴏ ʀᴇsᴜʟᴛs*\n\nɴᴏ sᴏɴɢs ғᴏᴜɴᴅ. ᴛʀʏ ᴅɪғғᴇʀᴇɴᴛ ᴋᴇʏᴡᴏʀᴅs.\n\n> ${botConfig.BOT_FOOTER}`,
                 quoted: msg
             });
         }
 
-        /*
-         * WhatsApp carousel
-         *
-         * This follows the Button -> toCard() -> Carousel pattern from
-         * the carousel logic supplied for this command.
-         */
-        const { Carousel, Button } = await import('@fazzcodestudio/wa-web');
+        const sessionId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+        const apiURL = `https://arslan-apis-v2.vercel.app/download/ytmp3?url=${encodeURIComponent(video.url)}`;
+        console.log('[PLAY] Requesting Arslan YTMP3 API');
+        const response = await axios.get(apiURL, {
+            timeout: 90000,
+            responseType: 'arraybuffer',
+            maxContentLength: 60 * 1024 * 1024,
+            maxBodyLength: 60 * 1024 * 1024,
+            headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json,audio/mpeg,audio/*,application/octet-stream,*/*' },
+            validateStatus: () => true
+        });
+        const contentType = String(response.headers?.['content-type'] || '').toLowerCase();
+        const raw = Buffer.from(response.data || []);
+        if (response.status < 200 || response.status >= 300) {
+            let detail = '';
+            try { const j = JSON.parse(raw.toString('utf8')); detail = j.message || j.error || ''; } catch {}
+            throw new Error(`Arslan API returned HTTP ${response.status}${detail ? `: ${detail}` : ''}`);
+        }
+        if (!raw.length) throw new Error('Arslan API returned an empty response');
 
-        if (typeof Carousel !== 'function' || typeof Button !== 'function') {
-            throw new Error('Carousel builder is unavailable. Install @fazzcodestudio/wa-web.');
+        let audioUrl = null;
+        let directAudio = null;
+        if (contentType.includes('audio/') || contentType.includes('mpeg') || contentType.includes('octet-stream')) {
+            directAudio = raw;
+        } else {
+            let data;
+            try { data = JSON.parse(raw.toString('utf8')); }
+            catch {
+                if (raw.length > 1024 && (raw.subarray(0, 3).toString() === 'ID3' || (raw[0] === 0xff && (raw[1] & 0xe0) === 0xe0))) directAudio = raw;
+                else throw new Error('Arslan API response was not JSON or a recognizable audio file');
+            }
+            if (data) {
+                if (data.success === false || data.status === false || data.error || data.ok === false) throw new Error(data.message || data.error || 'Arslan API reported a download failure');
+                const findUrl = (obj, depth = 0) => {
+                    if (!obj || depth > 7) return null;
+                    if (typeof obj === 'string') return /^https?:\/\//i.test(obj) && !/youtube\.com\/(watch|shorts)|youtu\.be\//i.test(obj) ? obj : null;
+                    if (Array.isArray(obj)) { for (const v of obj) { const found = findUrl(v, depth + 1); if (found) return found; } return null; }
+                    if (typeof obj !== 'object') return null;
+                    for (const k of ['audio','audioUrl','audio_url','downloadUrl','download_url','download','url','link','result','data']) { if (obj[k] != null) { const found = findUrl(obj[k], depth + 1); if (found) return found; } }
+                    for (const [k,v] of Object.entries(obj)) { if (/thumbnail|image|title|author|youtube/i.test(k)) continue; const found = findUrl(v, depth + 1); if (found) return found; }
+                    return null;
+                };
+                audioUrl = findUrl(data);
+                if (!audioUrl) throw new Error(data.message || 'Arslan API did not return an audio download URL');
+            }
         }
 
-        const sessionId = `play-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-        const cards = [];
+        const apiTitle = video.title || 'audio';
+        const cleanTitle = String(apiTitle).replace(/[<>:"/\\|?*]+/g, '').trim().slice(0, 150) || 'audio';
+        const caption = `🎧 *${apiTitle}*\n\n` +
+                        `⏱️ *ᴅᴜʀᴀᴛɪᴏɴ:* ${video.timestamp || 'Unknown'}\n` +
+                        `👤 *ᴀʀᴛɪsᴛ:* ${video.author?.name || 'Unknown'}\n` +
+                        `👀 *ᴠɪᴇᴡs:* ${(video.views || 0).toLocaleString()}\n\n` +
+                        `🔗 *ʏᴏᴜᴛᴜʙᴇ:* ${video.url}\n\n` +
+                        `📂 *ᴅᴏᴡɴʟᴏᴀᴅ ᴄᴀᴛᴇɢᴏʀʏ*\n` +
+                        `sᴇʟᴇᴄᴛ ʜᴏᴡ ʏᴏᴜ ᴡᴀɴᴛ ᴛᴏ ʀᴇᴄᴇɪᴠᴇ ᴛʜᴇ ᴀᴜᴅɪᴏ.\n\n> ${botConfig.BOT_FOOTER}`;
 
-        for (let i = 0; i < videos.length; i++) {
-            const video = videos[i];
-            const title = clip(video.title || `Song ${i + 1}`, 45);
-            const duration = video.timestamp || 'Unknown';
-            const artist = video.author?.name || 'Unknown artist';
-            const buttonId = `${sessionId}-${i}`;
-
-            const body =
-                `🎵 *${title}*\n` +
-                `👤 ${clip(artist, 35)}\n` +
-                `⏱️ ${duration}\n\n` +
-                `Tap below to download this song.`;
-
-            const btn = new Button(socket)
-                .setTitle(title)
-                .setBody(body)
-                .addReply('🎵 ᴘʟᴀʏ ᴀᴜᴅɪᴏ', buttonId);
-
-            const thumb = await fetchThumb(video.thumbnail);
-
-            if (thumb) {
-                try {
-                    btn.setImage(thumb);
-                } catch {
-                    try { btn.setImage(video.thumbnail); } catch {}
+        const sentMsg = await socket.sendMessage(sender, {
+            image: video.thumbnail ? { url: video.thumbnail } : undefined,
+            text: video.thumbnail ? undefined : caption,
+            caption: video.thumbnail ? caption : undefined,
+            footer: '📂 ᴄʜᴏᴏsᴇ ᴅᴏᴡɴʟᴏᴀᴅ ғᴏʀᴍᴀᴛ',
+            buttons: [{
+                buttonId: `play-category-${sessionId}`,
+                buttonText: { displayText: '📂 ᴄʜᴏᴏsᴇ ᴅᴏᴡɴʟᴏᴀᴅ ғᴏʀᴍᴀᴛ' },
+                type: 4,
+                nativeFlowInfo: {
+                    name: 'single_select',
+                    paramsJson: JSON.stringify({
+                        title: '📂 ᴅᴏᴡɴʟᴏᴀᴅ ᴄᴀᴛᴇɢᴏʀʏ',
+                        sections: [{
+                            title: '🎵 ᴀᴜᴅɪᴏ ғᴏʀᴍᴀᴛs',
+                            highlight_label: 'ᴘʟᴀʏ / sᴀᴠᴇ',
+                            rows: [
+                                { title: '🎵 ᴀᴜᴅɪᴏ (ᴘʟᴀʏ)', description: 'Play the song directly in WhatsApp', id: `play-audio-${sessionId}` },
+                                { title: '📁 ᴅᴏᴄᴜᴍᴇɴᴛ (sᴀᴠᴇ)', description: 'Send the MP3 as a document', id: `play-document-${sessionId}` }
+                            ]
+                        }]
+                    })
                 }
-            } else if (video.thumbnail) {
-                try { btn.setImage(video.thumbnail); } catch {}
-            }
-
-            try {
-                cards.push(await btn.toCard());
-            } catch (cardError) {
-                console.error('[PLAY] Card build failed:', cardError.message);
-            }
-        }
-
-        if (!cards.length) {
-            throw new Error('No playable carousel cards could be built');
-        }
-
-        const carousel = new Carousel(socket)
-            .setBody(
-                `🎵 *ᴘʟᴀʏ ᴍᴜsɪᴄ*\n\n` +
-                `Search: *${clip(query, 70)}*\n\n` +
-                `Swipe through the results and tap *🎵 ᴘʟᴀʏ ᴀᴜᴅɪᴏ* on the song you want.`
-            )
-            .setFooter(`⚡ ${botConfig.BOT_FOOTER}`);
-
-        carousel.addCard(cards);
+            }],
+            headerType: 1,
+            viewOnce: true
+        }, { quoted: msg });
 
         const buttonHandler = async (messageUpdate) => {
             try {
                 for (const messageData of messageUpdate?.messages || []) {
                     const remoteJid = messageData?.key?.remoteJid || '';
                     if (remoteJid !== sender && remoteJid.split(':')[0] !== String(sender).split(':')[0]) continue;
-
-                    const buttonId = extractSelectedId(messageData?.message);
-                    if (!buttonId || !String(buttonId).startsWith(`${sessionId}-`)) continue;
-
-                    const selectedIndex = Number(String(buttonId).slice(`${sessionId}-`.length));
-                    const selectedVideo = videos[selectedIndex];
-
-                    if (!selectedVideo?.url) continue;
-
-                    socket.ev.off('messages.upsert', buttonHandler);
-                    clearTimeout(timeout);
-
-                    await socket.sendMessage(sender, {
-                        react: { text: '⏳', key: messageData.key }
-                    });
-
-                    try {
-                        const audioBuffer = await getPlayAudio(selectedVideo.url);
-
-                        if (!audioBuffer?.length) {
-                            throw new Error('The downloaded audio file was empty');
-                        }
-
-                        const cleanTitle =
-                            String(selectedVideo.title || 'audio')
-                                .replace(/[<>:"/\\|?*]+/g, '')
-                                .trim()
-                                .slice(0, 150) || 'audio';
-
-                        await socket.sendMessage(sender, {
-                            audio: audioBuffer,
-                            mimetype: 'audio/mpeg',
-                            fileName: `${cleanTitle}.mp3`,
-                            ptt: false
-                        }, { quoted: messageData });
-
-                        await socket.sendMessage(sender, {
-                            react: { text: '✅', key: messageData.key }
-                        });
-                    } catch (downloadError) {
-                        console.error('[PLAY] Arslan YTMP3 download error:', downloadError);
-
-                        await socket.sendMessage(sender, {
-                            react: { text: '❌', key: messageData.key }
-                        });
-
-                        await socket.sendMessage(sender, {
-                            text:
-                                `❌ *ᴘʟᴀʏ ᴅᴏᴡɴʟᴏᴀᴅ ғᴀɪʟᴇᴅ*\n\n` +
-                                `${clip(downloadError.message || 'Download failed', 500)}\n\n` +
-                                `> ${botConfig.BOT_FOOTER}`
-                        }, { quoted: messageData });
+                    let root = messageData?.message;
+                    for (let i = 0; i < 6 && root; i++) {
+                        const wrapped = root.ephemeralMessage?.message || root.viewOnceMessage?.message || root.viewOnceMessageV2?.message || root.documentWithCaptionMessage?.message;
+                        if (!wrapped) break;
+                        root = wrapped;
                     }
-
+                    let buttonId = root?.buttonsResponseMessage?.selectedButtonId || root?.templateButtonReplyMessage?.selectedId || root?.listResponseMessage?.singleSelectReply?.selectedRowId;
+                    const interactive = root?.interactiveResponseMessage?.nativeFlowResponseMessage;
+                    if (!buttonId && interactive?.paramsJson) { try { const p = JSON.parse(interactive.paramsJson); buttonId = p.id || p.selectedId || p.row_id || p.rowId || p.button_id; } catch {} }
+                    const stanzaId = root?.listResponseMessage?.contextInfo?.stanzaId || root?.interactiveResponseMessage?.contextInfo?.stanzaId || root?.buttonsResponseMessage?.contextInfo?.stanzaId;
+                    if (!buttonId || !String(buttonId).includes(sessionId)) continue;
+                    if (stanzaId && sentMsg?.key?.id && stanzaId !== sentMsg.key.id) continue;
+                    socket.ev.off('messages.upsert', buttonHandler);
+                    clearTimeout(expireTimer);
+                    await socket.sendMessage(sender, { react: { text: '⏳', key: messageData.key } });
+                    try {
+                        let audioBuffer = directAudio;
+                        if (!audioBuffer && audioUrl) {
+                            const dl = await axios.get(audioUrl, { responseType: 'arraybuffer', timeout: 90000, maxContentLength: 60 * 1024 * 1024, maxBodyLength: 60 * 1024 * 1024, headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'audio/mpeg,audio/*,application/octet-stream,*/*' }, validateStatus: () => true });
+                            if (dl.status < 200 || dl.status >= 300) throw new Error(`Audio URL returned HTTP ${dl.status}`);
+                            audioBuffer = Buffer.from(dl.data || []);
+                        }
+                        if (!audioBuffer?.length) throw new Error('Downloaded audio was empty');
+                        const type = String(buttonId).startsWith(`play-audio-${sessionId}`) ? 'audio' : 'document';
+                        if (type === 'audio') {
+                            await socket.sendMessage(sender, { audio: audioBuffer, mimetype: 'audio/mpeg', fileName: `${cleanTitle}.mp3`, ptt: false }, { quoted: messageData });
+                        } else {
+                            await socket.sendMessage(sender, { document: audioBuffer, mimetype: 'audio/mpeg', fileName: `${cleanTitle}.mp3` }, { quoted: messageData });
+                        }
+                        await socket.sendMessage(sender, { react: { text: '✅', key: messageData.key } });
+                    } catch (error) {
+                        console.error('[PLAY] Arslan download error:', error.message);
+                        await socket.sendMessage(sender, { react: { text: '❌', key: messageData.key } });
+                        await socket.sendMessage(sender, { text: `❌ *ᴅᴏᴡɴʟᴏᴀᴅ ғᴀɪʟᴇᴅ*\n\n${error.message || 'Download failed'}` }, { quoted: messageData });
+                    }
                     return;
                 }
-            } catch (handlerError) {
-                console.error('[PLAY] Carousel handler error:', handlerError.message);
-            }
+            } catch (error) { console.error('[PLAY] Category handler error:', error.message); }
         };
-
-        const timeout = setTimeout(() => {
-            socket.ev.off('messages.upsert', buttonHandler);
-        }, 300000);
+        const expireTimer = setTimeout(() => socket.ev.off('messages.upsert', buttonHandler), 120000);
         socket.ev.on('messages.upsert', buttonHandler);
 
-        try {
-            await carousel.send(sender);
-        } catch (sendError) {
-            socket.ev.off('messages.upsert', buttonHandler);
-            clearTimeout(timeout);
-            throw sendError;
-        }
-
     } catch (err) {
-        console.error('[PLAY] Error:', err);
-
+        console.error('[PLAY] Error:', err.message);
         await socket.sendMessage(sender, {
-            text:
-                `❌ *ᴘʟᴀʏ ᴇʀʀᴏʀ*\n\n` +
-                `${clip(err.message || 'Unable to process your request.', 500)}\n\n` +
-                `> ${botConfig.BOT_FOOTER}`,
+            text: `❌ *ᴇʀʀᴏʀ*\n\nᴜɴᴀʙʟᴇ ᴛᴏ ᴘʀᴏᴄᴇss ʏᴏᴜʀ ʀᴇǫᴜᴇsᴛ.\n\n${err.message || ''}\n\n> ${botConfig.BOT_FOOTER}`,
             quoted: msg
         });
-
-        await socket.sendMessage(sender, {
-            react: { text: '❌', key: msg.key }
-        });
+        await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
     }
     break;
 }
