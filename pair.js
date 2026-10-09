@@ -7096,13 +7096,10 @@ case 'play': {
         }
 
         async function downloadFromDavidCyril(videoUrl) {
-            const apiKey = process.env.DAVID_CYRIL_API_KEY;
-            if (!apiKey) {
-                throw new Error('Missing DAVID_CYRIL_API_KEY. Add your David Cyril API key to the hosting environment variables.');
-            }
+            const apiKey = process.env.DAVID_CYRIL_API_KEY || 'dc_live_zysiVMMYsV8fPZ0N54HyP5b0XqB2lk_v';
 
-            // David Cyril YouTube MP3 (Alt) endpoint. Keep the key in an
-            // environment variable so it is not exposed in the source/repo.
+            // David Cyril YouTube MP3 (Alt) endpoint. The environment variable
+            // can override the embedded fallback key when configured.
             const endpoint = 'https://apis.davidcyril.name.ng/download/youtube-mp3-alt';
             const apiUrl = `${endpoint}?url=${encodeURIComponent(videoUrl)}`;
             console.log('[PLAY] David Cyril YouTube MP3 Alt request started');
