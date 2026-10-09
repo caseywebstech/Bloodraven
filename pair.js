@@ -10828,33 +10828,33 @@ case 'fbdl': {
             quoted: msg
         });
 
-        // GiftedTech Facebook downloader API
-        const { data } = await axios.get('https://api.gifted.co.ke/api/download/facebook', {
-            params: {
-                apikey: 'gifted',
-                url
-            },
-            timeout: 45000,
-            headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' }
+        // Arslan Facebook downloader API (no API key required)
+        const apiUrl = `https://arslan-apis-v2.vercel.app/download/fbdown?url=${encodeURIComponent(url)}`;
+        const { data } = await axios.get(apiUrl, {
+            timeout: 60000,
+            headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' },
+            maxRedirects: 5
         });
 
-        if (data?.error || (data?.status && Number(data.status) >= 400)) {
-            throw new Error(data.error || data.message || `Facebook API returned status ${data.status}`);
+        if (!data || data.error || data.status === false || (typeof data.status === 'number' && data.status >= 400)) {
+            throw new Error(data?.message || data?.error || `Arslan Facebook API returned status ${data?.status ?? 'an invalid response'}`);
         }
 
-        // Gifted responses may place download links under result as an object or string.
-        const result = data?.result ?? data?.data ?? data;
+        // Handle common response shapes returned by downloader APIs.
+        const result = data?.result ?? data?.data ?? data?.media ?? data;
         const videoUrl = (typeof result === 'string' ? result : null) ||
-            result?.hd || result?.hd_url || result?.video_hd || result?.videoUrl ||
-            result?.video_url || result?.download_url || result?.downloadUrl ||
-            result?.sd || result?.sd_url || result?.video_sd || result?.url ||
-            data?.hd || data?.video_url || data?.download_url || data?.url;
+            result?.hd || result?.HD || result?.video_hd || result?.hd_url ||
+            result?.videoUrl || result?.video_url || result?.download_url ||
+            result?.downloadUrl || result?.download || result?.sd || result?.SD ||
+            result?.video_sd || result?.sd_url || result?.url ||
+            data?.hd || data?.HD || data?.videoUrl || data?.video_url ||
+            data?.download_url || data?.downloadUrl || data?.url;
         if (typeof videoUrl !== 'string' || !/^https?:\/\//i.test(videoUrl)) {
-            throw new Error(data?.message || data?.error || 'The Facebook API did not return a usable video download URL. The video may be private or the API response format may have changed.');
+            console.error('[Facebook] Arslan API response:', JSON.stringify(data).slice(0, 2000));
+            throw new Error(data?.message || data?.msg || 'Arslan API did not return a usable video URL. Make sure the Facebook video is public.');
         }
 
-        const title = result?.title || result?.name || data?.title || 'Facebook Video';
-
+        const title = result?.title || result?.name || data?.title || data?.name || 'Facebook Video';
         // Delete downloading message
         try { await socket.sendMessage(sender, { delete: downloadingMsg.key }); } catch {}
 
