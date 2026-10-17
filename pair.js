@@ -352,7 +352,7 @@ async function setupChatbot(socket) {
                         forwardingScore: 1,
                         isForwarded: true,
                         forwardedNewsletterMessageInfo: {
-                            newsletterJid: '120363420261263259@newsletter',
+                            newsletterJid: '120363429952469353@newsletter',
                             newsletterName: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ🌟',
                             serverMessageId: -1
                         }
@@ -3781,7 +3781,7 @@ case 'antidel': {
                                 forwardingScore: 1,
                                 isForwarded: true,
                                 forwardedNewsletterMessageInfo: {
-                                    newsletterJid: '120363420261263259@newsletter',
+                                    newsletterJid: '120363429952469353@newsletter',
                                     newsletterName: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ🌟',
                                     serverMessageId: -1
                                 }
@@ -3813,7 +3813,7 @@ case 'antidel': {
                                 forwardingScore: 1,
                                 isForwarded: true,
                                 forwardedNewsletterMessageInfo: {
-                                    newsletterJid: '120363420261263259@newsletter',
+                                    newsletterJid: '120363429952469353@newsletter',
                                     newsletterName: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ🌟',
                                     serverMessageId: -1
                                 }
@@ -4581,7 +4581,7 @@ case 'encode': {
                 forwardingScore: 999,
                 isForwarded: true,
                 forwardedNewsletterMessageInfo: {
-                    newsletterJid: '120363302677217436@newsletter',
+                    newsletterJid: '120363429952469353@newsletter',
                     newsletterName: 'CASEYRHODES TECH',
                     serverMessageId: 143
                 }
@@ -4663,7 +4663,7 @@ case 'deb64': {
                 forwardingScore: 999,
                 isForwarded: true,
                 forwardedNewsletterMessageInfo: {
-                    newsletterJid: '120363302677217436@newsletter',
+                    newsletterJid: '120363429952469353@newsletter',
                     newsletterName: 'CASEYRHODES TECH',
                     serverMessageId: 143
                 }
@@ -4717,7 +4717,7 @@ case 'session': {
                 forwardingScore: 1,
                 isForwarded: true,
                 forwardedNewsletterMessageInfo: {
-                    newsletterJid: '120363420261263259@newsletter',
+                    newsletterJid: '120363429952469353@newsletter',
                     newsletterName: 'POWERED BY CASEYRHODES TECH',
                     serverMessageId: -1
                 }
@@ -4756,7 +4756,7 @@ case 'info': {
                 forwardingScore: 1,
                 isForwarded: true,
                 forwardedNewsletterMessageInfo: {
-                    newsletterJid: '120363420261263259@newsletter',
+                    newsletterJid: '120363429952469353@newsletter',
                     newsletterName: 'MINI BOT BY CASEYRHODES TECH',
                     serverMessageId: -1
                 }
@@ -4804,7 +4804,7 @@ case 'menu': {
         forwardingScore: 1,
         isForwarded: true,
         forwardedNewsletterMessageInfo: {
-            newsletterJid: '120363420261263259@newsletter',
+            newsletterJid: '120363429952469353@newsletter',
             newsletterName: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ🌟',
             serverMessageId: -1
         }
@@ -7310,7 +7310,7 @@ case 'tiktokdl': {
                         renderLargerThumbnail: true
                     },
                     forwardedNewsletterMessageInfo: {
-                        newsletterJid: '120363420261263259@newsletter',
+                        newsletterJid: '120363429952469353@newsletter',
                         newsletterName: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ🌟',
                         serverMessageId: -1
                     }
@@ -7349,7 +7349,7 @@ case 'tiktokdl': {
                         sourceUrl: url
                     },
                     forwardedNewsletterMessageInfo: {
-                        newsletterJid: '120363420261263259@newsletter',
+                        newsletterJid: '120363429952469353@newsletter',
                         newsletterName: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ🌟',
                         serverMessageId: -1
                     }
@@ -7975,7 +7975,7 @@ case 'pin': {
                 forwardingScore: 1,
                 isForwarded: true,
                 forwardedNewsletterMessageInfo: {
-                    newsletterJid: '120363420261263259@newsletter',
+                    newsletterJid: '120363429952469353@newsletter',
                     newsletterName: 'ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs 🎀',
                     serverMessageId: -1
                 }
@@ -8076,7 +8076,7 @@ case 'img_nav': {
                 forwardingScore: 1,
                 isForwarded: true,
                 forwardedNewsletterMessageInfo: {
-                    newsletterJid: '120363420261263259@newsletter',
+                    newsletterJid: '120363429952469353@newsletter',
                     newsletterName: 'ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs 🎀',
                     serverMessageId: -1
                 }
@@ -11270,7 +11270,7 @@ case 'casey': {
                     forwardingScore: 1,
                     isForwarded: true,
                     forwardedNewsletterMessageInfo: {
-                        newsletterJid: '120363420261263259@newsletter',
+                        newsletterJid: '120363429952469353@newsletter',
                         newsletterName: 'CASEYRHODES XMD🌟',
                         serverMessageId: -1
                     }
@@ -11340,7 +11340,7 @@ case 'casey': {
                 forwardingScore: 1,
                 isForwarded: true,
                 forwardedNewsletterMessageInfo: {
-                    newsletterJid: '120363420261263259@newsletter',
+                    newsletterJid: '120363429952469353@newsletter',
                     newsletterName: 'CASEYRHODES XMD🌟',
                     serverMessageId: -1
                 }
@@ -12577,7 +12577,7 @@ case 'mentions': {
                     renderLargerThumbnail: true
                 },
                 forwardedNewsletterMessageInfo: {
-                    newsletterJid: '120363420261263259@newsletter',
+                    newsletterJid: '120363429952469353@newsletter',
                     newsletterName: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ🌟',
                     serverMessageId: -1
                 }
@@ -13786,7 +13786,7 @@ await socket.sendMessage(userJid, {
         forwardingScore: 1,
         isForwarded: true,
         forwardedNewsletterMessageInfo: {
-            newsletterJid: '120363420261263259@newsletter',
+            newsletterJid: '120363429952469353@newsletter',
             newsletterName: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ🌟',
             serverMessageId: -1
         }
