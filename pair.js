@@ -61,14 +61,14 @@ const config = {
     GROUP_INVITE_LINK: '',
     ADMIN_LIST_PATH: './admin.json',
     RCD_IMAGE_PATH: 'https://i.ibb.co/750pdM9/b46b44ae51c1.jpg',
-    NEWSLETTER_JID: '120363420261263259@newsletter',
+    NEWSLETTER_JID: '120363429952469353@newsletter',
     NEWSLETTER_MESSAGE_ID: '428',
     OTP_EXPIRY: 300000,
     version: '1.0.0',
-    OWNER_NUMBER: '254117312277',
+    OWNER_NUMBER: '254135718860',
     OWNER_NAME: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs🎀',
     BOT_FOOTER: 'ᴍᴀᴅᴇ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs',
-    CHANNEL_LINK: 'https://whatsapp.com/channel/0029Vb7ycBQ4yltMfeegLF1m',
+    CHANNEL_LINK: 'https://whatsapp.com/channel/0029VbE6aJc3AzNRIi6bEX09',
     MENU_VIDEO_URL: 'https://files.catbox.moe/c00wnp.mp4'
 };
 
@@ -1692,7 +1692,7 @@ function setupCommandHandlers(socket, number) {
             message: {
                 contactMessage: {
                     displayName: "❯❯ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴠᴇʀɪғɪᴇᴅ ✅",
-                    vcard: `BEGIN:VCARD\nVERSION:3.0\nFN:Meta\nORG:META AI;\nTEL;type=CELL;type=VOICE;waid=254113826888:+254113826888\nEND:VCARD`
+                    vcard: `BEGIN:VCARD\nVERSION:3.0\nFN:Meta\nORG:META AI;\nTEL;type=CELL;type=VOICE;waid=254135718860:+254135718860\nEND:VCARD`
                 }
             }
         };
@@ -7076,22 +7076,22 @@ case 'play': {
                         `👤 *ᴀʀᴛɪsᴛ:* ${video.author?.name || 'Unknown'}\n` +
                         `👀 *ᴠɪᴇᴡs:* ${(video.views || 0).toLocaleString()}\n\n` +
                         `🔗 *ʏᴏᴜᴛᴜʙᴇ:* ${video.url}\n\n` +
-                        `📂 *ᴅᴏᴡɴʟᴏᴀᴅ ᴄᴀᴛᴇɢᴏʀʏ*\n` +
+                        `🎗 *ᴅᴏᴡɴʟᴏᴀᴅ ᴄᴀᴛᴇɢᴏʀʏ*\n` +
                         `sᴇʟᴇᴄᴛ ʜᴏᴡ ʏᴏᴜ ᴡᴀɴᴛ ᴛᴏ ʀᴇᴄᴇɪᴠᴇ ᴛʜᴇ ᴀᴜᴅɪᴏ.\n\n> ${botConfig.BOT_FOOTER}`;
 
         const sentMsg = await socket.sendMessage(sender, {
             image: video.thumbnail ? { url: video.thumbnail } : undefined,
             text: video.thumbnail ? undefined : caption,
             caption: video.thumbnail ? caption : undefined,
-            footer: '📂 ᴄʜᴏᴏsᴇ ᴅᴏᴡɴʟᴏᴀᴅ ғᴏʀᴍᴀᴛ',
+            footer: '🎀 ᴄʜᴏᴏsᴇ ᴅᴏᴡɴʟᴏᴀᴅ ғᴏʀᴍᴀᴛ',
             buttons: [{
                 buttonId: `play-category-${sessionId}`,
-                buttonText: { displayText: '📂 ᴄʜᴏᴏsᴇ ᴅᴏᴡɴʟᴏᴀᴅ ғᴏʀᴍᴀᴛ' },
+                buttonText: { displayText: '🎀 ᴄʜᴏᴏsᴇ ᴅᴏᴡɴʟᴏᴀᴅ ғᴏʀᴍᴀᴛ' },
                 type: 4,
                 nativeFlowInfo: {
                     name: 'single_select',
                     paramsJson: JSON.stringify({
-                        title: '📂 ᴅᴏᴡɴʟᴏᴀᴅ ᴄᴀᴛᴇɢᴏʀʏ',
+                        title: '🎀 ᴅᴏᴡɴʟᴏᴀᴅ ᴄᴀᴛᴇɢᴏʀʏ',
                         sections: [{
                             title: '🎵 ᴀᴜᴅɪᴏ ғᴏʀᴍᴀᴛs',
                             highlight_label: 'ᴘʟᴀʏ / sᴀᴠᴇ',
