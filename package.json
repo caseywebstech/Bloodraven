@@ -8,7 +8,7 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
-    "@fazzcodestudio/wa-web": "^0.3.1",
+    
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "@octokit/rest": "^20.1.1",
     "@whiskeysockets/baileys": "^7.0.0-rc14",
