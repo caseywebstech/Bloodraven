@@ -1264,6 +1264,9 @@ function setupAntiDelete(sock) {
     const MAX_CACHED = 5000;
     const TTL = 48 * 60 * 60 * 1000;
     const pending = new Map();
+    // Prevent duplicate restores when Baileys reports the same revoke through
+    // more than one event (upsert, update, or delete).
+    const recoveredKeys = new Map();
     const antiDeleteDir = path.join(botState.dir, 'antidelete-cache');
     fs.ensureDirSync(antiDeleteDir);
     const persistFile = path.join(antiDeleteDir, 'messages.json');
@@ -1359,7 +1362,7 @@ function setupAntiDelete(sock) {
 
     const getMessageInfo = (original) => {
         const raw = unwrap(original?.message) || {};
-        const sender = original?.key?.participant || (original?.key?.fromMe ? sock.user?.id : null) || original?.key?.remoteJid || 'Unknown';
+        const sender = original?.key?.participant || original?.key?.participantAlt || (original?.key?.fromMe ? sock.user?.id : null) || original?.key?.remoteJid || 'Unknown';
         const senderName = String(sender).split('@')[0].split(':')[0];
         let type = 'Message';
         let body = '';
@@ -1494,9 +1497,12 @@ function setupAntiDelete(sock) {
     };
 
     const queueRecovery = (original) => {
-        if (!original?.message || !original.key?.remoteJid) return;
+        if (!original?.message || !original.key?.remoteJid || !original.key?.id) return;
+        const originalId = `${original.key.remoteJid}|${original.key.id}`;
+        if (recoveredKeys.has(originalId)) return;
+        recoveredKeys.set(originalId, Date.now());
         const chat = original.key.remoteJid;
-        const participant = original.key.participant || (original.key.fromMe ? sock.user?.id : chat);
+        const participant = original.key.participant || original.key.participantAlt || (original.key.fromMe ? sock.user?.id : (String(chat).endsWith('@g.us') ? null : chat));
         const info = getMessageInfo(original);
         info.participant = participant;
         info.original = original;
@@ -1507,20 +1513,22 @@ function setupAntiDelete(sock) {
         pending.get(chat)._timer = timer;
     };
 
+    // Cache every message delivered to this socket, regardless of sender,
+    // chat type, upsert type (notify/append), or whether it was sent by the bot.
     sock.ev.on('messages.upsert', async ({ messages }) => {
         for (const m of messages || []) {
-            if (!m?.message) continue;
+            if (!m?.key) continue;
             const protocol = isRevoke(m.message);
             if (protocol) {
-                // Do not restrict by owner/fromMe: recover deletions made by
-                // other users AND messages sent by the bot itself.
                 if (!botState.antiDeleteEnabled) continue;
                 const original = findOriginal(protocol.key);
                 if (original) queueRecovery(original);
-                else console.warn('[AntiDelete] Original message not found for revoke:', protocol.key?.id, protocol.key?.remoteJid || '(no remoteJid)');
+                else console.warn('[AntiDelete] Revoke received but original is not in cache:', protocol.key?.id, protocol.key?.remoteJid || '(remote chat unknown)');
                 continue;
             }
-            remember(m);
+            // Do not filter by key.fromMe, participant, owner number, or group
+            // membership: messages from every participant are cached.
+            if (m.message) remember(m);
         }
     });
 
@@ -1531,7 +1539,19 @@ function setupAntiDelete(sock) {
             if (!protocol || !botState.antiDeleteEnabled) continue;
             const original = findOriginal(protocol.key);
             if (original) queueRecovery(original);
-            else console.warn('[AntiDelete] Original message not found for revoke:', protocol.key?.id, protocol.key?.remoteJid || '(no remoteJid)');
+            else console.warn('[AntiDelete] Updated revoke original is not in cache:', protocol.key?.id, protocol.key?.remoteJid || '(remote chat unknown)');
+        }
+    });
+
+    // Some Baileys builds expose deletions as messages.delete with message
+    // keys instead of a protocolMessage. Use the same all-sender cache lookup.
+    sock.ev.on('messages.delete', async (event) => {
+        if (!botState.antiDeleteEnabled || !event) return;
+        const keys = Array.isArray(event) ? event : (event.keys || []);
+        for (const key of keys) {
+            const original = findOriginal(key);
+            if (original) queueRecovery(original);
+            else console.warn('[AntiDelete] Delete event original is not in cache:', key?.id, key?.remoteJid || '(remote chat unknown)');
         }
     });
 
@@ -1540,10 +1560,13 @@ function setupAntiDelete(sock) {
         for (const [key, entry] of cache) {
             if (entry.time < cutoff) cache.delete(key);
         }
+        for (const [key, time] of recoveredKeys) {
+            if (time < cutoff) recoveredKeys.delete(key);
+        }
     }, 10 * 60 * 1000);
     cleanup.unref?.();
 
-    console.log('🛡️ Anti-Delete handler registered: sender + bot + groups/PM, batched recovery enabled.');
+    console.log('🛡️ Anti-Delete ready: caching ALL senders (group members + private chats + bot messages); upsert/update/delete revoke events enabled.');
 }
 async function setupStatusHandlers(socket) {
     const botState = socket.__botState;
