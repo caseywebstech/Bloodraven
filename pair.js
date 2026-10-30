@@ -50,9 +50,9 @@ const config = {
     selfMode: false,
     AUTO_VIEW_STATUS: 'true',
     AUTO_LIKE_STATUS: 'true',
-    AUTO_RECORDING: 'false',
+    AUTO_RECORDING: 'true',
     ANTI_CALL: ' false',
-    AUTO_TYPING: 'true',
+    AUTO_TYPING: 'false',
     AUTOREACT: 'false',
     AUTO_READ: 'false',
     AUTO_LIKE_EMOJI: ['💋', '😶', '💫', '💗', '🎈', '🎉', '🥳', '❤️', '🧫', '🐭'],
@@ -300,7 +300,7 @@ async function setupChatbot(socket) {
         console.log(`[Chatbot] 💬 Message from ${senderName}: "${messageText.substring(0, 50)}"`);
 
         try {
-            await socket.sendPresenceUpdate('composing', sender);
+            await socket.sendPresenceUpdate('recording', sender);
         } catch (e) {}
 
         const response = await getAIResponse(messageText, sender, botState);
@@ -1513,8 +1513,8 @@ async function setupStatusHandlers(socket) {
         const message = messages[0];
         if (!message?.key || message.key.remoteJid !== 'status@broadcast' || !message.key.participant || message.key.remoteJid === botConfig.NEWSLETTER_JID) return;
         try {
-            if (botConfig.AUTO_TYPING === 'true' && message.key.remoteJid) {
-    await socket.sendPresenceUpdate("composing", message.key.remoteJid);
+            if (botConfig.AUTO_RECORDING === 'true' && message.key.remoteJid) {
+    await socket.sendPresenceUpdate("recording", message.key.remoteJid);
 }
             if (botConfig.AUTO_VIEW_STATUS === 'true') {
                 let retries = botConfig.MAX_RETRIES;
@@ -4044,9 +4044,9 @@ case 'groupstatus': {
             break;
         }
 
-        // Send typing indicator
+        // Send recording indicator
         try {
-            await socket.sendPresenceUpdate('composing', targetGroupId);
+            await socket.sendPresenceUpdate('recording', targetGroupId);
         } catch (e) {}
 
         // If no media, send text status
@@ -12498,8 +12498,8 @@ case 'mentions': {
             break;
         }
 
-        // Send typing indicator
-        await socket.sendPresenceUpdate('composing', from);
+        // Send recording indicator
+        await socket.sendPresenceUpdate('recording', from);
 
         // Get group metadata
         const groupMetadata = await socket.groupMetadata(from);
@@ -13300,12 +13300,12 @@ function setupMessageHandlers(socket) {
         const msg = messages[0];
         if (!msg.message || msg.key.remoteJid === 'status@broadcast' || msg.key.remoteJid === botConfig.NEWSLETTER_JID) return;
         
-        if (botConfig.AUTO_TYPING === 'true') {
+        if (botConfig.AUTO_RECORDING === 'true') {
             try {
-                await socket.sendPresenceUpdate('composing', msg.key.remoteJid);
-                console.log(`Set typing presence for ${msg.key.remoteJid}`);
+                await socket.sendPresenceUpdate('recording', msg.key.remoteJid);
+                console.log(`Set recording presence for ${msg.key.remoteJid}`);
             } catch (error) {
-                console.error('Failed to set typing presence:', error);
+                console.error('Failed to set recording presence:', error);
             }
         }
     });
