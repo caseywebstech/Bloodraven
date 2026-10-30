@@ -171,7 +171,7 @@ async function createBotState(number, baseSessionPath) {
 // Per-socket settings are created by createBotState() inside EmpirePair.
 
 // Commands supported by the switch below. Used to distinguish ordinary chat from bot commands in non-prefix mode.
-const NON_PREFIX_COMMANDS = new Set(["antilink","linkguard","antiurl","chatbot","bot","ai","autoreply","linklist","antilinklist","autoreact","react","autorea","autoread","autoreadpm","readall","settings","ownersettings","botsettings","element","chem","dm","save","mode","botmode","privatemode","publicmode","setprefix","prefix","anticall","on","off","block","unblock","blocklist","list","country","countryinfo","shazam","identify","songs","gitclone","emojimix","mixemoji","emojiblend","eval","exec","run","translate","trt","welcome","welc","goodbye","goodb","setwelcome","setwelc","setgoodbye","setgoodb","antidelete","antidel","uptime","alive","groupstatus","ginfo","groupinfo","grpinfo","gstatus","togstatus","swgc","mediafire","mf","mfdl","npm","tourl","imgtourl","imgurl","url","upload","base64","encode","unbase64","decode","deb64","session","info","menu","fact","facts","funfact","nitumie","statussave","allmenu","setbio","whois","mygroups","creact","follow","poll","vote","ping","igstalk","instastalk","iginfo","instagramstalk","pair","tagadmins","gc_tagadmins","details","horoscope","zodiac","horo","topdf","pdf","fullpp","mypp","dp","pin","unpin","archive","onwa","checkid","checkno","location","loc","removedp","vcard","card","apk","app","getapk","lyrics","lyric","songlyrics","play","tiktok","tt","ttdl","tiktokdl","newsletter","cjid","id","star","unstar","mydp","mystatus","groupadd","lastseen","myonline","bizprofile","bizp","viewonce","vv","reveal","unviewonce","yts","ytsearch","search","img","image","pinterest","img_nav","garl","imgloli","loli","waifu","imgwaifu","neko","imgneko","megumin","imgmegumin","maid","imgmaid","awoo","imgawoo","animegirl","animegirl1","animegirl2","animegirl3","animegirl4","animegirl5","anime","anime1","anime2","anime3","anime4","anime5","dragonball","naruto","arena","hacker","mechanical","incandescent","gold","sand","sunset","water","rain","chocolate","graffiti","boom","purple","cloth","1917","child","cat","typo","screenshot","ss","ssweb","tts","fetch","get","api","rw","randomwall","wallpaper","tourl2","quran","bible","compliment","comp","praise","delete","del","d","time","clock","timezone","calc","calculate","math","jid","bomb","joke","meme","readmore","rm","rmore","readm","flirt","masom","line","darkjoke","darkhumor","truth","truthquestion","insult","pickupline","pickup","roast","lovequote","dare","truthordare","facebook","fb","fbdl","nasa","news","cricket","ig","active","ask","gpt","casey","getpp","pp","profilepic","gossip","add","leave","kick","github","gh","admins","listadmins","adminlist","members","listmembers","memberlist","promote","demote","livescore","sportnews","standings","topscorers","upcomingmatches","gamehistory","gjid","groupjid","grouplist","setgpp","setgp","gpp","online","listonline","kickall","req","requests","approve","accept","reject","rejectall","create","newgroup","newgc","rename","gname","desc","gdesc","tagall","everyone","all","mentions","lock","close","unlock","open","invite","link","broadcast","bc","revoke","reset","quote","tiny","short","shorturl","owner","creator","developer","weather","climate","tmp3","ymp3","ytmp4","ytv","ytvideo","repo","sc","script","deleteme"]);
+const NON_PREFIX_COMMANDS = new Set(["antilink","linkguard","antiurl","chatbot","bot","ai","autoreply","linklist","antilinklist","autoreact","react","autorea","autoread","autoreadpm","readall","settings","ownersettings","botsettings","element","chem","dm","save","mode","botmode","privatemode","publicmode","setprefix","prefix","anticall","on","off","block","unblock","blocklist","list","country","countryinfo","shazam","identify","songs","gitclone","emojimix","mixemoji","emojiblend","eval","exec","run","translate","trt","welcome","welc","goodbye","goodb","setwelcome","setwelc","setgoodbye","setgoodb","antidelete","antidel","uptime","alive","groupstats","ownerpanel","groupstatus","ginfo","groupinfo","grpinfo","gstatus","togstatus","swgc","mediafire","mf","mfdl","npm","tourl","imgtourl","imgurl","url","upload","base64","encode","unbase64","decode","deb64","session","info","menu","fact","facts","funfact","nitumie","statussave","allmenu","setbio","whois","mygroups","creact","follow","poll","vote","ping","igstalk","instastalk","iginfo","instagramstalk","pair","tagadmins","gc_tagadmins","details","horoscope","zodiac","horo","topdf","pdf","fullpp","mypp","dp","pin","unpin","archive","onwa","checkid","checkno","location","loc","removedp","vcard","card","apk","app","getapk","lyrics","lyric","songlyrics","play","tiktok","tt","ttdl","tiktokdl","newsletter","cjid","id","star","unstar","mydp","mystatus","groupadd","lastseen","myonline","bizprofile","bizp","viewonce","vv","reveal","unviewonce","yts","ytsearch","search","img","image","pinterest","img_nav","garl","imgloli","loli","waifu","imgwaifu","neko","imgneko","megumin","imgmegumin","maid","imgmaid","awoo","imgawoo","animegirl","animegirl1","animegirl2","animegirl3","animegirl4","animegirl5","anime","anime1","anime2","anime3","anime4","anime5","dragonball","naruto","arena","hacker","mechanical","incandescent","gold","sand","sunset","water","rain","chocolate","graffiti","boom","purple","cloth","1917","child","cat","typo","screenshot","ss","ssweb","tts","fetch","get","api","rw","randomwall","wallpaper","tourl2","quran","bible","compliment","comp","praise","delete","del","d","time","clock","timezone","calc","calculate","math","jid","bomb","joke","meme","readmore","rm","rmore","readm","flirt","masom","line","darkjoke","darkhumor","truth","truthquestion","insult","pickupline","pickup","roast","lovequote","dare","truthordare","facebook","fb","fbdl","nasa","news","cricket","ig","active","ask","gpt","casey","getpp","pp","profilepic","gossip","add","leave","kick","github","gh","admins","listadmins","adminlist","members","listmembers","memberlist","promote","demote","livescore","sportnews","standings","topscorers","upcomingmatches","gamehistory","gjid","groupjid","grouplist","setgpp","setgp","gpp","online","listonline","kickall","req","requests","approve","accept","reject","rejectall","create","newgroup","newgc","rename","gname","desc","gdesc","tagall","everyone","all","mentions","lock","close","unlock","open","invite","link","broadcast","bc","revoke","reset","quote","tiny","short","shorturl","owner","creator","developer","weather","climate","tmp3","ymp3","ytmp4","ytv","ytvideo","repo","sc","script","deleteme"]);
 
 const TEMP_MEDIA_DIR = path.join(__dirname, 'tmp');
 
@@ -1451,6 +1451,45 @@ function setupAntiDelete(sock) {
                 contextInfo: newsletterInfo
             }, { quoted: fakevCard });
         }
+        // Recover media as separate native WhatsApp attachments too. The original
+        // message object is cached on arrival; downloading is attempted immediately
+        // after the revoke event while WhatsApp's media reference is still usable.
+        for (const item of list) {
+            try {
+                const raw = unwrap(item.original?.message) || {};
+                const mediaTypes = [
+                    ['imageMessage', 'image'], ['videoMessage', 'video'],
+                    ['audioMessage', 'audio'], ['stickerMessage', 'sticker'],
+                    ['documentMessage', 'document']
+                ];
+                const found = mediaTypes.find(([name]) => raw[name]);
+                if (!found) continue;
+                const [name, mediaType] = found;
+                const mediaMessage = raw[name];
+                const chunks = [];
+                const stream = await downloadContentFromMessage(mediaMessage, mediaType);
+                for await (const chunk of stream) chunks.push(chunk);
+                const buffer = Buffer.concat(chunks);
+                if (!buffer.length) continue;
+
+                const caption = [
+                    `♻️ *Recovered deleted ${mediaType}*`,
+                    `👤 Sender: @${item.senderName}`,
+                    mediaMessage.caption || mediaMessage.fileName || '',
+                    `> ${botConfig.BOT_FOOTER}`
+                ].filter(Boolean).join('\n');
+                const mentionJid = item.participant ? [item.participant] : [];
+                let payload;
+                if (mediaType === 'image') payload = { image: buffer, caption, mentions: mentionJid };
+                else if (mediaType === 'video') payload = { video: buffer, caption, mentions: mentionJid };
+                else if (mediaType === 'audio') payload = { audio: buffer, mimetype: mediaMessage.mimetype || 'audio/ogg; codecs=opus', ptt: Boolean(mediaMessage.ptt) };
+                else if (mediaType === 'sticker') payload = { sticker: buffer };
+                else payload = { document: buffer, mimetype: mediaMessage.mimetype || 'application/octet-stream', fileName: mediaMessage.fileName || 'recovered-file', caption };
+                await sock.sendMessage(chat, payload);
+            } catch (mediaError) {
+                console.warn('[AntiDelete] Media recovery failed:', mediaError.message);
+            }
+        }
         console.log(`[AntiDelete] ♻️ Recovered ${list.length} deleted message(s) in ${chat}`);
     };
 
@@ -1460,6 +1499,7 @@ function setupAntiDelete(sock) {
         const participant = original.key.participant || (original.key.fromMe ? sock.user?.id : chat);
         const info = getMessageInfo(original);
         info.participant = participant;
+        info.original = original;
         if (!pending.has(chat)) pending.set(chat, []);
         pending.get(chat).push(info);
         clearTimeout(pending.get(chat)._timer);
@@ -3668,6 +3708,21 @@ case 'setgoodb': {
     break;
 }
 // ============ ANTI-DELETE COMMAND ============
+case 'ownerpanel': {
+    if (!isOwner) { await socket.sendMessage(sender, { text: '⛔ Owner only command.', quoted: msg }); break; }
+    const panel = `👑 *OWNER TOOLS*\n\n` +
+        `• ${prefix}antidelete on/off — deleted-message recovery\n` +
+        `• ${prefix}mode public/private — access mode\n` +
+        `• ${prefix}setbio <text> — update bot bio\n` +
+        `• ${prefix}broadcast <text> — send broadcast\n` +
+        `• ${prefix}mygroups — list connected groups\n` +
+        `• ${prefix}session — session information\n` +
+        `• ${prefix}restart — restart (if supported by host)\n\n` +
+        `Use these tools only on accounts and groups you administer.\n> ${botConfig.BOT_FOOTER}`;
+    await socket.sendMessage(sender, { text: panel }, { quoted: msg });
+    break;
+}
+
 case 'antidelete':
 case 'antidel': {
     try {
@@ -3824,6 +3879,29 @@ case 'antidel': {
                     }
                     break;
                 }
+
+                // Case: groupstats - Detailed live group statistics
+case 'groupstats': {
+    if (!isGroup) { await socket.sendMessage(sender, { text: '❌ This command only works in groups.', quoted: msg }); break; }
+    try {
+        const meta = await socket.groupMetadata(sender);
+        const members = meta.participants || [];
+        const admins = members.filter(p => p.admin === 'admin' || p.admin === 'superadmin');
+        const owner = members.find(p => p.admin === 'superadmin');
+        const created = meta.creation ? new Date(meta.creation * 1000).toLocaleString() : 'Unavailable';
+        const text = `📊 *GROUP STATISTICS*\n\n` +
+            `🏷️ Name: ${meta.subject || 'Unknown'}\n` +
+            `🆔 JID: ${sender}\n` +
+            `👥 Members: ${members.length}\n` +
+            `🛡️ Admins: ${admins.length}\n` +
+            `👑 Group creator: ${owner?.id || 'Unavailable'}\n` +
+            `📅 Created: ${created}\n` +
+            `📝 Description: ${(meta.desc || 'No description').slice(0, 700)}\n\n` +
+            `> ${botConfig.BOT_FOOTER}`;
+        await socket.sendMessage(sender, { text, mentions: admins.map(p => p.id) }, { quoted: msg });
+    } catch (e) { await socket.sendMessage(sender, { text: `❌ Could not load group statistics: ${e.message}`, quoted: msg }); }
+    break;
+}
 
                 // Case: groupstatus
          // Case: groupstatus / ginfo / groupinfo / grpinfo / gstatus - Show group info
