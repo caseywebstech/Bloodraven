@@ -7106,84 +7106,60 @@ case 'play': {
         }
 
         const sessionId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-        const apiURL = 'https://toosiitechdevelopertools.zone.id/api/download/audio';
-        console.log('[PLAY] Requesting ToosiiTech audio API');
+        const apiURL = 'https://apis.davidcyril.name.ng/download/y2mate/mp3';
+        const apiKey = process.env.DAVIDCYRIL_API_KEY || 'dc_live_Ueg3Oz77zTPS816k4dOvNhfhri3Ugrgk';
 
-        // POST the YouTube URL and request MP3. Keep the token out of logs.
-        const response = await axios.post(apiURL, {
-            url: video.url,
-            format: 'mp3'
-        }, {
-            timeout: 90000,
-            responseType: 'arraybuffer',
-            maxContentLength: 60 * 1024 * 1024,
-            maxBodyLength: 60 * 1024 * 1024,
+        console.log('[PLAY] Requesting David Cyril MP3 API');
+
+        // This endpoint returns JSON containing result.download, not the MP3 bytes.
+        const response = await axios.get(apiURL, {
+            params: { url: video.url },
+            timeout: 60000,
             headers: {
-                'Authorization': 'Bearer TSK_78_671bbfc9c96b45ea5a2a53c49515a84165610f2493085395',
-                'Content-Type': 'application/json',
-                'Accept': 'application/json,audio/mpeg,audio/*,application/octet-stream,*/*',
+                'X-API-Key': apiKey,
+                'Accept': 'application/json',
                 'User-Agent': 'Mozilla/5.0'
             },
             validateStatus: () => true
         });
 
-        const contentType = String(response.headers?.['content-type'] || '').toLowerCase();
-        const raw = Buffer.from(response.data || []);
         if (response.status < 200 || response.status >= 300) {
-            let detail = '';
-            try { const j = JSON.parse(raw.toString('utf8')); detail = j.message || j.error || ''; } catch {}
-            throw new Error(`ToosiiTech API returned HTTP ${response.status}${detail ? `: ${detail}` : ''}`);
-        }
-        if (!raw.length) throw new Error('ToosiiTech API returned an empty response');
-
-        let audioUrl = null;
-        let directAudio = null;
-        if (contentType.includes('audio/') || contentType.includes('mpeg') || contentType.includes('octet-stream')) {
-            directAudio = raw;
-        } else {
-            let data;
-            try { data = JSON.parse(raw.toString('utf8')); }
-            catch {
-                if (raw.length > 1024 && (raw.subarray(0, 3).toString() === 'ID3' || (raw[0] === 0xff && (raw[1] & 0xe0) === 0xe0))) directAudio = raw;
-                else throw new Error('ToosiiTech API response was not JSON or a recognizable audio file');
-            }
-            if (data) {
-                if (data.success === false || data.status === false || data.error || data.ok === false) {
-                    throw new Error(data.message || data.error || 'ToosiiTech API reported a download failure');
-                }
-                const findUrl = (obj, depth = 0) => {
-                    if (!obj || depth > 7) return null;
-                    if (typeof obj === 'string') return /^https?:\/\//i.test(obj) && !/youtube\.com\/(watch|shorts)|youtu\.be\//i.test(obj) ? obj : null;
-                    if (Array.isArray(obj)) { for (const v of obj) { const found = findUrl(v, depth + 1); if (found) return found; } return null; }
-                    if (typeof obj !== 'object') return null;
-                    for (const k of ['audio','audioUrl','audio_url','downloadUrl','download_url','download','url','link','result','data','file']) {
-                        if (obj[k] != null) { const found = findUrl(obj[k], depth + 1); if (found) return found; }
-                    }
-                    for (const [k, v] of Object.entries(obj)) {
-                        if (/thumbnail|image|title|author|youtube/i.test(k)) continue;
-                        const found = findUrl(v, depth + 1); if (found) return found;
-                    }
-                    return null;
-                };
-                audioUrl = findUrl(data);
-                if (!audioUrl && !directAudio) throw new Error(data.message || 'ToosiiTech API did not return an audio download URL');
-            }
+            const detail = response.data?.message || response.data?.error || '';
+            throw new Error(`David Cyril API returned HTTP ${response.status}${detail ? `: ${detail}` : ''}`);
         }
 
-        const apiTitle = video.title || 'audio';
-        const cleanTitle = String(apiTitle).replace(/[<>:"/\\|?*]+/g, '').trim().slice(0, 150) || 'audio';
-        const caption = `🎧 *${apiTitle}*\n\n` +
+        const apiData = response.data;
+        if (!apiData || typeof apiData !== 'object') {
+            throw new Error('David Cyril API returned an invalid response');
+        }
+        if (apiData.success !== true || Number(apiData.status) !== 200) {
+            throw new Error(apiData.message || apiData.error || 'David Cyril API could not download this song');
+        }
+
+        const result = apiData.result || {};
+        const audioUrl = result.download;
+        if (typeof audioUrl !== 'string' || !/^https?:\/\//i.test(audioUrl)) {
+            throw new Error('David Cyril API response is missing result.download');
+        }
+
+        const apiTitle = result.title || video.title || 'audio';
+        const apiThumbnail = result.thumbnail || video.thumbnail || null;
+        const apiAuthor = result.author || video.author?.name || 'Unknown';
+        const apiQuality = result.quality || '128kbps';
+        const cleanTitle = String(apiTitle).replace(/[<>:"/\\\\|?*]+/g, '').trim().slice(0, 150) || 'audio';
+                const caption = `🎧 *${apiTitle}*\n\n` +
                         `⏱️ *ᴅᴜʀᴀᴛɪᴏɴ:* ${video.timestamp || 'Unknown'}\n` +
-                        `👤 *ᴀʀᴛɪsᴛ:* ${video.author?.name || 'Unknown'}\n` +
+                        `👤 *ᴀʀᴛɪsᴛ:* ${apiAuthor}\n` +
+                        `🎚️ *ǫᴜᴀʟɪᴛʏ:* ${apiQuality}\n` +
                         `👀 *ᴠɪᴇᴡs:* ${(video.views || 0).toLocaleString()}\n\n` +
                         `🔗 *ʏᴏᴜᴛᴜʙᴇ:* ${video.url}\n\n` +
                         `🎗 *ᴅᴏᴡɴʟᴏᴀᴅ ᴄᴀᴛᴇɢᴏʀʏ*\n` +
                         `sᴇʟᴇᴄᴛ ʜᴏᴡ ʏᴏᴜ ᴡᴀɴᴛ ᴛᴏ ʀᴇᴄᴇɪᴠᴇ ᴛʜᴇ ᴀᴜᴅɪᴏ.\n\n> ${botConfig.BOT_FOOTER}`;
 
         const sentMsg = await socket.sendMessage(sender, {
-            image: video.thumbnail ? { url: video.thumbnail } : undefined,
-            text: video.thumbnail ? undefined : caption,
-            caption: video.thumbnail ? caption : undefined,
+            image: apiThumbnail ? { url: apiThumbnail } : undefined,
+            text: apiThumbnail ? undefined : caption,
+            caption: apiThumbnail ? caption : undefined,
             footer: '🎀 ᴄʜᴏᴏsᴇ ᴅᴏᴡɴʟᴏᴀᴅ ғᴏʀᴍᴀᴛ',
             buttons: [{
                 buttonId: `play-category-${sessionId}`,
@@ -7229,12 +7205,21 @@ case 'play': {
                     clearTimeout(expireTimer);
                     await socket.sendMessage(sender, { react: { text: '⏳', key: messageData.key } });
                     try {
-                        let audioBuffer = directAudio;
-                        if (!audioBuffer && audioUrl) {
-                            const dl = await axios.get(audioUrl, { responseType: 'arraybuffer', timeout: 90000, maxContentLength: 60 * 1024 * 1024, maxBodyLength: 60 * 1024 * 1024, headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'audio/mpeg,audio/*,application/octet-stream,*/*' }, validateStatus: () => true });
-                            if (dl.status < 200 || dl.status >= 300) throw new Error(`Audio URL returned HTTP ${dl.status}`);
-                            audioBuffer = Buffer.from(dl.data || []);
+                        const dl = await axios.get(audioUrl, {
+                            responseType: 'arraybuffer',
+                            timeout: 90000,
+                            maxContentLength: 60 * 1024 * 1024,
+                            maxBodyLength: 60 * 1024 * 1024,
+                            headers: {
+                                'User-Agent': 'Mozilla/5.0',
+                                'Accept': 'audio/mpeg,audio/*,application/octet-stream,*/*'
+                            },
+                            validateStatus: () => true
+                        });
+                        if (dl.status < 200 || dl.status >= 300) {
+                            throw new Error(`Audio download returned HTTP ${dl.status}`);
                         }
+                        const audioBuffer = Buffer.from(dl.data || []);
                         if (!audioBuffer?.length) throw new Error('Downloaded audio was empty');
                         const type = String(buttonId).startsWith(`play-audio-${sessionId}`) ? 'audio' : 'document';
                         if (type === 'audio') {
@@ -7244,7 +7229,7 @@ case 'play': {
                         }
                         await socket.sendMessage(sender, { react: { text: '✅', key: messageData.key } });
                     } catch (error) {
-                        console.error('[PLAY] ToosiiTech download error:', error.message);
+                        console.error('[PLAY] David Cyril download error:', error.message);
                         await socket.sendMessage(sender, { react: { text: '❌', key: messageData.key } });
                         await socket.sendMessage(sender, { text: `❌ *ᴅᴏᴡɴʟᴏᴀᴅ ғᴀɪʟᴇᴅ*\n\n${error.message || 'Download failed'}` }, { quoted: messageData });
                     }
