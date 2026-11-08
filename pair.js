@@ -7075,183 +7075,176 @@ case 'songlyrics': {
 //case play damn am good
 case 'play': {
     try {
-        await socket.sendMessage(sender, { react: { text: '🎶', key: msg.key } });
+        const from = sender || msg.key.remoteJid;
+        await socket.sendMessage(from, { react: { text: '⌛', key: msg.key } }).catch(() => {});
 
-        const yts = require('yt-search');
-        const q = msg.message?.conversation ||
-                  msg.message?.extendedTextMessage?.text ||
-                  msg.message?.imageMessage?.caption ||
-                  msg.message?.videoMessage?.caption || '';
-        const query = q.replace(/^[.\/@!]play\s*/i, '').trim();
+        const body = msg.message?.conversation ||
+                     msg.message?.extendedTextMessage?.text ||
+                     msg.message?.imageMessage?.caption ||
+                     msg.message?.videoMessage?.caption || '';
+        const query = String(body).replace(/^[.\/@!]play\s*/i, '').trim();
 
         if (!query) {
-            return await socket.sendMessage(sender, {
-                text: `🎵 *ᴀᴜᴅɪᴏ ᴘʟᴀʏᴇʀ*\n\nᴘʟᴇᴀsᴇ ᴘʀᴏᴠɪᴅᴇ ᴀ sᴏɴɢ ɴᴀᴍᴇ.\n\n*ᴜsᴀɢᴇ:* \`${prefix}play <song name>\`\n\n*ᴇxᴀᴍᴘʟᴇ:*\n\`${prefix}play Faded\`\n\`${prefix}play Shape of You\`\n\n> ${botConfig.BOT_FOOTER}`,
+            await socket.sendMessage(from, {
+                text: `🎵 *ᴀᴜᴅɪᴏ ᴘʟᴀʏᴇʀ*\n\nᴘʀᴏᴠɪᴅᴇ ᴀ sᴏɴɢ ɴᴀᴍᴇ ᴏʀ ʏᴏᴜᴛᴜʙᴇ ʟɪɴᴋ.\n\n*ᴜsᴀɢᴇ:* \`${prefix}play <song name>\`\n*ᴇxᴀᴍᴘʟᴇ:* \`${prefix}play Faded\`\n\n> ${botConfig.BOT_FOOTER}`,
                 quoted: msg
             });
+            break;
         }
 
-        console.log('[PLAY] Searching YouTube for:', query);
-        const directUrl = (query.match(/https?:\/\/(?:www\.)?(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)[^\s]+/i) || [])[0];
-        const search = directUrl ? null : await yts(query);
-        const video = directUrl
-            ? { url: directUrl, title: 'YouTube audio', timestamp: 'Unknown', author: { name: 'YouTube' }, views: 0, thumbnail: null }
-            : search?.videos?.[0];
+        const KEITH_BASE = 'https://keithhostdeploysite-t3pgatgm-21717a2c2837.herokuapp.com';
+        const KEITH_YTS = `${KEITH_BASE}/search/yts`;
+        const KEITH_AUDIO_ENDPOINTS = [
+            `${KEITH_BASE}/download/yta`,
+            `${KEITH_BASE}/download/ytmp3`,
+            `${KEITH_BASE}/download/yta2`,
+            `${KEITH_BASE}/download/mp3`
+        ];
 
-        if (!video?.url) {
-            return await socket.sendMessage(sender, {
-                text: `❌ *ɴᴏ ʀᴇsᴜʟᴛs*\n\nɴᴏ sᴏɴɢs ғᴏᴜɴᴅ. ᴛʀʏ ᴅɪғғᴇʀᴇɴᴛ ᴋᴇʏᴡᴏʀᴅs.\n\n> ${botConfig.BOT_FOOTER}`,
-                quoted: msg
+        const safeFileName = (name = 'TESLA-MINBOT-AUDIO') =>
+            String(name).replace(/[<>:"/\\|?*]/g, '_').replace(/\s+/g, ' ').trim().slice(0, 80) || 'TESLA-MINBOT-AUDIO';
+
+        const isYouTubeUrl = (value = '') =>
+            /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be|music\.youtube\.com)\//i.test(String(value).trim());
+
+        const keithGet = async (url, params = {}) => {
+            const response = await axios.get(url, {
+                params,
+                timeout: 90000,
+                headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'application/json' },
+                validateStatus: status => status >= 200 && status < 500
             });
-        }
+            return response.data;
+        };
 
-        const sessionId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-        const apiURL = 'https://apis.davidcyril.name.ng/download/y2mate/mp3';
-        const apiKey = process.env.DAVIDCYRIL_API_KEY || 'dc_live_Ueg3Oz77zTPS816k4dOvNhfhri3Ugrgk';
+        const resolveYouTube = async value => {
+            const q = String(value || '').trim();
+            if (!q) throw new Error('Empty song query');
 
-        console.log('[PLAY] Requesting David Cyril MP3 API');
+            if (isYouTubeUrl(q)) {
+                const url = /^https?:\/\//i.test(q) ? q : `https://${q}`;
+                return { url, title: null, thumbnail: null };
+            }
 
-        // This endpoint returns JSON containing result.download, not the MP3 bytes.
-        const response = await axios.get(apiURL, {
-            params: { url: video.url },
-            timeout: 60000,
-            headers: {
-                'X-API-Key': apiKey,
-                'Accept': 'application/json',
-                'User-Agent': 'Mozilla/5.0'
-            },
-            validateStatus: () => true
-        });
+            const data = await keithGet(KEITH_YTS, { query: q });
+            if (!data || (data.status === false && data.success === false)) {
+                throw new Error(data?.error || data?.message || 'YouTube search failed');
+            }
 
-        if (response.status < 200 || response.status >= 300) {
-            const detail = response.data?.message || response.data?.error || '';
-            throw new Error(`David Cyril API returned HTTP ${response.status}${detail ? `: ${detail}` : ''}`);
-        }
+            const list = Array.isArray(data.result) ? data.result :
+                         Array.isArray(data.results) ? data.results : [];
+            const first = list[0];
+            if (!first?.url && !first?.id) throw new Error('No YouTube results found');
 
-        const apiData = response.data;
-        if (!apiData || typeof apiData !== 'object') {
-            throw new Error('David Cyril API returned an invalid response');
-        }
-        if (apiData.success !== true || Number(apiData.status) !== 200) {
-            throw new Error(apiData.message || apiData.error || 'David Cyril API could not download this song');
-        }
+            return {
+                url: first.url || `https://youtube.com/watch?v=${first.id}`,
+                title: first.title || null,
+                thumbnail: first.thumbnail || null
+            };
+        };
 
-        const result = apiData.result || {};
-        const audioUrl = result.download;
-        if (typeof audioUrl !== 'string' || !/^https?:\/\//i.test(audioUrl)) {
-            throw new Error('David Cyril API response is missing result.download');
-        }
+        const pickAudioUrl = data => {
+            if (!data) return null;
+            if (typeof data.result === 'string' && /^https?:\/\//i.test(data.result)) return data.result;
 
-        const apiTitle = result.title || video.title || 'audio';
-        const apiThumbnail = result.thumbnail || video.thumbnail || null;
-        const apiAuthor = result.author || video.author?.name || 'Unknown';
-        const apiQuality = result.quality || '128kbps';
-        const cleanTitle = String(apiTitle).replace(/[<>:"/\\\\|?*]+/g, '').trim().slice(0, 150) || 'audio';
-                const caption = `🎧 *${apiTitle}*\n\n` +
-                        `⏱️ *ᴅᴜʀᴀᴛɪᴏɴ:* ${video.timestamp || 'Unknown'}\n` +
-                        `👤 *ᴀʀᴛɪsᴛ:* ${apiAuthor}\n` +
-                        `🎚️ *ǫᴜᴀʟɪᴛʏ:* ${apiQuality}\n` +
-                        `👀 *ᴠɪᴇᴡs:* ${(video.views || 0).toLocaleString()}\n\n` +
-                        `🔗 *ʏᴏᴜᴛᴜʙᴇ:* ${video.url}\n\n` +
-                        `🎗 *ᴅᴏᴡɴʟᴏᴀᴅ ᴄᴀᴛᴇɢᴏʀʏ*\n` +
-                        `sᴇʟᴇᴄᴛ ʜᴏᴡ ʏᴏᴜ ᴡᴀɴᴛ ᴛᴏ ʀᴇᴄᴇɪᴠᴇ ᴛʜᴇ ᴀᴜᴅɪᴏ.\n\n> ${botConfig.BOT_FOOTER}`;
+            const result = data.result && typeof data.result === 'object' ? data.result : data;
+            const candidates = [
+                result.audio, result.download, result.download_url, result.downloadUrl,
+                result.url, result.link, data.audio, data.url
+            ];
+            return candidates.find(value => typeof value === 'string' && /^https?:\/\//i.test(value)) || null;
+        };
 
-        const sentMsg = await socket.sendMessage(sender, {
-            image: apiThumbnail ? { url: apiThumbnail } : undefined,
-            text: apiThumbnail ? undefined : caption,
-            caption: apiThumbnail ? caption : undefined,
-            footer: '🎀 ᴄʜᴏᴏsᴇ ᴅᴏᴡɴʟᴏᴀᴅ ғᴏʀᴍᴀᴛ',
-            buttons: [{
-                buttonId: `play-category-${sessionId}`,
-                buttonText: { displayText: '🎀 ᴄʜᴏᴏsᴇ ᴅᴏᴡɴʟᴏᴀᴅ ғᴏʀᴍᴀᴛ' },
-                type: 4,
-                nativeFlowInfo: {
-                    name: 'single_select',
-                    paramsJson: JSON.stringify({
-                        title: '🎀 ᴅᴏᴡɴʟᴏᴀᴅ ᴄᴀᴛᴇɢᴏʀʏ',
-                        sections: [{
-                            title: '🎵 ᴀᴜᴅɪᴏ ғᴏʀᴍᴀᴛs',
-                            highlight_label: 'ᴘʟᴀʏ / sᴀᴠᴇ',
-                            rows: [
-                                { title: '🎵 ᴀᴜᴅɪᴏ (ᴘʟᴀʏ)', description: 'Play the song directly in WhatsApp', id: `play-audio-${sessionId}` },
-                                { title: '📁 ᴅᴏᴄᴜᴍᴇɴᴛ (sᴀᴠᴇ)', description: 'Send the MP3 as a document', id: `play-document-${sessionId}` }
-                            ]
-                        }]
-                    })
+        console.log('[PLAY] Resolving YouTube query:', query);
+        const meta = await resolveYouTube(query);
+        const errors = [];
+        let audioUrl = null;
+        let apiTitle = meta.title;
+        let apiThumbnail = meta.thumbnail;
+
+        for (const endpoint of KEITH_AUDIO_ENDPOINTS) {
+            try {
+                const data = await keithGet(endpoint, { url: meta.url });
+                const candidate = pickAudioUrl(data);
+                if (!candidate) {
+                    throw new Error(data?.error || data?.message || 'API returned no audio URL');
                 }
-            }],
-            headerType: 1,
-            viewOnce: true
+
+                // Check that the CDN link is alive and returns media, not an HTML error page.
+                const probe = await axios.get(candidate, {
+                    responseType: 'arraybuffer',
+                    timeout: 20000,
+                    maxContentLength: 2 * 1024 * 1024,
+                    maxBodyLength: 2 * 1024 * 1024,
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0',
+                        Accept: 'audio/mpeg,audio/*,application/octet-stream,*/*',
+                        Range: 'bytes=0-65535'
+                    },
+                    validateStatus: status => status >= 200 && status < 400
+                });
+                const probeBuffer = Buffer.from(probe.data || []);
+                const contentType = String(probe.headers?.['content-type'] || '');
+                if (!probeBuffer.length || /text\/html/i.test(contentType)) {
+                    throw new Error(`Invalid audio CDN response (${contentType || 'unknown content type'})`);
+                }
+
+                audioUrl = candidate;
+                const result = data.result && typeof data.result === 'object' ? data.result : {};
+                apiTitle = data.title || result.title || apiTitle;
+                apiThumbnail = data.thumbnail || result.thumbnail || apiThumbnail;
+                break;
+            } catch (error) {
+                errors.push(`${endpoint.split('/').pop()}: ${error?.message || error}`);
+                console.warn('[PLAY] Keith endpoint failed:', endpoint, error?.message || error);
+            }
+        }
+
+        if (!audioUrl) throw new Error(errors.slice(0, 4).join(' | ') || 'All Keith audio endpoints failed');
+
+        const download = await axios.get(audioUrl, {
+            responseType: 'arraybuffer',
+            timeout: 120000,
+            maxContentLength: 25 * 1024 * 1024,
+            maxBodyLength: 25 * 1024 * 1024,
+            headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'audio/mpeg,audio/*,*/*' },
+            validateStatus: status => status >= 200 && status < 300
+        });
+        const audioBuffer = Buffer.from(download.data || []);
+        if (!audioBuffer.length) throw new Error('Downloaded audio is empty');
+
+        const filename = safeFileName(apiTitle || query || 'TESLA-MINBOT-AUDIO');
+        const caption = `🎵 *${filename}*\n\n🔗 *YouTube:* ${meta.url}\n\n> ${botConfig.BOT_FOOTER}`;
+
+        await socket.sendMessage(from, { react: { text: '✅', key: msg.key } }).catch(() => {});
+        await socket.sendMessage(from, {
+            audio: audioBuffer,
+            mimetype: 'audio/mpeg',
+            fileName: `${filename}.mp3`,
+            ptt: false
         }, { quoted: msg });
 
-        const buttonHandler = async (messageUpdate) => {
-            try {
-                for (const messageData of messageUpdate?.messages || []) {
-                    const remoteJid = messageData?.key?.remoteJid || '';
-                    if (remoteJid !== sender && remoteJid.split(':')[0] !== String(sender).split(':')[0]) continue;
-                    let root = messageData?.message;
-                    for (let i = 0; i < 6 && root; i++) {
-                        const wrapped = root.ephemeralMessage?.message || root.viewOnceMessage?.message || root.viewOnceMessageV2?.message || root.documentWithCaptionMessage?.message;
-                        if (!wrapped) break;
-                        root = wrapped;
-                    }
-                    let buttonId = root?.buttonsResponseMessage?.selectedButtonId || root?.templateButtonReplyMessage?.selectedId || root?.listResponseMessage?.singleSelectReply?.selectedRowId;
-                    const interactive = root?.interactiveResponseMessage?.nativeFlowResponseMessage;
-                    if (!buttonId && interactive?.paramsJson) { try { const p = JSON.parse(interactive.paramsJson); buttonId = p.id || p.selectedId || p.row_id || p.rowId || p.button_id; } catch {} }
-                    const stanzaId = root?.listResponseMessage?.contextInfo?.stanzaId || root?.interactiveResponseMessage?.contextInfo?.stanzaId || root?.buttonsResponseMessage?.contextInfo?.stanzaId;
-                    if (!buttonId || !String(buttonId).includes(sessionId)) continue;
-                    if (stanzaId && sentMsg?.key?.id && stanzaId !== sentMsg.key.id) continue;
-                    socket.ev.off('messages.upsert', buttonHandler);
-                    clearTimeout(expireTimer);
-                    await socket.sendMessage(sender, { react: { text: '⏳', key: messageData.key } });
-                    try {
-                        const dl = await axios.get(audioUrl, {
-                            responseType: 'arraybuffer',
-                            timeout: 90000,
-                            maxContentLength: 60 * 1024 * 1024,
-                            maxBodyLength: 60 * 1024 * 1024,
-                            headers: {
-                                'User-Agent': 'Mozilla/5.0',
-                                'Accept': 'audio/mpeg,audio/*,application/octet-stream,*/*'
-                            },
-                            validateStatus: () => true
-                        });
-                        if (dl.status < 200 || dl.status >= 300) {
-                            throw new Error(`Audio download returned HTTP ${dl.status}`);
-                        }
-                        const audioBuffer = Buffer.from(dl.data || []);
-                        if (!audioBuffer?.length) throw new Error('Downloaded audio was empty');
-                        const type = String(buttonId).startsWith(`play-audio-${sessionId}`) ? 'audio' : 'document';
-                        if (type === 'audio') {
-                            await socket.sendMessage(sender, { audio: audioBuffer, mimetype: 'audio/mpeg', fileName: `${cleanTitle}.mp3`, ptt: false }, { quoted: messageData });
-                        } else {
-                            await socket.sendMessage(sender, { document: audioBuffer, mimetype: 'audio/mpeg', fileName: `${cleanTitle}.mp3` }, { quoted: messageData });
-                        }
-                        await socket.sendMessage(sender, { react: { text: '✅', key: messageData.key } });
-                    } catch (error) {
-                        console.error('[PLAY] David Cyril download error:', error.message);
-                        await socket.sendMessage(sender, { react: { text: '❌', key: messageData.key } });
-                        await socket.sendMessage(sender, { text: `❌ *ᴅᴏᴡɴʟᴏᴀᴅ ғᴀɪʟᴇᴅ*\n\n${error.message || 'Download failed'}` }, { quoted: messageData });
-                    }
-                    return;
-                }
-            } catch (error) { console.error('[PLAY] Category handler error:', error.message); }
-        };
-        const expireTimer = setTimeout(() => socket.ev.off('messages.upsert', buttonHandler), 120000);
-        socket.ev.on('messages.upsert', buttonHandler);
+        // Also attach a document copy so users can save the MP3 file.
+        await socket.sendMessage(from, {
+            document: audioBuffer,
+            mimetype: 'audio/mpeg',
+            fileName: `${filename}.mp3`,
+            caption
+        }, { quoted: msg });
 
     } catch (err) {
-        console.error('[PLAY] Error:', err.message);
-        await socket.sendMessage(sender, {
-            text: `❌ *ᴇʀʀᴏʀ*\n\nᴜɴᴀʙʟᴇ ᴛᴏ ᴘʀᴏᴄᴇss ʏᴏᴜʀ ʀᴇǫᴜᴇsᴛ.\n\n${err.message || ''}\n\n> ${botConfig.BOT_FOOTER}`,
+        console.error('[PLAY] Keith API error:', err?.message || err);
+        await socket.sendMessage(sender || msg.key.remoteJid, {
+            text: `❌ *ᴘʟᴀʏ ғᴀɪʟᴇᴅ*\n\n${err?.message || 'Unable to download this song.'}\n\n> ${botConfig.BOT_FOOTER}`,
             quoted: msg
-        });
-        await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
+        }).catch(() => {});
+        await socket.sendMessage(sender || msg.key.remoteJid, {
+            react: { text: '❌', key: msg.key }
+        }).catch(() => {});
     }
     break;
 }
-  
-  
+
 
 // Case: tiktok / tt / ttdl / tiktokdl - Download TikTok videos
 case 'tiktok':
