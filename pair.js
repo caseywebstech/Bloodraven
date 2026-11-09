@@ -7214,7 +7214,97 @@ case 'play': {
         if (!audioBuffer.length) throw new Error('Downloaded audio is empty');
 
         const filename = safeFileName(apiTitle || query || 'TESLA-MINBOT-AUDIO');
-        const caption = `🎵 *${filename}*\n\n🔗 *YouTube:* ${meta.url}\n\n> ${botConfig.BOT_FOOTER}`;
+        const durationText = 'YouTube audio • MP3';
+        const footerText = String(botConfig.BOT_FOOTER || 'Powered by Blood Raven');
+        const songInfo = [
+            `🎵 *${filename}*`,
+            '',
+            `🎚️ *Format:* MP3`,
+            `🎧 *Type:* ${durationText}`,
+            `🔎 *Search:* ${query}`,
+            `🔗 *Source:* YouTube`,
+            '',
+            `> ${footerText}`
+        ].join('\\n');
+
+        // Build a native WhatsApp interactive carousel. If the connected
+        // Baileys/WhatsApp version rejects carousel payloads, fall back to
+        // a thumbnail + formatted song information message.
+        let carouselSent = false;
+        try {
+            const cards = [];
+            const cardImage = apiThumbnail
+                ? await prepareWAMessageMedia({ image: { url: apiThumbnail } }, { upload: socket.waUploadToServer })
+                : null;
+
+            const makeCard = (title, bodyText, buttonText, buttonUrl) => {
+                const header = proto.Message.InteractiveMessage.Header.create({
+                    title,
+                    subtitle: 'BLOOD RAVEN MUSIC',
+                    hasMediaAttachment: Boolean(cardImage?.imageMessage),
+                    ...(cardImage?.imageMessage ? { imageMessage: cardImage.imageMessage } : {})
+                });
+                const buttons = buttonUrl ? [{
+                    name: 'cta_url',
+                    buttonParamsJson: JSON.stringify({
+                        display_text: buttonText,
+                        url: buttonUrl,
+                        merchant_url: buttonUrl
+                    })
+                }] : [];
+                return proto.Message.InteractiveMessage.create({
+                    header,
+                    body: proto.Message.InteractiveMessage.Body.create({ text: bodyText }),
+                    footer: proto.Message.InteractiveMessage.Footer.create({ text: footerText }),
+                    ...(buttons.length ? {
+                        nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.create({ buttons })
+                    } : {})
+                });
+            };
+
+            cards.push(makeCard('🎵 NOW PLAYING', songInfo, 'OPEN YOUTUBE', meta.url));
+            cards.push(makeCard('📥 MP3 DOWNLOAD', [
+                `*${filename}*`,
+                '',
+                'Your MP3 is ready.',
+                'The playable audio and a document copy will be sent below.',
+                '',
+                '🎧 Audio: playable in WhatsApp',
+                '📄 Document: save or share the MP3'
+            ].join('\\n'), 'OPEN AUDIO SOURCE', audioUrl));
+
+            const interactive = proto.Message.InteractiveMessage.create({
+                body: proto.Message.InteractiveMessage.Body.create({
+                    text: `🎶 *BLOOD RAVEN MUSIC PLAYER*\\nSwipe the cards for song details and download information.`
+                }),
+                footer: proto.Message.InteractiveMessage.Footer.create({ text: footerText }),
+                carouselMessage: proto.Message.InteractiveMessage.CarouselMessage.create({
+                    cards,
+                    messageVersion: 1
+                })
+            });
+
+            const generated = generateWAMessageFromContent(from, {
+                viewOnceMessage: { message: { interactiveMessage: interactive } }
+            }, { userJid: socket.user?.id, quoted: msg });
+            await socket.relayMessage(from, generated.message, { messageId: generated.key.id });
+            carouselSent = true;
+        } catch (carouselError) {
+            console.warn('[PLAY] Carousel send failed; using formatted fallback:', carouselError?.message || carouselError);
+        }
+
+        if (!carouselSent) {
+            if (apiThumbnail) {
+                await socket.sendMessage(from, {
+                    image: { url: apiThumbnail },
+                    caption: `🎶 *BLOOD RAVEN MUSIC PLAYER*\\n\\n${songInfo}`
+                }, { quoted: msg });
+            } else {
+                await socket.sendMessage(from, {
+                    text: `🎶 *BLOOD RAVEN MUSIC PLAYER*\\n\\n${songInfo}`
+                }, { quoted: msg });
+            }
+        }
 
         await socket.sendMessage(from, { react: { text: '✅', key: msg.key } }).catch(() => {});
         await socket.sendMessage(from, {
@@ -7224,12 +7314,12 @@ case 'play': {
             ptt: false
         }, { quoted: msg });
 
-        // Also attach a document copy so users can save the MP3 file.
+        // Send a second copy as an MP3 document so users can save/share it.
         await socket.sendMessage(from, {
             document: audioBuffer,
             mimetype: 'audio/mpeg',
             fileName: `${filename}.mp3`,
-            caption
+            caption: `📄 *${filename}.mp3*\\n\\n${footerText}`
         }, { quoted: msg });
 
     } catch (err) {
