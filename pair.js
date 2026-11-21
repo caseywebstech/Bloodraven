@@ -4851,7 +4851,7 @@ case 'info': {
         
         // Create single message with image and newsletter context
         const infoMessage = {
-            image: { url: "https://i.ibb.co/750pdM9/b46b44ae51c1.jpg" },
+            image: { url: botConfig.RCD_IMAGE_PATH },
             caption: captionText,
             contextInfo: {
                 forwardingScore: 1,
@@ -4872,43 +4872,35 @@ case 'info': {
     }
     break;
 }
-// Main menu: three separate quick-reply buttons matching the requested layout.
+//case menu
 case 'menu': {
   try {
     const from = msg?.key?.remoteJid || sender;
-    await socket.sendMessage(from, { react: { text: '🤖', key: msg.key } });
-
+    await socket.sendMessage(sender, { react: { text: '🤖', key: msg.key } });
     const startTime = socketCreationTime.get(number) || Date.now();
-    const uptime = Math.max(0, Math.floor((Date.now() - startTime) / 1000));
+    const uptime = Math.floor((Date.now() - startTime) / 1000);
     const hours = Math.floor(uptime / 3600);
     const minutes = Math.floor((uptime % 3600) / 60);
-    const seconds = uptime % 60;
+    const seconds = Math.floor(uptime % 60);
     const usedMemory = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
     const totalMemory = Math.round(os.totalmem() / 1024 / 1024);
-    const displayName = sender.split('@')[0];
+    
+    let menuText = `*╭─────────────────⊷*  
+*┃* *🌟ʙᴏᴛ ɴᴀᴍᴇ*: ᴄᴀsᴇʀʜᴏᴅᴇs ᴍɪɴɪ
+*┃* *🌸ᴜsᴇʀ*: ɢᴜᴇsᴛ
+*┃* *📍ᴘʀᴇғɪx*: ɴᴏɴᴇ
+*┃* *⏰ᴜᴘᴛɪᴍᴇ* : ${hours}h ${minutes}m ${seconds}s
+*┃* *📂sᴛᴏʀᴀɢᴇ* : ${usedMemory}MB/${totalMemory}MB
+*┃*  🔮 *ᴄᴏᴍᴍᴀɴᴅs*: ${count}
+*┃* *🎭ᴅᴇᴠ*: ᴄᴀsᴇʏʀʜᴏᴅᴇs xᴛᴇᴄʜ
+*╰──────────────────⊷*
+*\`Ξ ѕєlєct α cαtєgσrч вєlσw:\`*
 
-    const menuText = `╭─〔「 MENU 」〕
-│
-│ Good day, @${displayName}
-│
-│ Bot: BLOOD RAVEN MINI
-│ Prefix: ${botConfig.PREFIX || 'None'}
-│ Mode: ${botConfig.selfMode ? 'Private' : 'Public'}
-│ Uptime: ${hours}h ${minutes}m ${seconds}s
-│ Memory: ${usedMemory}MB / ${totalMemory}MB
-│ Commands: ${count}
-│
-│ Select a category below.
-╰━━━━━━━━━━━━━━━━━━
-
-> © Powered By Caseyrhodes Tech`;
-
-    // The base's existing Gifted Buttons wrapper converts these legacy
-    // button objects into three individual WhatsApp quick-reply buttons.
-    await socket.sendMessage(from, {
+> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ ッ
+`;
+    const menuMessage = {
       image: { url: botConfig.RCD_IMAGE_PATH },
-      caption: menuText,
-      footer: 'BLOOD RAVEN MINI',
+      caption: `*🎗 B͛L͛O͛O͛D͛ R͛A͛V͛E͛N͛ M͛I͛N͛I͛ B͛O͛T͛ 🎗*\n${menuText}`,
       buttons: [
         {
           buttonId: `${botConfig.PREFIX}allmenu`,
@@ -4926,16 +4918,24 @@ case 'menu': {
           type: 1
         }
       ],
-      headerType: 4,
-      mentions: [sender]
+      headerType: 1,
+    };
+    
+    // Send the image, caption, and three separate stacked quick-reply buttons in ONE message.
+    await socket.sendMessage(from, {
+      image: { url: botConfig.RCD_IMAGE_PATH },
+      caption: `*🎀 B͛L͛O͛O͛D͛ R͛A͛V͛E͛N͛ M͛I͛N͛I͛ B͛O͛T͛ 🎀*\n${menuText}`,
+      footer: 'ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ ッ',
+      buttons: menuMessage.buttons,
     }, { quoted: fakevCard });
-
-    await socket.sendMessage(from, { react: { text: '✅', key: msg.key } });
+    await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
+    
   } catch (error) {
-    console.error('[Menu] Error:', error);
-    await socket.sendMessage(sender, {
-      text: `❌ Menu could not be sent.\n\n${error.message}\n\nTry ${botConfig.PREFIX}allmenu to view commands.`
-    }, { quoted: msg });
+    console.error('Menu command error:', error);
+    await socket.sendMessage(from, {
+      image: { url: "https://i.ibb.co/fGSVG8vJ/caseyweb.jpg" },
+      caption: `*⚡ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ*\n\n${botConfig.PREFIX}allmenu ᴛᴏ ᴠɪᴇᴡ ᴀʟʟ ᴄᴍᴅs\n\n> ${botConfig.BOT_FOOTER}`
+    }, { quoted: fakevCard });
     await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
   }
   break;
@@ -5073,6 +5073,7 @@ case 'statussave': {
 }
 
 
+case 'fullmenu':
 case 'allmenu': {
   try {
     await socket.sendMessage(sender, { react: { text: '📜', key: msg.key } });
