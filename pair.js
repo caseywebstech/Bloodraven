@@ -4872,193 +4872,70 @@ case 'info': {
     }
     break;
 }
-//case menu
+// Main menu: three separate quick-reply buttons matching the requested layout.
 case 'menu': {
   try {
     const from = msg?.key?.remoteJid || sender;
-    await socket.sendMessage(sender, { react: { text: '🤖', key: msg.key } });
+    await socket.sendMessage(from, { react: { text: '🤖', key: msg.key } });
+
     const startTime = socketCreationTime.get(number) || Date.now();
-    const uptime = Math.floor((Date.now() - startTime) / 1000);
+    const uptime = Math.max(0, Math.floor((Date.now() - startTime) / 1000));
     const hours = Math.floor(uptime / 3600);
     const minutes = Math.floor((uptime % 3600) / 60);
-    const seconds = Math.floor(uptime % 60);
+    const seconds = uptime % 60;
     const usedMemory = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
     const totalMemory = Math.round(os.totalmem() / 1024 / 1024);
-    
-    let menuText = `*╭─────────────────⊷*  
-*┃* *🌟ʙᴏᴛ ɴᴀᴍᴇ*: ᴄᴀsᴇʀʜᴏᴅᴇs ᴍɪɴɪ
-*┃* *🌸ᴜsᴇʀ*: ɢᴜᴇsᴛ
-*┃* *📍ᴘʀᴇғɪx*: ɴᴏɴᴇ
-*┃* *⏰ᴜᴘᴛɪᴍᴇ* : ${hours}h ${minutes}m ${seconds}s
-*┃* *📂sᴛᴏʀᴀɢᴇ* : ${usedMemory}MB/${totalMemory}MB
-*┃*  🔮 *ᴄᴏᴍᴍᴀɴᴅs*: ${count}
-*┃* *🎭ᴅᴇᴠ*: ᴄᴀsᴇʏʀʜᴏᴅᴇs xᴛᴇᴄʜ
-*╰──────────────────⊷*
-*\`Ξ ѕєlєct α cαtєgσrч вєlσw:\`*
+    const displayName = sender.split('@')[0];
 
-> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ ッ
-`;
-    // Newsletter attribution used by the main menu. Keep this in the
-    // message context so WhatsApp renders the newsletter header/attribution
-    // while preserving the existing category and CTA buttons.
-    const messageContext = {
-        forwardingScore: 1,
-        isForwarded: true,
-        forwardedNewsletterMessageInfo: {
-            newsletterJid: '120363429952469353@newsletter',
-            newsletterName: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ ʙᴏᴛ🌟',
-            serverMessageId: -1
-        }
-    };
+    const menuText = `╭─〔「 MENU 」〕
+│
+│ Good day, @${displayName}
+│
+│ Bot: BLOOD RAVEN MINI
+│ Prefix: ${botConfig.PREFIX || 'None'}
+│ Mode: ${botConfig.selfMode ? 'Private' : 'Public'}
+│ Uptime: ${hours}h ${minutes}m ${seconds}s
+│ Memory: ${usedMemory}MB / ${totalMemory}MB
+│ Commands: ${count}
+│
+│ Select a category below.
+╰━━━━━━━━━━━━━━━━━━
 
-    const menuMessage = {
-      image: { url: "https://i.ibb.co/750pdM9/b46b44ae51c1.jpg" },
-      caption: `*🎗 B͛L͛O͛O͛D͛ R͛A͛V͛E͛N͛ M͛I͛N͛I͛ B͛O͛T͛ 🎗*\n${menuText}`,
+> © Powered By Caseyrhodes Tech`;
+
+    // The base's existing Gifted Buttons wrapper converts these legacy
+    // button objects into three individual WhatsApp quick-reply buttons.
+    await socket.sendMessage(from, {
+      image: { url: botConfig.RCD_IMAGE_PATH },
+      caption: menuText,
+      footer: 'BLOOD RAVEN MINI',
       buttons: [
         {
-          buttonId: `${botConfig.PREFIX}quick_commands`,
-          buttonText: { displayText: '🤖 C͛H͛O͛O͛SE͛ C͛A͛T͛E͛G͛O͛R͛Y͛' },
-          type: 4,
-          nativeFlowInfo: {
-            name: 'single_select',
-            paramsJson: JSON.stringify({
-              title: '🌟 C͛H͛O͛O͛SE͛ C͛A͛T͛E͛G͛O͛R͛Y͛',
-              sections: [
-                {
-                  title: "🌐 ɢᴇɴᴇʀᴀʟ ᴄᴏᴍᴍᴀɴᴅs",
-                  highlight_label: 'ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ',
-                  rows: [
-                    { title: "📜 ᴀʟʟᴍᴇɴᴜ", description: "get all command in list", id: `${botConfig.PREFIX}allmenu` }, 
-                     { title: "🤖 CHATBOT", description: "reply with chatgpt", id: `${botConfig.PREFIX}chatbot` }, 
-                    { title: "🎨 ʟᴏɢᴏ ᴍᴇɴᴜ", description: "get your own logo texts", id: `${botConfig.PREFIX}logomenu` }, 
-                    { title: "🟢 ᴀʟɪᴠᴇ", description: "Check if bot is active", id: `${botConfig.PREFIX}alive` }, 
-                    { title: "⚙️ sᴇᴛᴛɪɴɢs", description: "change your settings", id: `${botConfig.PREFIX}settings` },
-                    { title: "♻️ᴀᴜᴛᴏʙɪᴏ", description: "set your bio on and off", id: `${botConfig.PREFIX}autobio` },
-                    { title: "🪀MODE", description: "set your bot public or private", id: `${botConfig.PREFIX}mode` },    
-                    { title: "🌟owner", description: "get in touch with dev", id: `${botConfig.PREFIX}owner` },
-                    { title: "🎭ʜᴀᴄᴋ", description: "prank others", id: `${botConfig.PREFIX}hack` },
-                    { title: "🗣️ᴄᴀʟᴄᴜʟᴀᴛᴏʀ", description: "do your own math", id: `${botConfig.PREFIX}calculator` },
-                    { title: "📊 ʙᴏᴛ sᴛᴀᴛs", description: "View bot statistics", id: `${botConfig.PREFIX}session` },
-                    { title: "ℹ️ ʙᴏᴛ ɪɴғᴏ", description: "Get bot information", id: `${botConfig.PREFIX}active` },
-                    { title: "🔰sᴇᴛᴘᴘ", description: "set your own profile", id: `${botConfig.PREFIX}setpp` },
-                    { title: "📋 ᴍᴇɴᴜ", description: "Show this menu", id: `${botConfig.PREFIX}menu` },
-                    { title: "📜 ϙᴜʀᴀɴ", description: "List all your quran by number", id: `${botConfig.PREFIX}quran` },
-                    { title: "🔮sᴄʀᴇᴇɴsʜᴏᴏᴛ", description: "get website screenshots", id: `${botConfig.PREFIX}ss` },
-                    { title: "💌ғᴇᴛᴄʜ", description: "get url content", id: `${botConfig.PREFIX}get` },  
-                    { title: "🏓 ᴘɪɴɢ", description: "Check bot response speed", id: `${botConfig.PREFIX}ping` },
-                    { title: "📜 ᴘᴅғ", description: "change text to pdf", id: `${botConfig.PREFIX}pdf` },
-                    { title: "🔗 ᴘᴀɪʀ", description: "Generate pairing code", id: `${botConfig.PREFIX}pair` },
-                    { title: "✨ ғᴀɴᴄʏ", description: "Fancy text generator", id: `${botConfig.PREFIX}fancy` },
-                    { title: "🔮tts", description: "voice converter", id: `${botConfig.PREFIX}tts` },
-                    { title: "🎉ɪᴍᴀɢᴇ", description: "random image generator", id: `${botConfig.PREFIX}img` },
-                    { title: "🎨 ʟᴏɢᴏ", description: "Create custom logos", id: `${botConfig.PREFIX}logo` },
-                    { title: "❇️ᴠᴄғ", description: "Create group contacts", id: `${botConfig.PREFIX}vcf` },
-                    { title: "📦 ʀᴇᴘᴏ", description: "Bot repository info", id: `${botConfig.PREFIX}repo` },
-                    { title: "📦 ɢɪᴛᴄʟᴏɴᴇ", description: "Download GitHub repos", id: `${botConfig.PREFIX}gitclone` }
-                  ]
-                },
-                {
-                  title: "🎵 ᴍᴇᴅɪᴀ ᴛᴏᴏʟs",
-                  highlight_label: 'New',
-                  rows: [
-                    { title: "🎵 sᴏɴɢ", description: "Download music from YouTube", id: `${botConfig.PREFIX}song` }, 
-                    { title: "🎀play", description: "play favourite songs", id: `${botConfig.PREFIX}play` },
-                    { title: "📱 ᴛɪᴋᴛᴏᴋ", description: "Download TikTok videos", id: `${botConfig.PREFIX}tiktok` },
-                    { title: "🎵 sʜᴀᴢᴀᴍ", description: "Identify songs from audio", id: `${botConfig.PREFIX}shazam` },
-                    { title: "📘 ғᴀᴄᴇʙᴏᴏᴋ", description: "Download Facebook content", id: `${botConfig.PREFIX}fb` },
-                    { title: "📸 ɪɴsᴛᴀɢʀᴀᴍ", description: "Download Instagram content", id: `${botConfig.PREFIX}ig` },
-                    { title: "🖼️ ᴀɪ ɪᴍɢ", description: "Generate AI images", id: `${botConfig.PREFIX}aiimg` },
-                    { title: "👀 ᴠɪᴇᴡᴏɴᴄᴇ", description: "Access view-once media", id: `${botConfig.PREFIX}viewonce` },
-                    { title: "🖼️ sᴛɪᴄᴋᴇʀ", description: "Convert image/video to sticker", id: `${botConfig.PREFIX}sticker` },
-                    { title: "📤 ᴛᴏᴜʀʟ", description: "Upload media to URL", id: `${botConfig.PREFIX}tourl` },
-                    { title: "📁 ᴍᴇᴅɪᴀғɪʀᴇ", description: "Get MediaFire download link", id: `${botConfig.PREFIX}mf` }
-                  ]
-                },
-                {
-                  title: "🫂 ɢʀᴏᴜᴘ sᴇᴛᴛɪɴɢs",
-                  highlight_label: 'Popular',
-                  rows: [
-                    { title: "➕ ᴀᴅᴅ", description: "Add Numbers to Group", id: `${botConfig.PREFIX}add` },
-                    { title: "🦶 ᴋɪᴄᴋ", description: "Remove Number from Group", id: `${botConfig.PREFIX}kick` },
-                    { title: "🔓 ᴜɴʟᴏᴄᴋ", description: "Open group", id: `${botConfig.PREFIX}unlock` },
-                    { title: "🔒 ʟᴏᴄᴋ", description: "Close Group", id: `${botConfig.PREFIX}lock` },
-                    { title: "👑 ᴘʀᴏᴍᴏᴛᴇ", description: "Promote Member to Admin", id: `${botConfig.PREFIX}promote` },
-                    { title: "😢 ᴅᴇᴍᴏᴛᴇ", description: "Demote Member from Admin", id: `${botConfig.PREFIX}demote` },
-                    { title: "👥 ᴛᴀɢᴀʟʟ", description: "Tag All Members", id: `${botConfig.PREFIX}tagall` },
-                    { title: "👻 ʜɪᴅᴇᴛᴀɢ", description: "Silent tag all", id: `${botConfig.PREFIX}hidetag` },
-                    { title: "👤 ᴊᴏɪɴ", description: "Join A Group", id: `${botConfig.PREFIX}join` },
-                    { title: "💠 ʟᴇᴀᴠᴇ", description: "Bot leaves group", id: `${botConfig.PREFIX}leave` },
-                    { title: "📊 ɢʀᴏᴜᴘ ɪɴғᴏ", description: "View group info", id: `${botConfig.PREFIX}ginfo` },
-                    { title: "👥 ᴍᴇᴍʙᴇʀs", description: "List all members", id: `${botConfig.PREFIX}members` },
-                    { title: "📢 ɢʀᴏᴜᴘsᴛᴀᴛᴜs", description: "Post group status", id: `${botConfig.PREFIX}togstatus` },
-                    { title: "👋 ᴡᴇʟᴄᴏᴍᴇ", description: "Toggle welcome", id: `${botConfig.PREFIX}welcome` },
-                    { title: "👋 ɢᴏᴏᴅʙʏᴇ", description: "Toggle goodbye", id: `${botConfig.PREFIX}goodbye` }
-                  ]
-                },
-                {
-                  title: "📰 ɴᴇᴡs & ɪɴғᴏ",
-                  rows: [
-                    { title: "📰 ɴᴇᴡs", description: "Get latest news", id: `${botConfig.PREFIX}news` },
-                    { title: "🚀 ɴᴀsᴀ", description: "NASA updates", id: `${botConfig.PREFIX}nasa` },
-                    { title: "🌍 ᴄᴏᴜɴᴛʀʏ", description: "Country details", id: `${botConfig.PREFIX}country` },
-                    { title: "🕐 ᴛɪᴍᴇ", description: "Check world time", id: `${botConfig.PREFIX}time` },
-                    { title: "🌍 ᴛʀᴀɴsʟᴀᴛᴇ", description: "Translate text", id: `${botConfig.PREFIX}translate` }
-                  ]
-                },
-                {
-                  title: "🖤 ғᴜɴ",
-                  rows: [
-                    { title: "😂 ᴊᴏᴋᴇ", description: "Random joke", id: `${botConfig.PREFIX}joke` },
-                    { title: "😂 ᴍᴇᴍᴇ", description: "Random meme", id: `${botConfig.PREFIX}meme` },
-                    { title: "🐈 ᴄᴀᴛ", description: "Cute cat pic", id: `${botConfig.PREFIX}cat` },
-                    { title: "💡 ғᴀᴄᴛ", description: "Random fact", id: `${botConfig.PREFIX}fact` },
-                    { title: "🎨 ᴇᴍᴏᴊɪ ᴍɪx", description: "Mix emojis", id: `${botConfig.PREFIX}emojimix` }
-                  ]
-                },
-                {
-                  title: "🔧 ᴛᴏᴏʟs",
-                  rows: [
-                    { title: "🤖 ᴀɪ", description: "Chat with AI", id: `${botConfig.PREFIX}ai` },
-                    { title: "🎵 ʟʏʀɪᴄs", description: "Get song lyrics", id: `${botConfig.PREFIX}lyrics` },
-                    { title: "🌦️ ᴡᴇᴀᴛʜᴇʀ", description: "Weather forecast", id: `${botConfig.PREFIX}weather` },
-                    { title: "📖 ᴀᴜᴛᴏʀᴇᴀᴅ", description: "Auto-read PM", id: `${botConfig.PREFIX}autoread` },
-                    { title: "👁️ ʙʟᴜᴇᴛɪᴄᴋ", description: "Toggle read receipts", id: `${botConfig.PREFIX}bluetick` },
-                    { title: "🛡️ ᴀɴᴛɪᴄᴀʟʟ", description: "Block calls", id: `${botConfig.PREFIX}anticall` }
-                  ]
-                }
-              ]
-            })
-          }
+          buttonId: `${botConfig.PREFIX}allmenu`,
+          buttonText: { displayText: 'FullMenu' },
+          type: 1
         },
         {
-          name: 'cta_url',
-          buttonParamsJson: JSON.stringify({
-            display_text: '📢 JOIN NEWSLETTER',
-            url: botConfig.CHANNEL_LINK
-          })
+          buttonId: `${botConfig.PREFIX}settings`,
+          buttonText: { displayText: 'Settings' },
+          type: 1
+        },
+        {
+          buttonId: `${botConfig.PREFIX}developer`,
+          buttonText: { displayText: 'Developer' },
+          type: 1
         }
       ],
-      headerType: 1,
-      contextInfo: messageContext
-    };
-    
-    // Send the menu through gifted-btns so the category selector is rendered correctly.
-    // This keeps the image, newsletter context, fakevCard quote, and category button in ONE message.
-    await socket.sendMessage(from, {
-      image: { url: 'https://i.ibb.co/750pdM9/b46b44ae51c1.jpg' },
-      caption: `*🎀 B͛L͛O͛O͛D͛ R͛A͛V͛E͛N͛ M͛I͛N͛I͛ B͛O͛T͛ 🎀*\n${menuText}`,
-      footer: 'ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴛᴇᴄʜ ッ',
-      buttons: menuMessage.buttons,
-      contextInfo: messageContext
+      headerType: 4,
+      mentions: [sender]
     }, { quoted: fakevCard });
-    await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
-    
+
+    await socket.sendMessage(from, { react: { text: '✅', key: msg.key } });
   } catch (error) {
-    console.error('Menu command error:', error);
-    await socket.sendMessage(from, {
-      image: { url: "https://i.ibb.co/fGSVG8vJ/caseyweb.jpg" },
-      caption: `*⚡ ᴄᴀsᴇʏʀʜᴏᴅᴇs ᴍɪɴɪ*\n\n${botConfig.PREFIX}allmenu ᴛᴏ ᴠɪᴇᴡ ᴀʟʟ ᴄᴍᴅs\n\n> ${botConfig.BOT_FOOTER}`
-    }, { quoted: fakevCard });
+    console.error('[Menu] Error:', error);
+    await socket.sendMessage(sender, {
+      text: `❌ Menu could not be sent.\n\n${error.message}\n\nTry ${botConfig.PREFIX}allmenu to view commands.`
+    }, { quoted: msg });
     await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
   }
   break;
