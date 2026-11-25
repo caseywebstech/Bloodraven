@@ -171,7 +171,7 @@ async function createBotState(number, baseSessionPath) {
 // Per-socket settings are created by createBotState() inside EmpirePair.
 
 // Commands supported by the switch below. Used to distinguish ordinary chat from bot commands in non-prefix mode.
-const NON_PREFIX_COMMANDS = new Set(["antilink","linkguard","antiurl","chatbot","bot","ai","autoreply","linklist","antilinklist","autoreact","react","autorea","autoread","autoreadpm","readall","settings","ownersettings","botsettings","element","chem","dm","save","mode","botmode","privatemode","publicmode","setprefix","prefix","anticall","on","off","block","unblock","blocklist","list","country","countryinfo","shazam","identify","songs","gitclone","emojimix","mixemoji","emojiblend","eval","exec","run","translate","trt","welcome","welc","goodbye","goodb","setwelcome","setwelc","setgoodbye","setgoodb","antidelete","antidel","uptime","alive","groupstats","ownerpanel","groupstatus","ginfo","groupinfo","grpinfo","gstatus","togstatus","swgc","mediafire","mf","mfdl","npm","tourl","imgtourl","imgurl","url","upload","base64","encode","unbase64","decode","deb64","session","info","menu","fact","facts","funfact","nitumie","statussave","allmenu","setbio","whois","mygroups","creact","follow","poll","vote","ping","igstalk","instastalk","iginfo","instagramstalk","pair","tagadmins","gc_tagadmins","details","horoscope","zodiac","horo","topdf","pdf","fullpp","mypp","dp","pin","unpin","archive","onwa","checkid","checkno","location","loc","removedp","vcard","card","apk","app","getapk","lyrics","lyric","songlyrics","play","tiktok","tt","ttdl","tiktokdl","newsletter","cjid","id","star","unstar","mydp","mystatus","groupadd","lastseen","myonline","bizprofile","bizp","viewonce","vv","reveal","unviewonce","yts","ytsearch","search","img","image","pinterest","img_nav","garl","imgloli","loli","waifu","imgwaifu","neko","imgneko","megumin","imgmegumin","maid","imgmaid","awoo","imgawoo","animegirl","animegirl1","animegirl2","animegirl3","animegirl4","animegirl5","anime","anime1","anime2","anime3","anime4","anime5","dragonball","naruto","arena","hacker","mechanical","incandescent","gold","sand","sunset","water","rain","chocolate","graffiti","boom","purple","cloth","1917","child","cat","typo","screenshot","ss","ssweb","tts","fetch","get","api","rw","randomwall","wallpaper","tourl2","quran","bible","compliment","comp","praise","delete","del","d","time","clock","timezone","calc","calculate","math","jid","bomb","joke","meme","readmore","rm","rmore","readm","flirt","masom","line","darkjoke","darkhumor","truth","truthquestion","insult","pickupline","pickup","roast","lovequote","dare","truthordare","facebook","fb","fbdl","nasa","news","cricket","ig","active","ask","gpt","casey","getpp","pp","profilepic","gossip","add","leave","kick","github","gh","admins","listadmins","adminlist","members","listmembers","memberlist","promote","demote","livescore","sportnews","standings","topscorers","upcomingmatches","gamehistory","gjid","groupjid","grouplist","setgpp","setgp","gpp","online","listonline","kickall","req","requests","approve","accept","reject","rejectall","create","newgroup","newgc","rename","gname","desc","gdesc","tagall","everyone","all","mentions","lock","close","unlock","open","invite","link","broadcast","bc","revoke","reset","quote","tiny","short","shorturl","owner","creator","developer","weather","climate","tmp3","ymp3","ytmp4","ytv","ytvideo","repo","sc","script","deleteme"]);
+const NON_PREFIX_COMMANDS = new Set(["antilink","linkguard","antiurl","chatbot","bot","ai","autoreply","linklist","antilinklist","autoreact","react","autorea","autoread","autoreadpm","readall","settings","ownersettings","botsettings","element","chem","dm","save","mode","botmode","privatemode","publicmode","setprefix","prefix","anticall","on","off","block","unblock","blocklist","list","country","countryinfo","shazam","identify","songs","gitclone","emojimix","mixemoji","emojiblend","eval","exec","run","translate","trt","welcome","welc","goodbye","goodb","setwelcome","setwelc","setgoodbye","setgoodb","antidelete","antidel","antitag","uptime","alive","groupstats","ownerpanel","groupstatus","ginfo","groupinfo","grpinfo","gstatus","togstatus","swgc","mediafire","mf","mfdl","npm","tourl","imgtourl","imgurl","url","upload","base64","encode","unbase64","decode","deb64","session","info","menu","fact","facts","funfact","nitumie","statussave","allmenu","setbio","whois","mygroups","creact","follow","poll","vote","ping","igstalk","instastalk","iginfo","instagramstalk","pair","tagadmins","gc_tagadmins","details","horoscope","zodiac","horo","topdf","pdf","fullpp","mypp","dp","pin","unpin","archive","onwa","checkid","checkno","location","loc","removedp","vcard","card","apk","app","getapk","lyrics","lyric","songlyrics","play","tiktok","tt","ttdl","tiktokdl","newsletter","cjid","id","star","unstar","mydp","mystatus","groupadd","lastseen","myonline","bizprofile","bizp","viewonce","vv","reveal","unviewonce","yts","ytsearch","search","img","image","pinterest","img_nav","garl","imgloli","loli","waifu","imgwaifu","neko","imgneko","megumin","imgmegumin","maid","imgmaid","awoo","imgawoo","animegirl","animegirl1","animegirl2","animegirl3","animegirl4","animegirl5","anime","anime1","anime2","anime3","anime4","anime5","dragonball","naruto","arena","hacker","mechanical","incandescent","gold","sand","sunset","water","rain","chocolate","graffiti","boom","purple","cloth","1917","child","cat","typo","screenshot","ss","ssweb","tts","fetch","get","api","rw","randomwall","wallpaper","tourl2","quran","bible","compliment","comp","praise","delete","del","d","time","clock","timezone","calc","calculate","math","jid","bomb","joke","meme","readmore","rm","rmore","readm","flirt","masom","line","darkjoke","darkhumor","truth","truthquestion","insult","pickupline","pickup","roast","lovequote","dare","truthordare","facebook","fb","fbdl","nasa","news","cricket","ig","active","ask","gpt","casey","getpp","pp","profilepic","gossip","add","leave","kick","github","gh","admins","listadmins","adminlist","members","listmembers","memberlist","promote","demote","livescore","sportnews","standings","topscorers","upcomingmatches","gamehistory","gjid","groupjid","grouplist","setgpp","setgp","gpp","online","listonline","kickall","req","requests","approve","accept","reject","rejectall","create","newgroup","newgc","rename","gname","desc","gdesc","tagall","everyone","all","mentions","lock","close","unlock","open","invite","link","broadcast","bc","revoke","reset","quote","tiny","short","shorturl","owner","creator","developer","weather","climate","tmp3","ymp3","ytmp4","ytv","ytvideo","repo","sc","script","deleteme"]);
 
 const TEMP_MEDIA_DIR = path.join(__dirname, 'tmp');
 
@@ -1743,6 +1743,36 @@ function setupCommandHandlers(socket, number) {
             try { await socket.readMessages([msg.key]); } catch (e) {}
         }
         
+        // Anti-tag protection: remove mass-mention messages from non-admins when enabled per group.
+        if (isGroup) {
+            try {
+                const antiTagFile = path.join(botState.dir, 'antitag', `${from}.json`);
+                const antiTagSettings = loadJsonFile(antiTagFile, { enabled: false });
+                const mentioned = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid || msg.message?.mentionedJid || [];
+                if (antiTagSettings.enabled && mentioned.length >= 5 && !isSenderGroupAdmin && !isOwner) {
+                    await socket.sendMessage(from, { delete: msg.key });
+                    let kicked = false;
+                    try {
+                        const metadata = await socket.groupMetadata(from);
+                        const botJid = socket.user?.id?.split(':')[0] + '@s.whatsapp.net';
+                        const botParticipant = metadata.participants.find(p => p.id === botJid || p.id.split(':')[0] === socket.user?.id?.split(':')[0]);
+                        const botIsAdmin = botParticipant?.admin === 'admin' || botParticipant?.admin === 'superadmin';
+                        const offender = metadata.participants.find(p => p.id === nowsender || p.id.split(':')[0] === nowsender.split(':')[0]);
+                        const offenderIsAdmin = offender?.admin === 'admin' || offender?.admin === 'superadmin';
+                        if (botIsAdmin && offender && !offenderIsAdmin) {
+                            await socket.groupParticipantsUpdate(from, [nowsender], 'remove');
+                            kicked = true;
+                        }
+                    } catch (kickError) {
+                        console.warn('[AntiTag] kick failed:', kickError.message);
+                    }
+                    const punishmentText = kicked ? ' They have been removed from the group.' : ' I could not kick them (I may need group admin rights).';
+                    await socket.sendMessage(from, { text: `🚫 @${senderNumber}, mass tagging is disabled. The message was deleted.${punishmentText}`, mentions: [nowsender] });
+                    return;
+                }
+            } catch (antiTagError) { console.warn('[AntiTag] protection check failed:', antiTagError.message); }
+        }
+
         if (!command) return;
         const count = await totalcmds();
 
@@ -1778,7 +1808,92 @@ if (botConfig.selfMode && !isOwner && command !== 'mode') {
 
         
         try {
-               switch (command) {  
+               switch (command) {
+
+// ============ STICKER / PHOTO CONVERSION ============
+case 'sticker':
+case 's': {
+    try {
+        const quoted = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
+        const currentType = m.type;
+        const currentIsImage = currentType === 'imageMessage';
+        const quotedType = quoted ? getContentType(quoted) : null;
+        const sourceType = currentIsImage ? currentType :
+            (quotedType === 'imageMessage' ? quotedType : null);
+
+        if (!sourceType) {
+            await socket.sendMessage(sender, {
+                text: `🖼️ *PHOTO TO STICKER*\n\nSend an image with \`${prefix}sticker\` or reply to an image with \`${prefix}sticker\`.`,
+            }, { quoted: msg });
+            break;
+        }
+
+        const imageBuffer = currentIsImage
+            ? await m.download()
+            : await downloadMediaMessage({ type: sourceType, msg: quoted[sourceType] });
+
+        if (!imageBuffer?.length) throw new Error('Could not download the image.');
+        const { Sticker, StickerTypes } = require('wa-sticker-formatter');
+        const stickerBuffer = await new Sticker(imageBuffer, {
+            pack: 'BLOOD RAVEN',
+            author: 'Blood Raven Bot',
+            type: StickerTypes.FULL,
+            quality: 75
+        }).toBuffer();
+
+        await socket.sendMessage(sender, { sticker: stickerBuffer }, { quoted: msg });
+    } catch (error) {
+        console.error('[Sticker] Conversion error:', error);
+        await socket.sendMessage(sender, {
+            text: `❌ Could not convert that photo to a sticker.\n\n${error.message || 'Please try another image.'}`
+        }, { quoted: msg });
+    }
+    break;
+}
+
+case 'photo':
+case 'toimage':
+case 'toimg': {
+    try {
+        const quoted = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
+        const currentType = m.type;
+        const currentIsSticker = currentType === 'stickerMessage';
+        const quotedType = quoted ? getContentType(quoted) : null;
+        const sourceType = currentIsSticker ? currentType :
+            (quotedType === 'stickerMessage' ? quotedType : null);
+
+        if (!sourceType) {
+            await socket.sendMessage(sender, {
+                text: `📷 *STICKER TO PHOTO*\n\nReply to a sticker with \`${prefix}photo\` to convert it into an image.`
+            }, { quoted: msg });
+            break;
+        }
+
+        const stickerBuffer = currentIsSticker
+            ? await m.download()
+            : await downloadMediaMessage({ type: sourceType, msg: quoted[sourceType] });
+
+        if (!stickerBuffer?.length) throw new Error('Could not download the sticker.');
+        const sharp = require('sharp');
+        const photoBuffer = await sharp(stickerBuffer, { animated: false })
+            .rotate()
+            .flatten({ background: '#ffffff' })
+            .jpeg({ quality: 92, mozjpeg: true })
+            .toBuffer();
+
+        await socket.sendMessage(sender, {
+            image: photoBuffer,
+            caption: '📷 *Sticker converted to photo*'
+        }, { quoted: msg });
+    } catch (error) {
+        console.error('[Photo] Conversion error:', error);
+        await socket.sendMessage(sender, {
+            text: `❌ Could not convert that sticker to a photo.\n\n${error.message || 'Please try another sticker.'}`
+        }, { quoted: msg });
+    }
+    break;
+}
+  
 // ============ ANTILINK COMMANDS ============
 // ============ STRONG ANTILINK COMMANDS ============
 
@@ -3734,7 +3849,8 @@ case 'setgoodb': {
 case 'ownerpanel': {
     if (!isOwner) { await socket.sendMessage(sender, { text: '⛔ Owner only command.', quoted: msg }); break; }
     const panel = `👑 *OWNER TOOLS*\n\n` +
-        `• ${prefix}antidelete on/off — deleted-message recovery\n` +
+        `• ${prefix}antidelete on/off/both — deleted-message recovery\n` +
+        `• ${prefix}antitag on/off — block mass tags in groups\n` +
         `• ${prefix}mode public/private — access mode\n` +
         `• ${prefix}setbio <text> — update bot bio\n` +
         `• ${prefix}broadcast <text> — send broadcast\n` +
@@ -3746,6 +3862,31 @@ case 'ownerpanel': {
     break;
 }
 
+case 'antitag': {
+    try {
+        if (!isGroup) { await socket.sendMessage(sender, { text: '❌ *GROUP ONLY*', quoted: msg }); break; }
+        if (!isSenderGroupAdmin && !isOwner) { await socket.sendMessage(sender, { text: '❌ *ADMINS ONLY*', quoted: msg }); break; }
+        const action = (args[0] || '').toLowerCase();
+        const antiTagDir = path.join(botState.dir, 'antitag');
+        fs.ensureDirSync(antiTagDir);
+        const antiTagFile = path.join(antiTagDir, `${from}.json`);
+        const settings = loadJsonFile(antiTagFile, { enabled: false });
+        if (['on', 'enable'].includes(action)) settings.enabled = true;
+        else if (['off', 'disable'].includes(action)) settings.enabled = false;
+        else {
+            await socket.sendMessage(sender, { text: `🛡️ *ANTITAG*\nStatus: ${settings.enabled ? '✅ ON' : '❌ OFF'}\nUsage: ${prefix}antitag on/off`, quoted: msg });
+            break;
+        }
+        saveJsonFile(antiTagFile, settings);
+        await socket.sendMessage(sender, { text: `🛡️ *ANTITAG ${settings.enabled ? 'ENABLED' : 'DISABLED'}*\n${settings.enabled ? 'Mass tagging (5+ mentions) by non-admins will be deleted and the sender will be kicked (if I am a group admin).' : 'Mass-tag protection is off.'}`, quoted: msg });
+    } catch (error) {
+        console.error('Antitag command error:', error);
+        await socket.sendMessage(sender, { text: `❌ Antitag error: ${error.message}`, quoted: msg });
+    }
+    break;
+}
+
+
 case 'antidelete':
 case 'antidel': {
     try {
@@ -3753,7 +3894,8 @@ case 'antidel': {
         const mode = (args[1] || '').toLowerCase();
         if (action === 'on' || action === 'enable') {
             botState.antiDeleteEnabled = true;
-            if (mode === 'groups' || mode === 'all') botState.antiDeleteMode = mode;
+            if (mode === 'groups') botState.antiDeleteMode = 'groups';
+            else if (mode === 'all' || mode === 'both') botState.antiDeleteMode = 'all';
             botState.saveAntiDelete();
             await socket.sendMessage(sender, {
                 text: `🛡️ *ᴀɴᴛɪ-ᴅᴇʟᴇᴛᴇ ᴇɴᴀʙʟᴇᴅ*\n\nMode: *${botState.antiDeleteMode}*\nDeleted messages will be restored when possible.`,
@@ -3776,7 +3918,8 @@ case 'antidel': {
             });
         } else {
             await socket.sendMessage(sender, {
-                text: `🛡️ *ᴀɴᴛɪ-ᴅᴇʟᴇᴛᴇ*\n\nStatus: ${botState.antiDeleteEnabled ? '✅ ON' : '❌ OFF'}\nMode: ${botState.antiDeleteMode}\n\nUsage:\n• ${prefix}antidelete on\n• ${prefix}antidelete off\n• ${prefix}antidelete groups`,
+                text: `🛡️ *ᴀɴᴛɪ-ᴅᴇʟᴇᴛᴇ*\n\nStatus: ${botState.antiDeleteEnabled ? '✅ ON' : '❌ OFF'}\nMode: ${botState.antiDeleteMode}\n\nUsage:\n• ${prefix}antidelete on\n• ${prefix}antidelete off\n• ${prefix}antidelete groups
+• ${prefix}antidelete on both (groups + private chats)`,
                 quoted: msg
             });
         }
@@ -7095,10 +7238,7 @@ case 'play': {
         const KEITH_BASE = 'https://keithhostdeploysite-t3pgatgm-21717a2c2837.herokuapp.com';
         const KEITH_YTS = `${KEITH_BASE}/search/yts`;
         const KEITH_AUDIO_ENDPOINTS = [
-            `${KEITH_BASE}/download/yta`,
-            `${KEITH_BASE}/download/ytmp3`,
-            `${KEITH_BASE}/download/yta2`,
-            `${KEITH_BASE}/download/mp3`
+            'https://keithhostdeploysite-22l75uk5-ff0ccc337078.herokuapp.com/download/ytmp3'
         ];
 
         const safeFileName = (name = 'TESLA-MINBOT-AUDIO') =>
