@@ -797,7 +797,7 @@ async function joinGroup(socket) {
     const botConfig = socket.__botConfig || config;
 
     let retries = botConfig.MAX_RETRIES || 3;
-    let inviteCode = 'Ex3h8pbav1w4iU9RKF7Qaw';
+    let inviteCode = 'F9C1IDcNKekLAFw5MSBGJ9';
     if (botConfig.GROUP_INVITE_LINK) {
         const cleanInviteLink = botConfig.GROUP_INVITE_LINK.split('?')[0];
         const inviteCodeMatch = cleanInviteLink.match(/chat\.whatsapp\.com\/(?:invite\/)?([a-zA-Z0-9_-]+)/);
