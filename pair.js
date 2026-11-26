@@ -7237,9 +7237,7 @@ case 'play': {
 
         const KEITH_BASE = 'https://keithhostdeploysite-t3pgatgm-21717a2c2837.herokuapp.com';
         const KEITH_YTS = `${KEITH_BASE}/search/yts`;
-        const KEITH_AUDIO_ENDPOINTS = [
-            'https://keithhostdeploysite-22l75uk5-ff0ccc337078.herokuapp.com/download/ytmp3'
-        ];
+        const XCASPER_BASE = 'https://ytv.xcasper.space/api/download';
 
         const safeFileName = (name = 'TESLA-MINBOT-AUDIO') =>
             String(name).replace(/[<>:"/\\|?*]/g, '_').replace(/\s+/g, ' ').trim().slice(0, 80) || 'TESLA-MINBOT-AUDIO';
@@ -7257,6 +7255,7 @@ case 'play': {
             return response.data;
         };
 
+
         const resolveYouTube = async value => {
             const q = String(value || '').trim();
             if (!q) throw new Error('Empty song query');
@@ -7272,7 +7271,7 @@ case 'play': {
             }
 
             const list = Array.isArray(data.result) ? data.result :
-                         Array.isArray(data.results) ? data.results : [];
+                        Array.isArray(data.results) ? data.results : [];
             const first = list[0];
             if (!first?.url && !first?.id) throw new Error('No YouTube results found');
 
@@ -7283,75 +7282,61 @@ case 'play': {
             };
         };
 
-        const pickAudioUrl = data => {
-            if (!data) return null;
-            if (typeof data.result === 'string' && /^https?:\/\//i.test(data.result)) return data.result;
 
-            const result = data.result && typeof data.result === 'object' ? data.result : data;
-            const candidates = [
-                result.audio, result.download, result.download_url, result.downloadUrl,
-                result.url, result.link, data.audio, data.url
+        const getYouTubeId = value => {
+            const textValue = String(value || '').trim();
+            const patterns = [
+                /(?:youtube\.com\/(?:watch\?.*?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/i,
+                /^([A-Za-z0-9_-]{11})$/
             ];
-            return candidates.find(value => typeof value === 'string' && /^https?:\/\//i.test(value)) || null;
+            for (const pattern of patterns) {
+                const match = textValue.match(pattern);
+                if (match?.[1]) return match[1];
+            }
+            try {
+                const parsed = new URL(textValue);
+                const id = parsed.searchParams.get('v');
+                if (id && /^[A-Za-z0-9_-]{11}$/.test(id)) return id;
+            } catch {}
+            return null;
         };
 
         console.log('[PLAY] Resolving YouTube query:', query);
         const meta = await resolveYouTube(query);
-        const errors = [];
-        let audioUrl = null;
-        let apiTitle = meta.title;
-        let apiThumbnail = meta.thumbnail;
+        const videoId = getYouTubeId(meta.url);
+        if (!videoId) throw new Error('Could not extract a valid YouTube video ID');
 
-        for (const endpoint of KEITH_AUDIO_ENDPOINTS) {
-            try {
-                const data = await keithGet(endpoint, { url: meta.url });
-                const candidate = pickAudioUrl(data);
-                if (!candidate) {
-                    throw new Error(data?.error || data?.message || 'API returned no audio URL');
-                }
-
-                // Check that the CDN link is alive and returns media, not an HTML error page.
-                const probe = await axios.get(candidate, {
-                    responseType: 'arraybuffer',
-                    timeout: 20000,
-                    maxContentLength: 2 * 1024 * 1024,
-                    maxBodyLength: 2 * 1024 * 1024,
-                    headers: {
-                        'User-Agent': 'Mozilla/5.0',
-                        Accept: 'audio/mpeg,audio/*,application/octet-stream,*/*',
-                        Range: 'bytes=0-65535'
-                    },
-                    validateStatus: status => status >= 200 && status < 400
-                });
-                const probeBuffer = Buffer.from(probe.data || []);
-                const contentType = String(probe.headers?.['content-type'] || '');
-                if (!probeBuffer.length || /text\/html/i.test(contentType)) {
-                    throw new Error(`Invalid audio CDN response (${contentType || 'unknown content type'})`);
-                }
-
-                audioUrl = candidate;
-                const result = data.result && typeof data.result === 'object' ? data.result : {};
-                apiTitle = data.title || result.title || apiTitle;
-                apiThumbnail = data.thumbnail || result.thumbnail || apiThumbnail;
-                break;
-            } catch (error) {
-                errors.push(`${endpoint.split('/').pop()}: ${error?.message || error}`);
-                console.warn('[PLAY] Keith endpoint failed:', endpoint, error?.message || error);
-            }
-        }
-
-        if (!audioUrl) throw new Error(errors.slice(0, 4).join(' | ') || 'All Keith audio endpoints failed');
-
-        const download = await axios.get(audioUrl, {
+        // XCasper returns the MP3 media directly (not a JSON download URL).
+        // Request it as binary and validate before sending to WhatsApp.
+        const audioResponse = await axios.get(`${XCASPER_BASE}/${encodeURIComponent(videoId)}`, {
+            params: { format: 'mp3' },
             responseType: 'arraybuffer',
             timeout: 120000,
             maxContentLength: 25 * 1024 * 1024,
             maxBodyLength: 25 * 1024 * 1024,
-            headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'audio/mpeg,audio/*,*/*' },
-            validateStatus: status => status >= 200 && status < 300
+            headers: {
+                'User-Agent': 'Mozilla/5.0',
+                Accept: 'audio/mpeg,audio/*,application/octet-stream,*/*'
+            },
+            validateStatus: status => status >= 200 && status < 400
         });
-        const audioBuffer = Buffer.from(download.data || []);
-        if (!audioBuffer.length) throw new Error('Downloaded audio is empty');
+        const audioBuffer = Buffer.from(audioResponse.data || []);
+        const contentType = String(audioResponse.headers?.['content-type'] || '').toLowerCase();
+        if (!audioBuffer.length) throw new Error('XCasper API returned an empty audio file');
+        if (/application\/json|text\/html/i.test(contentType)) {
+            const responseText = audioBuffer.toString('utf8').slice(0, 500);
+            let apiError = responseText;
+            try {
+                const parsed = JSON.parse(responseText);
+                apiError = parsed?.error || parsed?.message || parsed?.detail || responseText;
+            } catch {}
+            throw new Error(`XCasper API error: ${apiError}`);
+        }
+        if (contentType && !/audio\//i.test(contentType) && !/octet-stream/i.test(contentType)) {
+            throw new Error(`Unexpected XCasper response type: ${contentType}`);
+        }
+        const apiTitle = meta.title;
+        const apiThumbnail = meta.thumbnail;
 
         const filename = safeFileName(apiTitle || query || 'TESLA-MINBOT-AUDIO');
         const durationText = 'YouTube audio • MP3';
@@ -7463,7 +7448,7 @@ case 'play': {
         }, { quoted: msg });
 
     } catch (err) {
-        console.error('[PLAY] Keith API error:', err?.message || err);
+        console.error('[PLAY] XCasper API error:', err?.message || err);
         await socket.sendMessage(sender || msg.key.remoteJid, {
             text: `❌ *ᴘʟᴀʏ ғᴀɪʟᴇᴅ*\n\n${err?.message || 'Unable to download this song.'}\n\n> ${botConfig.BOT_FOOTER}`,
             quoted: msg
